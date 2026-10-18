@@ -233,7 +233,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     private String minDecodeTimeFullLog = "";
 
     private long lastNetDataNum;
-    private LinkedBlockingQueue<Integer> outputBufferQueue = new LinkedBlockingQueue<>();
+    private final LinkedBlockingQueue<Integer> outputBufferQueue = new LinkedBlockingQueue<>();
     private static final int OUTPUT_BUFFER_QUEUE_LIMIT = 2;
     private long lastRenderedFrameTimeNanos;
     private HandlerThread choreographerHandlerThread;
@@ -1100,7 +1100,9 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                 // Input and output buffers are invalidated by stop() and reset().
                 nextInputBuffer = null;
                 nextInputBufferIndex = -1;
-                outputBufferQueue.clear();
+                synchronized (outputBufferQueue) {
+                    outputBufferQueue.clear();
+                }
 
                 // If we just need a flush, do so now with all threads quiesced.
                 if (codecRecoveryType.get() == CR_RECOVERY_TYPE_FLUSH) {
@@ -1361,18 +1363,30 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             // NB: Since the queue limit is 2, we won't starve the decoder of output buffers
             // by holding onto them for too long. This also ensures we will have that 1 extra
             // frame of buffer to smooth over network/rendering jitter.
-            Integer nextOutputBuffer = outputBufferQueue.poll();
-            if (preferLowerDelays) {
-                // "Prefer lower delays": show the newest decoded frame and drop any older ones
-                // queued in front of it, giving up Balanced's extra frame of buffering for latency.
-                Integer newerOutputBuffer;
-                while (nextOutputBuffer != null && (newerOutputBuffer = outputBufferQueue.poll()) != null) {
+            Integer nextOutputBuffer;
+            java.util.ArrayList<Integer> staleOutputBuffers = null;
+            synchronized (outputBufferQueue) {
+                nextOutputBuffer = outputBufferQueue.poll();
+                if (preferLowerDelays) {
+                    // "Prefer lower delays": show the newest decoded frame and drop any older ones
+                    // queued in front of it, giving up Balanced's extra frame of buffering for latency.
+                    Integer newerOutputBuffer;
+                    while (nextOutputBuffer != null && (newerOutputBuffer = outputBufferQueue.poll()) != null) {
+                        if (staleOutputBuffers == null) {
+                            staleOutputBuffers = new java.util.ArrayList<>();
+                        }
+                        staleOutputBuffers.add(nextOutputBuffer);
+                        nextOutputBuffer = newerOutputBuffer;
+                    }
+                }
+            }
+            if (staleOutputBuffers != null) {
+                for (Integer stale : staleOutputBuffers) {
                     try {
-                        videoDecoder.releaseOutputBuffer(nextOutputBuffer, false);
+                        videoDecoder.releaseOutputBuffer(stale, false);
                     } catch (IllegalStateException ignored) {
                         // The release of the newest one below will surface a codec failure
                     }
-                    nextOutputBuffer = newerOutputBuffer;
                 }
             }
             if (nextOutputBuffer != null) {
@@ -1550,17 +1564,22 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                                 // NB: We have to do this on the producer side because the consumer may not
                                 // run for a while (if there is a huge mismatch between stream FPS and display
                                 // refresh rate).
-                                if (outputBufferQueue.size() == OUTPUT_BUFFER_QUEUE_LIMIT) {
-                                    try {
-                                        videoDecoder.releaseOutputBuffer(outputBufferQueue.take(), false);
-                                        frameDropped = true;
-                                    } catch (InterruptedException e) {
-                                        return;
+                                //
+                                // The check, the removal and the add are atomic with respect to the
+                                // display thread's poll(), so it never sees a stale size or an empty
+                                // queue while the replacement frame is not yet published.
+                                Integer discardedIndex = null;
+                                synchronized (outputBufferQueue) {
+                                    if (outputBufferQueue.size() >= OUTPUT_BUFFER_QUEUE_LIMIT) {
+                                        discardedIndex = outputBufferQueue.poll();
                                     }
+                                    outputBufferQueue.add(lastIndex);
                                 }
-
-                                // Add this buffer
-                                outputBufferQueue.add(lastIndex);
+                                if (discardedIndex != null) {
+                                    // Release outside the lock so a slow codec call can't block display
+                                    videoDecoder.releaseOutputBuffer(discardedIndex, false);
+                                    frameDropped = true;
+                                }
                                 // NB: in BALANCED non presentiamo qui; lasciamo il fallback stats sotto
                             }
 
@@ -1785,6 +1804,11 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             MoonBridge.pyroWaveStop();
             return;
         }
+        // Queued indices die with this stream; don't offer them to a late callback.
+        synchronized (outputBufferQueue) {
+            outputBufferQueue.clear();
+        }
+
         // Reconnecting: keep the codec, and with it the last frame on the surface, for the next
         // connection. Its pending buffers belong to the dead stream, so flush them first. A codec
         // that renders into the upscaler cannot be kept: the upscaler goes with this connection.
