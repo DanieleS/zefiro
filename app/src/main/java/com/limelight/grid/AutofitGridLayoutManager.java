@@ -12,8 +12,8 @@ import com.limelight.library.GridSpanRule;
  * GridView's numColumns="auto_fit" did. The span is recomputed on every layout pass, so
  * the grid reflows across rotations and different panels without being told a fixed count.
  *
- * <p>The count comes from a {@link GridSpanRule}, given the grid's width in dp, padding
- * excluded. The rule is asked during layout, before any child is laid out, so the adapter binding
+ * <p>The count comes from a {@link GridSpanRule}, given the grid's width and height in dp,
+ * padding excluded. The rule is asked during layout, before any child is laid out, so the adapter binding
  * those children can read {@link #getSpanCount()} and size its covers for the columns they will
  * actually have.
  */
@@ -30,8 +30,10 @@ public class AutofitGridLayoutManager extends GridLayoutManager {
     @Override
     public void onLayoutChildren(RecyclerView.Recycler recycler, RecyclerView.State state) {
         int usable = getWidth() - getPaddingLeft() - getPaddingRight();
+        int tall = Math.max(0, getHeight() - getPaddingTop() - getPaddingBottom());
         if (usable > 0) {
-            setSpanCount(Math.max(1, rule.spanCount(Math.round(usable / density))));
+            setSpanCount(Math.max(1, rule.spanCount(Math.round(usable / density),
+                    Math.round(tall / density))));
         }
         super.onLayoutChildren(recycler, state);
     }

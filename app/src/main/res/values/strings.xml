@@ -836,6 +836,12 @@
     <string name="companion_play">Play</string>
     <string name="companion_play_on">Start on %1$s</string>
     <string name="companion_focused">Focused</string>
+    <!-- The same over a See all tile: its place in the grid, "Focused · 4 of 12". -->
+    <string name="companion_focused_position">Focused · %1$d of %2$d</string>
+    <!-- Under a game's name when the host has no metadata for it: when this device last played it. -->
+    <string name="companion_last_played">Last played %1$s</string>
+    <!-- The hosts row's last chip, which adds a PC; spoken as pcs_add_pc. -->
+    <string name="companion_add_host_glyph" translatable="false">+</string>
     <string name="companion_hosts">Hosts</string>
     <string name="companion_host_a11y">%1$s, %2$s</string>
     <string name="companion_host_selected_a11y">%1$s, %2$s, selected</string>
@@ -1076,6 +1082,11 @@
         <item quantity="one">%1$s · %2$d game</item>
         <item quantity="other">%1$s · %2$d games</item>
     </plurals>
+    <!-- The same on a phone in portrait, on a line of its own under the toolbar: and the order. -->
+    <plurals name="library_see_all_subtitle_order">
+        <item quantity="one">%1$s · %2$d game · %3$s</item>
+        <item quantity="other">%1$s · %2$d games · %3$s</item>
+    </plurals>
     <!-- Spoken for the sort chip, which shows only the current order. -->
     <string name="library_sort_a11y">Sort by, now %1$s</string>
     <string name="library_show_hidden">Show hidden games</string>
@@ -1108,6 +1119,10 @@
     <string name="library_all_games">All games</string>
     <!-- The All games shelf's way to the grid: its header link and its trailing tile. -->
     <string name="library_see_all_count">See all · %d</string>
+    <!-- Recently played's way to See all, in recent order: the glyph alone, as in the mocks. -->
+    <string name="library_shelf_more" translatable="false">›</string>
+    <!-- A shelf's label with a detail after it, on a wide window: "All games · Taverna". -->
+    <string name="library_shelf_label_detail">%1$s · %2$s</string>
     <!-- The host sheet (X anywhere in the Library, or the host chip). -->
     <string name="library_host_sheet_title">PCs</string>
     <!-- Spoken for a host row: the name, then what its status dot shows. -->

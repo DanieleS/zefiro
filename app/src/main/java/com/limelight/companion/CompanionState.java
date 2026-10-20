@@ -359,9 +359,20 @@ public class CompanionState {
         public final Bitmap backdrop;
         /** Whether {@link #appId} is the game the host is running: Resume and Quit, not Play. */
         public final boolean running;
+        /** Where the game is in the list it was focused in, from 0; -1 when that is not told. */
+        public final int position;
+        /** How many games that list has; 0 when not told. */
+        public final int count;
 
         public Browsing(Kind kind, String hostUuid, int appId, String title, String meta,
                         String descriptionHtml, Bitmap backdrop, boolean running) {
+            this(kind, hostUuid, appId, title, meta, descriptionHtml, backdrop, running, -1, 0);
+        }
+
+        /** As the other, with the game's place in its list ("Focused · 4 of 12"). */
+        public Browsing(Kind kind, String hostUuid, int appId, String title, String meta,
+                        String descriptionHtml, Bitmap backdrop, boolean running, int position,
+                        int count) {
             if (kind == null) {
                 throw new IllegalArgumentException("kind must not be null");
             }
@@ -373,6 +384,14 @@ public class CompanionState {
             this.descriptionHtml = descriptionHtml;
             this.backdrop = backdrop;
             this.running = running;
+            boolean placed = position >= 0 && position < count;
+            this.position = placed ? position : -1;
+            this.count = placed ? count : 0;
+        }
+
+        /** Whether the game's place in its list is known. */
+        public boolean hasPosition() {
+            return position >= 0;
         }
 
         /** Nothing in particular: the app's name over the hosts row. */
@@ -382,7 +401,8 @@ public class CompanionState {
 
         public Browsing withBackdrop(Bitmap next) {
             return next == backdrop ? this
-                    : new Browsing(kind, hostUuid, appId, title, meta, descriptionHtml, next, running);
+                    : new Browsing(kind, hostUuid, appId, title, meta, descriptionHtml, next, running,
+                            position, count);
         }
 
         /** Whether the panel has a game here to play, resume or quit. */
@@ -437,6 +457,8 @@ public class CompanionState {
             return kind == that.kind
                     && appId == that.appId
                     && running == that.running
+                    && position == that.position
+                    && count == that.count
                     && backdrop == that.backdrop
                     && Objects.equals(hostUuid, that.hostUuid)
                     && Objects.equals(title, that.title)
@@ -447,7 +469,7 @@ public class CompanionState {
         @Override
         public int hashCode() {
             return Objects.hash(kind, hostUuid, appId, title, meta, descriptionHtml,
-                    System.identityHashCode(backdrop), running);
+                    System.identityHashCode(backdrop), running, position, count);
         }
 
         @Override

@@ -13,6 +13,7 @@ import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
 
 import com.limelight.R;
+import com.limelight.grid.AppSortOrder;
 import com.limelight.main.MainHost;
 import com.limelight.main.SectionFocus;
 import com.limelight.main.SectionKeys;
@@ -28,7 +29,7 @@ import com.limelight.main.SectionKeys;
  * work to do here.
  *
  * <pre>
- *   [Home] ──"See all"──▶ [Home (hidden), See all] ──back──▶ [Home]
+ *   [Home] ──"See all"──▶ [Home (hidden), See all] ──back, or Library again──▶ [Home]
  * </pre>
  *
  * See all is added over the home, which is hidden rather than replaced: its views, its shelves'
@@ -76,6 +77,16 @@ public class LibraryFragment extends Fragment implements SectionKeys, SectionFoc
      * it is already up does nothing.
      */
     public void showSeeAll() {
+        showSeeAll(null);
+    }
+
+    /**
+     * As {@link #showSeeAll()}, listing the games in this order for as long as the grid is up,
+     * without changing the library's own (Recently played's "›" opens it in recent order).
+     *
+     * @param order the order to open in; null for the library's
+     */
+    public void showSeeAll(@Nullable AppSortOrder order) {
         if (!isAdded() || isStateSaved()) {
             return;
         }
@@ -89,7 +100,7 @@ public class LibraryFragment extends Fragment implements SectionKeys, SectionFoc
         if (home != null) {
             tx.hide(home);
         }
-        tx.add(R.id.libraryContainer, new SeeAllFragment(), TAG_SEE_ALL)
+        tx.add(R.id.libraryContainer, SeeAllFragment.newInstance(order), TAG_SEE_ALL)
                 .addToBackStack(TAG_SEE_ALL)
                 .commit();
         // Run now, so See all's view exists for the focus posted below.
@@ -97,6 +108,20 @@ public class LibraryFragment extends Fragment implements SectionKeys, SectionFoc
         View view = getView();
         if (view != null) {
             view.post(this::requestInitialFocus);
+        }
+    }
+
+    /**
+     * Goes back to the home: pops See all when it is up, and does nothing otherwise. The
+     * Library's navigation item chosen again, the touch way back where See all has no arrow.
+     */
+    public void showHome() {
+        if (!isAdded() || isStateSaved()) {
+            return;
+        }
+        FragmentManager children = getChildFragmentManager();
+        if (children.findFragmentByTag(TAG_SEE_ALL) != null) {
+            children.popBackStack(TAG_SEE_ALL, FragmentManager.POP_BACK_STACK_INCLUSIVE);
         }
     }
 

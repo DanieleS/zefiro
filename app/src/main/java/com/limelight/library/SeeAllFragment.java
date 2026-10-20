@@ -1,6 +1,7 @@
 package com.limelight.library;
 
 import android.content.Context;
+import android.content.res.Configuration;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -26,10 +27,13 @@ import com.limelight.main.MainHost;
 import com.limelight.main.Section;
 import com.limelight.main.SectionFocus;
 import com.limelight.main.SectionKeys;
+import com.limelight.main.WindowClass;
+import com.limelight.nvstream.http.NvApp;
 import com.limelight.ui.MenuSheet;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -45,8 +49,23 @@ import java.util.List;
  * <pre>
  *   A / tap           LaunchController.onTileClicked: start, resume, or the actions sheet
  *   Y / long-press    the game's actions sheet
- *   the sort chip     the orders, and "Show hidden games" (what "View all apps" was)
+ *   the sort chip     the orders, and "Show hidden games" (what "View all apps" was); on a
+ *                     compact window the toolbar's sort button, beside its search button
  * </pre>
+ *
+ * <h3>Header</h3>
+ *
+ * Its shape follows the window (see fragment_see_all): the sort chip beside the title where
+ * there is the rail, a toolbar over a line of its own for the host, the count and the order on a
+ * phone in portrait, where one row would cut the count off. The "sort control" below is
+ * whichever of the chip and the button is shown.
+ *
+ * <h3>Order</h3>
+ *
+ * The grid lists the games in the library's order, the one the sort sheet sets for every list of
+ * the host. Opened from Recently played's "›" it lists them by when they were last played
+ * instead, for as long as it is up ({@link #newInstance}), without touching the library's
+ * order; picking an order in the sheet goes back to the library's.
  *
  * <h3>Focus</h3>
  *
@@ -61,7 +80,9 @@ import java.util.List;
  * <h3>In the Library's stack</h3>
  *
  * The Library's home pushes it, from the All games shelf's link or its trailing tile, and back
- * pops it; the back arrow shows only when there is something under it to go back to. X raises
+ * pops it; the back arrow (compact only) shows only when there is something under it to go back
+ * to. On a d-pad-first screen (the Thor with its companion panel) the first tile is focused as
+ * it opens, even from a tap, so the panel shows a game and the grid its focus ring. X raises
  * the host sheet here as on the home; the Library's frame handles it for both.
  *
  * Main thread only; every callback checks that the view still exists.
@@ -70,6 +91,7 @@ public class SeeAllFragment extends Fragment
         implements SectionKeys, SectionFocus, GameGridAdapter.Listener, HostStatePanel.Listener {
 
     private static final int NO_APP = Integer.MIN_VALUE;
+    private static final String ARG_ORDER = "order";
 
     private MainHost host;
 
@@ -82,12 +104,26 @@ public class SeeAllFragment extends Fragment
     @Nullable
     private TextView subtitle;
     @Nullable
+    private TextView subtitleLine;
+    @Nullable
     private MaterialButton sortChip;
+    @Nullable
+    private View sortIcon;
+    @Nullable
+    private View searchButton;
+    @Nullable
+    private View toolbarSpace;
+    @Nullable
+    private View backButton;
+    private boolean compact;
 
     // The last state drawn, kept to tell what changed on the next one.
     @Nullable
     private HostLibrary.Snapshot snapshot;
     private boolean showHidden;
+    // The order this grid was opened in, over the library's; null for the library's own.
+    @Nullable
+    private AppSortOrder orderOverride;
     private int drawnArtVersion;
     @Nullable
     private Object drawnStandIns;
@@ -105,8 +141,40 @@ public class SeeAllFragment extends Fragment
     private boolean lastFocusedChip;
     // Initial focus went to the chip only for want of a tile; hand it on when one arrives.
     private boolean focusAwaitingTiles;
+    // A d-pad-first screen's opening focus, taken out of touch mode, is placed once.
+    private boolean openFocusPlaced;
 
     public SeeAllFragment() {
+    }
+
+    /**
+     * See all in the library's order, or in this one while it is up.
+     *
+     * @param order the order to list the games in; null for the library's
+     */
+    @NonNull
+    public static SeeAllFragment newInstance(@Nullable AppSortOrder order) {
+        SeeAllFragment fragment = new SeeAllFragment();
+        if (order != null) {
+            Bundle args = new Bundle();
+            args.putString(ARG_ORDER, order.name());
+            fragment.setArguments(args);
+        }
+        return fragment;
+    }
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        Bundle args = getArguments();
+        String order = args != null ? args.getString(ARG_ORDER) : null;
+        if (order != null) {
+            try {
+                orderOverride = AppSortOrder.valueOf(order);
+            } catch (IllegalArgumentException e) {
+                orderOverride = null;
+            }
+        }
     }
 
     @Override
@@ -130,7 +198,11 @@ public class SeeAllFragment extends Fragment
         super.onViewCreated(view, savedInstanceState);
         grid = view.findViewById(R.id.seeAllGrid);
         subtitle = view.findViewById(R.id.seeAllSubtitle);
+        subtitleLine = view.findViewById(R.id.seeAllSubtitleLine);
         sortChip = view.findViewById(R.id.seeAllSort);
+        sortIcon = view.findViewById(R.id.seeAllSortIcon);
+        searchButton = view.findViewById(R.id.seeAllSearch);
+        toolbarSpace = view.findViewById(R.id.seeAllToolbarSpace);
         panel = new HostStatePanel(view.findViewById(R.id.hostStatePanel), this);
 
         adapter = new GameGridAdapter(this);
@@ -149,25 +221,29 @@ public class SeeAllFragment extends Fragment
         grid.setFocusable(false);
 
         // Touch only: B is back for a d-pad, and a focusable arrow would be one more stop
-        // between the chip and the grid.
-        View back = view.findViewById(R.id.seeAllBack);
-        boolean stacked = getParentFragmentManager().getBackStackEntryCount() > 0;
-        back.setVisibility(stacked ? View.VISIBLE : View.GONE);
-        back.setOnClickListener(v -> requireActivity().getOnBackPressedDispatcher().onBackPressed());
+        // between the sort control and the grid.
+        backButton = view.findViewById(R.id.seeAllBack);
+        backButton.setOnClickListener(v ->
+                requireActivity().getOnBackPressedDispatcher().onBackPressed());
+        searchButton.setOnClickListener(v -> host.showSection(Section.SEARCH));
 
-        sortChip.setOnClickListener(v -> showSortSheet());
-        sortChip.setOnFocusChangeListener((v, hasFocus) -> {
-            if (hasFocus) {
-                lastFocusedChip = true;
-                // No game under the d-pad: the companion panel shows the selected host.
-                host.gameFocus().focusHost(null);
-            } else {
-                focusAwaitingTiles = false;
-            }
-        });
-        sortChip.setOnKeyListener((v, keyCode, event) -> keyCode == KeyEvent.KEYCODE_DPAD_DOWN
-                && event.getAction() == KeyEvent.ACTION_DOWN
-                && focusRememberedTile());
+        // The chip and the toolbar's button are one control in two shapes.
+        for (View sort : new View[] {sortChip, sortIcon}) {
+            sort.setOnClickListener(v -> showSortSheet());
+            sort.setOnFocusChangeListener((v, hasFocus) -> {
+                if (hasFocus) {
+                    lastFocusedChip = true;
+                    // No game under the d-pad: the companion panel shows the selected host.
+                    host.gameFocus().focusHost(null);
+                } else {
+                    focusAwaitingTiles = false;
+                }
+            });
+            sort.setOnKeyListener((v, keyCode, event) -> keyCode == KeyEvent.KEYCODE_DPAD_DOWN
+                    && event.getAction() == KeyEvent.ACTION_DOWN
+                    && focusRememberedTile());
+        }
+        applyWindow();
 
         HostRepository repository = host.hostRepository();
         repository.getLibrary().observe(getViewLifecycleOwner(), s -> {
@@ -191,7 +267,12 @@ public class SeeAllFragment extends Fragment
         adapter = null;
         panel = null;
         subtitle = null;
+        subtitleLine = null;
         sortChip = null;
+        sortIcon = null;
+        searchButton = null;
+        toolbarSpace = null;
+        backButton = null;
         drawnOrder = null;
         drawnStandIns = null;
         submittedSnapshot = null;
@@ -200,7 +281,53 @@ public class SeeAllFragment extends Fragment
         super.onDestroyView();
     }
 
+    @Override
+    public void onConfigurationChanged(@NonNull Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        // The activity handles rotation itself, so the header is shaped again here.
+        applyWindow();
+        render();
+    }
+
     // --- Drawing ---
+
+    /** The header's shape for the window: see fragment_see_all. */
+    private void applyWindow() {
+        if (subtitle == null || subtitleLine == null || toolbarSpace == null
+                || searchButton == null || backButton == null || sortChip == null
+                || sortIcon == null) {
+            return;
+        }
+        View focus = getActivity() != null ? requireActivity().getCurrentFocus() : null;
+        boolean sortFocused = focus != null && (focus == sortChip || focus == sortIcon);
+        compact = WindowClass.from(getResources().getConfiguration().screenWidthDp)
+                == WindowClass.COMPACT;
+        boolean stacked = getParentFragmentManager().getBackStackEntryCount() > 0;
+        backButton.setVisibility(compact && stacked ? View.VISIBLE : View.GONE);
+        subtitle.setVisibility(compact ? View.GONE : View.VISIBLE);
+        toolbarSpace.setVisibility(compact ? View.VISIBLE : View.GONE);
+        subtitleLine.setVisibility(compact ? View.VISIBLE : View.GONE);
+        searchButton.setVisibility(compact ? View.VISIBLE : View.GONE);
+        // The sort control's own visibility follows whether there is anything to sort; see
+        // renderHeader. Here only which of the two it is, and focus moves along with it.
+        boolean sortable = sortChip.getVisibility() == View.VISIBLE
+                || sortIcon.getVisibility() == View.VISIBLE;
+        sortChip.setVisibility(sortable && !compact ? View.VISIBLE : View.GONE);
+        sortIcon.setVisibility(sortable && compact ? View.VISIBLE : View.GONE);
+        View control = visibleChip();
+        if (sortFocused && control != null && control != focus) {
+            control.requestFocus();
+        }
+    }
+
+    /** The order the grid lists the games in: the one it was opened in, or the library's. */
+    @Nullable
+    private AppSortOrder order(@Nullable HostLibrary.Snapshot s) {
+        if (orderOverride != null) {
+            return orderOverride;
+        }
+        return s != null ? s.sortOrder : null;
+    }
 
     private void render() {
         if (!isAdded() || getView() == null || adapter == null || panel == null || grid == null) {
@@ -219,13 +346,19 @@ public class SeeAllFragment extends Fragment
         }
 
         List<LibraryApp> visible = visibleApps(s, showHidden);
+        if (orderOverride != null && s != null && library != null) {
+            final Comparator<NvApp> by =
+                    orderOverride.comparator(s.metadata, library.getLaunchHistory());
+            visible = new ArrayList<>(visible);
+            Collections.sort(visible, (a, b) -> by.compare(a.app, b.app));
+        }
         HostEntry entry = s != null ? repository.getHost(s.hostUuid) : null;
         String hostName = entry != null ? entry.details.name : null;
 
         View focus = requireActivity().getCurrentFocus();
         boolean focusInGrid = grid.hasFocus();
         boolean focusInPanel = panel.contains(focus);
-        boolean focusWaiting = focusAwaitingTiles && focus != null && focus == sortChip;
+        boolean focusWaiting = focusAwaitingTiles && focus != null && isSortControl(focus);
         HostStatePanel.Mode previous = panel.mode();
         HostStatePanel.Mode mode = HostStatePanel.modeFor(s, visible.size());
         boolean allHidden = s != null && !s.apps.isEmpty() && visible.isEmpty();
@@ -238,10 +371,10 @@ public class SeeAllFragment extends Fragment
         }
 
         if (s != null && library != null) {
-            if (drawnOrder != null && s.sortOrder != drawnOrder) {
+            if (drawnOrder != null && order(s) != drawnOrder) {
                 reorderPending = true;
             }
-            drawnOrder = s.sortOrder;
+            drawnOrder = order(s);
         }
         // The host list is published on every poll of every host; only a new snapshot or a new
         // filter is a new list for the grid, so the diff is not run every 1.5 s for nothing.
@@ -310,24 +443,36 @@ public class SeeAllFragment extends Fragment
 
     private void renderHeader(@Nullable HostLibrary.Snapshot s, @Nullable String hostName,
                               int count, boolean sortable) {
-        if (subtitle == null || sortChip == null) {
+        if (subtitle == null || subtitleLine == null || sortChip == null || sortIcon == null) {
             return;
         }
+        AppSortOrder by = order(s);
+        // The order is kept by the open library; with none there is nothing to sort.
+        boolean canSort = s != null && sortable && by != null;
+        String order = canSort ? getString(by.getLabelRes()) : null;
         if (s == null || hostName == null) {
             subtitle.setText(null);
+            subtitleLine.setText(null);
         } else {
             subtitle.setText(getResources().getQuantityString(
                     R.plurals.library_see_all_subtitle, count, hostName, count));
+            // The line has the room for the order too, which the toolbar's button does not show.
+            subtitleLine.setText(order != null
+                    ? getResources().getQuantityString(R.plurals.library_see_all_subtitle_order,
+                            count, hostName, count, order)
+                    : subtitle.getText());
         }
-        // The order is kept by the open library; with none there is nothing to sort.
-        if (s == null || !sortable) {
+        if (!canSort) {
             sortChip.setVisibility(View.GONE);
+            sortIcon.setVisibility(View.GONE);
             return;
         }
-        String order = getString(s.sortOrder.getLabelRes());
+        String a11y = getString(R.string.library_sort_a11y, order);
         sortChip.setText(order);
-        sortChip.setContentDescription(getString(R.string.library_sort_a11y, order));
-        sortChip.setVisibility(View.VISIBLE);
+        sortChip.setContentDescription(a11y);
+        sortIcon.setContentDescription(a11y);
+        sortChip.setVisibility(compact ? View.GONE : View.VISIBLE);
+        sortIcon.setVisibility(compact ? View.VISIBLE : View.GONE);
     }
 
     /** The games the grid lists: every game, or the ones not hidden. */
@@ -359,7 +504,7 @@ public class SeeAllFragment extends Fragment
         if (!isOnScreen() || adapter.getItemCount() == 0) {
             return;
         }
-        final View chip = sortChip;
+        final View chip = visibleChip();
         if (focusAwaitingTiles && chip != null && chip.isFocused()) {
             focusAwaitingTiles = false;
             // One more pass, so the first tile's view exists to be focused.
@@ -414,14 +559,30 @@ public class SeeAllFragment extends Fragment
         // The orders that rank by Playnite metadata are listed even on stock hosts: they fall
         // back to the name there, which is a sane result rather than an empty library.
         MenuSheet sheet = new MenuSheet(requireContext()).setTitle(getString(R.string.title_sort_order));
+        final AppSortOrder current = order(s);
         for (final AppSortOrder order : AppSortOrder.values()) {
-            sheet.addChecked(getString(order.getLabelRes()), order == s.sortOrder,
-                    () -> library.setSortOrder(order));
+            sheet.addChecked(getString(order.getLabelRes()), order == current,
+                    () -> chooseOrder(library, order));
         }
         final boolean showing = showHidden;
         sheet.addChecked(getString(R.string.library_show_hidden), showing,
                 () -> host.setShowHiddenGames(!showing));
         sheet.showCentered(requireContext());
+    }
+
+    /** An order picked in the sheet: the library's from now on, this grid's opening one gone. */
+    private void chooseOrder(@NonNull HostLibrary library, @NonNull AppSortOrder order) {
+        if (orderOverride != null) {
+            orderOverride = null;
+            Bundle args = getArguments();
+            if (args != null) {
+                args.remove(ARG_ORDER);
+            }
+            // The library may already be in that order, and then no new snapshot comes.
+            submittedSnapshot = null;
+            render();
+        }
+        library.setSortOrder(order);
     }
 
     // --- Tiles ---
@@ -440,7 +601,10 @@ public class SeeAllFragment extends Fragment
     public void onTileFocused(@NonNull LibraryApp app) {
         lastFocusedAppId = app.appId();
         lastFocusedChip = false;
-        host.gameFocus().focusGame(app);
+        // Where it is in the grid, for the panel's "Focused · 4 of 12".
+        int position = adapter != null ? adapter.positionOf(app.appId()) : RecyclerView.NO_POSITION;
+        host.gameFocus().focusGame(app, position,
+                adapter != null && position != RecyclerView.NO_POSITION ? adapter.getItemCount() : 0);
     }
 
     // --- The host state panel ---
@@ -533,8 +697,18 @@ public class SeeAllFragment extends Fragment
         if (target == null) {
             return;
         }
-        boolean waiting = target == sortChip && (adapter == null || adapter.getItemCount() == 0);
-        if (target.requestFocus()) {
+        boolean waiting = isSortControl(target) && (adapter == null || adapter.getItemCount() == 0);
+        boolean placed;
+        if (!openFocusPlaced && target.isInTouchMode() && !isSortControl(target)
+                && host.isDpadFirst()) {
+            // Opened by a tap on a d-pad-first screen: requestFocus would refuse in touch mode,
+            // and the panel would show the host, not the game the grid is on. Once.
+            openFocusPlaced = true;
+            placed = target.requestFocusFromTouch();
+        } else {
+            placed = target.requestFocus();
+        }
+        if (placed) {
             focusAwaitingTiles = waiting;
         }
     }
@@ -587,9 +761,17 @@ public class SeeAllFragment extends Fragment
         return first.isShown() ? first : null;
     }
 
+    /** The sort control shown: the chip, or the compact toolbar's button; null for none. */
     @Nullable
     private View visibleChip() {
-        return sortChip != null && sortChip.getVisibility() == View.VISIBLE ? sortChip : null;
+        if (sortChip != null && sortChip.getVisibility() == View.VISIBLE) {
+            return sortChip;
+        }
+        return sortIcon != null && sortIcon.getVisibility() == View.VISIBLE ? sortIcon : null;
+    }
+
+    private boolean isSortControl(@Nullable View view) {
+        return view != null && (view == sortChip || view == sortIcon);
     }
 
     // Shown to the user: added, with a view, and neither this screen nor the Library section

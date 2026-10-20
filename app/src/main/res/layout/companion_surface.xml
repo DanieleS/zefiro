@@ -33,8 +33,9 @@
     <!--
         Browsing surface, after the approved Shelves and See all mocks' bottom screen: what the
         main screen is on, read from the top left. For a game, a "Focused" label, its name, a
-        meta line (year · genres · score) and its description, then Play (or Resume and Quit
-        game while it runs) at the foot; for a host, its name and state. With nothing to show it
+        meta line (year · genres · score, or when it was last played without metadata) and its
+        description, then Play (or Resume and Quit game while it runs) at the foot, or under the
+        meta line when there is no description; for a host, its name and state. With nothing to show it
         falls back to the app name, centred, so it is never empty. The hosts row sits at the
         bottom of it all while browsing.
     -->
@@ -89,8 +90,8 @@
             <!--
                 The description is as long as the host makes it, so it scrolls rather than
                 truncating. It takes the space the title, meta line and actions leave it, and
-                scrolls beyond that; without one, the spacer below takes that space instead. The
-                fading edge is what tells the reader there is more below.
+                scrolls beyond that; without one, the actions follow the meta line straight on.
+                The fading edge is what tells the reader there is more below.
             -->
             <ScrollView
                 android:id="@+id/companionIdleDescriptionScroll"
@@ -113,14 +114,6 @@
                     android:textSize="16sp" />
 
             </ScrollView>
-
-            <!-- Pushes the actions to the foot of the column when there is no description. -->
-            <Space
-                android:id="@+id/companionIdleSpacer"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:visibility="gone" />
 
             <!--
                 The browsed game's actions: Play, across the column, or Resume and Quit game for
@@ -197,7 +190,8 @@
 
         <!--
             The hosts row: every known PC as a compact chip (item_companion_host), the selected
-            one in the signal, under a "Hosts" label. A tap selects that PC on the main screen.
+            one in the signal, then a "+" that adds a PC, under a "Hosts" label. A tap selects
+            that PC on the main screen.
             It scrolls sideways when there are more PCs than fit, and is gone when not browsing.
         -->
         <LinearLayout

@@ -176,6 +176,9 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
         void quit(CompanionState.Browsing browsing);
 
         void selectHost(String hostUuid);
+
+        /** The hosts row's "+": add a PC. */
+        void addHost();
     }
 
     /**
@@ -215,6 +218,12 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
     static void onBrowsingSelectHost(String hostUuid) {
         if (instance != null && instance.browsingActions != null && hostUuid != null) {
             instance.browsingActions.selectHost(hostUuid);
+        }
+    }
+
+    static void onBrowsingAddHost() {
+        if (instance != null && instance.browsingActions != null) {
+            instance.browsingActions.addHost();
         }
     }
 

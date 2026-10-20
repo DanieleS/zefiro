@@ -15,6 +15,14 @@ package com.limelight.library;
  *   720 and up                                      6 or 7   one per 150dp, kept within 6..7
  * </pre>
  *
+ * <h3>Short windows</h3>
+ *
+ * A phone in landscape is as wide as the Thor but much shorter: at the Thor's six columns its
+ * covers are so tall that not even two rows fit, and the screen reads zoomed in. A grid more than
+ * twice as wide as it is tall gets one column more, up to seven, as the See all mock's landscape
+ * frame draws it; the Thor's grid, at under twice, keeps its six. The height is the grid's own
+ * too, under the header, and an unknown one (0, before the first layout) adds nothing.
+ *
  * The width is the grid's, never the screen's: the rail takes part of a wide window, and a
  * multi-window split takes more. It is an interface so a layout manager can be handed the rule
  * rather than a column width; {@link #SEE_ALL} is the one the See all grid uses.
@@ -28,14 +36,14 @@ package com.limelight.library;
  */
 public interface GridSpanRule {
 
-    /** The See all grid's rule, {@link #spans}. */
+    /** The See all grid's rule, {@link #spans(int, int)}. */
     GridSpanRule SEE_ALL = GridSpanRule::spans;
 
-    /** The tiles a shelf shows across, {@link #shelfTiles}. */
-    GridSpanRule SHELF = GridSpanRule::shelfTiles;
+    /** The tiles a shelf shows across, {@link #shelfTiles}; a row has no height to fit. */
+    GridSpanRule SHELF = (widthDp, heightDp) -> shelfTiles(widthDp);
 
-    /** The column count for a grid this many dp wide; at least 1. */
-    int spanCount(int widthDp);
+    /** The column count for a grid this many dp wide and tall (0 when unknown); at least 1. */
+    int spanCount(int widthDp, int heightDp);
 
     /** The bucket rule above. */
     static int spans(int widthDp) {
@@ -46,6 +54,15 @@ public interface GridSpanRule {
             return 5;
         }
         return Math.max(6, Math.min(7, widthDp / 150));
+    }
+
+    /** The bucket rule, with one column more for a short window (see the class comment). */
+    static int spans(int widthDp, int heightDp) {
+        int columns = spans(widthDp);
+        if (widthDp >= 720 && heightDp > 0 && widthDp > 2 * heightDp) {
+            return Math.min(7, columns + 1);
+        }
+        return columns;
     }
 
     /** How many tiles a shelf this many dp wide shows across: one more than the grid's columns. */

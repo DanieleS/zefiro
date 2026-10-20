@@ -2,6 +2,8 @@ package com.limelight.library;
 
 import android.content.Context;
 import android.content.res.Configuration;
+import android.content.res.Resources;
+import android.graphics.Rect;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -21,6 +23,7 @@ import com.limelight.R;
 import com.limelight.computers.HostEntry;
 import com.limelight.computers.HostLibrary;
 import com.limelight.computers.HostRepository;
+import com.limelight.grid.AppSortOrder;
 import com.limelight.main.MainHost;
 import com.limelight.main.Section;
 import com.limelight.main.SectionFocus;
@@ -40,21 +43,29 @@ import java.util.Objects;
  *
  * <pre>
  *   HeaderAdapter       "Library"                                        [● Taverna ▾]
+ *                                                       (none on a short window, see below)
  *   HeroAdapter         the game the host is running: Continue · Resume · Quit game   (or none)
  *   StatePanelAdapter   offline, not paired, connecting, no games…                   (or none)
- *   ShelfAdapter        Recently played                                               (or none)
+ *   ShelfAdapter        Recently played                              ›                (or none)
  *   ShelfAdapter        All games                  See all · N   …  [See all · N]     (or none)
  * </pre>
  *
  * <h3>Shape</h3>
  *
- * The shelves take the window's shape ({@link #shapeShelves}):
+ * The rows take the window's shape ({@link #applyWindow}, {@link #shapeShelves}):
  *
  * <pre>
  *   wide window      two rows of tiles, their height capped so the header, the hero when there
- *                    is one, and both shelves fit the window's height, down to a floor
- *   compact window   Recently played a row, All games a three-column grid of three rows
- *                    whose last cell is "See all", as the phone frame of the Shelves mock
+ *                    is one, and both shelves fit the window's height. When they would be
+ *                    shorter than a floor (a hero over a phone in landscape), the first shelf
+ *                    takes the room under the hero and the second scrolls into view, as the
+ *                    mocks draw a hero over one shelf. All games names the host after it.
+ *   short window     the same, without the header row: a phone in landscape, whose mock has
+ *                    no page title and lets the rail say where the user is
+ *   compact window   Recently played a row, All games a three-column grid of two rows whose
+ *                    last cell is "See all", so a phone in portrait shows it whole above the
+ *                    bottom bar (the Shelves mock's phone frame has one row, and no such cell:
+ *                    here it is the d-pad's way to the grid, as on the wide shelf)
  * </pre>
  *
  * Like See all it reads the shared {@code HostRepository}'s snapshot, launches through the
@@ -68,6 +79,7 @@ import java.util.Objects;
  *   Resume / Quit game        the running game, resumed or quit (after a confirmation)
  *   the host chip, X          the host sheet (X is the Library's, see LibraryFragment)
  *   the "See all" tile/link   See all, pushed over this screen
+ *   Recently played's "›"     See all in recent order (touch only)
  * </pre>
  *
  * <h3>Focus</h3>
@@ -113,10 +125,11 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
     private static final int TILE_VIEW_TYPE = 0;
     // All games on a compact window: a grid of this many columns by rows.
     private static final int COMPACT_GRID_COLUMNS = 3;
-    private static final int COMPACT_GRID_ROWS = 3;
-    // The shortest a tile gets to make two shelves fit a wide window; past it, the second shelf
-    // scrolls into view instead.
-    private static final int MIN_TILE_HEIGHT_DP = 80;
+    private static final int COMPACT_GRID_ROWS = 2;
+    // The shortest a tile gets to make two shelves fit a wide window; past it, the first shelf
+    // takes the room and the second scrolls into view. A tile with no cover shows its title
+    // instead, which has to stay readable at this size.
+    private static final int MIN_TILE_HEIGHT_DP = 112;
 
     private MainHost host;
 
@@ -164,6 +177,11 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
     @Nullable
     private View placedFocus;
     private boolean shapePosted;
+    // The rows above the shelves as last laid out, each kept while it is off screen; see
+    // shapeShelves.
+    private int headerHeight;
+    private int heroHeight;
+    private int panelHeight;
 
     public LibraryHomeFragment() {
     }
@@ -194,8 +212,9 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
         header = new HeaderAdapter(this);
         hero = new HeroAdapter(this);
         panel = new StatePanelAdapter(this);
-        recent = new ShelfAdapter(R.string.library_recently_played, tiles, this, null);
-        all = new ShelfAdapter(R.string.library_all_games, tiles, this, this::openSeeAll);
+        recent = new ShelfAdapter(R.string.library_recently_played, tiles, this,
+                this::openSeeAllRecent, false);
+        all = new ShelfAdapter(R.string.library_all_games, tiles, this, this::openSeeAll, true);
 
         list.setLayoutManager(new LinearLayoutManager(requireContext()) {
             @Override
@@ -207,6 +226,21 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
             }
         });
         list.setAdapter(new ConcatAdapter(header, hero, panel, recent, all));
+        // The space between the two shelves: above All games while Recently played is over it.
+        // Not padding at each shelf's foot, which would leave it under the last one too.
+        final int shelfSpacing = getResources().getDimensionPixelSize(R.dimen.shelf_spacing);
+        list.addItemDecoration(new RecyclerView.ItemDecoration() {
+            @Override
+            public void getItemOffsets(@NonNull Rect outRect, @NonNull View child,
+                                       @NonNull RecyclerView parent, @NonNull RecyclerView.State state) {
+                RecyclerView.ViewHolder holder = parent.getChildViewHolder(child);
+                if (holder instanceof ShelfAdapter.Holder && holder.getBindingAdapter() == all
+                        && recent != null && recent.isShown()) {
+                    outRect.top = shelfSpacing;
+                }
+            }
+        });
+        applyWindow();
         // A row changes in place (the chip, a shelf's count); the default change animation would
         // swap the focused view for a new one while a poll lands.
         RecyclerView.ItemAnimator animator = list.getItemAnimator();
@@ -295,6 +329,8 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
         if (hero != null && hero.getItemCount() > 0) {
             hero.notifyItemChanged(0);
         }
+        applyWindow();
+        render();
         shapeShelvesSoon();
     }
 
@@ -322,6 +358,20 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
 
     // --- Drawing ---
 
+    /** The header row for the window: gone on a short one (see the class comment). */
+    private void applyWindow() {
+        if (header == null) {
+            return;
+        }
+        Configuration config = getResources().getConfiguration();
+        header.setShown(!WindowClass.isShortWide(config.screenWidthDp, config.screenHeightDp));
+    }
+
+    private boolean isCompact() {
+        return WindowClass.from(getResources().getConfiguration().screenWidthDp)
+                == WindowClass.COMPACT;
+    }
+
     private void shapeShelvesSoon() {
         if (shapePosted || list == null) {
             return;
@@ -337,37 +387,54 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
     /**
      * Gives the shelves the window's shape (see the class comment). In a wide window the tiles'
      * height is what the list's height leaves two shelves once the rows above them (the header,
-     * the hero, the state panel) and each shelf's own label and spacing are taken out. The rows
-     * above are measured as laid out, so the hero coming or going resizes the tiles.
+     * the hero, the state panel), each shelf's own label and the space between them are taken
+     * out; below the floor, what it leaves the first shelf alone.
+     *
+     * <p>Each row above is measured when it is laid out, and that height is kept for it while
+     * it is scrolled off and recycled: summing only the rows still attached would grow the
+     * shelves as the d-pad goes down and shrink them on the way back, moving the tiles under it.
+     * A row counts while its adapter has it, so the hero coming or going resizes the tiles.
      */
     private void shapeShelves() {
         if (!isAdded() || list == null || recent == null || all == null) {
             return;
         }
-        boolean compact = WindowClass.from(getResources().getConfiguration().screenWidthDp)
-                == WindowClass.COMPACT;
-        if (compact) {
+        if (isCompact()) {
             recent.setShape(0, 0, 0);
             all.setShape(COMPACT_GRID_COLUMNS, COMPACT_GRID_ROWS, 0);
             return;
         }
         int height = list.getHeight() - list.getPaddingTop() - list.getPaddingBottom();
-        if (height <= 0) {
+        int shelves = (recent.isShown() ? 1 : 0) + (all.isShown() ? 1 : 0);
+        if (height <= 0 || shelves == 0 || header == null || hero == null || panel == null) {
             return;
         }
-        int above = 0;
         for (int i = 0; i < list.getChildCount(); i++) {
             View child = list.getChildAt(i);
-            if (!(list.getChildViewHolder(child) instanceof ShelfAdapter.Holder)) {
-                above += child.getHeight();
+            RecyclerView.Adapter<?> row = list.getChildViewHolder(child).getBindingAdapter();
+            if (row == header) {
+                headerHeight = child.getHeight();
+            } else if (row == hero) {
+                heroHeight = child.getHeight();
+            } else if (row == panel) {
+                panelHeight = child.getHeight();
             }
         }
-        android.content.res.Resources res = getResources();
+        int above = (header.getItemCount() > 0 ? headerHeight : 0)
+                + (hero.getItemCount() > 0 ? heroHeight : 0)
+                + (panel.getItemCount() > 0 ? panelHeight : 0);
+        Resources res = getResources();
+        // A shelf's label row, and the half gap each tile carries above and below it.
         int shelfChrome = res.getDimensionPixelSize(R.dimen.action_size)
-                + res.getDimensionPixelSize(R.dimen.shelf_spacing)
                 + res.getDimensionPixelSize(R.dimen.see_all_tile_gap);
+        int spacing = res.getDimensionPixelSize(R.dimen.shelf_spacing);
         int floor = Math.round(MIN_TILE_HEIGHT_DP * res.getDisplayMetrics().density);
-        int tileHeight = Math.max(floor, (height - above) / 2 - shelfChrome);
+        int room = height - above;
+        int tileHeight = (room - (shelves - 1) * spacing) / shelves - shelfChrome;
+        if (tileHeight < floor) {
+            tileHeight = room - shelfChrome;
+        }
+        tileHeight = Math.max(floor, tileHeight);
         recent.setShape(0, 0, tileHeight);
         all.setShape(0, 0, tileHeight);
     }
@@ -399,6 +466,10 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
         HostEntry entry = hostUuid != null ? repository.getHost(hostUuid) : null;
         String hostName = entry != null ? entry.details.name : null;
         header.bind(hostName, entry != null ? entry.details : null, s != null, requireContext());
+        // A wide window names the host after All games, as the wide mocks do; on a short one
+        // there is no chip above to name it.
+        all.setLabelDetail(isCompact() ? null : hostName);
+        boolean recentWasShown = recent.isShown();
 
         View focus = requireActivity().getCurrentFocus();
         boolean focusInContent = focus != null && isInList(focus) && !header.isChip(focus);
@@ -421,6 +492,10 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
                 recent.submit(Collections.<LibraryApp>emptyList(), 0);
                 all.submit(Collections.<LibraryApp>emptyList(), 0);
             }
+        }
+        if (recent.isShown() != recentWasShown) {
+            // The space above All games follows whether Recently played is over it.
+            list.invalidateItemDecorations();
         }
 
         // Covers moved on the host's side (landed on disk, or found to be its stand-in): the
@@ -577,6 +652,14 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
         LibraryFragment library = libraryFrame();
         if (library != null) {
             library.showSeeAll();
+        }
+    }
+
+    /** Recently played's "›": the whole grid, by when each game was last played. */
+    private void openSeeAllRecent() {
+        LibraryFragment library = libraryFrame();
+        if (library != null) {
+            library.showSeeAll(AppSortOrder.RECENT);
         }
     }
 

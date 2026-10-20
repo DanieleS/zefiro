@@ -256,8 +256,10 @@ public class MainActivity extends AppCompatActivity
         railPaddingTop = railColumn.getPaddingTop();
 
         navChrome = new NavChrome(railColumn, navRail, findViewById(R.id.navRailSettings),
-                navBottom, this);
-        navChrome.apply(WindowClass.from(getResources().getConfiguration().screenWidthDp));
+                findViewById(R.id.navAvatar), navBottom, this);
+        Configuration config = getResources().getConfiguration();
+        navChrome.apply(WindowClass.from(config.screenWidthDp),
+                WindowClass.isShortWide(config.screenWidthDp, config.screenHeightDp));
         installInsets();
         applySystemBars();
 
@@ -353,12 +355,16 @@ public class MainActivity extends AppCompatActivity
     public void onConfigurationChanged(@NonNull Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         WindowClass next = WindowClass.from(newConfig.screenWidthDp);
+        boolean shortWindow = WindowClass.isShortWide(newConfig.screenWidthDp,
+                newConfig.screenHeightDp);
         if (next == navChrome.windowClass()) {
+            // The same widgets; only the avatar may come or go.
+            navChrome.apply(next, shortWindow);
             return;
         }
         View focused = getCurrentFocus();
         boolean focusInChrome = focused != null && !isInSection(focused);
-        navChrome.apply(next);
+        navChrome.apply(next, shortWindow);
         applySystemBars();
         ViewCompat.requestApplyInsets(root);
         // Focus on the widget that was just hidden would be stranded; the d-pad starts again
@@ -636,6 +642,15 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onSettingsChosen() {
         startActivity(new Intent(this, StreamSettings.class));
+    }
+
+    @Override
+    public void onSectionReselected(@NonNull Section section) {
+        // The Library goes back to its home from See all; the other sections have one screen.
+        Fragment fragment = navigator.fragment(section);
+        if (fragment instanceof LibraryFragment) {
+            ((LibraryFragment) fragment).showHome();
+        }
     }
 
     private void updateBackEnabled() {

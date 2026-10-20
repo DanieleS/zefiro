@@ -24,7 +24,8 @@ import java.util.Locale;
  *
  * <p>"Profile" is a settings profile, not an account: the old screens showed it as a labelled
  * button in their top bars, and on the narrow rail the initial stands in for the name. A compact
- * window has no rail, and reaches Profiles from Settings instead.
+ * window has no rail, and a short one (a phone in landscape) leaves the avatar out, as its mock
+ * does (see NavChrome); both reach Profiles from Settings instead.
  *
  * <h3>Listening</h3>
  *

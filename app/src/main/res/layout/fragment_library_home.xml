@@ -6,7 +6,8 @@
     lot and every row is laid out, and recycled, only when it is on screen.
 
     The list itself never takes focus (its rows do), so an empty home never swallows the first
-    d-pad press.
+    d-pad press. Its foot padding is the gutter less the half gap each tile carries below it, so
+    the last row of covers ends one gutter above the window's edge.
 -->
 <androidx.recyclerview.widget.RecyclerView xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/libraryHomeList"
@@ -15,5 +16,5 @@
     android:background="@color/surface_deep"
     android:clipToPadding="false"
     android:focusable="false"
-    android:paddingBottom="@dimen/section_gutter"
+    android:paddingBottom="@dimen/see_all_grid_padding"
     android:scrollbars="none" />

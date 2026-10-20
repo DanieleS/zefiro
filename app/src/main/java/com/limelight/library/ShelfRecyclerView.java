@@ -170,7 +170,7 @@ public class ShelfRecyclerView extends RecyclerView implements GameGridAdapter.F
             int usable = MeasureSpec.getSize(widthSpec) - getPaddingLeft() - getPaddingRight();
             float density = getResources().getDisplayMetrics().density;
             int across = gridColumns > 0
-                    ? gridColumns : GridSpanRule.SHELF.spanCount(Math.round(usable / density));
+                    ? gridColumns : GridSpanRule.SHELF.spanCount(Math.round(usable / density), 0);
             // Each tile carries half the gap on either side (GridSpacingItemDecoration).
             int width = Math.max(1, usable / Math.max(1, across) - gapPx);
             if (gridColumns == 0 && maxTileHeightPx > 0) {

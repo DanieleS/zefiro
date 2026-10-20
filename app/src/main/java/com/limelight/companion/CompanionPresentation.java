@@ -78,8 +78,7 @@ public class CompanionPresentation extends android.app.Presentation
 
     private View idleView;
     private LinearLayout idleColumnView;
-    private View idleLabelView;
-    private View idleSpacerView;
+    private TextView idleLabelView;
     private TextView idleTitleView;
     private TextView idleMetaView;
     private TextView idleDescriptionView;
@@ -257,7 +256,6 @@ public class CompanionPresentation extends android.app.Presentation
         idleView = findViewById(R.id.companionIdle);
         idleColumnView = findViewById(R.id.companionIdleColumn);
         idleLabelView = findViewById(R.id.companionIdleLabel);
-        idleSpacerView = findViewById(R.id.companionIdleSpacer);
         idleTitleView = findViewById(R.id.companionIdleTitle);
         idleMetaView = findViewById(R.id.companionIdleMeta);
         idleDescriptionView = findViewById(R.id.companionIdleDescription);
@@ -403,7 +401,12 @@ public class CompanionPresentation extends android.app.Presentation
                 } else {
                     showSpotlight(browsing.title, browsing.meta, browsing.descriptionHtml,
                             browsing.backdrop);
-                    // "Focused" names a game the d-pad is on; a host is the fallback, unlabelled.
+                    // "Focused" names a game the d-pad is on, with its place in the grid when
+                    // See all told it; a host is the fallback, unlabelled.
+                    idleLabelView.setText(browsing.hasPosition()
+                            ? getContext().getString(R.string.companion_focused_position,
+                                    browsing.position + 1, browsing.count)
+                            : getContext().getString(R.string.companion_focused));
                     idleLabelView.setVisibility(browsing.kind == CompanionState.Browsing.Kind.GAME
                             && browsing.title != null && !browsing.title.isEmpty()
                             ? View.VISIBLE : View.GONE);
@@ -681,7 +684,6 @@ public class CompanionPresentation extends android.app.Presentation
         if (title == null || title.isEmpty()) {
             // Nothing to show: the app name alone, in the middle of the panel.
             idleColumnView.setGravity(Gravity.CENTER);
-            idleSpacerView.setVisibility(View.GONE);
             idleTitleView.setText(R.string.app_label);
             idleMetaView.setVisibility(View.GONE);
             idleDescriptionScrollView.setVisibility(View.GONE);
@@ -711,10 +713,10 @@ public class CompanionPresentation extends android.app.Presentation
             descriptionImages.setAnimating(true);
         }
         // From the text drawn, not only when it changes: the bare panel hid it in between.
-        // Without one, the spacer keeps the actions at the foot of the column.
+        // Without one, the actions follow the title and meta line straight on rather than
+        // sitting at the foot of an empty column, which read as a panel still loading.
         boolean hasDescription = idleDescriptionView.getText().length() > 0;
         idleDescriptionScrollView.setVisibility(hasDescription ? View.VISIBLE : View.GONE);
-        idleSpacerView.setVisibility(hasDescription ? View.GONE : View.VISIBLE);
         if (spotlightChanged) {
             idleDescriptionScrollView.scrollTo(0, 0);
         }
@@ -809,6 +811,16 @@ public class CompanionPresentation extends android.app.Presentation
             chip.setOnClickListener(v -> CompanionDisplayManager.onBrowsingSelectHost(host.uuid));
             hostItemsView.addView(chip);
         }
+        // Last, "+": add a PC, as the PCs section's button does.
+        View add = inflater.inflate(R.layout.item_companion_host, hostItemsView, false);
+        add.findViewById(R.id.companionHostDot).setVisibility(View.GONE);
+        TextView plus = add.findViewById(R.id.companionHostName);
+        plus.setText(R.string.companion_add_host_glyph);
+        plus.setPadding(0, 0, 0, 0);
+        add.setPaddingRelative(add.getPaddingEnd(), 0, add.getPaddingEnd(), 0);
+        add.setContentDescription(context.getString(R.string.pcs_add_pc));
+        add.setOnClickListener(v -> CompanionDisplayManager.onBrowsingAddHost());
+        hostItemsView.addView(add);
     }
 
     // An image has landed: draw the description again, and put the reader back where they were —

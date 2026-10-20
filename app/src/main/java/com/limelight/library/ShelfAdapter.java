@@ -1,5 +1,8 @@
 package com.limelight.library;
 
+import android.content.Context;
+import android.util.TypedValue;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -23,6 +26,13 @@ import java.util.WeakHashMap;
 /**
  * One shelf of the Library home, as a row of the home's list: a label, and a
  * {@link ShelfRecyclerView} of game tiles. One row while the shelf has games, none otherwise.
+ *
+ * <h3>The label's link</h3>
+ *
+ * A shelf may lead somewhere, through a link at the end of its label row, in the signal, as the
+ * mocks draw both: "See all · N" on All games, which also ends its row with a "See all" tile for
+ * the d-pad, and a bare "›" on Recently played, touch only. The label itself can carry a detail
+ * after it ("All games · Taverna"), which the home sets on a wide window.
  *
  * <h3>Two lists</h3>
  *
@@ -74,6 +84,10 @@ final class ShelfAdapter extends RecyclerView.Adapter<ShelfAdapter.Holder> {
     private final RecyclerView.RecycledViewPool pool;
     @Nullable
     private final Runnable onSeeAll;
+    // Whether the link is "See all · N", with the trailing tile; otherwise it is a bare "›".
+    private final boolean counted;
+    @Nullable
+    private String labelDetail;
     private final GameGridAdapter tiles;
     @Nullable
     private final SeeAllTileAdapter seeAllTile;
@@ -92,20 +106,24 @@ final class ShelfAdapter extends RecyclerView.Adapter<ShelfAdapter.Holder> {
     private final Set<Holder> holding = Collections.newSetFromMap(new WeakHashMap<Holder, Boolean>());
 
     /**
-     * @param onSeeAll what the header link and the trailing tile do; null for a shelf that leads
-     *                 nowhere, which then has neither
+     * @param onSeeAll what the header link (and the trailing tile) do; null for a shelf that
+     *                 leads nowhere, which then has neither
+     * @param counted  true for a "See all · N" link and a trailing "See all" tile, false for a
+     *                 bare "›" link and no tile
      */
     ShelfAdapter(@StringRes int label, @NonNull RecyclerView.RecycledViewPool pool,
-                 @NonNull GameGridAdapter.Listener tileListener, @Nullable Runnable onSeeAll) {
+                 @NonNull GameGridAdapter.Listener tileListener, @Nullable Runnable onSeeAll,
+                 boolean counted) {
         this.label = label;
         this.pool = pool;
         this.onSeeAll = onSeeAll;
+        this.counted = counted;
         this.tiles = new GameGridAdapter(tileListener);
         ConcatAdapter.Config config = new ConcatAdapter.Config.Builder()
                 .setIsolateViewTypes(false)
                 .setStableIdMode(ConcatAdapter.Config.StableIdMode.SHARED_STABLE_IDS)
                 .build();
-        if (onSeeAll != null) {
+        if (onSeeAll != null && counted) {
             seeAllTile = new SeeAllTileAdapter(onSeeAll);
             content = new ConcatAdapter(config, tiles, seeAllTile);
         } else {
@@ -137,9 +155,28 @@ final class ShelfAdapter extends RecyclerView.Adapter<ShelfAdapter.Holder> {
             } else {
                 notifyItemRemoved(0);
             }
-        } else if (show && countChanged && onSeeAll != null) {
+        } else if (show && countChanged && onSeeAll != null && counted) {
             notifyItemChanged(0, PAYLOAD_LABEL);
         }
+    }
+
+    /** A detail after the label ("All games · Taverna"); null for the label alone. */
+    void setLabelDetail(@Nullable String detail) {
+        if (detail != null && detail.isEmpty()) {
+            detail = null;
+        }
+        if (detail == null ? labelDetail == null : detail.equals(labelDetail)) {
+            return;
+        }
+        labelDetail = detail;
+        if (shown) {
+            notifyItemChanged(0, PAYLOAD_LABEL);
+        }
+    }
+
+    /** Whether the shelf's row is in the list. */
+    boolean isShown() {
+        return shown;
     }
 
     /**
@@ -248,10 +285,21 @@ final class ShelfAdapter extends RecyclerView.Adapter<ShelfAdapter.Holder> {
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_shelf, parent, false);
         Holder holder = new Holder(view);
         holder.shelf.setRecycledViewPool(pool);
-        holder.label.setText(label);
         if (onSeeAll != null) {
             holder.link.setVisibility(View.VISIBLE);
             holder.link.setOnClickListener(v -> onSeeAll.run());
+            if (!counted) {
+                // A glyph alone: as wide as its touch target, and named for TalkBack.
+                holder.link.setText(R.string.library_shelf_more);
+                holder.link.setMinWidth(parent.getResources()
+                        .getDimensionPixelSize(R.dimen.action_size));
+                holder.link.setGravity(Gravity.CENTER_VERTICAL
+                        | Gravity.END);
+                holder.link.setTextSize(TypedValue.COMPLEX_UNIT_PX, parent
+                        .getResources().getDimension(R.dimen.shelf_more_size));
+                holder.link.setContentDescription(parent.getContext()
+                        .getString(R.string.library_see_all));
+            }
         }
         return holder;
     }
@@ -270,9 +318,13 @@ final class ShelfAdapter extends RecyclerView.Adapter<ShelfAdapter.Holder> {
             holding.add(holder);
         }
         applyShape(holder);
-        if (onSeeAll != null) {
-            holder.link.setText(holder.itemView.getContext()
-                    .getString(R.string.library_see_all_count, seeAllCount));
+        Context context = holder.itemView.getContext();
+        holder.label.setText(labelDetail != null
+                ? context.getString(R.string.library_shelf_label_detail,
+                        context.getString(label), labelDetail)
+                : context.getString(label));
+        if (onSeeAll != null && counted) {
+            holder.link.setText(context.getString(R.string.library_see_all_count, seeAllCount));
         }
     }
 

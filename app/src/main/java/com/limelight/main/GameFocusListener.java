@@ -24,6 +24,16 @@ public interface GameFocusListener {
     void focusGame(@NonNull LibraryApp app);
 
     /**
+     * A game of the selected host took focus in a list whose size is the whole of something
+     * (See all's grid), which the panel counts out: "Focused · 4 of 12". A shelf is only the head
+     * of its list, and reports through {@link #focusGame(LibraryApp)} instead.
+     *
+     * @param position the game's index in the list, from 0; -1 when unknown
+     * @param count    how many games the list has; 0 when unknown
+     */
+    void focusGame(@NonNull LibraryApp app, int position, int count);
+
+    /**
      * A host took focus (a PC card), or the section is about one without a game in focus (the
      * Library's chip, its state panel, no games at all).
      *

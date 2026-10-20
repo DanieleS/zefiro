@@ -311,4 +311,25 @@ public class CompanionStateTest {
         assertEquals(new CompanionState.HostChip("HOST-A", "Taverna", true, false),
                 new CompanionState.HostChip("HOST-A", "Taverna", true, false));
     }
+
+    @Test
+    public void browsingKeepsAPositionOnlyWithinItsList() {
+        CompanionState.Browsing placed = new CompanionState.Browsing(
+                CompanionState.Browsing.Kind.GAME, "HOST-A", 7, "Celeste", null, null, null,
+                false, 3, 12);
+        assertTrue(placed.hasPosition());
+        assertEquals(3, placed.position);
+        assertEquals(12, placed.count);
+        // The same game at another place is another thing to draw.
+        assertNotEquals(placed, new CompanionState.Browsing(CompanionState.Browsing.Kind.GAME,
+                "HOST-A", 7, "Celeste", null, null, null, false, 4, 12));
+
+        CompanionState.Browsing outside = new CompanionState.Browsing(
+                CompanionState.Browsing.Kind.GAME, "HOST-A", 7, "Celeste", null, null, null,
+                false, 12, 12);
+        assertFalse(outside.hasPosition());
+        assertEquals(0, outside.count);
+        assertFalse(new CompanionState.Browsing(CompanionState.Browsing.Kind.GAME, "HOST-A", 7,
+                "Celeste", null, null, null, false).hasPosition());
+    }
 }

@@ -1,9 +1,11 @@
 package com.limelight.main;
 
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.format.DateUtils;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -16,12 +18,14 @@ import com.limelight.companion.CompanionState.Browsing;
 import com.limelight.computers.HostEntry;
 import com.limelight.computers.HostLibrary;
 import com.limelight.computers.HostRepository;
+import com.limelight.grid.AppSortOrder;
 import com.limelight.library.LaunchController;
 import com.limelight.library.LibraryApp;
 import com.limelight.nvstream.http.AppMetadata;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.NvApp;
 import com.limelight.pcs.HostCardBinder;
+import com.limelight.preferences.AddComputerManually;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,7 +35,7 @@ import java.util.Objects;
 
 /**
  * Feeds the companion panel (the Thor's bottom screen) while the main screen is browsing, and
- * answers the panel's Play, Resume, Quit and host taps.
+ * answers the panel's Play, Resume, Quit, host and "+" (Add PC) taps.
  *
  * <p>The old library fed the panel from the activity, a raw thread per backdrop, and a listener on
  * every tile it laid out. With the sections as fragments of one activity, re-hosting no longer
@@ -89,11 +93,20 @@ public final class CompanionFeed implements GameFocusListener, CompanionDisplayM
         @Nullable
         final String hostUuid;
         final int appId;
+        /** The game's place in the list it was focused in; -1 and 0 when not told. */
+        final int position;
+        final int count;
 
         Focus(Browsing.Kind kind, @Nullable String hostUuid, int appId) {
+            this(kind, hostUuid, appId, -1, 0);
+        }
+
+        Focus(Browsing.Kind kind, @Nullable String hostUuid, int appId, int position, int count) {
             this.kind = kind;
             this.hostUuid = hostUuid;
             this.appId = appId;
+            this.position = position;
+            this.count = count;
         }
 
         @Override
@@ -102,12 +115,13 @@ public final class CompanionFeed implements GameFocusListener, CompanionDisplayM
                 return false;
             }
             Focus that = (Focus) o;
-            return kind == that.kind && appId == that.appId && Objects.equals(hostUuid, that.hostUuid);
+            return kind == that.kind && appId == that.appId && position == that.position
+                    && count == that.count && Objects.equals(hostUuid, that.hostUuid);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(kind, hostUuid, appId);
+            return Objects.hash(kind, hostUuid, appId, position, count);
         }
     }
 
@@ -205,8 +219,14 @@ public final class CompanionFeed implements GameFocusListener, CompanionDisplayM
 
     @Override
     public void focusGame(@NonNull LibraryApp app) {
+        focusGame(app, -1, 0);
+    }
+
+    @Override
+    public void focusGame(@NonNull LibraryApp app, int position, int count) {
         HostLibrary.Snapshot snapshot = repository.getLibrary().getValue();
-        report(new Focus(Browsing.Kind.GAME, snapshot != null ? snapshot.hostUuid : null, app.appId()));
+        report(new Focus(Browsing.Kind.GAME, snapshot != null ? snapshot.hostUuid : null,
+                app.appId(), position, count));
     }
 
     @Override
@@ -280,7 +300,7 @@ public final class CompanionFeed implements GameFocusListener, CompanionDisplayM
                 LibraryApp app = snapshot != null && sameHost(snapshot.hostUuid, focus.hostUuid)
                         ? find(snapshot.apps, focus.appId) : null;
                 if (app != null) {
-                    return game(snapshot, app);
+                    return game(snapshot, app, focus);
                 }
                 // Gone from the list, or another host was selected meanwhile (a tap on the
                 // panel's hosts row): the selected host is what the Library now shows.
@@ -298,12 +318,37 @@ public final class CompanionFeed implements GameFocusListener, CompanionDisplayM
         }
     }
 
-    private Browsing game(@NonNull HostLibrary.Snapshot snapshot, @NonNull LibraryApp app) {
+    private Browsing game(@NonNull HostLibrary.Snapshot snapshot, @NonNull LibraryApp app,
+                          @NonNull Focus focus) {
         AppMetadata metadata = metadataFor(snapshot.metadata, app.app);
+        String meta = Browsing.metaLine(metadata);
+        if (meta.isEmpty()) {
+            // Metadata is the host's to add, never needed: without it, when this device last
+            // played the game, if it has, so the panel still says something of its own about it.
+            meta = lastPlayedLine(snapshot, app);
+        }
         return new Browsing(Browsing.Kind.GAME, snapshot.hostUuid, app.appId(),
-                app.app.getAppName(), Browsing.metaLine(metadata),
+                app.app.getAppName(), meta,
                 metadata != null ? metadata.getDescription() : null,
-                backdropFor(snapshot, app.appId(), metadata), app.running);
+                backdropFor(snapshot, app.appId(), metadata), app.running,
+                focus.position, focus.count);
+    }
+
+    /** "Last played 3 days ago", from this device's launch record; empty when never. */
+    @NonNull
+    private String lastPlayedLine(@NonNull HostLibrary.Snapshot snapshot, @NonNull LibraryApp app) {
+        HostLibrary library = repository.currentLibrary();
+        if (library == null || library.isClosed()
+                || !sameHost(library.getHostUuid(), snapshot.hostUuid)) {
+            return "";
+        }
+        long when = AppSortOrder.lastPlayed(app.app, snapshot.metadata, library.getLaunchHistory());
+        if (when <= 0) {
+            return "";
+        }
+        CharSequence ago = DateUtils.getRelativeTimeSpanString(when, System.currentTimeMillis(),
+                DateUtils.MINUTE_IN_MILLIS);
+        return context.getString(R.string.companion_last_played, ago);
     }
 
     /**
@@ -401,6 +446,12 @@ public final class CompanionFeed implements GameFocusListener, CompanionDisplayM
     public void selectHost(String hostUuid) {
         repository.select(hostUuid);
         reclaimFocus.run();
+    }
+
+    @Override
+    public void addHost() {
+        // Opened on the main screen, where its keyboard and the d-pad are.
+        context.startActivity(new Intent(context, AddComputerManually.class));
     }
 
     /**

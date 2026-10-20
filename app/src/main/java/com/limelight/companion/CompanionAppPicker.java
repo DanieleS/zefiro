@@ -106,7 +106,7 @@ public final class CompanionAppPicker {
                 host.getResources().getDimensionPixelSize(R.dimen.companion_app_column));
         int spacingPx = host.getResources().getDimensionPixelSize(R.dimen.companion_app_spacing);
         grid.setLayoutManager(new AutofitGridLayoutManager(host,
-                widthDp -> Math.round(widthDp * density) / columnWidthPx));
+                (widthDp, heightDp) -> Math.round(widthDp * density) / columnWidthPx));
         grid.addItemDecoration(new GridSpacingItemDecoration(spacingPx));
         int half = spacingPx / 2;
         grid.setPadding(half, half, half, half);

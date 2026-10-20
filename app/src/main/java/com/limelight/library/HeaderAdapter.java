@@ -24,9 +24,13 @@ import java.util.List;
  * The Library home's first row: "Library" and the host chip, which names the selected PC behind
  * its status dot and opens the host sheet.
  *
- * <p>Always one row. The chip changes in place ({@link #bind}): the host's name and state come
- * with every poll, and a full rebind of the row would flicker the chip's focus ring under the
- * d-pad each time. Main thread only.
+ * <p>One row, except on a short window (a phone in landscape), where the home leaves it out
+ * ({@link #setShown}): the landscape mock has no page title over its shelves, the rail says where
+ * the user is, and All games names the host. X still raises the host sheet there.
+ *
+ * <p>The chip changes in place ({@link #bind}): the host's name and state come with every poll,
+ * and a full rebind of the row would flicker the chip's focus ring under the d-pad each time.
+ * Main thread only.
  */
 final class HeaderAdapter extends RecyclerView.Adapter<HeaderAdapter.Holder> {
 
@@ -46,6 +50,7 @@ final class HeaderAdapter extends RecyclerView.Adapter<HeaderAdapter.Holder> {
     @Nullable
     private String status;
     private boolean hostSelected;
+    private boolean shown = true;
     @Nullable
     private Holder bound;
 
@@ -72,7 +77,22 @@ final class HeaderAdapter extends RecyclerView.Adapter<HeaderAdapter.Holder> {
         this.dotColor = color;
         this.status = state;
         this.hostSelected = selected;
-        notifyItemChanged(0, PAYLOAD_CHIP);
+        if (shown) {
+            notifyItemChanged(0, PAYLOAD_CHIP);
+        }
+    }
+
+    /** Puts the row in the list, or takes it out. */
+    void setShown(boolean show) {
+        if (show == shown) {
+            return;
+        }
+        shown = show;
+        if (show) {
+            notifyItemInserted(0);
+        } else {
+            notifyItemRemoved(0);
+        }
     }
 
     /** The chip, while the header is laid out; null otherwise. */
@@ -87,7 +107,7 @@ final class HeaderAdapter extends RecyclerView.Adapter<HeaderAdapter.Holder> {
 
     @Override
     public int getItemCount() {
-        return 1;
+        return shown ? 1 : 0;
     }
 
     @NonNull

@@ -319,8 +319,8 @@ public class MainActivityShellTest {
 
         Fragment top = library.getChildFragmentManager().findFragmentById(R.id.libraryContainer);
         assertTrue(top instanceof SeeAllFragment);
-        // Something to go back to now, so the arrow shows.
-        assertEquals(View.VISIBLE, top.requireView().findViewById(R.id.seeAllBack).getVisibility());
+        // A window with the rail has no arrow: B, or the Library's item again, goes back.
+        assertEquals(View.GONE, top.requireView().findViewById(R.id.seeAllBack).getVisibility());
 
         activity.getOnBackPressedDispatcher().onBackPressed();
         Shadows.shadowOf(Looper.getMainLooper()).idle();
@@ -329,6 +329,45 @@ public class MainActivityShellTest {
         assertTrue(top instanceof LibraryHomeFragment);
         assertTrue(top.isVisible());
         assertFalse(activity.isFinishing());
+    }
+
+    @Test
+    @Config(qualifiers = "w400dp-h800dp-port")
+    public void seeAllInACompactWindow_hasTheBackArrowAndASearchButton() {
+        MainActivity activity = launch().get();
+        LibraryFragment library = (LibraryFragment) section(activity, Section.LIBRARY);
+
+        library.showSeeAll();
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
+
+        Fragment top = library.getChildFragmentManager().findFragmentById(R.id.libraryContainer);
+        assertTrue(top instanceof SeeAllFragment);
+        // Something to go back to now, so the arrow shows.
+        assertEquals(View.VISIBLE, top.requireView().findViewById(R.id.seeAllBack).getVisibility());
+        // Search is not in the bottom bar: the toolbar's button leads there.
+        BottomNavigationView bottom = activity.findViewById(R.id.navBottom);
+        assertFalse(bottom.getMenu().findItem(R.id.nav_search).isVisible());
+        top.requireView().findViewById(R.id.seeAllSearch).performClick();
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
+        assertTrue(section(activity, Section.SEARCH) instanceof SearchFragment);
+        assertTrue(section(activity, Section.SEARCH).isVisible());
+    }
+
+    @Test
+    @Config(qualifiers = "w900dp-h500dp-land")
+    public void libraryChosenAgain_popsSeeAll() {
+        MainActivity activity = launch().get();
+        LibraryFragment library = (LibraryFragment) section(activity, Section.LIBRARY);
+        library.showSeeAll();
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
+
+        NavigationRailView rail = activity.findViewById(R.id.navRail);
+        rail.setSelectedItemId(R.id.nav_library);
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
+
+        Fragment top = library.getChildFragmentManager().findFragmentById(R.id.libraryContainer);
+        assertTrue(top instanceof LibraryHomeFragment);
+        assertTrue(top.isVisible());
     }
 
     @Test

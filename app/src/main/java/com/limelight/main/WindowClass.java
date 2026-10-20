@@ -20,10 +20,28 @@ public enum WindowClass {
     public static final int WIDE_MIN_WIDTH_DP = 600;
 
     /**
+     * Below this height a wide window is a short one: a phone in landscape (about 340dp once its
+     * cutout is out), not the Thor (about 450dp). It has no room for a page title over the
+     * shelves, nor for the profile under the rail, and the landscape mocks draw neither.
+     */
+    public static final int SHORT_MAX_HEIGHT_DP = 400;
+
+    /**
      * @param screenWidthDp {@code Configuration.screenWidthDp}; an undefined width (0) counts as
      *                      compact, which keeps the system bars and so never hides anything.
      */
     public static WindowClass from(int screenWidthDp) {
         return screenWidthDp >= WIDE_MIN_WIDTH_DP ? WIDE : COMPACT;
+    }
+
+    /**
+     * Whether a window is a wide and short one (see {@link #SHORT_MAX_HEIGHT_DP}).
+     *
+     * @param screenHeightDp {@code Configuration.screenHeightDp}; an undefined height (0) is not
+     *                       short, which keeps everything shown
+     */
+    public static boolean isShortWide(int screenWidthDp, int screenHeightDp) {
+        return from(screenWidthDp) == WIDE && screenHeightDp > 0
+                && screenHeightDp < SHORT_MAX_HEIGHT_DP;
     }
 }

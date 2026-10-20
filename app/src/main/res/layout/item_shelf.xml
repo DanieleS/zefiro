@@ -3,9 +3,12 @@
     One shelf of the Library home (library/ShelfAdapter): a label over a row of game tiles,
     after the approved Shelves mock's .sect and .sh.
 
-    The link on the right ("See all · 12" on All games) is touch only: a d-pad reaches the grid
-    through the tile that ends the row, so the link is never one more stop between two shelves.
-    It keeps a 48dp touch target, which the label row's height gives it.
+    The link on the right ("See all · 12" on All games, "›" on Recently played) is touch only: a
+    d-pad reaches the grid through the tile that ends All games, so the link is never one more
+    stop between two shelves. It keeps a 48dp touch target, which the label row's height gives it.
+
+    The space between two shelves is the home's (LibraryHomeFragment), not the row's: a row
+    padded at its foot would leave that space under the last shelf too.
 
     The row's side padding is the gutter less half the gap between tiles, as in See all's grid:
     each tile carries half the gap on every side, so the first cover lines up with the label.
@@ -14,8 +17,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:paddingBottom="@dimen/shelf_spacing">
+    android:orientation="vertical">
 
     <LinearLayout
         android:layout_width="match_parent"
