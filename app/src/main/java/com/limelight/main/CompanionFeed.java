@@ -33,12 +33,12 @@ import java.util.Objects;
  * Feeds the companion panel (the Thor's bottom screen) while the main screen is browsing, and
  * answers the panel's Play, Resume, Quit and host taps.
  *
- * <p>AppView fed the panel from the activity, a raw thread per backdrop, and a listener on every
- * tile it laid out. With the sections as fragments of one activity, re-hosting no longer marks a
- * change of screen: switching to PCs or Stats keeps the same activity, so the panel would keep
- * the last game forever unless told otherwise. This feed is the one place that tells it. It is
- * owned by {@link MainActivity}, never by a section, so the panel's taps always reach a screen
- * that is there.
+ * <p>The old library fed the panel from the activity, a raw thread per backdrop, and a listener on
+ * every tile it laid out. With the sections as fragments of one activity, re-hosting no longer
+ * marks a change of screen: switching to PCs or Stats keeps the same activity, so the panel would
+ * keep the last game forever unless told otherwise. This feed is the one place that tells it. It is
+ * owned by {@link MainActivity}, never by a section, so the panel's taps always reach a screen that
+ * is there.
  *
  * <h3>What the panel shows</h3>
  *

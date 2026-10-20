@@ -80,11 +80,6 @@ public class RunningGameResolver {
      * (often main) under the service's polling locks. A callback from a polling thread holds no
      * such lock, but a new caller should still only copy there and resolve elsewhere, as the
      * repository does on its executor.
-     *
-     * <p>{@code PcView} still calls it straight from its polling listener, initial report
-     * included, exactly as it did before this class existed. That is tolerated, not endorsed: the
-     * read is one small cached file, remembered after the first hit, and PcView goes away with
-     * the new main screen rather than being reworked first.
      */
     public String resolveRunningAppName(ComputerDetails details) {
         if (details.runningGameId == 0) {

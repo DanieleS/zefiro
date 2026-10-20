@@ -12,8 +12,8 @@ import com.limelight.library.LibraryApp;
  * <p>Every surface that can hold a game (the hero, a shelf, See all, Search) and every one that
  * stands for a host (the Library's chip, a PC card) reports here, through the one listener the
  * main screen hands out ({@link MainHost#gameFocus()}), rather than each list wiring the panel
- * itself. AppView did the latter, attaching a listener to every tile a RecyclerView laid out, and
- * the panel ended up fed from places nobody remembered.
+ * itself. The old library did the latter, attaching a listener to every tile a RecyclerView laid
+ * out, and the panel ended up fed from places nobody remembered.
  *
  * <p>Reports are cheap and may come on every focus move; the listener settles them (see
  * {@link CompanionFeed}). Main thread only.

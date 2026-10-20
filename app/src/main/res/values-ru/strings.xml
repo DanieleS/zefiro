@@ -35,10 +35,6 @@
     <string name="wol_waking_msg">Пробуждение ПК может занять несколько секунд. Если этого не происходит, удостоверьтесь что Wake-On-LAN настроен правильно.</string>
     <string name="wol_fail">Ошибка при отправке Wake-On-LAN пакетов</string>
     <!-- Unpair messages -->
-    <string name="unpairing">Отмена сопряжения…</string>
-    <string name="unpair_success">Сопряжение успешно отменено</string>
-    <string name="unpair_fail">Отменить сопряжение не удалось</string>
-    <string name="unpair_error">Устройство не было сопряжено</string>
     <!-- Errors -->
     <string name="error_pc_offline">Компьютер выключен или находится не в сети</string>
     <string name="error_manager_not_running">Сервис ComputerManager не запущен. Пожалуйста, подождите несколько секунд или перезапустите приложение.</string>
@@ -63,7 +59,6 @@
 \n Убедитесь, что Sunshine работает на вашем хост-компьютере или GameStream включен в настройках GeForce Experience SHIELD.</string>
     <string name="yes">Да</string>
     <string name="no">Нет</string>
-    <string name="lost_connection">Потеряно соединение с ПК</string>
     <!-- AppList activity -->
     <string name="applist_menu_resume">Возобновить сессию</string>
     <string name="applist_menu_start_primarydisplay">Запустить на основном дисплее</string>
@@ -73,8 +68,6 @@
     <string name="applist_menu_cancel">Отмена</string>
     <string name="applist_menu_export_launcher">Экспортировать файл запуска</string>
     <string name="applist_menu_tv_channel">Добавить в канал</string>
-    <string name="applist_refresh_title">Список приложений</string>
-    <string name="applist_refresh_msg">Обновление приложений…</string>
     <string name="applist_refresh_error_title">Ошибка</string>
     <string name="applist_refresh_error_msg">Ошибка при получении списка приложений</string>
     <string name="applist_quit_app">Выход из</string>
@@ -113,10 +106,6 @@
     <string name="title_checkbox_flip_face_buttons">Перевернуть кнопки A/B и X/Y</string>
     <string name="summary_checkbox_flip_face_buttons">Меняет местами кнопки A/B и X/Y на геймпадах и экранных кнопках</string>
     <string name="category_ui_settings">Настройки интерфейса</string>
-    <string name="title_language_list">Язык</string>
-    <string name="summary_language_list">Язык, который будет использоваться в Artemis</string>
-    <string name="title_checkbox_small_icon_mode">Использовать маленькие иконки</string>
-    <string name="summary_checkbox_small_icon_mode">Использовать маленькие иконки в сетке для отображения большего числа элементов на экране</string>
     <string name="category_host_settings">Настройки хоста</string>
     <string name="title_checkbox_enable_sops">Оптимизировать игровые настройки</string>
     <string name="summary_checkbox_enable_sops">Разрешить GFE изменять настройки игр для оптимальной трансляции</string>
@@ -626,7 +615,6 @@
     <string name="profile_manager_no_profiles_yet">Профилей пока нет</string>
     <string name="profile_manager_profiles_description">Профили позволяют создавать и сохранять разные конфигурации стриминга. Каждый профиль хранит свои настройки, между которыми можно быстро переключаться.</string>
     <string name="profile_manager_tap_create_profile">Нажмите + чтобы создать первый профиль</string>
-    <string name="profile_manager_choose_profile">Выбрать профиль</string>
     <string name="profile_manager_deactivated_profile">Деактивированный профиль</string>
     <string name="profile_manager_activated_profile">Профиль \'%s\' активирован</string>
     <string name="profile_manager_delete_profile">Удалить профиль</string>

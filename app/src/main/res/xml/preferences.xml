@@ -617,12 +617,6 @@
         app:initialExpandedChildrenCount="3"
         app:iconSpaceReserved="false">
         <SwitchPreferenceCompat
-            android:defaultValue="true"
-            android:key="checkbox_auto_enter_last_pc"
-            android:summary="@string/summary_checkbox_auto_enter_last_pc"
-            android:title="@string/title_checkbox_auto_enter_last_pc"
-            app:iconSpaceReserved="false" />
-        <SwitchPreferenceCompat
             android:defaultValue="false"
             android:key="checkbox_resume_without_confirm"
             android:summary="@string/summary_checkbox_resume_without_confirm"
@@ -731,11 +725,6 @@
             android:key="checkbox_enable_post_stream_toast"
             android:summary="@string/summary_enable_post_stream_toast"
             android:title="@string/title_enable_post_stream_toast"
-            app:iconSpaceReserved="false" />
-        <com.limelight.preferences.SmallIconCheckboxPreference
-            android:key="checkbox_small_icon_mode"
-            android:summary="@string/summary_checkbox_small_icon_mode"
-            android:title="@string/title_checkbox_small_icon_mode"
             app:iconSpaceReserved="false" />
         <SwitchPreferenceCompat
             android:defaultValue="false"
@@ -1154,17 +1143,30 @@
     <PreferenceCategory
         android:key="category_settings_misc"
         android:title="@string/title_settings_misc"
-        app:initialExpandedChildrenCount="1"
+        app:initialExpandedChildrenCount="3"
         app:iconSpaceReserved="false">
 
-        <com.limelight.preferences.LanguagePreference
-            android:defaultValue="default"
-            android:entries="@array/language_names"
-            android:entryValues="@array/language_values"
-            android:icon="@drawable/ic_language"
-            android:key="list_languages"
-            android:summary="@string/summary_language_list"
-            android:title="@string/title_language_list" />
+        <!-- The three below were buttons on the old PC list's top bar. They are wired in
+             StreamSettings: Help is hidden on Fire TV, and the companion row only shows while
+             a companion screen is configured, its title naming what a click will do. -->
+        <Preference
+            android:key="pref_profiles"
+            android:summary="@string/summary_pref_profiles"
+            android:title="@string/title_pref_profiles"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            android:key="pref_companion_screen"
+            android:summary="@string/summary_pref_companion_screen"
+            android:title="@string/action_companion_show"
+            app:isPreferenceVisible="false"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            android:key="pref_help"
+            android:summary="@string/summary_pref_help"
+            android:title="@string/title_pref_help"
+            app:iconSpaceReserved="false" />
 
         <Preference
             android:key="import_special_button_file"

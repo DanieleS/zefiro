@@ -20,8 +20,6 @@
     <string name="pair_pc_ingame">Компютърът в момента е в игра. Трябва да затворите играта преди сдвояване.</string>
     <string name="pair_pairing_title">Сдвояване</string>
     <string name="wol_waking_pc">Събуждащ се компютъра…</string>
-    <string name="unpair_fail">Неуспешно раздвояване</string>
-    <string name="unpair_error">Устройството не беше сдвоено</string>
     <string name="error_pc_offline">Компютърът е офлайн</string>
     <string name="title_decoding_error">Видеодекодерът крашна</string>
     <string name="no_frame_received_error">Мрежовата ви връзка не работи добре. Намалете настройката си за битрейт на видео или опитайте с по-бърза връзка.</string>
@@ -30,7 +28,6 @@
     <string name="conn_terminated_title">Връзката е прекратена</string>
     <string name="yes">Да</string>
     <string name="applist_menu_hide_app">Скриване на приложението</string>
-    <string name="applist_refresh_title">Списък с приложения</string>
     <string name="summary_resolution_list">Увеличете, за да подобрите яснотата на изображението. Намалете за по-добра производителност на устройства от по-нисък клас и по-бавни мрежи.</string>
     <string name="title_fps_list">Кадрова честота на видео</string>
     <string name="scut_deleted_pc">Компютърът е изтрит</string>
@@ -65,8 +62,6 @@
     <string name="wol_no_mac">Компютърът не може да бъде събуден, защото GFE не изпрати MAC адрес</string>
     <string name="wol_fail">Неуспешно изпращане на Wake-On-LAN пакети</string>
     <string name="wol_waking_msg">Може да отнеме няколко секунди, докато вашият компютър се събуди. Ако не стане, уверете се, че е конфигуриран правилно за Wake-On-LAN.</string>
-    <string name="unpairing">Раздвояване…</string>
-    <string name="unpair_success">Раздвояването бе успешно</string>
     <string name="video_decoder_init_failed">Видео декодерът не успя да се инициализира. Вашето устройство може да не поддържа избраната резолюция или честота.</string>
     <string name="error_manager_not_running">Услугата ComputerManager не работи. Моля, изчакайте няколко секунди или рестартирайте приложението.</string>
     <string name="error_404">GFE върна грешка HTTP 404. Уверете се, че вашият компютър има поддръжана видео карта. Използването на софтуер за отдалечен работен плот също може да причини тази грешка. Опитайте да рестартирате машината си или да преинсталирате GFE.</string>
@@ -74,7 +69,6 @@
     <string name="title_decoding_reset">Нулиране на видео настройките</string>
     <string name="message_decoding_reset">Видео декодерът на вашето устройство продължава да се срива при избраните от вас настройки за стриймване. Настройките са нулирани по подразбиране.</string>
     <string name="audioconf_stereo">Стерео</string>
-    <string name="applist_refresh_msg">Приложенията се опресняват…</string>
     <string name="error_usb_prohibited">USB достъпът е забранен от администратора на вашето устройство. Проверете настройките на Knox или MDM.</string>
     <string name="audioconf_71surround">7.1 съраунд звук</string>
     <string name="audioconf_51surround">5.1 съраунд звук</string>
@@ -91,7 +85,6 @@
     <string name="conn_error_title">Грешка при свързване</string>
     <string name="no">Не</string>
     <string name="help">Помощ</string>
-    <string name="lost_connection">Загубена връзка с компютър</string>
     <string name="title_details">Подробности</string>
     <string name="delete_pc_msg">Сигурни ли сте, че искате да изтриете този компютър\?</string>
     <string name="poor_connection_msg">Лоша връзка с компютъра</string>

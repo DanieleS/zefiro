@@ -1,12 +1,6 @@
 package com.limelight.main;
 
-import android.app.Application;
-import android.app.GameManager;
-import android.content.ComponentName;
-import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
-import android.os.Build;
 import android.os.Looper;
 import android.view.View;
 
@@ -15,10 +9,10 @@ import androidx.test.core.app.ApplicationProvider;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.navigationrail.NavigationRailView;
+import com.limelight.MainScreenTestEnvironment;
 import com.limelight.ProfilesActivity;
 import com.limelight.R;
 import com.limelight.TestLogSuppressor;
-import com.limelight.computers.ComputerManagerService;
 import com.limelight.computers.SnapshotFixtures;
 import com.limelight.library.LibraryFragment;
 import com.limelight.library.LibraryHomeFragment;
@@ -46,7 +40,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
 
 /**
  * The main screen's shell: which navigation shows for the window, what the items do, back, and
@@ -64,24 +57,24 @@ public class MainActivityShellTest {
 
     @Before
     public void prepareEnvironment() {
-        Application app = ApplicationProvider.getApplicationContext();
-
-        // A saved renderer for this build, so the probe has nothing to do.
-        SharedPreferences glPrefs = app.getSharedPreferences("GlPreferences", 0);
-        glPrefs.edit()
-                .putString("Renderer", "TestRenderer")
-                .putString("Fingerprint", Build.FINGERPRINT)
-                .commit();
-
-        Shadows.shadowOf(app).setSystemService(Context.GAME_SERVICE, mock(GameManager.class));
-
-        // The repository binds the computer manager; a stub binder stands in for the service.
-        ComponentName cms = new ComponentName(app, ComputerManagerService.class);
-        Shadows.shadowOf(app).setComponentNameAndServiceForBindService(cms,
-                mock(ComputerManagerService.ComputerManagerBinder.class));
+        // A saved renderer, a game service and a stub computer manager for the repository.
+        MainScreenTestEnvironment.prepare();
     }
 
+    /**
+     * The main screen as a device that has used it before opens it: on the Library of the host
+     * opened last. That host is never polled here, so the Library shows it as not found yet.
+     */
     private ActivityController<MainActivity> launch() {
+        MainScreenTestEnvironment.rememberLastHost("host-last");
+        ActivityController<MainActivity> controller =
+                Robolectric.buildActivity(MainActivity.class).setup();
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
+        return controller;
+    }
+
+    /** The main screen on its first run: no host has ever been opened. */
+    private ActivityController<MainActivity> launchFirstRun() {
         ActivityController<MainActivity> controller =
                 Robolectric.buildActivity(MainActivity.class).setup();
         Shadows.shadowOf(Looper.getMainLooper()).idle();
@@ -228,7 +221,7 @@ public class MainActivityShellTest {
     @Test
     @Config(qualifiers = "w900dp-h500dp-land")
     public void search_isTheRealSection_focusOnTheField() {
-        MainActivity activity = launch().get();
+        MainActivity activity = launchFirstRun().get();
         NavigationRailView rail = activity.findViewById(R.id.navRail);
 
         rail.findViewById(R.id.nav_search).performClick();
@@ -291,7 +284,10 @@ public class MainActivityShellTest {
     @Test
     @Config(qualifiers = "w900dp-h500dp-land")
     public void library_opensOnHome_withNoHostOffersToChooseOne() {
-        MainActivity activity = launch().get();
+        MainActivity activity = launchFirstRun().get();
+        NavigationRailView rail = activity.findViewById(R.id.navRail);
+        rail.findViewById(R.id.nav_library).performClick();
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
 
         Fragment library = section(activity, Section.LIBRARY);
         assertTrue(library instanceof LibraryFragment);
@@ -352,6 +348,49 @@ public class MainActivityShellTest {
         Intent next = Shadows.shadowOf(activity).getNextStartedActivity();
         assertNotNull("Add PC should open the add-PC screen", next);
         assertEquals(AddComputerManually.class.getName(), next.getComponent().getClassName());
+    }
+
+    @Test
+    @Config(qualifiers = "w900dp-h500dp-land")
+    public void firstRun_opensOnPcs() {
+        MainActivity activity = launchFirstRun().get();
+
+        NavigationRailView rail = activity.findViewById(R.id.navRail);
+        assertEquals(R.id.nav_pcs, rail.getSelectedItemId());
+        assertTrue(section(activity, Section.PCS).isVisible());
+        // Not made yet, or at least not on screen behind PCs.
+        assertTrue(section(activity, Section.LIBRARY) == null
+                || section(activity, Section.LIBRARY).isHidden());
+    }
+
+    @Test
+    @Config(qualifiers = "w900dp-h500dp-land")
+    public void launcher_withALastHost_opensOnItsLibrary() {
+        MainActivity activity = launch().get();
+
+        NavigationRailView rail = activity.findViewById(R.id.navRail);
+        assertEquals(R.id.nav_library, rail.getSelectedItemId());
+        assertTrue(section(activity, Section.LIBRARY).isVisible());
+        assertEquals("host-last",
+                activity.hostRepository().getSelectedHostUuid().getValue());
+    }
+
+    @Test
+    @Config(qualifiers = "w900dp-h500dp-land")
+    public void hostShortcut_opensThatHostsLibrary() {
+        // What ShortcutTrampoline hands over for a host shortcut, even on a first run.
+        Intent intent = new Intent(ApplicationProvider.getApplicationContext(), MainActivity.class)
+                .setAction(Intent.ACTION_MAIN)
+                .putExtra(LibraryIntents.EXTRA_UUID, "host-shortcut")
+                .putExtra(LibraryIntents.EXTRA_NAME, "Taverna");
+        MainActivity activity = Robolectric.buildActivity(MainActivity.class, intent).setup().get();
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
+
+        NavigationRailView rail = activity.findViewById(R.id.navRail);
+        assertEquals(R.id.nav_library, rail.getSelectedItemId());
+        assertTrue(section(activity, Section.LIBRARY).isVisible());
+        assertEquals("host-shortcut",
+                activity.hostRepository().getSelectedHostUuid().getValue());
     }
 
     @Test

@@ -8,9 +8,10 @@ import java.util.Objects;
  * One game as the library shows it: the host's app, plus whether it is running and whether the
  * user hid it.
  *
- * <p>It replaces {@code AppView.AppObject}, whose flags were flipped in place by the screen as
- * polls came in. This one is immutable: a poll that changes a flag produces a new instance, so a
- * list adapter can diff the old list against the new one and rebind only what changed.
+ * <p>It replaces the old library's {@code AppObject}, whose flags were flipped in place by the
+ * screen as polls came in. This one is immutable: a poll that changes a flag produces a new
+ * instance, so a list adapter can diff the old list against the new one and rebind only what
+ * changed.
  *
  * <p>{@link NvApp} itself is mutable, but nothing that builds a {@code LibraryApp} touches the app
  * after handing it over; every list from the host is parsed into fresh instances.

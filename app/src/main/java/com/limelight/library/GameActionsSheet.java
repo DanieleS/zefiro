@@ -18,8 +18,8 @@ import java.util.List;
  * Everything that can be done to one game, as a {@link MenuSheet}: a long-press or Y on a tile,
  * and a tap while another game is running.
  *
- * <p>It replaces {@code AppView.showAppMenu}, with the same rows under the same conditions, so
- * nothing a user could do to a game is lost in the move:
+ * <p>It replaces the old library's {@code showAppMenu}, with the same rows under the same
+ * conditions, so nothing a user could do to a game is lost in the move:
  *
  * <pre>
  *   host idle             start in the display the tap does not use

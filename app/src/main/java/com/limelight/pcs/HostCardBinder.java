@@ -35,10 +35,10 @@ import java.util.concurrent.RejectedExecutionException;
  * Draws one host onto a {@code pc_card_item}: the state as a dot and a line, the game it is
  * running, that game's art, and the one action the host is waiting for.
  *
- * <p>It is what used to be the body of {@code PcCardAdapter.onBindViewHolder}, taken out so the
- * legacy PC list and the new PCs section draw a host the same way while both exist. It knows
- * nothing about lists: an adapter owns the holders and the clicks on the card, this owns what a
- * card shows.
+ * <p>It is what used to be the body of the old PC list's adapter's {@code onBindViewHolder},
+ * taken out so the old list and the PCs section could draw a host the same way while both
+ * existed. It knows nothing about lists: an adapter owns the holders and the clicks on the card,
+ * this owns what a card shows.
  *
  * <h3>Art</h3>
  *

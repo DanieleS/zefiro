@@ -14,8 +14,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
- * A game's actions sheet offers what AppView's per-game menu offered, state by state, in the
- * same order; the shortcut row no longer waits for a cover on the tile.
+ * A game's actions sheet offers what the old library's per-game menu offered, state by state, in
+ * the same order; the shortcut row no longer waits for a cover on the tile.
  */
 public class GameActionsSheetTest {
 

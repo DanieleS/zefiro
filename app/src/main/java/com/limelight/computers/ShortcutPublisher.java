@@ -53,7 +53,7 @@ public class ShortcutPublisher {
     private final Map<String, String> published = new HashMap<>();
 
     public ShortcutPublisher(Context context) {
-        this(new ShortcutHelper(context.getApplicationContext())::publishAppViewShortcut);
+        this(new ShortcutHelper(context.getApplicationContext())::publishHostShortcut);
     }
 
     public ShortcutPublisher(Sink sink) {

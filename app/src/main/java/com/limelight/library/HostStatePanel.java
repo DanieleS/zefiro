@@ -15,7 +15,7 @@ import com.limelight.computers.HostLibrary;
 /**
  * What the Library shows in the games' place when it has none to show, and the way out of it.
  *
- * <p>{@code AppView} met an offline or unpaired host with a toast and {@code finish()}: the
+ * <p>The old library met an offline or unpaired host with a toast and {@code finish()}: the
  * library closed under the user, and with it the app when the library was all there was. In the
  * main screen nothing closes. The library's state comes in as a {@link HostLibrary.State}, and
  * this panel says what it means and offers what can be done:

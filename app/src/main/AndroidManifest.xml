@@ -98,12 +98,28 @@
         <!-- Samsung DeX support requires explicit placement of android:resizeableActivity="true"
              in each activity even though it is implied by targeting API 24+ -->
 
+        <!-- The main screen: Library, PCs, Stats and Search as sections of one activity. It
+             handles rotation and resizing itself, so the rail and the bottom bar swap without
+             recreating the screen. Not exported: the launcher reaches it through the .PcView
+             alias below, everything else from inside the app. -->
         <activity
-            android:name=".PcView"
-            android:exported="true"
+            android:name=".main.MainActivity"
+            android:exported="false"
             android:resizeableActivity="true"
             android:enableOnBackInvokedCallback="true"
             android:configChanges="mcc|mnc|touchscreen|keyboard|keyboardHidden|navigation|screenLayout|fontScale|uiMode|orientation|screenSize|smallestScreenSize|layoutDirection">
+
+            <meta-data android:name="WindowManagerPreference:FreeformWindowSize" android:value="system-default" />
+            <meta-data android:name="WindowManagerPreference:FreeformWindowOrientation" android:value="landscape" />
+        </activity>
+        <!-- The launcher entry keeps the name of the screen it used to be. Launchers remember a
+             home icon by its component, so a pinned icon (and the Leanback and OUYA entries)
+             made before the switch to MainActivity still resolve after an upgrade. An alias must
+             follow its target. -->
+        <activity-alias
+            android:name=".PcView"
+            android:targetActivity=".main.MainActivity"
+            android:exported="true">
 
             <meta-data android:name="WindowManagerPreference:FreeformWindowSize" android:value="system-default" />
             <meta-data android:name="WindowManagerPreference:FreeformWindowOrientation" android:value="landscape" />
@@ -115,36 +131,6 @@
                 <category android:name="android.intent.category.MULTIWINDOW_LAUNCHER" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
                 <category android:name="tv.ouya.intent.category.APP" />
-            </intent-filter>
-        </activity>
-        <!-- The new main screen: Library, PCs, Stats and Search as sections of one activity. Not
-             exported and not the launcher yet; it is built next to PcView and AppView and replaces
-             them in one switch. It handles the same configuration changes as PcView, so the rail
-             and the bottom bar swap on rotation without recreating the screen. -->
-        <activity
-            android:name=".main.MainActivity"
-            android:exported="false"
-            android:resizeableActivity="true"
-            android:enableOnBackInvokedCallback="true"
-            android:configChanges="mcc|mnc|touchscreen|keyboard|keyboardHidden|navigation|screenLayout|fontScale|uiMode|orientation|screenSize|smallestScreenSize|layoutDirection">
-
-            <meta-data android:name="WindowManagerPreference:FreeformWindowSize" android:value="system-default" />
-            <meta-data android:name="WindowManagerPreference:FreeformWindowOrientation" android:value="landscape" />
-        </activity>
-        <!-- A second launcher icon for the new main screen, enabled in debug builds only
-             (@bool/new_ui_preview), so it can be tried on the Thor and on a phone while the
-             shipped screens stay the launcher. An alias must follow its target. Removed in S10,
-             when .PcView itself becomes the alias to MainActivity. -->
-        <activity-alias
-            android:name="com.limelight.main.NewUiPreview"
-            android:targetActivity=".main.MainActivity"
-            android:exported="true"
-            android:enabled="@bool/new_ui_preview"
-            android:label="@string/new_ui_preview_label">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity-alias>
         <!-- Small hack to support launcher shortcuts without relaunching over and over again when the back button is pressed -->
@@ -167,22 +153,6 @@
                 <data android:mimeType="*/*" />
                 <data android:pathPattern=".*\.art" />
             </intent-filter>
-        </activity>
-        <activity
-            android:name=".AppView"
-            android:resizeableActivity="true"
-            android:enableOnBackInvokedCallback="true"
-            android:configChanges="mcc|mnc|touchscreen|keyboard|keyboardHidden|navigation|screenLayout|fontScale|uiMode|orientation|screenSize|smallestScreenSize|layoutDirection">
-            <meta-data android:name="WindowManagerPreference:FreeformWindowSize" android:value="system-default" />
-            <meta-data android:name="WindowManagerPreference:FreeformWindowOrientation" android:value="landscape" />
-        </activity>
-        <activity
-            android:name=".stats.StatsActivity"
-            android:resizeableActivity="true"
-            android:enableOnBackInvokedCallback="true"
-            android:configChanges="mcc|mnc|touchscreen|keyboard|keyboardHidden|navigation|screenLayout|fontScale|uiMode|orientation|screenSize|smallestScreenSize|layoutDirection">
-            <meta-data android:name="WindowManagerPreference:FreeformWindowSize" android:value="system-default" />
-            <meta-data android:name="WindowManagerPreference:FreeformWindowOrientation" android:value="landscape" />
         </activity>
         <activity
             android:name=".ProfilesActivity"

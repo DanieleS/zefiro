@@ -35,7 +35,7 @@
 
         <ImageButton
             android:id="@+id/seeAllBack"
-            style="@style/TopBarAction"
+            style="@style/HeaderAction"
             android:layout_marginStart="@dimen/see_all_back_offset"
             android:contentDescription="@string/library_back"
             android:focusable="false"

@@ -9,11 +9,11 @@ import java.util.Objects;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import com.limelight.Game;
-import com.limelight.PcView;
 import com.limelight.ShortcutTrampoline;
 import com.limelight.computers.ComputerManagerService;
 import com.limelight.R;
 import com.limelight.library.LibraryIntents;
+import com.limelight.main.MainActivity;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.NvHTTP;
 import com.limelight.nvstream.jni.MoonBridge;
@@ -207,7 +207,9 @@ public class AddComputerManually extends AppCompatActivity {
                     String pin = uri.getQueryParameter("pin");
                     String passphrase = uri.getQueryParameter("passphrase");
                     if (pin != null && passphrase != null) {
-                        Intent intent = new Intent(AddComputerManually.this, PcView.class);
+                        // The main screen parks the PIN until its next poll finds the host just
+                        // added, then pairs it from the PCs section.
+                        Intent intent = new Intent(AddComputerManually.this, MainActivity.class);
                         intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
                         intent.putExtra(LibraryIntents.EXTRA_PAIR_HOSTNAME, uri.getHost());
                         intent.putExtra(LibraryIntents.EXTRA_PAIR_PORT, uri.getPort());

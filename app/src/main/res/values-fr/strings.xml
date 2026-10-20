@@ -67,10 +67,6 @@
     <string name="wol_fail">Échec de l\'envoi des paquets Wake-On-LAN</string>
 
     <!-- Unpair messages -->
-    <string name="unpairing">Désappariage…</string>
-    <string name="unpair_success">Désappairé avec succès</string>
-    <string name="unpair_fail">Échec du désappairage</string>
-    <string name="unpair_error">Le périphérique n\'est appareillé</string>
 
     <!-- Errors -->
     <string name="error_pc_offline">L\'ordinateur est hors ligne</string>
@@ -108,7 +104,6 @@
     <string name="searching_pc">Recherche de PC hôtes sur votre réseau local…\n\nAssurez-vous que Sunshine est en cours d\'exécution ou que GameStream est activé dans les paramètres GeForce Experience SHIELD.</string>
     <string name="yes">Oui</string>
     <string name="no">Non</string>
-    <string name="lost_connection">Connexion perdue avec le PC</string>
     <string name="title_details">Détails</string>
     <string name="help">Aide</string>
     <string name="delete_pc_msg">Êtes-vous sûr de vouloir supprimer ce PC ?</string>
@@ -137,8 +132,6 @@
     <string name="applist_menu_scut">Créer un raccourci</string>
     <string name="applist_menu_tv_channel">Ajouter à la liste de chaînes</string>
     <string name="applist_menu_hide_app">Cacher l\'application</string>
-    <string name="applist_refresh_title">Liste des applications</string>
-    <string name="applist_refresh_msg">Actualisation des applications…</string>
     <string name="applist_refresh_error_title">Erreur</string>
     <string name="applist_refresh_error_msg">Impossible d\'obtenir la liste des applications</string>
     <string name="applist_quit_app">Fermeture de</string>
@@ -253,10 +246,6 @@
     <string name="category_ui_settings">Paramètres de l\'interface utilisateur</string>
     <string name="title_checkbox_enable_pip">Activer le mode observateur Picture-in-Picture</string>
     <string name="summary_checkbox_enable_pip">Permet de visualiser le flux (sans le contrôler) tout en utilisant une autre application</string>
-    <string name="title_language_list">Langue</string>
-    <string name="summary_language_list">Langue à utiliser pour Artemis</string>
-    <string name="title_checkbox_small_icon_mode">Utiliser des petites icônes</string>
-    <string name="summary_checkbox_small_icon_mode">Des icônes plus petites permettent d\'afficher plus d\'applications en même temps</string>
 
     <string name="category_host_settings">Paramètres de l\'hôte</string>
     <string name="title_checkbox_enable_sops">Optimiser les paramètres du jeu</string>

@@ -74,10 +74,6 @@
 	<string name="wol_fail">無法傳送 Wake-On-LAN 封包</string>
 
 	<!-- Unpair messages -->
-	<string name="unpairing">正在取消配對…</string>
-	<string name="unpair_success">取消配對成功</string>
-	<string name="unpair_fail">取消配對失敗</string>
-	<string name="unpair_error">裝置未配對</string>
 
 	<!-- Errors -->
 	<string name="error_pc_offline">電腦已離線</string>
@@ -119,7 +115,6 @@
 		請確認 Apollo 已在主機電腦上執行。</string>
 	<string name="yes">是</string>
 	<string name="no">否</string>
-	<string name="lost_connection">與電腦的連線中斷</string>
 	<string name="title_details">詳細資訊</string>
 	<string name="help">說明</string>
 	<string name="delete_pc_msg">您確定要刪除此電腦嗎？</string>
@@ -163,8 +158,6 @@
 	<string name="applist_menu_export_launcher">匯出啟動檔</string>
 	<string name="applist_menu_tv_channel">新增至頻道</string>
 	<string name="applist_menu_hide_app">隱藏應用程式</string>
-	<string name="applist_refresh_title">應用程式清單</string>
-	<string name="applist_refresh_msg">正在重新整理應用程式…</string>
 	<string name="applist_refresh_error_title">錯誤</string>
 	<string name="applist_refresh_error_msg">無法取得應用程式清單</string>
 	<string name="applist_quit_app">正在結束</string>
@@ -282,10 +275,6 @@
 	<string name="category_ui_settings">介面設定</string>
 	<string name="title_checkbox_enable_pip">啟用子母畫面旁觀模式</string>
 	<string name="summary_checkbox_enable_pip">允許在多工時觀看串流（不可控制）</string>
-	<string name="title_language_list">語言</string>
-	<string name="summary_language_list">Artemis 使用的語言</string>
-	<string name="title_checkbox_small_icon_mode">使用小型封面圖</string>
-	<string name="summary_checkbox_small_icon_mode">在應用程式格狀檢視中使用較小封面圖，可在同一畫面顯示更多應用程式</string>
 
 	<string name="category_host_settings">主機設定</string>
 	<string name="title_checkbox_enable_sops">最佳化遊戲設定</string>
@@ -741,7 +730,6 @@
 	<string name="error_writing_file">寫入檔案錯誤：%s</string>
 	<string name="unexpected_error_during_file_export">匯出期間發生未預期的錯誤。</string>
 
-	<!-- AppView Toast Messages -->
 	<string name="file_export_cancelled">已取消匯出。</string>
 	<string name="app_removed_from_pc">已自電腦移除應用程式</string>
 	<string name="title_export_sunshine_launcher_file">為 Sunshine 匯出啟動檔</string>
@@ -767,7 +755,6 @@
 	<string name="profile_manager_no_profiles_yet">尚無設定檔</string>
 	<string name="profile_manager_profiles_description">設定檔可讓你建立並儲存不同的串流組態。每個設定檔都有自己的設定，並可快速切換。</string>
 	<string name="profile_manager_tap_create_profile">點選 + 以建立第一個設定檔</string>
-	<string name="profile_manager_choose_profile">選擇設定檔</string>
 	<string name="profile_manager_deactivated_profile">已停用的設定檔</string>
 	<string name="profile_manager_activated_profile">已啟用設定檔『%s』</string>
 	<string name="profile_manager_delete_profile">刪除設定檔</string>

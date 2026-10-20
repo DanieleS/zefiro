@@ -49,7 +49,6 @@ public class PreferenceConfiguration {
     private static final String METERED_BITRATE_PREF_STRING = "seekbar_metered_bitrate_kbps";
     private static final String ENABLE_ULTRA_LOW_LATENCY_PREF_STRING = "checkbox_ultra_low_latency";
     private static final String ENFORCE_DISPLAY_MODE_PREF_STRING = "checkbox_enforce_display_mode";
-    private static final String AUTO_ENTER_LAST_PC_PREF_STRING = "checkbox_auto_enter_last_pc";
     private static final String ENABLE_COMPANION_DISPLAY_PREF_STRING = "checkbox_enable_companion_display";
     private static final String ENABLE_COMPANION_STATS_PREF_STRING = "checkbox_enable_companion_stats";
     private static final String ENABLE_COMPANION_APP_PREF_STRING = "checkbox_enable_companion_app";
@@ -68,8 +67,9 @@ public class PreferenceConfiguration {
     private static final String ADAPTIVE_BITRATE_MODE_PREF_STRING = "list_adaptive_bitrate_mode";
     private static final String DEADZONE_PREF_STRING = "seekbar_deadzone";
     private static final String OSC_OPACITY_PREF_STRING = "seekbar_osc_opacity";
-    private static final String LANGUAGE_PREF_STRING = "list_languages";
-    private static final String SMALL_ICONS_PREF_STRING = "checkbox_small_icon_mode";
+    // The in-app language picker is gone (the UI is English-only and follows the system or
+    // per-app locale); the key is only kept so readPreferences can drop a value saved before.
+    private static final String LEGACY_LANGUAGE_PREF_STRING = "list_languages";
     private static final String MULTI_CONTROLLER_PREF_STRING = "checkbox_multi_controller";
     static final String AUDIO_CONFIG_PREF_STRING = "list_audio_config";
     private static final String USB_DRIVER_PREF_SRING = "checkbox_usb_driver";
@@ -165,9 +165,6 @@ public class PreferenceConfiguration {
     static final String DEFAULT_FPS = "60";
     private static final boolean DEFAULT_ENABLE_ULTRA_LOW_LATENCY = false;
     private static final boolean DEFAULT_ENFORCE_DISPLAY_MODE = false;
-    // The PC list is a gate, not a destination: someone who has picked a PC once should not have
-    // to pick it again every launch. Back from the library still lands on it.
-    private static final boolean DEFAULT_AUTO_ENTER_LAST_PC = true;
     private static final boolean DEFAULT_ENABLE_COMPANION_DISPLAY = false;
     // A companion panel with nothing on it is worth less than one showing the stats, so this is
     // on by default. It only takes effect once the companion display itself is switched on.
@@ -186,7 +183,6 @@ public class PreferenceConfiguration {
     private static final boolean DEFAULT_HOST_AUDIO = false;
     private static final int DEFAULT_DEADZONE = 5;
     private static final int DEFAULT_OPACITY = 90;
-    public static final String DEFAULT_LANGUAGE = "default";
     private static final boolean DEFAULT_MULTI_CONTROLLER = true;
     private static final boolean DEFAULT_USB_DRIVER = true;
     private static final String DEFAULT_VIDEO_FORMAT = "auto";
@@ -297,9 +293,8 @@ public class PreferenceConfiguration {
     public ScaleMode videoScaleMode;
     public UpscalingPolicy.Mode upscalingMode = UpscalingPolicy.Mode.OFF;
     public int upscalingSharpness = 50;
-    public String language;
     public int renderMode;
-    public boolean smallIconMode, multiController, usbDriver, flipFaceButtons;
+    public boolean multiController, usbDriver, flipFaceButtons;
     public boolean onscreenController;
     public boolean hideOSCWhenHasGamepad;
     public boolean enableBatteryReport;
@@ -356,8 +351,6 @@ public class PreferenceConfiguration {
     public boolean enableFullExDisplay;
 
     public boolean enableCompanionApp;
-
-    public boolean autoEnterLastPc;
 
     public boolean enableCompanionDisplay;
 
@@ -631,26 +624,6 @@ public class PreferenceConfiguration {
         return (int)Math.round(resolutionFactor * frameRateFactor) * 1000;
     }
 
-    public static boolean getDefaultSmallMode(Context context) {
-        PackageManager manager = context.getPackageManager();
-        if (manager != null) {
-            // TVs shouldn't use small mode by default
-            if (manager.hasSystemFeature(PackageManager.FEATURE_TELEVISION)) {
-                return false;
-            }
-
-            // API 21 uses LEANBACK instead of TELEVISION
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
-                if (manager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)) {
-                    return false;
-                }
-            }
-        }
-
-        // Use small mode on anything smaller than a 7" tablet
-        return context.getResources().getConfiguration().smallestScreenWidthDp < 500;
-    }
-
     public static boolean isPyroWaveEnabled(Context context) {
         SharedPreferences prefs = ProfilesManager.getInstance().getOverlayingSharedPreferences(context);
         return prefs.getBoolean(ENABLE_PYROWAVE_PREF_STRING, DEFAULT_ENABLE_PYROWAVE);
@@ -800,12 +773,6 @@ private static int getFramePacingValue(Context context) {
                 .apply();
     }
 
-//    public static void completeLanguagePreferenceMigration(Context context) {
-//        // Put our language option back to default which tells us that we've already migrated it
-//        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-//        prefs.edit().putString(LANGUAGE_PREF_STRING, DEFAULT_LANGUAGE).apply();
-//    }
-
     public static boolean isShieldAtvFirmwareWithBrokenHdr() {
         // This particular Shield TV firmware crashes when using HDR
         // https://www.nvidia.com/en-us/geforce/forums/notifications/comment/155192/
@@ -919,10 +886,10 @@ private static int getFramePacingValue(Context context) {
                     .apply();
         }
 
-        if (!prefs.contains(SMALL_ICONS_PREF_STRING)) {
-            // We need to write small icon mode's default to disk for the settings page to display
-            // the current state of the option properly
-            prefs.edit().putBoolean(SMALL_ICONS_PREF_STRING, getDefaultSmallMode(context)).apply();
+        if (prefs.contains(LEGACY_LANGUAGE_PREF_STRING)) {
+            // Settings no longer offers a language row, so a locale picked before the upgrade
+            // could never be changed or reset again; drop it so every screen follows the system.
+            prefs.edit().remove(LEGACY_LANGUAGE_PREF_STRING).apply();
         }
 
         if (!prefs.contains(GAMEPAD_MOTION_SENSORS_PREF_STRING) && Build.VERSION.SDK_INT == Build.VERSION_CODES.S) {
@@ -980,8 +947,6 @@ private static int getFramePacingValue(Context context) {
 
         config.oscOpacity = prefs.getInt(OSC_OPACITY_PREF_STRING, DEFAULT_OPACITY);
 
-        config.language = prefs.getString(LANGUAGE_PREF_STRING, DEFAULT_LANGUAGE);
-
         // Checkbox preferences
         config.disableWarnings = prefs.getBoolean(DISABLE_TOASTS_PREF_STRING, DEFAULT_DISABLE_TOASTS);
         config.enforceDisplayMode = prefs.getBoolean(ENFORCE_DISPLAY_MODE_PREF_STRING, DEFAULT_ENFORCE_DISPLAY_MODE);
@@ -995,7 +960,6 @@ private static int getFramePacingValue(Context context) {
         config.adaptiveBitrateMode = AdaptiveBitrateController.Mode.fromPreference(
                 prefs.getString(ADAPTIVE_BITRATE_MODE_PREF_STRING,
                         AdaptiveBitrateController.Mode.BALANCED.getPreferenceValue()));
-        config.smallIconMode = prefs.getBoolean(SMALL_ICONS_PREF_STRING, getDefaultSmallMode(context));
         config.multiController = prefs.getBoolean(MULTI_CONTROLLER_PREF_STRING, DEFAULT_MULTI_CONTROLLER);
         config.usbDriver = prefs.getBoolean(USB_DRIVER_PREF_SRING, DEFAULT_USB_DRIVER);
         config.fullScreen = prefs.getBoolean(FULL_SCREEN_PREF_STRING, DEFAULT_FULL_SCREEN);
@@ -1083,8 +1047,6 @@ private static int getFramePacingValue(Context context) {
         config.enableNewAnalogStick=prefs.getBoolean(CHECKBOX_CHECKBOX_ENABLE_ANALOG_STICK_NEW,false);
 
         config.enableFullExDisplay=prefs.getBoolean("checkbox_enable_fullexdisplay",false);
-
-        config.autoEnterLastPc = prefs.getBoolean(AUTO_ENTER_LAST_PC_PREF_STRING, DEFAULT_AUTO_ENTER_LAST_PC);
 
         config.enableCompanionDisplay = prefs.getBoolean(ENABLE_COMPANION_DISPLAY_PREF_STRING, DEFAULT_ENABLE_COMPANION_DISPLAY);
 

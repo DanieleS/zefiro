@@ -7,14 +7,12 @@
     <dimen name="tv_channel_logo_height">80dp</dimen>
 
     <!--
-        Grid tiles. The cell is the art, exactly: the space between tiles is the grid's
-        spacing, not padding inside the cell. AbsListView positions the focus ring on the
-        bounds of the cell, so this is what puts the ring on the edge of the art.
+        Game tiles. The cell is the art, exactly: the space between tiles is the grid's
+        spacing, not padding inside the cell, so the focus ring drawn on the cell's bounds
+        sits on the edge of the art.
     -->
     <dimen name="tile_corner">10dp</dimen>
-    <dimen name="tile_spacing">20dp</dimen>
     <dimen name="tile_corner_small">6dp</dimen>
-    <dimen name="tile_spacing_small">10dp</dimen>
     <dimen name="tile_focus_stroke">2dp</dimen>
 
     <!--
@@ -46,12 +44,10 @@
     <dimen name="pc_status_dot">8dp</dimen>
 
     <!--
-        The actions along the top. The icons are drawn fitCenter inside this padding rather
-        than stretched to fill it: the vectors declare themselves 256dp wide, and fitXY on a
-        70x65 button is what squashed them.
+        A round icon action. The icon is drawn fitCenter inside this padding rather than
+        stretched to fill it: the vectors declare themselves 256dp wide, and fitXY on a 70x65
+        button is what squashed them.
     -->
-    <dimen name="top_bar_height">64dp</dimen>
-    <dimen name="top_bar_padding">12dp</dimen>
     <dimen name="action_size">48dp</dimen>
     <dimen name="action_icon_inset">12dp</dimen>
 

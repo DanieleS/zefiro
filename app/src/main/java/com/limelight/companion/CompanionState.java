@@ -308,33 +308,6 @@ public class CompanionState {
         return browsing;
     }
 
-    /**
-     * Point the idle companion surface at a game, the legacy library's way: a title and the
-     * host's metadata, with no host or app to act on, so the panel offers no Play for it.
-     * Metadata may be null: the title alone is still worth showing.
-     *
-     * @deprecated for {@code AppView} only, until it is retired; use {@link #setBrowsing(Browsing)}
-     */
-    @Deprecated
-    public void setBrowsing(String title, AppMetadata metadata) {
-        // The background belongs to the previous game; dropped until the new one's arrives.
-        setBrowsing(new Browsing(Browsing.Kind.GAME, null, Browsing.NO_APP, title,
-                Browsing.metaLine(metadata), metadata != null ? metadata.getDescription() : null,
-                null, false));
-    }
-
-    /**
-     * Attach the background art once it has loaded for the current spotlight.
-     *
-     * @deprecated for {@code AppView} only; a new {@link Browsing} carries its own backdrop
-     */
-    @Deprecated
-    public void setBrowsingBackground(Bitmap background) {
-        if (browsing != null) {
-            setBrowsing(browsing.withBackdrop(background));
-        }
-    }
-
     /** Stop browsing, and leave the browsing surface with it, hosts row and all. */
     public void clearBrowsing() {
         leaveBrowsing();

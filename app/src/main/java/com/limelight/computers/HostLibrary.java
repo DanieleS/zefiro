@@ -57,7 +57,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Everything the library knows about one host: its games, which one is running, what the user
  * hid, the order they browse in, the host's Playnite metadata and whether it keeps statistics.
  *
- * <p>This is {@code AppView}'s per-host state, taken out of the Activity. There it lived and died
+ * <p>This is the old library's per-host state, taken out of the Activity. There it lived and died
  * with the screen, and a host going offline or unpaired could only {@code finish()} it. Here it
  * lives as long as the host is selected; offline and unpaired are {@link State states} a screen
  * shows, and nothing finishes.
@@ -209,7 +209,8 @@ public class HostLibrary {
     private static final int BACKGROUND_MAX_WIDTH = 1600;
 
     // An eighth of the heap, at most 32 MB: a handful of decoded heroes, which is what a user
-    // browsing back and forth revisits. AppView kept every one it ever loaded, in a plain map.
+    // browsing back and forth revisits. The old library kept every one it ever loaded, in a plain
+    // map.
     private static final int BACKGROUND_CACHE_KB =
             (int) Math.min(32 * 1024, Runtime.getRuntime().maxMemory() / 1024 / 8);
 
@@ -255,10 +256,10 @@ public class HostLibrary {
     private AppStats firstStatsPage;
     private HostSession session;
 
-    // The probe's progress. AppView probed once per visit, so a failure was retried on the next
-    // one; this library lives as long as the host is selected, which on a launcher is days. So
-    // a failed probe is retried on later polls, backing off, and each visit (setActive(true))
-    // asks again even after an answer, to pick up metadata the host gained meanwhile.
+    // The probe's progress. The old library probed once per visit, so a failure was retried on the
+    // next one; this library lives as long as the host is selected, which on a launcher is days. So
+    // a failed probe is retried on later polls, backing off, and each visit (setActive(true)) asks
+    // again even after an answer, to pick up metadata the host gained meanwhile.
     private boolean probeInFlight;
     private boolean probeAnswered;
     private int probeFailures;
@@ -383,16 +384,17 @@ public class HostLibrary {
 
     /**
      * Runs the app list poller while the library is on screen. The repository follows the
-     * activity's start and stop, as {@code AppView} followed resume and pause.
+     * activity's start and stop, as the old library followed resume and pause.
      */
     public void setActive(boolean active) {
         boolean visitStarts = active && !this.active;
         this.active = active;
         updatePoller();
         if (visitStarts && !closed) {
-            // Once per visit, as AppView did: the host may have gained metadata or statistics
-            // since the last answer, and a failure backing off is worth a fresh try now that the
-            // user is looking. The old metadata stays on screen until the new answer replaces it.
+            // Once per visit, as the old library did: the host may have gained metadata or
+            // statistics since the last answer, and a failure backing off is worth a fresh try now
+            // that the user is looking. The old metadata stays on screen until the new answer
+            // replaces it.
             probeAnswered = false;
             probeFailures = 0;
             probeRetryAtMs = 0;
@@ -402,7 +404,8 @@ public class HostLibrary {
 
     /**
      * Ignores the host while a quit is in flight, so the game still listed as running does not
-     * flash back before the host has caught up. Ported from {@code AppView.suspendGridUpdates}.
+     * flash back before the host has caught up. Ported from the old library's
+     * {@code suspendGridUpdates}.
      */
     public void setSuspendUpdates(boolean suspend) {
         suspendUpdates = suspend;
@@ -670,8 +673,8 @@ public class HostLibrary {
         });
     }
 
-    // On the executor. The cached list shows the library at once, as AppView did, rather than
-    // a spinner while the host is asked; the host's own answer replaces it moments later.
+    // On the executor. The cached list shows the library at once, as the old library did, rather
+    // than a spinner while the host is asked; the host's own answer replaces it moments later.
     private void readCachedList() {
         final String raw;
         try (InputStream in = CacheHelper.openCacheFileForInput(cacheDir, "applist", hostUuid)) {
@@ -748,15 +751,15 @@ public class HostLibrary {
         return identity;
     }
 
-    // Every game's cover into the disk cache ahead of any tile, as AppView did on every visit:
-    // the grid then fills from disk, and the stand-in detection has every cover to compare
-    // rather than only the ones scrolled past. Hidden games too: the stand-in shared by one
-    // visible and one hidden game is only found with both on disk, and hidden games are still
-    // drawn, dimmed, when the user asks. Waits for a list and a host that can answer, so it runs
-    // on the first answer of the session, after a change of list, and when the host comes back;
-    // covers already on disk are skipped by the loader, so a repeat costs a file check each.
-    // The loader's prefetch queue has no bound, unlike its tile queues, so a library of
-    // hundreds of games is fetched whole rather than losing its first games to the newest.
+    // Every game's cover into the disk cache ahead of any tile, as the old library did on every
+    // visit: the grid then fills from disk, and the stand-in detection has every cover to compare
+    // rather than only the ones scrolled past. Hidden games too: the stand-in shared by one visible
+    // and one hidden game is only found with both on disk, and hidden games are still drawn,
+    // dimmed, when the user asks. Waits for a list and a host that can answer, so it runs on the
+    // first answer of the session, after a change of list, and when the host comes back; covers
+    // already on disk are skipped by the loader, so a repeat costs a file check each. The loader's
+    // prefetch queue has no bound, unlike its tile queues, so a library of hundreds of games is
+    // fetched whole rather than losing its first games to the newest.
     private void maybePrefetchArt() {
         if (!prefetchPending || !haveList || host == null || !canFetchArt(host.details)) {
             return;

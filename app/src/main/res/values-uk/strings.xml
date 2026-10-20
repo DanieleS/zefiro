@@ -21,10 +21,6 @@
     <string name="wol_waking_msg">Пробудження пристрою може зайняти кілька секунд. Якщо цього не відбувається, упевніться що Wake-On-LAN налаштований правильно.</string>
     <string name="wol_fail">Помилка при відправці Wake-On-LAN пакетів</string>
     <!-- Unpair messages -->
-    <string name="unpairing">Розрив пари…</string>
-    <string name="unpair_success">Розрив пари закінчився успішно</string>
-    <string name="unpair_fail">Розрив пари не вдався</string>
-    <string name="unpair_error">Пристрій не було спарено</string>
     <!-- Errors -->
     <string name="error_pc_offline">Пристрій вимкнено чи знаходиться поза мережею</string>
     <string name="error_manager_not_running">Сервіс ComputerManager не запущено. Будь ласка, зачекайте кілька секунд або перезапустіть застосунок.</string>
@@ -49,15 +45,12 @@
 \nПереконайтеся, що Sunshine запущено на вашому головному ПК або GameStream увімкнено в налаштуваннях GeForce Experience SHIELD.</string>
     <string name="yes">Так</string>
     <string name="no">Ні</string>
-    <string name="lost_connection">З\'єднання з пристроєм втрачено</string>
     <!-- AppList activity -->
     <string name="applist_menu_resume">Відновити сесію</string>
     <string name="applist_menu_quit">Вийти з сесії</string>
     <string name="applist_menu_quit_and_start">Вийти з поточної гри і запустити</string>
     <string name="applist_menu_cancel">Скасувати</string>
     <string name="applist_menu_tv_channel">Додати на канал</string>
-    <string name="applist_refresh_title">Перелік застосунків</string>
-    <string name="applist_refresh_msg">Оновлення застосунків…</string>
     <string name="applist_refresh_error_title">Помилка</string>
     <string name="applist_refresh_error_msg">Помилка отримання переліку застосунків</string>
     <string name="applist_quit_app">Виходимо з</string>
@@ -89,10 +82,6 @@
     <string name="title_checkbox_xb1_driver">Драйвер для контролерів Xbox 360/One</string>
     <string name="summary_checkbox_xb1_driver">Вмикає вбудований USB драйвер для пристроїв без власної підтримки контролерів Xbox</string>
     <string name="category_ui_settings">Налаштування інтерфейсу</string>
-    <string name="title_language_list">Мова</string>
-    <string name="summary_language_list">Мова, яка буде використовуватися в Moonlight</string>
-    <string name="title_checkbox_small_icon_mode">Використовувати маленькі іконки</string>
-    <string name="summary_checkbox_small_icon_mode">Використовувати маленькі іконки в сітці застосунків, для відображення більшої кількості елементів на екрані</string>
     <string name="category_host_settings">Налаштування хоста</string>
     <string name="title_checkbox_enable_sops">Оптимізувати ігрові налаштування</string>
     <string name="summary_checkbox_enable_sops">Дозволити GFE змінювати налаштування ігор для оптимальної трансляції</string>

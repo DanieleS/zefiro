@@ -27,7 +27,6 @@
     <string name="applist_menu_quit_and_start">Zakończ bieżącą grę i uruchom</string>
     <string name="applist_menu_scut">Utwórz skrót</string>
     <string name="applist_menu_tv_channel">Dodaj do kanału</string>
-    <string name="applist_refresh_title">Lista aplikacji</string>
     <string name="applist_refresh_error_msg">Nie udało się pobrać listy aplikacji</string>
     <string name="applist_quit_app">Rezygnacja</string>
     <string name="applist_quit_success">Zakończono z powodzeniem</string>
@@ -93,10 +92,7 @@
     <string name="category_ui_settings">Ustawienia interfejsu użytkownika</string>
     <string name="title_checkbox_enable_pip">Włącz tryb obserwatora obrazu w obrazie</string>
     <string name="summary_reset_osc">Przywraca domyślny rozmiar i położenie wszystkich elementów sterujących na ekranie</string>
-    <string name="title_language_list">Język</string>
-    <string name="summary_language_list">Język używany w Moonlight</string>
     <string name="category_host_settings">Ustawienia hosta</string>
-    <string name="summary_checkbox_small_icon_mode">Mniejsze ramki w siatce aplikacji pozwalają na wyświetlanie większej liczby aplikacji na ekranie</string>
     <string name="title_checkbox_enable_sops">Optymalizacja ustawień gry</string>
     <string name="summary_checkbox_enable_sops">Zezwalanie GFE na modyfikowanie ustawień gry w celu optymalnego streamowania</string>
     <string name="title_checkbox_host_audio">Odtwarzanie dźwięku na komputerze</string>
@@ -158,8 +154,6 @@
     <string name="wol_no_mac">Nie można wybudzić komputera, ponieważ nie ma zapisanego adresu MAC</string>
     <string name="wol_waking_pc">Uruchamianie PC…</string>
     <string name="wol_waking_msg">Uruchomienie komputera może potrwać kilka sekund. Jeśli tak się nie stanie, upewnij się, że jest prawidłowo skonfigurowany do Wake-On-LAN.</string>
-    <string name="unpair_fail">Rozparowanie nie powiodło się</string>
-    <string name="unpair_error">Urządzenie nie zostało sparowane</string>
     <string name="error_pc_offline">Komputer jest offline</string>
     <string name="error_unknown_host">Nie udało się zlokalizować hosta</string>
     <string name="message_decoding_error">Moonlight uległ awarii z powodu niezgodności z dekoderem wideo tego urządzenia. Spróbuj dostosować ustawienia przesyłania strumieniowego jeśli awarie będą się powtarzać.</string>
@@ -174,7 +168,6 @@
     <string name="conn_terminated_msg">Połączenie zostało przerwane.</string>
     <string name="perf_overlay_renderingfps">Liczba klatek na sekundę renderowania: %1$.2f FPS</string>
     <string name="applist_refresh_error_title">Błąd</string>
-    <string name="applist_refresh_msg">Odświeżanie aplikacji…</string>
     <string name="addpc_enter_ip">Należy wprowadzić adres IP</string>
     <string name="category_audio_settings">Ustawienia audio</string>
     <string name="title_frame_pacing">Tempo klatek wideo</string>
@@ -187,8 +180,6 @@
     <string name="resolution_480p">480p</string>
     <string name="pair_pairing_msg">Wprowadź następujący kod PIN na komputerze docelowym:</string>
     <string name="pair_pairing_help">Jeśli na komputerze hosta działa Sunshine, przejdź do interfejsu użytkownika Sunshine aby wprowadzić kod PIN.</string>
-    <string name="unpairing">Rozparowywanie…</string>
-    <string name="unpair_success">Rozparowano z powodzeniem</string>
     <string name="unable_to_pin_shortcut">Obecny program uruchamiający nie pozwala na tworzenie przypiętych skrótów.</string>
     <string name="conn_client_latency">Średnie opóźnienie dekodowania ramki:</string>
     <string name="conn_client_latency_hw">opóźnienie dekodera sprzętowego:</string>
@@ -196,11 +187,9 @@
     <string name="conn_hardware_latency">Średnie opóźnienie dekodowania sprzętowego:</string>
     <string name="conn_starting">Uruchamianie</string>
     <string name="conn_error_title">Błąd połączenia</string>
-    <string name="lost_connection">Utrata połączenia z komputerem</string>
     <string name="dialog_title_reset_osc">Reset układu</string>
     <string name="dialog_text_reset_osc">Czy na pewno chcesz usunąć zapisany układ kontrolek ekranowych?</string>
     <string name="summary_checkbox_enable_pip">Umożliwia wyświetlanie strumienia (ale nie sterowanie nim) podczas pracy wielozadaniowej</string>
-    <string name="title_checkbox_small_icon_mode">Używaj małe ramki</string>
     <string name="title_enable_perf_overlay">Wyświetlanie statystyk wydajności podczas przesyłania strumieniowego</string>
     <string name="summary_troubleshooting">Zobacz wskazówki dotyczące diagnozowania i naprawiania typowych problemów z transmisją strumieniową</string>
     <string name="audioconf_51surround">5.1 Surround Sound</string>

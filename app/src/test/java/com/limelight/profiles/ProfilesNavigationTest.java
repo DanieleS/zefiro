@@ -1,33 +1,34 @@
 package com.limelight.profiles;
 
 import android.content.Intent;
-import android.view.View;
-import android.content.SharedPreferences;
-import android.os.Build;
-import android.content.Context;
-import android.app.GameManager;
+import android.os.Looper;
 
-import com.limelight.PcView;
+import androidx.preference.Preference;
+
+import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.limelight.MainScreenTestEnvironment;
 import com.limelight.ProfilesActivity;
 import com.limelight.R;
-import com.limelight.AppView;
-import com.limelight.library.LibraryIntents;
+import com.limelight.TestLogSuppressor;
+import com.limelight.main.MainActivity;
+import com.limelight.preferences.StreamSettings;
 
-import androidx.test.core.app.ApplicationProvider;
-
+import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.Shadows;
-import org.robolectric.android.controller.ActivityController;
 import org.robolectric.annotation.Config;
-import org.junit.BeforeClass;
-import com.limelight.TestLogSuppressor;
 
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.mock;
 
+/**
+ * Profiles are reached from the main screen two ways, by window: the avatar at the rail's foot in
+ * a wide one, and the Profiles entry in Settings in a compact one, whose bottom bar has no room
+ * for the avatar.
+ */
 @Config(sdk = {33}, shadows = {com.limelight.shadows.ShadowMoonBridge.class, com.limelight.shadows.ShadowGameManager.class})
 @RunWith(RobolectricTestRunner.class)
 public class ProfilesNavigationTest {
@@ -37,77 +38,55 @@ public class ProfilesNavigationTest {
         TestLogSuppressor.install();
     }
 
-    private void prepareEnvironment() {
-        // Ensure GL renderer prefs exist so PcView skips GLSurface initialization
-        SharedPreferences glPrefs = ApplicationProvider.getApplicationContext()
-                .getSharedPreferences("GlPreferences", 0);
-        glPrefs.edit()
-                .putString("Renderer", "TestRenderer")
-                .putString("Fingerprint", Build.FINGERPRINT)
-                .commit();
-
-        // Provide fake GameManager service to avoid ServiceNotFoundException
-        org.robolectric.shadows.ShadowApplication shadowApp = org.robolectric.Shadows.shadowOf((android.app.Application) ApplicationProvider.getApplicationContext());
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            shadowApp.setSystemService(Context.GAME_SERVICE, mock(GameManager.class));
-        } else {
-            // On older APIs, the service doesn't exist, but our code might still try to access it.
-            // The cast will fail if it's just `new Object()`, but it shouldn't be called anyway.
-            shadowApp.setSystemService(Context.GAME_SERVICE, null);
-        }
-
-        // Provide stub ComputerManagerService binder for bindService()
-        Context ctx = ApplicationProvider.getApplicationContext();
-        android.content.ComponentName cn = new android.content.ComponentName(ctx, com.limelight.computers.ComputerManagerService.class);
-
-        // We only need a mock binder, not the real service
-        com.limelight.computers.ComputerManagerService.ComputerManagerBinder binder = mock(com.limelight.computers.ComputerManagerService.ComputerManagerBinder.class);
-        org.robolectric.Shadows.shadowOf((android.app.Application) ctx)
-                .setComponentNameAndServiceForBindService(cn, binder);
-
-        // Apply an AppCompat theme required by ProfilesActivity
-        // ApplicationProvider.getApplicationContext().setTheme(R.style.SettingsTheme);
+    @Before
+    public void prepareEnvironment() {
+        MainScreenTestEnvironment.prepare();
     }
 
     @Test
-    public void clickingProfileButton_launchesProfilesActivity() {
-        prepareEnvironment();
-        ActivityController<PcView> controller = Robolectric.buildActivity(PcView.class).setup();
-        PcView pcView = controller.get();
+    @Config(qualifiers = "w900dp-h500dp-land")
+    public void wideWindow_railAvatarLaunchesProfilesActivity() {
+        MainActivity activity = Robolectric.buildActivity(MainActivity.class).setup().get();
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
 
-        View btn = pcView.findViewById(R.id.profilesButton);
-        assertNotNull("profilesButton not found", btn);
+        activity.findViewById(R.id.navAvatar).performClick();
 
-        btn.performClick();
-
-        Intent next = Shadows.shadowOf(pcView).getNextStartedActivity();
+        Intent next = Shadows.shadowOf(activity).getNextStartedActivity();
         assertNotNull("ProfilesActivity should be launched", next);
         assertEquals(ProfilesActivity.class.getName(), next.getComponent().getClassName());
     }
 
     @Test
-    public void clickingProfileButton_launchesProfilesActivityFromAppView() {
-        prepareEnvironment();
-        Intent intent = new Intent(ApplicationProvider.getApplicationContext(), AppView.class);
-        intent.putExtra(LibraryIntents.EXTRA_UUID, "test-uuid");
-        intent.putExtra(LibraryIntents.EXTRA_NAME, "Test PC");
+    @Config(qualifiers = "w400dp-h800dp-port")
+    public void compactWindow_settingsPreferenceLaunchesProfilesActivity() {
+        MainActivity activity = Robolectric.buildActivity(MainActivity.class).setup().get();
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
+        BottomNavigationView bottom = activity.findViewById(R.id.navBottom);
 
-        ActivityController<AppView> controller = Robolectric.buildActivity(AppView.class, intent).setup();
-        AppView appView = controller.get();
+        bottom.findViewById(R.id.nav_settings).performClick();
+        Intent settingsIntent = Shadows.shadowOf(activity).getNextStartedActivity();
+        assertNotNull("Settings should open", settingsIntent);
+        assertEquals(StreamSettings.class.getName(), settingsIntent.getComponent().getClassName());
 
-        View btn = appView.findViewById(R.id.profilesButton);
-        assertNotNull("profilesButton not found in AppView", btn);
+        StreamSettings settings = Robolectric.buildActivity(StreamSettings.class, settingsIntent)
+                .setup().get();
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
+        StreamSettings.SettingsFragment fragment = (StreamSettings.SettingsFragment)
+                settings.getSupportFragmentManager().findFragmentById(R.id.stream_settings);
+        assertNotNull("The settings list should be up", fragment);
+        Preference profiles = fragment.findPreference("pref_profiles");
+        assertNotNull("Settings should offer Profiles", profiles);
+        assertTrue(profiles.isVisible());
 
-        btn.performClick();
+        profiles.getOnPreferenceClickListener().onPreferenceClick(profiles);
 
-        Intent next = Shadows.shadowOf(appView).getNextStartedActivity();
-        assertNotNull("ProfilesActivity should be launched from AppView", next);
+        Intent next = Shadows.shadowOf(settings).getNextStartedActivity();
+        assertNotNull("ProfilesActivity should be launched from Settings", next);
         assertEquals(ProfilesActivity.class.getName(), next.getComponent().getClassName());
     }
 
     @Test
     public void profilesActivity_startsWithoutCrash() {
-        prepareEnvironment();
         ProfilesActivity activity = Robolectric.buildActivity(ProfilesActivity.class).setup().get();
         assertNotNull(activity);
     }

@@ -262,9 +262,9 @@ public class HostActions {
             Dialog.closeDialogs();
 
             if (success) {
-                // What AppView did when opened with "newly paired": force the host's launcher
-                // shortcut in, and on a TV ask for its channel, which needs this activity.
-                new ShortcutHelper(activity).createAppViewShortcut(computer, true, true);
+                // What the old library did when opened with "newly paired": force the host's
+                // launcher shortcut in, and on a TV ask for its channel, which needs this activity.
+                new ShortcutHelper(activity).createHostShortcut(computer, true, true);
             }
 
             final String toastMessage = message;

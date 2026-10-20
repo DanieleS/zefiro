@@ -20,10 +20,6 @@
     <string name="summary_checkbox_enable_sops">Engedje meg, hogy a GFE módosítsa a játék beállításait az optimális streaming érdekében</string>
     <string name="title_checkbox_enable_sops">Optimalizálja a játék beállításait</string>
     <string name="category_host_settings">Gazdabeállítások</string>
-    <string name="summary_checkbox_small_icon_mode">Az alkalmazásrács kisebbik rajza lehetővé teszi, hogy több alkalmazás is látható legyen a képernyőn</string>
-    <string name="title_checkbox_small_icon_mode">Használjon kis dobozos rajzokat</string>
-    <string name="summary_language_list">A Moonlight-hoz használt nyelv</string>
-    <string name="title_language_list">Nyelv</string>
     <string name="summary_checkbox_enable_pip">Lehetővé teszi az adatfolyam megtekintését (de nem vezérlését) multitasking közben</string>
     <string name="title_checkbox_enable_pip">Engedélyezze a Kép a képben megfigyelő módot</string>
     <string name="category_ui_settings">Felhasználói felület beállításai</string>
@@ -96,8 +92,6 @@
     <string name="applist_quit_app">Kilépés</string>
     <string name="applist_refresh_error_msg">Nem sikerült betölteni az alkalmazások listáját</string>
     <string name="applist_refresh_error_title">Hiba</string>
-    <string name="applist_refresh_msg">Alkalmazás lista frissítése…</string>
-    <string name="applist_refresh_title">Alkalmazás lista</string>
     <string name="applist_menu_quit">Kilépés a játékból</string>
     <string name="applist_menu_resume">Visszalépés a játékba</string>
     <string name="applist_menu_hide_app">Alkalmazás elrejtése</string>
@@ -120,7 +114,6 @@
     <string name="delete_pc_msg">Biztosan törli ezt a számítógépet\?</string>
     <string name="help">Segítség</string>
     <string name="title_details">Részletek</string>
-    <string name="lost_connection">Megszakadt a kapcsolat a PC-vel</string>
     <string name="no">Nem</string>
     <string name="yes">Igen</string>
     <string name="searching_pc">A helyi hálózaton lévő PC-k keresése...
@@ -155,10 +148,6 @@
     <string name="error_unknown_host">Nem sikerült feloldani a gazdagépet</string>
     <string name="error_manager_not_running">A ComputerManager szolgáltatás nem fut. Várjon néhány másodpercet, vagy indítsa újra az alkalmazást.</string>
     <string name="error_pc_offline">A számítógép nem elérhető</string>
-    <string name="unpair_error">Az eszköz nincs párosítva</string>
-    <string name="unpair_fail">A párosítás megszüntetése nem sikerült</string>
-    <string name="unpair_success">Párosítás megszüntetve</string>
-    <string name="unpairing">Párosítás megszüntetése…</string>
     <string name="wol_fail">Nem sikerült elküldeni a Wake-On-LAN csomagokat</string>
     <string name="wol_waking_msg">Néhány másodpercbe telhet, mire a számítógép felébred. Ha nem, ellenőrizze, hogy megfelelően van-e konfigurálva a Wake-On-LAN számára.</string>
     <string name="wol_waking_pc">PC elindítása…</string>

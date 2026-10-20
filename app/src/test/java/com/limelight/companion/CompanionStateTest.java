@@ -48,7 +48,7 @@ public class CompanionStateTest {
 
     @Test
     public void browsingIsEnteredBySpotlightingAGameAndLeftByClearingIt() {
-        state.setBrowsing("Hades", null);
+        state.setBrowsing(game("Hades", 12, false));
         assertEquals(CompanionState.Content.BROWSING, state.getContent());
         assertEquals("Hades", state.getBrowsingTitle());
         assertTrue(changes > 0);
@@ -74,7 +74,7 @@ public class CompanionStateTest {
     @Test
     public void browsingIsRefusedWhileStreaming() {
         state.enterStreaming();
-        state.setBrowsing("Late push", null);
+        state.setBrowsing(game("Late push", 3, false));
         assertEquals(CompanionState.Content.STREAMING, state.getContent());
 
         // Leaving the library must not end the stream's surface either.
@@ -84,7 +84,7 @@ public class CompanionStateTest {
 
     @Test
     public void leavingAStateYouAreNotInIsANoOp() {
-        state.setBrowsing("Hades", null);
+        state.setBrowsing(game("Hades", 12, false));
         state.leaveStreaming();
         assertEquals(CompanionState.Content.BROWSING, state.getContent());
 
@@ -229,19 +229,6 @@ public class CompanionStateTest {
         // No backdrop to swap in is no change at all.
         CompanionState.Browsing hades = game("Hades", 12, false);
         assertSame(hades, hades.withBackdrop(null));
-    }
-
-    @Test
-    public void theLegacySpotlightIsAGameWithNothingToActOn() {
-        state.setBrowsing("Hades", null);
-        CompanionState.Browsing browsing = state.getBrowsing();
-
-        assertEquals(CompanionState.Browsing.Kind.GAME, browsing.kind);
-        assertEquals("Hades", browsing.title);
-        assertEquals("", browsing.meta);
-        assertNull(browsing.descriptionHtml);
-        // AppView registers no actions and knows no host: no Play on the panel for it.
-        assertFalse(browsing.hasGame());
     }
 
     @Test

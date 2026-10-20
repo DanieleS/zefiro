@@ -61,10 +61,23 @@ import com.limelight.utils.UiHelper;
  * The main screen: Library, PCs, Stats and Search as sections of one activity, with a navigation
  * rail in wide windows and a bottom bar in compact ones.
  *
- * <p>It replaces the PcView/AppView pair, where the PC list sat under the library and each bound
- * the computer manager on its own. Here one {@link MainViewModel} owns the host state for every
- * section, and switching sections is a fragment show/hide, not an activity start. Until the
- * switch-over it is reached only from the debug "Zefiro (new UI)" icon.
+ * <p>It replaced a pair of activities, a PC list with the library on top of it, each binding the
+ * computer manager on its own. Here one {@link MainViewModel} owns the host state for every
+ * section, and switching sections is a fragment show/hide, not an activity start.
+ *
+ * <h3>Entry</h3>
+ *
+ * The launcher reaches it through the {@code .PcView} alias in the manifest, the name the old PC
+ * list had, so home icons pinned before the switch still resolve. Where it opens:
+ *
+ * <pre>
+ *   restored after a process death   the section it was on
+ *   an art:// pairing link           PCs, where the pairing runs (see below)
+ *   a host shortcut, TV channel      that host's Library ({@link LibraryIntents#EXTRA_UUID}),
+ *                                    sent by ShortcutTrampoline
+ *   the launcher, with a last host   that host's Library
+ *   the launcher, never a host       PCs: an empty Library has nothing to offer but the way there
+ * </pre>
  *
  * <h3>Window</h3>
  *
@@ -74,7 +87,8 @@ import com.limelight.utils.UiHelper;
  * treats the system bars:
  *
  * <pre>
- *   WIDE     rail column shown, bottom bar gone, system bars hidden (immersive, as AppView):
+ *   WIDE     rail column shown, bottom bar gone, system bars hidden (immersive, as the old
+ *            library was):
  *            only a display cutout pads the content
  *   COMPACT  bottom bar shown, rail column gone, system bars kept: the status bar inset pads
  *            the sections, the navigation bar inset pads the bottom bar
@@ -123,7 +137,8 @@ import com.limelight.utils.UiHelper;
  *
  * A stream's achievements may only be written by the host once the game closes, after the
  * stream's last look. So on resume, a few seconds later, the screen asks the host that was
- * streamed (not necessarily the selected one) once more, and toasts what is new, as AppView did.
+ * streamed (not necessarily the selected one) once more, and toasts what is new, as the old
+ * library did.
  *
  * <h3>Pairing from a link</h3>
  *
@@ -248,6 +263,11 @@ public class MainActivity extends AppCompatActivity
         } else if (parkPairing(getIntent())) {
             // Sent here to pair a PC just added: the pairing happens in PCs, so start there.
             initial = Section.PCS;
+        } else if (selectHostFrom(getIntent())) {
+            initial = Section.LIBRARY;
+        } else if (viewModel.repository().getSelectedHostUuid().getValue() == null) {
+            // Never a host opened (a first install): the Library would only point at PCs.
+            initial = Section.PCS;
         }
         navigator = new SectionNavigator(getSupportFragmentManager(), R.id.sectionContainer,
                 sectionContainer, MainActivity::createSection, initial);
@@ -273,6 +293,8 @@ public class MainActivity extends AppCompatActivity
         setIntent(intent);
         if (parkPairing(intent)) {
             goTo(Section.PCS);
+        } else if (selectHostFrom(intent)) {
+            goTo(Section.LIBRARY);
         }
     }
 
@@ -297,8 +319,9 @@ public class MainActivity extends AppCompatActivity
         companionFeed.stop();
         companionReclaimUntil = 0;
         viewModel.onStop();
-        // As PcView did: an informational dialog (a PIN, a host's details) is not left up behind
-        // a stream or another app. A pairing in progress carries on without its PIN dialog.
+        // As the old PC list did: an informational dialog (a PIN, a host's details) is not left
+        // up behind a stream or another app. A pairing in progress carries on without its PIN
+        // dialog.
         Dialog.closeDialogs();
         super.onStop();
     }
@@ -514,6 +537,24 @@ public class MainActivity extends AppCompatActivity
         HostEntry entry = repository.getHost(hostUuid);
         HostLink link = entry != null ? HostLink.of(entry.details, repository.uniqueId()) : null;
         return link != null ? new HostSession(this, link) : null;
+    }
+
+    // --- Opening a host from outside ---
+
+    /**
+     * Selects the host an intent names by {@link LibraryIntents#EXTRA_UUID}, as a host shortcut,
+     * a TV channel or a game shortcut whose host has a stream running hands it over through
+     * ShortcutTrampoline. The trampoline has already found the host, so the UUID is trusted.
+     *
+     * @return whether the intent named one
+     */
+    private boolean selectHostFrom(Intent intent) {
+        String uuid = intent.getStringExtra(LibraryIntents.EXTRA_UUID);
+        if (uuid == null || uuid.isEmpty()) {
+            return false;
+        }
+        viewModel.repository().select(uuid);
+        return true;
     }
 
     // --- Pairing from a link ---

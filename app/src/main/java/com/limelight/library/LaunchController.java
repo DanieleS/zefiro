@@ -37,7 +37,7 @@ import com.limelight.utils.UiHelper;
  * Starts, resumes and quits the selected host's games, and offers everything else that can be
  * done to one (the actions sheet).
  *
- * <p>This is {@code AppView}'s launch logic ({@code onAppClicked}, {@code startApp},
+ * <p>This is the old library's launch logic ({@code onAppClicked}, {@code startApp},
  * {@code quitThenStart}, {@code quitApp}, {@code launchVirtualDisplay},
  * {@code showRemoteSessionMenu}), taken out of the activity. The See all grid, the shelves, the
  * hero and the companion's Play all launch through it, so a game starts the same way from
@@ -67,8 +67,8 @@ import com.limelight.utils.UiHelper;
  *
  * While a quit is in flight the library ignores the host ({@link HostLibrary#setSuspendUpdates}),
  * so the game it still reports as running does not flash back; once the host has answered, the
- * library listens again and asks for the app list at once. Unlike AppView, which only let go on
- * success, a failed quit lets go too, or the library would stay deaf to its host for good.
+ * library listens again and asks for the app list at once. Unlike the old library, which only let
+ * go on success, a failed quit lets go too, or the library would stay deaf to its host for good.
  *
  * <h3>Threading</h3>
  *
@@ -156,7 +156,7 @@ public class LaunchController {
 
     /**
      * Whether a start in a virtual display has to be confirmed first: the host either has no
-     * virtual display driver, or has one that is not ready. Ported from AppView's checks.
+     * virtual display driver, or has one that is not ready. Ported from the old library's checks.
      */
     public static boolean needsVirtualDisplayConfirmation(boolean vDisplay, @NonNull ComputerDetails computer) {
         return vDisplay && !(computer.vDisplaySupported && computer.vDisplayDriverReady);
@@ -172,7 +172,8 @@ public class LaunchController {
                 start(app.app, prefs.useVirtualDisplay);
                 break;
             case RESUME:
-                // As AppView: rejoining asks for no confirmation, and keeps the preferred display.
+                // As the old library: rejoining asks for no confirmation, and keeps the preferred
+                // display.
                 launch(app.app, prefs.useVirtualDisplay);
                 break;
             case SHEET:
@@ -372,7 +373,7 @@ public class LaunchController {
         }
         if (app.getAppUUID() == null || app.getAppUUID().isEmpty()) {
             // Sunshine names no app UUID, and a file without one cannot be told apart from its
-            // neighbours: say so before going on, as AppView did.
+            // neighbours: say so before going on, as the old library did.
             UiHelper.displayConfirmationDialog(activity,
                     activity.getString(R.string.title_export_sunshine_launcher_file),
                     activity.getString(R.string.message_export_sunshine_launcher_file),

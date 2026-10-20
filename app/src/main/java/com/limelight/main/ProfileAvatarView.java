@@ -22,8 +22,9 @@ import java.util.Locale;
  * The settings profile at the foot of the rail: a disc with the active profile's initial, or a
  * person icon when no profile is active. A click opens the profiles screen.
  *
- * <p>"Profile" is a settings profile, not an account: the legacy screens show it as a labelled
- * button in their top bars, and on the narrow rail the initial stands in for the name.
+ * <p>"Profile" is a settings profile, not an account: the old screens showed it as a labelled
+ * button in their top bars, and on the narrow rail the initial stands in for the name. A compact
+ * window has no rail, and reaches Profiles from Settings instead.
  *
  * <h3>Listening</h3>
  *

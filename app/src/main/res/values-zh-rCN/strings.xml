@@ -70,10 +70,6 @@
     <string name="wol_waking_msg">唤醒电脑需要一些时间。如果电脑没有唤醒，请确保 Wake-On-LAN 设置无误。</string>
     <string name="wol_fail"> 无法发送Wake-On-LAN数据包 </string>
     <!-- Unpair messages -->
-    <string name="unpairing"> 取消配对中…… </string>
-    <string name="unpair_success"> 成功取消配对 </string>
-    <string name="unpair_fail"> 无法配对 </string>
-    <string name="unpair_error"> 设备没有配对过 </string>
     <!-- Errors -->
     <string name="error_pc_offline"> 电脑离线中 </string>
     <string name="error_manager_not_running">ComputerManager 服务未运行。请稍等几秒或重启App。</string>
@@ -104,7 +100,6 @@
 \n 请确保 Apollo 正在主机上运行。</string>
     <string name="yes"> 确定 </string>
     <string name="no"> 取消 </string>
-    <string name="lost_connection"> 与电脑失去连接 </string>
     <string name="title_details"> 详情 </string>
     <string name="help"> 帮助 </string>
     <string name="delete_pc_msg"> 你确定要删除这台电脑？ </string>
@@ -130,8 +125,6 @@
     <string name="applist_menu_scut"> 创建快捷方式 </string>
     <string name="applist_menu_export_launcher"> 导出启动文件 </string>
     <string name="applist_menu_tv_channel"> 添加到频道 </string>
-    <string name="applist_refresh_title"> 游戏列表 </string>
-    <string name="applist_refresh_msg"> 刷新中…… </string>
     <string name="applist_refresh_error_title"> 错误 </string>
     <string name="applist_refresh_error_msg"> 获取列表失败 </string>
     <string name="applist_quit_app"> 退出中 </string>
@@ -207,10 +200,6 @@
     <string name="dialog_text_reset_osc"> 你确定要删除所保存的屏幕按钮布局吗？ </string>
     <string name="toast_reset_osc_success"> 屏幕按钮布局已经重置 </string>
     <string name="category_ui_settings"> 界面设置 </string>
-    <string name="title_language_list"> 语言 </string>
-    <string name="summary_language_list"> 选择 Artemis 显示的语言 </string>
-    <string name="title_checkbox_small_icon_mode"> 使用小图标 </string>
-    <string name="summary_checkbox_small_icon_mode"> 使用小图标以在屏幕上显示更多项目 </string>
     <string name="category_host_settings"> 主机设置 </string>
     <string name="title_checkbox_enable_sops"> 优化游戏设置 </string>
     <string name="summary_checkbox_enable_sops"> 允许GFE为最佳串流效果自动更改游戏设置 </string>
@@ -639,7 +628,6 @@
     <string name="error_writing_file">写入文件时出错：%s</string>
     <string name="unexpected_error_during_file_export">文件导出期间发生意外错误。</string>
 
-    <!-- AppView Toast Messages -->
     <string name="file_export_cancelled">文件导出已取消。</string>
     <string name="app_removed_from_pc">应用已从电脑上移除</string>
 
@@ -665,7 +653,6 @@
     <string name="profile_manager_no_profiles_yet">尚无配置</string>
     <string name="profile_manager_profiles_description">配置文件允许您创建并保存不同的串流配置。每个配置文件都存储各自的设置，可以快速切换。</string>
     <string name="profile_manager_tap_create_profile">点击 + 以创建您的第一个配置文件</string>
-    <string name="profile_manager_choose_profile">选择配置</string>
     <string name="profile_manager_deactivated_profile">配置已停用</string>
     <string name="profile_manager_activated_profile">已激活配置 %s</string>
     <string name="profile_manager_delete_profile">删除配置</string>

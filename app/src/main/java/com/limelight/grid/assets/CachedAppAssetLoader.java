@@ -3,13 +3,7 @@ package com.limelight.grid.assets;
 import android.graphics.Bitmap;
 import android.os.Handler;
 import android.os.Looper;
-import android.view.View;
-import android.view.animation.Animation;
-import android.view.animation.AnimationUtils;
-import android.widget.ImageView;
-import android.widget.TextView;
 
-import com.limelight.R;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.NvApp;
 
@@ -85,14 +79,14 @@ public class CachedAppAssetLoader {
     // Idle workers go away after this; a library left on screen has nothing to load.
     private static final long WORKER_KEEP_ALIVE_SECONDS = 30;
 
-    // The box art standard every host serves at, and the legacy grid's decode width.
+    // The box art standard every host serves at.
     private static final int STANDARD_ART_WIDTH = 300;
 
     // Decode widths step by this much. Coarse enough that the shelf, the grid and the hero of
     // one window share a few bitmaps between them; fine enough that none is decoded much
-    // larger than it is drawn. It divides the standard 300 px width, so the legacy grid
-    // decodes at the size it always did: a step that rounded 300 up to 384 cost it a third
-    // more memory per cover, and the shared cache that many fewer covers.
+    // larger than it is drawn. It divides the standard 300 px width, so a cover asked for at
+    // that width decodes at it: a step that rounded 300 up to 384 cost a third more memory per
+    // cover, and the shared cache that many fewer covers.
     static final int SIZE_BUCKET_STEP = 100;
     // A cover is at most this wide on any screen this app draws on, a TV hero included.
     static final int MAX_SIZE_BUCKET = 1600;
@@ -109,13 +103,9 @@ public class CachedAppAssetLoader {
     private final ThreadPoolExecutor networkExecutor = newPool(
             MAX_CONCURRENT_NETWORK_LOADS, MAX_PENDING_NETWORK_LOADS);
 
-    /** The host of the legacy view API; null for a loader that is only given tuples. */
-    private final ComputerDetails computer;
-    private final int legacyWidth;
     private final NetworkAssetLoader networkLoader;
     private final MemoryAssetLoader memoryLoader;
     private final DiskAssetLoader diskLoader;
-    private final Bitmap noAppImageBitmap;
     private final Executor main;
 
     private volatile Set<NoArtDetector.ArtFingerprint> placeholders = Collections.emptySet();
@@ -224,34 +214,15 @@ public class CachedAppAssetLoader {
     }
 
     /**
-     * The legacy grid's loader, bound to one host and one tile size, for
-     * {@link #populateImageView}. Results reach the views through the main looper.
-     */
-    public CachedAppAssetLoader(ComputerDetails computer, double scalingDivider,
-                                NetworkAssetLoader networkLoader, MemoryAssetLoader memoryLoader,
-                                DiskAssetLoader diskLoader, Bitmap noAppImageBitmap) {
-        this.computer = computer;
-        this.legacyWidth = (int) Math.round(STANDARD_ART_WIDTH / Math.max(1.0, scalingDivider));
-        this.networkLoader = networkLoader;
-        this.memoryLoader = memoryLoader;
-        this.diskLoader = diskLoader;
-        this.noAppImageBitmap = noAppImageBitmap;
-        this.main = mainLooperExecutor();
-    }
-
-    /**
      * A loader that is handed its host in every {@link LoaderTuple}, for {@link #load}.
      *
      * @param main where callbacks run; the main thread in production
      */
     public CachedAppAssetLoader(NetworkAssetLoader networkLoader, MemoryAssetLoader memoryLoader,
                                 DiskAssetLoader diskLoader, Executor main) {
-        this.computer = null;
-        this.legacyWidth = STANDARD_ART_WIDTH;
         this.networkLoader = networkLoader;
         this.memoryLoader = memoryLoader;
         this.diskLoader = diskLoader;
-        this.noAppImageBitmap = null;
         this.main = main != null ? main : mainLooperExecutor();
     }
 
@@ -436,10 +407,6 @@ public class CachedAppAssetLoader {
         });
     }
 
-    public void queueCacheLoad(NvApp app) {
-        queueCacheLoad(new LoaderTuple(computer, app));
-    }
-
     // --- Internals ---
 
     private ArtState stateOf(ScaledBitmap bitmap) {
@@ -603,99 +570,6 @@ public class CachedAppAssetLoader {
 
         // Three answers that would not decode are the host's answer too; three silences are not.
         return hostAnswered ? Fetch.NONE : Fetch.NO_ANSWER;
-    }
-
-    /**
-     * The legacy grid's binding, on top of {@link #load}: the cover into imgView, and the title
-     * in textView whenever there is no real cover. Main thread. Kept for {@code AppGridAdapter}
-     * until the new library replaces it.
-     *
-     * @return whether the cover was shown at once, from memory
-     */
-    public boolean populateImageView(NvApp app, final ImageView imgView, final TextView textView) {
-        final LoaderTuple tuple = new LoaderTuple(computer, app);
-
-        // If there's already a request in progress for this view, cancel it. If this loader is
-        // still loading the same image for it, we return and let that load finish. A request
-        // that was dropped, drained (the grid stopped for a stream) or made by a replaced
-        // loader is not pending, and waiting on it would leave the cell blank for good.
-        Object previous = imgView.getTag(R.id.artRequest);
-        if (previous instanceof Request) {
-            Request old = (Request) previous;
-            if (old.owner == this && old.isPending() && old.tuple.equals(tuple)) {
-                return true;
-            }
-            old.cancel();
-        }
-
-        // Always set the name text so we have it if needed later
-        textView.setText(app.getAppName());
-
-        // Hidden until there is something to show; a memory hit shows it before this returns.
-        textView.setVisibility(View.INVISIBLE);
-        imgView.setVisibility(View.INVISIBLE);
-        imgView.setImageDrawable(null);
-
-        final boolean[] synchronous = {true};
-        Request request = load(tuple, legacyWidth, (bitmap, state) -> {
-            if (synchronous[0]) {
-                // Show the bitmap immediately. The host's remembered "none" answers at once with
-                // no bitmap: the same app image placeholder the first bind faded in, or the cell
-                // would lose it on every rebind.
-                imgView.setVisibility(View.VISIBLE);
-                imgView.setImageBitmap(bitmap != null ? bitmap : noAppImageBitmap);
-                textView.setVisibility(state == ArtState.ART ? View.GONE : View.VISIBLE);
-                return;
-            }
-
-            if (state == ArtState.LOADING || bitmap == null) {
-                // On its way from the host, or the host had none: the app image placeholder,
-                // titled. Only faded in once, not again when the host gives up.
-                if (imgView.getVisibility() != View.VISIBLE) {
-                    imgView.setImageBitmap(noAppImageBitmap);
-                    imgView.startAnimation(AnimationUtils.loadAnimation(imgView.getContext(), R.anim.boxart_fadein));
-                    imgView.setVisibility(View.VISIBLE);
-                }
-                textView.setVisibility(View.VISIBLE);
-                return;
-            }
-
-            // Show the text if it's a placeholder
-            textView.setVisibility(state == ArtState.ART ? View.GONE : View.VISIBLE);
-            showLegacyArt(imgView, bitmap);
-        });
-        synchronous[0] = false;
-        imgView.setTag(R.id.artRequest, request);
-        return request.isFinished();
-    }
-
-    // Fade in the box art, fading the placeholder out first if one is up.
-    private static void showLegacyArt(final ImageView imageView, final Bitmap bitmap) {
-        if (imageView.getVisibility() == View.VISIBLE) {
-            // Fade out the placeholder first
-            Animation fadeOutAnimation = AnimationUtils.loadAnimation(imageView.getContext(), R.anim.boxart_fadeout);
-            fadeOutAnimation.setAnimationListener(new Animation.AnimationListener() {
-                @Override
-                public void onAnimationStart(Animation animation) {}
-
-                @Override
-                public void onAnimationEnd(Animation animation) {
-                    // Fade in the new box art
-                    imageView.setImageBitmap(bitmap);
-                    imageView.startAnimation(AnimationUtils.loadAnimation(imageView.getContext(), R.anim.boxart_fadein));
-                }
-
-                @Override
-                public void onAnimationRepeat(Animation animation) {}
-            });
-            imageView.startAnimation(fadeOutAnimation);
-        }
-        else {
-            // View is invisible already, so just fade in the new art
-            imageView.setImageBitmap(bitmap);
-            imageView.startAnimation(AnimationUtils.loadAnimation(imageView.getContext(), R.anim.boxart_fadein));
-            imageView.setVisibility(View.VISIBLE);
-        }
     }
 
     public static class LoaderTuple {

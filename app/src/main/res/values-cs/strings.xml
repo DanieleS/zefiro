@@ -23,12 +23,8 @@
     <string name="nettest_title_waiting">Testování připojení k síti</string>
     <string name="pairing">Párování…</string>
     <string name="pair_pc_offline">Počítač je offline</string>
-    <string name="unpairing">Rušení párování…</string>
-    <string name="unpair_success">Párování úspěšně zrušeno</string>
-    <string name="unpair_error">Zařízení nebylo spárováno</string>
     <string name="error_manager_not_running">Služba ComputerManager neběží. Vyčkejte prosím chvíli nebo restartujte aplikaci.</string>
     <string name="error_pc_offline">Počítač je offline</string>
-    <string name="unpair_fail">Zrušení párování se nezdařilo</string>
     <string name="error_404">GFE vrátilo HTTP chybu 404. Ujistěte se, že vaše PC má podporované GPU. Tato chyba může být způsobena i použitím softwaru pro vzdálenou plochu. Zkuste restartovat počítač, nebo přeinstalujte GFE.</string>
     <string name="title_decoding_error">Dekodér videa spadnul</string>
     <string name="error_usb_prohibited">Správce zařízení neumožňuje přístup k USB. Zkontrolujte nastavení Knoxu nebo MDM.</string>
@@ -47,7 +43,6 @@
     <string name="applist_menu_quit_and_start">Ukončit současnou hru a spustit</string>
     <string name="applist_menu_cancel">Zrušit</string>
     <string name="applist_menu_tv_channel">Přidat do kanálu</string>
-    <string name="applist_refresh_title">Seznam aplikací</string>
     <string name="applist_menu_resume">Pokračovat</string>
     <string name="applist_menu_details">Zobrazit detaily</string>
     <string name="applist_menu_scut">Vytvořit zkratku</string>
@@ -151,11 +146,9 @@
 \nZkuste vypnout HDR, změňte rozlišení streamu nebo rozlišení displeje hostitelského PC.</string>
     <string name="yes">Ano</string>
     <string name="no">Ne</string>
-    <string name="lost_connection">Připojení k PC bylo ztraceno</string>
     <string name="title_details">Detaily</string>
     <string name="perf_overlay_renderingfps">Vykreslovací snímková frekvence: %1$.2f FPS</string>
     <string name="perf_overlay_netdrops">Snímky zahozeny vašim připojením: %1$.2f%%</string>
-    <string name="applist_refresh_msg">Obnovování aplikací…</string>
     <string name="applist_refresh_error_title">Chyba</string>
     <string name="applist_refresh_error_msg">Nezdařilo se získat seznam aplikací</string>
     <string name="applist_quit_app">Ukončování</string>
@@ -231,10 +224,6 @@
     <string name="summary_checkbox_vibrate_osc">Vibruje vašim zařízením pro emulaci vibrací ovladače při použití ovladače na obrazovce</string>
     <string name="title_only_l3r3">Zobrazit pouze L3 a R3</string>
     <string name="summary_checkbox_enable_pip">Umožní, aby byl stream sledován (ale ne ovládá) během multitaskingu</string>
-    <string name="title_language_list">Jazyk</string>
-    <string name="summary_language_list">Jazyk, který bude Moonlight používat</string>
-    <string name="title_checkbox_small_icon_mode">Použít malý box art</string>
-    <string name="summary_checkbox_small_icon_mode">Díky menšímu box artu v seznamu aplikací uvidíte na obrazovce více aplikací naráz</string>
     <string name="category_host_settings">Nastavení hostitele</string>
     <string name="title_checkbox_enable_sops">Optimalizovat herní nastavení</string>
     <string name="summary_disable_frame_drop">Může na některých zařízeních snížit mikrozádrhy, ale může zvýšit zpoždění</string>

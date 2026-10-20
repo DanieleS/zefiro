@@ -30,10 +30,6 @@
     </string>
     <string name="wol_fail">Invio pacchetti Wake-On-LAN fallito</string>
     <!-- Unpair messages -->
-    <string name="unpairing">Disaccoppiamento…</string>
-    <string name="unpair_success">Disaccoppiato con successo</string>
-    <string name="unpair_fail">Disaccoppiamento fallito</string>
-    <string name="unpair_error">Il dispositivo non è stato accoppiato</string>
     <!-- Errors -->
     <string name="error_pc_offline">PC offline</string>
     <string name="error_manager_not_running">Il servizio ComputerManager non è avviato. Attendi qualche secondo o riavvia l\'applicazione.</string>
@@ -65,7 +61,6 @@
 \n Assicurati che Sunshine sia avviato o che GameStream sia abilitato nelle impostazioni SHIELD di GeForce Experience.</string>
     <string name="yes">Sì</string>
     <string name="no">No</string>
-    <string name="lost_connection">Connessione con il PC persa</string>
     <string name="help">Assistenza</string>
     <!-- AppList activity -->
     <string name="applist_connect_msg">Connessione al PC in corso…</string>
@@ -73,8 +68,6 @@
     <string name="applist_menu_quit">Chiudi sessione</string>
     <string name="applist_menu_quit_and_start">Chiudi sessione corrente e avvia</string>
     <string name="applist_menu_cancel">Annulla</string>
-    <string name="applist_refresh_title">Lista applicazioni</string>
-    <string name="applist_refresh_msg">Aggiornamento lista in corso…</string>
     <string name="applist_refresh_error_title">Errore</string>
     <string name="applist_refresh_error_msg">Ricezione lista applicazioni fallita</string>
     <string name="applist_quit_app">Chiusura in corso</string>
@@ -122,10 +115,6 @@
     <string name="dialog_text_reset_osc">Sei sicuro di voler ripristinare ai valori predefiniti i layout dei controlli a schermo?</string>
     <string name="toast_reset_osc_success">I controlli a schermo sono stati ripristinati</string>
     <string name="category_ui_settings">Impostazioni dell\'interfaccia</string>
-    <string name="title_language_list">Lingua</string>
-    <string name="summary_language_list">Lingua da usare in Moonlight</string>
-    <string name="title_checkbox_small_icon_mode">Usa icone piccole</string>
-    <string name="summary_checkbox_small_icon_mode">Usa icone piccole nella griglia per avere più oggetti a schermo</string>
     <string name="category_host_settings">Impostazioni del PC host</string>
     <string name="title_checkbox_enable_sops">Ottimizza le impostazioni dei giochi</string>
     <string name="summary_checkbox_enable_sops">Permetti a GFE di modificare le impostazioni dei giochi per uno streaming ottimale</string>
@@ -159,9 +148,6 @@
     <string name="pcview_action_pair">Appaia</string>
     <string name="pcview_action_wake">Accendi</string>
 
-    <string name="action_change_pc">Cambia PC</string>
-    <string name="title_checkbox_auto_enter_last_pc">Vai all\'ultimo PC</string>
-    <string name="summary_checkbox_auto_enter_last_pc">All\'avvio apre subito la libreria dell\'ultimo PC usato, se è online e appaiato. Premi indietro per tornare all\'elenco dei PC.</string>
     <string name="title_details">Dettagli</string>
     <string name="delete_pc_msg">Sei sicuro di voler rimuovere questo PC\?</string>
     <string name="slow_connection_msg">Connessione lenta al PC
@@ -319,7 +305,6 @@
     <string name="title_text_focus_keyboard">Tastiera quando un campo di testo è selezionato</string>
     <string name="summary_text_focus_keyboard">Apre da sola una tastiera quando selezioni un campo di testo sul PC: sul secondo schermo se c\'è il pannello companion o il controller del display esterno, altrimenti sopra lo stream. Richiede un host Scirocco con i suggerimenti di focus attivi; con gli altri host non cambia nulla.</string>
 
-    <string name="action_stats">Statistiche</string>
     <string name="stats_range_week">Settimana</string>
     <string name="stats_range_month">Mese</string>
     <string name="stats_range_year">Anno</string>

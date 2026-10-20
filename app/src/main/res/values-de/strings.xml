@@ -48,10 +48,6 @@
     <string name="wol_waking_msg">Es kann einige Momente dauern deinen Host aufzuwecken. Sollte dies fehlschlagen, stelle bitte sicher, dass Wake-On-LAN korrekt konfiguriert ist.</string>
     <string name="wol_fail">Senden der Wake-On-LAN Pakete ist fehlgeschlagen</string>
     <!-- Unpair messages -->
-    <string name="unpairing">Trenne Kopplung…</string>
-    <string name="unpair_success">Kopplung erfolgreich getrennt</string>
-    <string name="unpair_fail">Trennung der Kopplung fehlgeschlagen</string>
-    <string name="unpair_error">Gerät wurde nicht gekoppelt</string>
     <!-- Errors -->
     <string name="error_pc_offline">Host ist offline</string>
     <string name="error_manager_not_running">Der ComputerManager Dienst läuft nicht. Bitte warte ein paar Sekunden oder starte die App neu.</string>
@@ -85,7 +81,6 @@
 \nStelle sicher, dass Sunshine läuft oder GameStream in den GeForce Experience SHIELD-Einstellungen aktiviert ist.</string>
     <string name="yes">Ja</string>
     <string name="no">Nein</string>
-    <string name="lost_connection">Verbindung zum Host verloren</string>
     <string name="title_details">Details</string>
     <string name="help">Hilfe</string>
     <string name="delete_pc_msg">Bist du sicher, dass du diesen Host löschen möchtest\?</string>
@@ -107,8 +102,6 @@
     <string name="applist_menu_scut">Shortcut erstellen</string>
     <string name="applist_menu_tv_channel">Zu Kanal hinzufügen</string>
     <string name="applist_menu_hide_app">App ausblenden</string>
-    <string name="applist_refresh_title">App Liste</string>
-    <string name="applist_refresh_msg">Apps aktualisieren…</string>
     <string name="applist_refresh_error_title">Fehler</string>
     <string name="applist_refresh_error_msg">Die App-Liste konnte nicht geladen werden</string>
     <string name="applist_quit_app">Beenden</string>
@@ -175,10 +168,6 @@
     <string name="category_ui_settings">UI Einstellungen</string>
     <string name="title_checkbox_enable_pip">Aktivieren des Bild-in-Bild Modus</string>
     <string name="summary_checkbox_enable_pip">Ermöglicht die Anzeige (aber nicht die Steuerung) des Streams während des Multitasking</string>
-    <string name="title_language_list">Sprache</string>
-    <string name="summary_language_list">Sprache die Moonlight verwenden soll</string>
-    <string name="title_checkbox_small_icon_mode">Verwende kleine Cover</string>
-    <string name="summary_checkbox_small_icon_mode">Verwende kleine Cover in der Rasteransicht, um mehr gleichzeitig anzeigen zu können</string>
     <string name="category_host_settings">Host Einstellungen</string>
     <string name="title_checkbox_enable_sops">Spieleinstellungen optimieren</string>
     <string name="summary_checkbox_enable_sops">GFE erlauben, die Spieleinstellungen für ein optimales Streaming zu ändern</string>

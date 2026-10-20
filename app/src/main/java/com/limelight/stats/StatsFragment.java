@@ -46,17 +46,12 @@ import java.util.concurrent.RejectedExecutionException;
  * played, the latest unlocks and the games worth picking up again. Each game opens its own
  * statistics and achievements sheet.
  *
- * <h3>Two hosts</h3>
+ * <h3>The host</h3>
  *
- * It was {@code StatsActivity}, and the legacy library still opens that screen, which now only
- * hosts this fragment. So the fragment finds its PC one of two ways:
- *
- * <pre>
- *   in MainActivity    the selected host: its HostLibrary's session (shared with the Library),
- *                      and the first page its probe already fetched, so the section opens on
- *                      this week without a spinner; a host switch starts over
- *   in StatsActivity   a HostLink in the arguments ({@link #forLink}), and a session of its own
- * </pre>
+ * It was {@code StatsActivity}, a screen of its own handed a {@link HostLink} by the library. Now
+ * it follows the main screen's selected host: that host's {@link HostLibrary} session, shared with
+ * the Library, and the first page the library's probe already fetched, so the section opens on
+ * this week without a spinner. A host switch starts the state over.
  *
  * <h3>State</h3>
  *
@@ -78,32 +73,17 @@ import java.util.concurrent.RejectedExecutionException;
  */
 public class StatsFragment extends Fragment implements SectionKeys, SectionFocus {
 
-    private static final String ARG_LINK = "link";
-
     private static final String[] RANGES = {
             AppStats.RANGE_WEEK, AppStats.RANGE_MONTH, AppStats.RANGE_YEAR};
 
-    /** The section for the PC {@code link} points at, outside the main screen. */
-    public static StatsFragment forLink(@NonNull HostLink link) {
-        StatsFragment f = new StatsFragment();
-        Bundle args = new Bundle();
-        args.putBundle(ARG_LINK, link.toBundle());
-        f.setArguments(args);
-        return f;
-    }
-
     private final Handler main = new Handler(Looper.getMainLooper());
 
-    // Exactly one of the two: the main screen, or the link the legacy screen handed over.
-    @Nullable
     private MainHost host;
-    @Nullable
-    private HostLink link;
 
     private StatsViewModel model;
 
-    // The connection the pages and covers come through. From the link, for the fragment's life;
-    // from the selected host's library, for the view's.
+    // The connection the pages and covers come through: the selected host's library's, for the
+    // view's life.
     @Nullable
     private HostSession session;
     @Nullable
@@ -166,23 +146,16 @@ public class StatsFragment extends Fragment implements SectionKeys, SectionFocus
     @Override
     public void onAttach(@NonNull Context context) {
         super.onAttach(context);
-        Bundle args = getArguments();
-        link = args != null ? HostLink.from(args.getBundle(ARG_LINK)) : null;
-        if (link == null) {
-            if (!(context instanceof MainHost)) {
-                throw new IllegalStateException("StatsFragment needs a MainHost activity or a HostLink");
-            }
-            host = (MainHost) context;
+        if (!(context instanceof MainHost)) {
+            throw new IllegalStateException("StatsFragment needs a MainHost activity");
         }
+        host = (MainHost) context;
     }
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         model = new ViewModelProvider(this).get(StatsViewModel.class);
-        if (link != null) {
-            session = new HostSession(requireContext(), link);
-        }
     }
 
     @Nullable
@@ -259,15 +232,8 @@ public class StatsFragment extends Fragment implements SectionKeys, SectionFocus
         view.getViewTreeObserver().addOnGlobalFocusChangeListener(focusWatch);
         refreshRangeButtons();
 
-        if (link != null) {
-            hostNameView.setText(link.getPcName());
-            covers = new CoverLoader(requireContext(), session, link.getPcUuid());
-            model.forHost(link.getPcUuid());
-            present();
-        } else {
-            HostRepository repository = host.hostRepository();
-            repository.getLibrary().observe(getViewLifecycleOwner(), this::syncHost);
-        }
+        HostRepository repository = host.hostRepository();
+        repository.getLibrary().observe(getViewLifecycleOwner(), this::syncHost);
     }
 
     @Override
@@ -281,11 +247,9 @@ public class StatsFragment extends Fragment implements SectionKeys, SectionFocus
             covers.shutdown();
             covers = null;
         }
-        if (link == null) {
-            // The library's session is the library's; the next view takes it afresh.
-            session = null;
-            boundLibrary = null;
-        }
+        // The library's session is the library's; the next view takes it afresh.
+        session = null;
+        boundLibrary = null;
         drawn = null;
         root = null;
         super.onDestroyView();
@@ -309,7 +273,7 @@ public class StatsFragment extends Fragment implements SectionKeys, SectionFocus
      * library snapshot, which is often, so it does nothing unless one of those changed.
      */
     private void syncHost(@Nullable HostLibrary.Snapshot s) {
-        if (!isAdded() || getView() == null || host == null) {
+        if (!isAdded() || getView() == null) {
             return;
         }
         HostRepository repository = host.hostRepository();

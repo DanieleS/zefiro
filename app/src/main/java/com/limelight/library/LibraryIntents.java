@@ -4,8 +4,8 @@ package com.limelight.library;
  * The extra keys and preference names that cross screen boundaries, in one place that outlives
  * the screens that used to own them.
  *
- * <p>These used to live on {@code AppView} and {@code PcView}. Both activities are on their way
- * out, but the values they defined are not theirs to take with them: pinned launcher shortcuts
+ * <p>These used to live on the old library and PC list activities. Both are gone, but the
+ * values they defined were not theirs to take with them: pinned launcher shortcuts
  * and exported {@code .art} files already carry the extra keys, and the preference files hold the
  * user's hidden games, sort order and last host. Every value here is therefore a contract with
  * data that already exists outside the app.

@@ -15,7 +15,7 @@ import java.util.Set;
  * The rules that turn a host's app list into the library: which entries are games, what changed
  * since the last list, which game is running, and how the hidden set and the order apply.
  *
- * <p>Ported from {@code AppView}'s {@code updateUiWithAppList}, {@code updateUiWithServerinfo}
+ * <p>Ported from the old library's {@code updateUiWithAppList}, {@code updateUiWithServerinfo}
  * and {@code populateAppGridWithCache}, where the same rules were interleaved with adapter calls
  * on the UI thread. Here they are pure functions over lists, so the host library can run them on
  * any thread, and a test can pin them without an Activity.
@@ -101,7 +101,7 @@ public final class LibraryModel {
     /**
      * Splits a host list into games and specials, and says what changed since {@code previous}.
      *
-     * <p>Apps are matched by id, as {@code AppView} did: an id the host keeps is the same game
+     * <p>Apps are matched by id, as the old library did: an id the host keeps is the same game
      * even under a new name. The games keep the host's order; the screen's sort order is applied
      * later, by {@link #toLibraryApps}, so a change of order never looks like a change of list.
      *

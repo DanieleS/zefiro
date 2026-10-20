@@ -49,16 +49,18 @@ import com.limelight.DebugInfoActivity;
 import com.limelight.BuildConfig;
 import com.limelight.GameMenu;
 import com.limelight.LimeLog;
-import com.limelight.PcView;
+import com.limelight.ProfilesActivity;
 import com.limelight.R;
 import com.limelight.binding.input.virtual_controller.keyboard.KeyBoardControllerConfigurationLoader;
 import com.limelight.binding.video.MediaCodecHelper;
 import com.limelight.binding.video.PyroWaveSupport;
+import com.limelight.companion.CompanionDisplayManager;
 import com.limelight.utils.Dialog;
 import com.limelight.computers.ComputerDatabaseManager;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.utils.CocoonSync;
 import com.limelight.utils.FileUriUtils;
+import com.limelight.utils.HelpLauncher;
 
 import java.util.List;
 import com.limelight.utils.PerformanceDataTracker;
@@ -106,8 +108,7 @@ public class StreamSettings extends AppCompatActivity {
 
         setContentView(R.layout.activity_stream_settings);
 
-        // The top app bar's back arrow runs the same path as the system back button, so a
-        // language change is still picked up on the way out.
+        // The top app bar's back arrow does what the system back button does.
         MaterialToolbar toolbar = findViewById(R.id.settings_toolbar);
         toolbar.setNavigationOnClickListener(v -> onBackPressed());
 
@@ -146,29 +147,6 @@ public class StreamSettings extends AppCompatActivity {
             // switching between screens on a foldable device.
             if (mode.getPhysicalWidth() * mode.getPhysicalHeight() != previousDisplayPixelCount) {
                 reloadSettings();
-            }
-        }
-    }
-
-    @Override
-    // NOTE: This will NOT be called on Android 13+ with android:enableOnBackInvokedCallback="true"
-    public void onBackPressed() {
-        finish();
-
-        // Language changes are handled via configuration changes in Android 13+,
-        // so manual activity relaunching is no longer required.
-        PreferenceConfiguration newPrefs = PreferenceConfiguration.readPreferences(this);
-        if (!newPrefs.language.equals(previousPrefs.language)) {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-                // Restart the PC view to apply UI changes
-                Intent intent = new Intent(this, PcView.class);
-                intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
-                startActivity(intent, null);
-            } else {
-                if (newPrefs.language == PreferenceConfiguration.DEFAULT_LANGUAGE) {
-                    Toast.makeText(this, "Language has been reset to default, please restart the app!", Toast.LENGTH_LONG).show();
-                    System.exit(0);
-                }
             }
         }
     }
@@ -342,6 +320,71 @@ public class StreamSettings extends AppCompatActivity {
         @Override
         public void onCreatePreferences(Bundle bundle, String s) {
             initializePreferences();
+        }
+
+        @Override
+        public void onResume() {
+            super.onResume();
+            // The companion screen can be switched on or off further up this list, or shown and
+            // hidden from the library while this screen was away.
+            refreshCompanionScreenEntry();
+        }
+
+        /**
+         * Profiles, Help and the companion screen's show/hide: what the old PC list's top bar
+         * offered, given a home here now that the main screen keeps only Settings beside its
+         * sections (the rail's profile avatar stays a shortcut to Profiles in a wide window).
+         */
+        private void setupFormerTopBarEntries() {
+            Preference profiles = findPreference("pref_profiles");
+            if (profiles != null) {
+                profiles.setOnPreferenceClickListener(preference -> {
+                    startActivity(new Intent(requireActivity(), ProfilesActivity.class));
+                    return true;
+                });
+            }
+
+            Preference help = findPreference("pref_help");
+            if (help != null) {
+                // Amazon review didn't like Help because the wiki is not entirely navigable with
+                // the Fire TV remote, so the old top bar hid it there; so does this list.
+                if (requireActivity().getPackageManager().hasSystemFeature("amazon.hardware.fire_tv")) {
+                    help.setVisible(false);
+                } else {
+                    help.setOnPreferenceClickListener(preference -> {
+                        HelpLauncher.launchSetupGuide(requireActivity());
+                        return true;
+                    });
+                }
+            }
+
+            Preference companion = findPreference("pref_companion_screen");
+            if (companion != null) {
+                companion.setOnPreferenceClickListener(preference -> {
+                    // Decide from the same source the title reads: toggle() flips on the
+                    // remembered owner, which with no second display stays PANEL while nothing
+                    // shows, so a "Show" row would silently hide on every other click.
+                    CompanionDisplayManager.setVisible(!CompanionDisplayManager.isShowing());
+                    refreshCompanionScreenEntry();
+                    return true;
+                });
+            }
+        }
+
+        /** Shows the companion row only while one is configured, titled by what a click does. */
+        private void refreshCompanionScreenEntry() {
+            Preference companion = findPreference("pref_companion_screen");
+            if (companion == null || getActivity() == null) {
+                return;
+            }
+            boolean configured = CompanionDisplayManager.isConfigured(requireActivity());
+            companion.setVisible(configured);
+            if (configured) {
+                // Read back rather than flipped by hand: the toggle applies at once, but a show
+                // with no second display to put the panel on does not take.
+                companion.setTitle(CompanionDisplayManager.isShowing()
+                        ? R.string.action_companion_hide : R.string.action_companion_show);
+            }
         }
 
         public void initializePreferences() {
@@ -906,6 +949,8 @@ public class StreamSettings extends AppCompatActivity {
                     }
                 });
             }
+
+            setupFormerTopBarEntries();
 
             EditTextPreference bitrateEditPref = findPreference(PreferenceConfiguration.CUSTOM_BITRATE_PREF_STRING);
             if (bitrateEditPref != null) {

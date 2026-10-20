@@ -35,7 +35,7 @@ import java.util.List;
 /**
  * Every game of the selected host, in one grid: the Library's "See all".
  *
- * <p>It is the old library grid without {@code AppView}: the games come from the shared
+ * <p>It is the old library grid without its activity: the games come from the shared
  * {@code HostRepository}'s snapshot (no binding or polling of its own), a tap goes through the
  * activity's {@link LaunchController}, and a host that is offline, unpaired or still being
  * reached shows the {@link HostStatePanel} where the grid would be, rather than closing.

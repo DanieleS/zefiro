@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     Over a game's backdrop art: an even dim so the text on top reads against it, and a
-    stronger fade into true black at the top and at the bottom. Shared by the legacy coverflow
-    and the companion panel's browsing surface, whose hosts row sits on the bottom fade.
+    stronger fade into true black at the top and at the bottom. Drawn by the companion panel's
+    browsing surface, whose hosts row sits on the bottom fade.
 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>

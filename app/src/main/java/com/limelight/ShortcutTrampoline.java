@@ -16,11 +16,13 @@ import com.limelight.computers.ComputerDatabaseManager;
 import com.limelight.computers.ComputerManagerListener;
 import com.limelight.computers.ComputerManagerService;
 import com.limelight.library.LibraryIntents;
+import com.limelight.main.MainActivity;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.NvApp;
 import com.limelight.nvstream.http.NvHTTP;
 import com.limelight.nvstream.http.PairingManager;
 import com.limelight.nvstream.wol.WakeOnLanSender;
+import com.limelight.utils.AppLaunchHistory;
 import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.utils.CacheHelper;
 import com.limelight.utils.Dialog;
@@ -162,6 +164,9 @@ public class ShortcutTrampoline extends AppCompatActivity {
                                             if (app != null) {
                                                 if (details.runningGameId == 0 || details.runningGameId == app.getAppId() || Objects.equals(details.runningGameUUID, app.getAppUUID())) {
                                                     intentStack.add(ServerHelper.createStartIntent(ShortcutTrampoline.this, app, details, managerBinder, prefConfig.useVirtualDisplay));
+                                                    // As a launch from the library notes it, so
+                                                    // a pinned game reaches "Recently played".
+                                                    AppLaunchHistory.recordLaunch(ShortcutTrampoline.this, details, app);
 
                                                     // Close this activity
                                                     finish();
@@ -177,6 +182,7 @@ public class ShortcutTrampoline extends AppCompatActivity {
                                                         @Override
                                                         public void run() {
                                                             intentStack.add(startIntent);
+                                                            AppLaunchHistory.recordLaunch(ShortcutTrampoline.this, details, app);
 
                                                             // Close this activity
                                                             finish();
@@ -196,16 +202,14 @@ public class ShortcutTrampoline extends AppCompatActivity {
                                                 // Close this activity
                                                 finish();
 
-                                                // Add the PC view at the back (and clear the task)
-                                                Intent i;
-                                                i = new Intent(ShortcutTrampoline.this, PcView.class);
+                                                // The main screen at the back, in a task of
+                                                // its own, opening on this host's Library: it
+                                                // selects the host the UUID names.
+                                                Intent i = new Intent(ShortcutTrampoline.this, MainActivity.class);
                                                 i.setAction(Intent.ACTION_MAIN);
                                                 i.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
-                                                intentStack.add(i);
-
-                                                // Take this intent's data and create an intent to start the app view
-                                                i = new Intent(getIntent());
-                                                i.setClass(ShortcutTrampoline.this, AppView.class);
+                                                i.putExtra(LibraryIntents.EXTRA_UUID, details.uuid);
+                                                i.putExtra(LibraryIntents.EXTRA_NAME, details.name);
                                                 intentStack.add(i);
 
                                                 // If a game is running, we'll make the stream the top level activity
@@ -307,7 +311,7 @@ public class ShortcutTrampoline extends AppCompatActivity {
 
     protected boolean validateAppInput(String appUUID, String appIDStr, String appName) {
         if (appUUID == null && appIDStr == null && appName == null) {
-            // We're just going to the AppView
+            // No game named: just the host's library
             return false;
         }
 
@@ -510,7 +514,7 @@ public class ShortcutTrampoline extends AppCompatActivity {
 
         uuidString = hostUUID;
 
-        // Set the AppView UUID intent
+        // The UUID the host was found by, for the host path's hand-over to the main screen
         setIntent(new Intent(getIntent()).putExtra(LibraryIntents.EXTRA_UUID, uuidString));
 
         if (validateAppInput(appUUID, appIDStr, appName)) {

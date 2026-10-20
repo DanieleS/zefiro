@@ -51,7 +51,7 @@ import java.util.concurrent.RejectedExecutionException;
  *   next.</li>
  *   <li><b>The gateway is handed out last.</b> {@link #gateway()} stays null until the
  *   repository's own state (unique id, library) exists, which keeps closed the race
- *   {@code AppView} guarded by hand, where a poll could reach a screen half set up.</li>
+ *   the old library guarded by hand, where a poll could reach a screen half set up.</li>
  * </ul>
  *
  * <h3>Data flow</h3>

@@ -23,10 +23,6 @@
   </string>
     <string name="wol_fail">Wake-On-LAN packets versturen mislukt</string>
     <!-- Unpair messages -->
-    <string name="unpairing">Ontkoppelen…</string>
-    <string name="unpair_success">Ontkoppeling succesvol</string>
-    <string name="unpair_fail">Ontkoppeling mislukt</string>
-    <string name="unpair_error">Apparaat niet gekoppeld</string>
     <!-- Errors -->
     <string name="error_pc_offline">Computer is offline</string>
     <string name="error_manager_not_running">De ComputerManager service is niet gestart. Wacht een ogenblik of herstart de app.</string>
@@ -53,14 +49,11 @@
 \n Controleer dat GameStream is ingeschakeld in de GeForce Experience SHIELD instellingen.</string>
     <string name="yes">Ja</string>
     <string name="no">Nee</string>
-    <string name="lost_connection">Verbinding met PC verloren</string>
     <!-- AppList activity -->
     <string name="applist_menu_resume">Hervat Sessie</string>
     <string name="applist_menu_quit">Stop Sessie</string>
     <string name="applist_menu_quit_and_start">Stop Huidige Spel en Start</string>
     <string name="applist_menu_cancel">Annuleer</string>
-    <string name="applist_refresh_title">App Lijst</string>
-    <string name="applist_refresh_msg">Apps Verversen…</string>
     <string name="applist_refresh_error_title">Fout</string>
     <string name="applist_refresh_error_msg">App lijst ophalen mislukt</string>
     <string name="applist_quit_app">Stoppen</string>
@@ -93,10 +86,6 @@
     <string name="title_checkbox_show_onscreen_controls">Laat on-screen controls zien</string>
     <string name="summary_checkbox_show_onscreen_controls">Geeft een virtuele controller weer op het touchscreen</string>
     <string name="category_ui_settings">UI Installingen</string>
-    <string name="title_language_list">Taal</string>
-    <string name="summary_language_list">Taal te gebruiken in Moonlight</string>
-    <string name="title_checkbox_small_icon_mode">Gebruik kleine iconen</string>
-    <string name="summary_checkbox_small_icon_mode">Gebruik kleine iconen in kolom onderdelen zodat meer items tegelijk zichtbaar worden</string>
     <string name="category_host_settings">Host Instellingen</string>
     <string name="title_checkbox_enable_sops">Optimaliseer spel instellingen</string>
     <string name="summary_checkbox_enable_sops">Sta GFE toe om spel instellingen te veranderen voor een optimale stream</string>

@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Debug builds carry the preview icon for the new main screen; see res/values/bools.xml. -->
-    <bool name="new_ui_preview">true</bool>
-</resources>

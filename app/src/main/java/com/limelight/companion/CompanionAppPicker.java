@@ -99,9 +99,14 @@ public final class CompanionAppPicker {
         }
 
         MaxHeightRecyclerView grid = panel.findViewById(R.id.companionPickerGrid);
-        int columnWidthPx = host.getResources().getDimensionPixelSize(R.dimen.companion_app_column);
+        // As many fixed-width columns as fit: the icons are a launcher's, not covers, so they
+        // keep their size rather than following the games grid's width buckets.
+        final float density = host.getResources().getDisplayMetrics().density;
+        final int columnWidthPx = Math.max(1,
+                host.getResources().getDimensionPixelSize(R.dimen.companion_app_column));
         int spacingPx = host.getResources().getDimensionPixelSize(R.dimen.companion_app_spacing);
-        grid.setLayoutManager(new AutofitGridLayoutManager(host, columnWidthPx));
+        grid.setLayoutManager(new AutofitGridLayoutManager(host,
+                widthDp -> Math.round(widthDp * density) / columnWidthPx));
         grid.addItemDecoration(new GridSpacingItemDecoration(spacingPx));
         int half = spacingPx / 2;
         grid.setPadding(half, half, half, half);

@@ -69,10 +69,6 @@
     <string name="wol_fail">Không thể gửi các gói Wake-On-LAN</string>
 
     <!-- Unpair messages -->
-    <string name="unpairing">Đang hủy ghép nối…</string>
-    <string name="unpair_success">Hủy ghép nối thành công</string>
-    <string name="unpair_fail">Hủy ghép nối thất bại</string>
-    <string name="unpair_error">Thiết bị chưa được ghép nối</string>
 
     <!-- Errors -->
     <string name="error_pc_offline">Máy tính đang ngoại tuyến</string>
@@ -114,7 +110,6 @@
         Đảm bảo Sunshine đang chạy trên PC máy chủ của bạn hoặc GameStream được bật trong cài đặt SHIELD của GeForce Experience.</string>
     <string name="yes">Có</string>
     <string name="no">Không</string>
-    <string name="lost_connection">Mất kết nối với PC</string>
     <string name="title_details">Chi tiết</string>
     <string name="help">Trợ giúp</string>
     <string name="delete_pc_msg">Bạn có chắc chắn muốn xóa PC này không?</string>
@@ -143,8 +138,6 @@
     <string name="applist_menu_scut">Tạo phím tắt</string>
     <string name="applist_menu_tv_channel">Thêm vào Kênh</string>
     <string name="applist_menu_hide_app">Ẩn ứng dụng</string>
-    <string name="applist_refresh_title">Danh sách ứng dụng</string>
-    <string name="applist_refresh_msg">Đang làm mới ứng dụng…</string>
     <string name="applist_refresh_error_title">Lỗi</string>
     <string name="applist_refresh_error_msg">Không thể lấy danh sách ứng dụng</string>
     <string name="applist_quit_app">Đang thoát</string>
@@ -259,10 +252,6 @@
     <string name="category_ui_settings">Cài đặt giao diện người dùng</string>
     <string name="title_checkbox_enable_pip">Bật chế độ Picture-in-Picture</string>
     <string name="summary_checkbox_enable_pip">Cho phép xem luồng trong khi thực hiện đa nhiệm</string>
-    <string name="title_language_list">Ngôn ngữ</string>
-    <string name="summary_language_list">Ngôn ngữ sử dụng cho Artemis</string>
-    <string name="title_checkbox_small_icon_mode">Chế độ biểu tượng nhỏ</string>
-    <string name="summary_checkbox_small_icon_mode">Hiển thị biểu tượng nhỏ hơn trong lưới ứng dụng để hiển thị nhiều ứng dụng hơn</string>
 
     <string name="category_host_settings">Cài đặt máy chủ</string>
     <string name="title_checkbox_enable_sops">Tối ưu hóa cài đặt trò chơi</string>

@@ -2,15 +2,9 @@ package com.limelight.grid.assets;
 
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.drawable.BitmapDrawable;
-import android.os.Looper;
-import android.view.View;
-import android.widget.ImageView;
-import android.widget.TextView;
 
 import androidx.test.core.app.ApplicationProvider;
 
-import com.limelight.R;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.NvApp;
 
@@ -35,9 +29,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
-import static org.robolectric.Shadows.shadowOf;
 
 /**
  * How a load ends. The loader's pools are real threads here and "main" runs callbacks where they
@@ -176,37 +168,6 @@ public class CachedAppAssetLoaderTest {
     }
 
     @Test
-    public void theLegacyGridKeepsTheAppImageOnARebindAfterTheHostsNone() throws InterruptedException {
-        NetworkAssetLoader saysNone = new NetworkAssetLoader(context, "id") {
-            @Override
-            public InputStream getBitmapStream(CachedAppAssetLoader.LoaderTuple tuple)
-                    throws FileNotFoundException {
-                throw new FileNotFoundException("404");
-            }
-        };
-        CachedAppAssetLoader.LoaderTuple game = tuple("uuid-legacy-none", true, 1);
-        Bitmap noAppImage = Bitmap.createBitmap(4, 4, Bitmap.Config.ARGB_8888);
-        final CachedAppAssetLoader loader = new CachedAppAssetLoader(game.computer, 1.0, saysNone,
-                new MemoryAssetLoader(), new DiskAssetLoader(context), noAppImage);
-        loaders.add(loader);
-        final ImageView image = new ImageView(context);
-        TextView title = new TextView(context);
-
-        // The legacy loader answers through the main looper, which only runs when idled.
-        loader.populateImageView(game.app, image, title);
-        waitFor("the host's none", () -> {
-            shadowOf(Looper.getMainLooper()).idle();
-            return ((CachedAppAssetLoader.Request) image.getTag(R.id.artRequest)).isFinished();
-        });
-
-        // Scrolled back into view: answered from memory of the 404, with the placeholder art.
-        assertTrue(loader.populateImageView(game.app, image, title));
-        assertEquals(View.VISIBLE, image.getVisibility());
-        assertSame(noAppImage, ((BitmapDrawable) image.getDrawable()).getBitmap());
-        assertEquals(View.VISIBLE, title.getVisibility());
-    }
-
-    @Test
     public void theShortcutBitmapIsAnIconSizedCopyNotTheHeroCover() {
         MemoryAssetLoader memory = new MemoryAssetLoader();
         CachedAppAssetLoader loader = new CachedAppAssetLoader(new NetworkAssetLoader(context, "id"),
@@ -262,7 +223,7 @@ public class CachedAppAssetLoaderTest {
                 loader.load(tuple("uuid-drain", false, 4), 300, new Recorder());
         assertTrue(queued.isPending());
 
-        // What AppView does when a stream starts. Waiting on the dropped work would leave the
+        // What the library does when a stream starts. Waiting on the dropped work would leave the
         // tile blank after the stream; ended, it is asked for again on the rebind.
         loader.cancelForegroundLoads();
         assertTrue(queued.isCancelled());

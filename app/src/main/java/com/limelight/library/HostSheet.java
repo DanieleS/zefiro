@@ -28,7 +28,7 @@ import java.util.List;
  * The Library's host sheet: which PC the Library shows, and what else that PC offers outside its
  * games. X raises it anywhere in the Library; the home's host chip raises it too.
  *
- * <p>It gathers what {@code AppView}'s top bar and {@code PcView}'s list held between them, so
+ * <p>It gathers what the old library's top bar and the old PC list held between them, so
  * switching PCs no longer means leaving the library for another screen:
  *
  * <pre>

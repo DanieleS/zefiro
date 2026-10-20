@@ -6,6 +6,7 @@ import android.content.Intent;
 import androidx.test.core.app.ApplicationProvider;
 
 import com.limelight.library.LibraryIntents;
+import com.limelight.main.MainActivity;
 import com.limelight.profiles.ProfilesManager;
 
 import org.junit.Before;
@@ -14,6 +15,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
+import org.robolectric.android.controller.ActivityController;
 import org.robolectric.annotation.Config;
 
 import java.io.File;
@@ -47,6 +49,8 @@ public class StartupTest {
         // Clean up any existing profiles
         File profilesDir = new File(context.getFilesDir(), "profiles");
         deleteRecursively(profilesDir);
+
+        MainScreenTestEnvironment.prepare();
     }
 
     @Test
@@ -62,36 +66,36 @@ public class StartupTest {
     }
 
     @Test
-    public void testPcViewActivityCreation() {
-        // Test PcView activity startup
-        PcView activity = Robolectric.buildActivity(PcView.class).create().get();
-        assertNotNull("PcView activity should be created", activity);
+    public void testMainActivityCreation() {
+        // The launcher's entry: the .PcView alias resolves to the main screen
+        MainActivity activity = Robolectric.buildActivity(MainActivity.class).create().get();
+        assertNotNull("MainActivity should be created", activity);
         assertFalse("Activity should not be finishing", activity.isFinishing());
     }
 
     @Test
-    public void testPcViewActivityWithIntent() {
-        // Test PcView with various intent extras that might cause crashes
+    public void testMainActivityWithPairingIntent() {
+        // What AddComputerManually sends for an art:// link carrying a PIN
         Intent intent = new Intent();
         intent.putExtra(LibraryIntents.EXTRA_PAIR_HOSTNAME, "test.local");
         intent.putExtra(LibraryIntents.EXTRA_PAIR_PORT, 47989);
         intent.putExtra(LibraryIntents.EXTRA_PAIR_PIN, "1234");
         intent.putExtra(LibraryIntents.EXTRA_PAIR_PASSPHRASE, "test");
 
-        PcView activity = Robolectric.buildActivity(PcView.class, intent).create().get();
-        assertNotNull("PcView activity should be created with intent", activity);
+        MainActivity activity = Robolectric.buildActivity(MainActivity.class, intent).create().get();
+        assertNotNull("MainActivity should be created with intent", activity);
         assertFalse("Activity should not be finishing", activity.isFinishing());
     }
 
     @Test
-    public void testAppViewActivityCreation() {
-        // Test AppView activity startup
+    public void testMainActivityWithHostIntent() {
+        // What ShortcutTrampoline sends for a host shortcut: the host's library, by UUID
         Intent intent = new Intent();
         intent.putExtra(LibraryIntents.EXTRA_NAME, "Test Computer");
         intent.putExtra(LibraryIntents.EXTRA_UUID, "test-uuid-123");
 
-        AppView activity = Robolectric.buildActivity(AppView.class, intent).create().get();
-        assertNotNull("AppView activity should be created", activity);
+        MainActivity activity = Robolectric.buildActivity(MainActivity.class, intent).create().get();
+        assertNotNull("MainActivity should be created with a host", activity);
         assertFalse("Activity should not be finishing", activity.isFinishing());
     }
 
@@ -116,7 +120,7 @@ public class StartupTest {
         // This test verifies the app doesn't crash when checking permissions
 
         try {
-            PcView activity = Robolectric.buildActivity(PcView.class).create().get();
+            MainActivity activity = Robolectric.buildActivity(MainActivity.class).create().get();
             assertNotNull("Activity should handle permission checks", activity);
 
             // Test permission checking doesn't crash
@@ -173,7 +177,7 @@ public class StartupTest {
 
         // This test verifies the app doesn't crash under memory pressure
         try {
-            PcView activity = Robolectric.buildActivity(PcView.class).create().get();
+            MainActivity activity = Robolectric.buildActivity(MainActivity.class).create().get();
             assertNotNull("Activity should handle low memory conditions", activity);
 
             // Simulate memory pressure
@@ -189,7 +193,7 @@ public class StartupTest {
     @Test
     public void testConfigurationChanges() {
         // Test startup with configuration changes
-        PcView activity = Robolectric.buildActivity(PcView.class).create().start().resume().get();
+        MainActivity activity = Robolectric.buildActivity(MainActivity.class).create().start().resume().get();
 
         try {
             // Simulate configuration change
@@ -207,12 +211,13 @@ public class StartupTest {
     public void testServiceBindingFailure() {
         // Test startup when service binding fails
         try {
-            PcView activity = Robolectric.buildActivity(PcView.class).create().get();
+            ActivityController<MainActivity> controller =
+                    Robolectric.buildActivity(MainActivity.class).create();
 
             // Force service disconnection
-            activity.onDestroy();
+            controller.destroy();
 
-            assertNotNull("Activity should handle service binding failure", activity);
+            assertNotNull("Activity should handle service binding failure", controller.get());
         } catch (Exception e) {
             fail("Activity should handle service binding failure gracefully: " + e.getMessage());
         }

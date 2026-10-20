@@ -15,8 +15,8 @@ import com.limelight.nvstream.http.ComputerDetails;
  *
  * Instances published by {@code HostRepository} are never mutated after publication: a change is
  * a new entry, so a consumer can compare entries by identity and hold one across threads without
- * locking. The fields stay public and non-final only because {@code PcView} still builds and
- * updates its own entries in place, on the main thread, until it is retired.
+ * locking. The fields are public and non-final only as a leftover of the old PC list, which
+ * built and updated its own entries in place; nothing does that any more.
  */
 public class HostEntry {
     public ComputerDetails details;

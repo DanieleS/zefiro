@@ -1,17 +1,27 @@
 package com.limelight;
 
 import android.content.Context;
+import android.content.Intent;
+import android.content.pm.ActivityInfo;
+import android.content.pm.ResolveInfo;
+import android.os.Looper;
+
 import androidx.test.core.app.ApplicationProvider;
+
+import com.limelight.main.MainActivity;
 import com.limelight.profiles.ProfilesManager;
 
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
+import org.robolectric.Shadows;
 import org.robolectric.annotation.Config;
 
 import java.io.File;
+import java.util.List;
 
 import static org.junit.Assert.*;
 
@@ -68,6 +78,33 @@ public class SimpleStartupTest {
         } catch (Exception e) {
             fail("Application onCreate should not crash after fix: " + e.getMessage());
         }
+    }
+
+    @Test
+    public void testLauncherEntryIsTheOldNameAliasedToTheMainScreen() {
+        // Launchers remember a pinned home icon by its component, so the entry keeps PcView's
+        // name: an icon pinned before the switch must still open the app after an upgrade.
+        Intent launcher = new Intent(Intent.ACTION_MAIN)
+                .addCategory(Intent.CATEGORY_LAUNCHER)
+                .setPackage(context.getPackageName());
+        List<ResolveInfo> entries = context.getPackageManager().queryIntentActivities(launcher, 0);
+
+        assertEquals("One launcher entry", 1, entries.size());
+        ActivityInfo entry = entries.get(0).activityInfo;
+        assertEquals("com.limelight.PcView", entry.name);
+        assertEquals(MainActivity.class.getName(), entry.targetActivity);
+    }
+
+    @Test
+    public void testMainActivityStartsFromTheLauncher() {
+        MainScreenTestEnvironment.prepare();
+        Intent launcher = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
+
+        MainActivity activity = Robolectric.buildActivity(MainActivity.class, launcher).setup().get();
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
+
+        assertNotNull("The main screen should start", activity);
+        assertFalse("The main screen should stay up", activity.isFinishing());
     }
 
     @Test
