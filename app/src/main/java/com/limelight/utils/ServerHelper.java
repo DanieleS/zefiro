@@ -42,7 +42,7 @@ public class ServerHelper {
         return computer.activeAddress;
     }
 
-    public static Intent createPcShortcutIntent(Activity parent, ComputerDetails computer) {
+    public static Intent createPcShortcutIntent(Context parent, ComputerDetails computer) {
         Intent i = new Intent(parent, ShortcutTrampoline.class);
         i.putExtra(LibraryIntents.EXTRA_NAME, computer.name);
         i.putExtra(LibraryIntents.EXTRA_UUID, computer.uuid);
@@ -50,7 +50,7 @@ public class ServerHelper {
         return i;
     }
 
-    public static Intent createAppShortcutIntent(Activity parent, ComputerDetails computer, NvApp app) {
+    public static Intent createAppShortcutIntent(Context parent, ComputerDetails computer, NvApp app) {
         Intent i = new Intent(parent, ShortcutTrampoline.class);
         i.putExtra(LibraryIntents.EXTRA_NAME, computer.name);
         i.putExtra(LibraryIntents.EXTRA_UUID, computer.uuid);

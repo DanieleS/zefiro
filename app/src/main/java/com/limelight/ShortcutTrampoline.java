@@ -55,6 +55,18 @@ public class ShortcutTrampoline extends AppCompatActivity {
 
     private ComputerManagerService.ComputerManagerBinder managerBinder;
 
+    // The listener this trampoline added, so leaving removes that one alone. A library or PC list
+    // open underneath keeps its own updates. Written on the binder thread, read in onStop.
+    private volatile ComputerManagerListener pollingListener;
+
+    // The worker thread adds the listener while onStop may be removing it on main. Removing one
+    // that is not added yet does nothing, and a listener added after that would stay in the
+    // service's set (keeping polling alive and holding this finished activity) until every
+    // client unbinds. So onStop raises this flag under the lock, and the worker checks it
+    // before adding and again after, undoing its own add if the stop came in between.
+    private final Object pollingListenerLock = new Object();
+    private boolean stopped; // guarded by pollingListenerLock
+
     private static final String TAG = "ShortcutTrampoline";
 
     private final ServiceConnection serviceConnection = new ServiceConnection() {
@@ -73,7 +85,7 @@ public class ShortcutTrampoline extends AppCompatActivity {
                     managerBinder = localBinder;
 
                     // Get the computer object
-                    computer = managerBinder.getComputer(uuidString);
+                    computer = localBinder.getComputer(uuidString);
 
                     if (computer == null) {
                         Dialog.displayDialog(ShortcutTrampoline.this,
@@ -94,11 +106,12 @@ public class ShortcutTrampoline extends AppCompatActivity {
                         return;
                     }
 
-                    // Force CMS to repoll this machine
-                    managerBinder.invalidateStateForComputer(computer.uuid);
+                    // Force CMS to repoll this machine. The local copy again: onStop on main
+                    // can null the field at any point while this thread runs.
+                    localBinder.invalidateStateForComputer(computer.uuid);
 
                     // Start polling
-                    managerBinder.startPolling(new ComputerManagerListener() {
+                    final ComputerManagerListener listener = new ComputerManagerListener() {
                         @Override
                         public void notifyComputerUpdated(final ComputerDetails details) {
                             // Don't care about other computers
@@ -113,8 +126,11 @@ public class ShortcutTrampoline extends AppCompatActivity {
                                     WakeOnLanSender.sendWolPacket(computer);
 
                                     // If we sent at least one WoL packet, reset the computer state
-                                    // to force ComputerManager to poll it again.
-                                    managerBinder.invalidateStateForComputer(computer.uuid);
+                                    // to force ComputerManager to poll it again. localBinder, not
+                                    // the field: this runs on the worker (the initial report of an
+                                    // add racing onStop) or a polling thread, and onStop may have
+                                    // nulled the field by then.
+                                    localBinder.invalidateStateForComputer(computer.uuid);
                                     return;
                                 } catch (IOException e) {
                                     // If we got an exception, we couldn't send a single WoL packet,
@@ -220,7 +236,7 @@ public class ShortcutTrampoline extends AppCompatActivity {
                                         // We don't want any more callbacks from now on, so go ahead
                                         // and unbind from the service
                                         if (managerBinder != null) {
-                                            managerBinder.stopPolling();
+                                            managerBinder.removePollingListener(pollingListener);
                                             unbindService(serviceConnection);
                                             managerBinder = null;
                                         }
@@ -228,7 +244,23 @@ public class ShortcutTrampoline extends AppCompatActivity {
                                 });
                             }
                         }
-                    });
+                    };
+                    synchronized (pollingListenerLock) {
+                        if (stopped) {
+                            return;
+                        }
+                        pollingListener = listener;
+                    }
+                    // Not under the lock: adding reports synchronously, and that report may run
+                    // a WoL send. localBinder, not the field, which onStop may have nulled.
+                    localBinder.addPollingListener(listener);
+                    boolean stoppedMeanwhile;
+                    synchronized (pollingListenerLock) {
+                        stoppedMeanwhile = stopped;
+                    }
+                    if (stoppedMeanwhile) {
+                        localBinder.removePollingListener(listener);
+                    }
                 }
             }.start();
         }
@@ -557,8 +589,13 @@ public class ShortcutTrampoline extends AppCompatActivity {
 
         Dialog.closeDialogs();
 
+        // From here on the worker no longer adds a listener, or takes back one it just added.
+        synchronized (pollingListenerLock) {
+            stopped = true;
+        }
+
         if (managerBinder != null) {
-            managerBinder.stopPolling();
+            managerBinder.removePollingListener(pollingListener);
             unbindService(serviceConnection);
             managerBinder = null;
         }

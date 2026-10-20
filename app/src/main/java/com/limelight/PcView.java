@@ -11,6 +11,7 @@ import com.limelight.binding.crypto.AndroidCryptoProvider;
 import com.limelight.computers.ComputerManagerListener;
 import com.limelight.computers.ComputerManagerService;
 import com.limelight.computers.HostEntry;
+import com.limelight.computers.RunningGameResolver;
 import com.limelight.grid.PcCardAdapter;
 import com.limelight.grid.assets.DiskAssetLoader;
 import com.limelight.library.LibraryIntents;
@@ -27,7 +28,6 @@ import com.limelight.preferences.StreamSettings;
 import com.limelight.profiles.ProfilesManager;
 import com.limelight.ui.AdapterFragment;
 import com.limelight.ui.AdapterFragmentCallbacks;
-import com.limelight.utils.CacheHelper;
 import com.limelight.utils.Dialog;
 import com.limelight.utils.FrontendExporter;
 import com.limelight.utils.HelpLauncher;
@@ -43,8 +43,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.res.Configuration;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.opengl.GLSurfaceView;
 import android.os.Build;
@@ -78,11 +76,6 @@ import androidx.preference.PreferenceManager;
 
 import org.xmlpull.v1.XmlPullParserException;
 
-import java.io.InputStream;
-import java.io.StringReader;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -96,11 +89,8 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
      */
     public static final String SKIP_AUTO_ENTER_EXTRA = "SkipAutoEnter";
 
-    /** Games named from a host's app list, keyed by host and app id; see resolveRunningAppName. */
-    private final HashMap<String, String> runningAppNames = new HashMap<>();
-
-    /** Hero images already asked of a host, keyed the same way; see fetchRunningBackground. */
-    private final HashSet<String> backgroundsRequested = new HashSet<>();
+    /** Names the game each host runs and fetches its hero image; made with the binding. */
+    private RunningGameResolver runningGames;
     private final ExecutorService backgroundExecutor = Executors.newSingleThreadExecutor();
 
     private View noPcFoundLayout;
@@ -309,6 +299,7 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
         completeOnCreateCalled = true;
 
         shortcutHelper = new ShortcutHelper(this);
+        runningGames = new RunningGameResolver(this);
 
         UiHelper.setLocale(this);
 
@@ -383,47 +374,55 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
         }
     }
 
+    // One listener for the life of the screen, so stopping updates removes exactly the one this
+    // screen added and leaves any other screen's polling alone.
+    private final ComputerManagerListener pollingListener = new ComputerManagerListener() {
+        @Override
+        public void notifyComputerUpdated(final ComputerDetails details) {
+            if (!freezeUpdates) {
+                // Name the running game here, on the polling thread: it means parsing the
+                // host's app list, which has no business happening on the main thread. (The
+                // initial report does reach here on main, under the service's locks; that is as
+                // old as this screen, and RunningGameResolver documents why it is left alone.)
+                final String runningAppName = runningGames.resolveRunningAppName(details);
+
+                PcView.this.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        updateComputer(details, runningAppName);
+                    }
+                });
+
+                // Add a launcher shortcut for this PC (off the main thread to prevent ANRs).
+                // Still on every poll, deliberately: this screen keeps its old behaviour until it
+                // is deleted, and the once-per-session ShortcutPublisher serves the new one.
+                if (details.pairState == PairState.PAIRED) {
+                    shortcutHelper.createAppViewShortcutForOnlineHost(details);
+                }
+
+                if (pendingPairingAddress != null) {
+                    if (
+                        details.state == ComputerDetails.State.ONLINE &&
+                        details.activeAddress.equals(pendingPairingAddress)
+                    ) {
+                        PcView.this.runOnUiThread(() -> {
+                            doPair(details, pendingPairingPin, pendingPairingPassphrase);
+                            pendingPairingAddress = null;
+                            pendingPairingPin = null;
+                            pendingPairingPassphrase = null;
+                        });
+                    }
+                }
+            }
+        }
+    };
+
     private void startComputerUpdates() {
         // Only allow polling to start if we're bound to CMS, polling is not already running,
         // and our activity is in the foreground.
         if (managerBinder != null && !runningPolling && inForeground) {
             freezeUpdates = false;
-            managerBinder.startPolling(new ComputerManagerListener() {
-                @Override
-                public void notifyComputerUpdated(final ComputerDetails details) {
-                    if (!freezeUpdates) {
-                        // Name the running game here, on the polling thread: it means parsing the
-                        // host's app list, which has no business happening on the main thread.
-                        final String runningAppName = resolveRunningAppName(details);
-
-                        PcView.this.runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                updateComputer(details, runningAppName);
-                            }
-                        });
-
-                        // Add a launcher shortcut for this PC (off the main thread to prevent ANRs)
-                        if (details.pairState == PairState.PAIRED) {
-                            shortcutHelper.createAppViewShortcutForOnlineHost(details);
-//                        } else
-                        }
-                            if (pendingPairingAddress != null) {
-                            if (
-                                details.state == ComputerDetails.State.ONLINE &&
-                                details.activeAddress.equals(pendingPairingAddress)
-                            ) {
-                                PcView.this.runOnUiThread(() -> {
-                                    doPair(details, pendingPairingPin, pendingPairingPassphrase);
-                                    pendingPairingAddress = null;
-                                    pendingPairingPin = null;
-                                    pendingPairingPassphrase = null;
-                                });
-                            }
-                        }
-                    }
-                }
-            });
+            managerBinder.addPollingListener(pollingListener);
             runningPolling = true;
         }
     }
@@ -436,7 +435,7 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
 
             freezeUpdates = true;
 
-            managerBinder.stopPolling();
+            managerBinder.removePollingListener(pollingListener);
 
             if (wait) {
                 managerBinder.waitForPollingStopped();
@@ -1035,65 +1034,6 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
         }
     }
 
-    /**
-     * The name of the game the host is in, or null: for a host that is idle, for one whose app
-     * list we have never seen, and for one whose running game is not in the list we have.
-     *
-     * A newer Sunshine host names the game in its serverinfo and there is nothing to work out.
-     * For any other host, this screen has to find the name itself, and it does not poll for app
-     * lists — AppView does — so the list comes from the cache AppView left behind, as it does for
-     * a launcher shortcut. A host whose library has never been opened, running a game, leaves the
-     * card saying only that a game is up.
-     */
-    private String resolveRunningAppName(ComputerDetails details) {
-        if (details.runningGameId == 0) {
-            return null;
-        }
-
-        if (details.runningGameName != null) {
-            return details.runningGameName;
-        }
-
-        final String key = details.uuid + ":" + details.runningGameId;
-        synchronized (runningAppNames) {
-            String known = runningAppNames.get(key);
-            if (known != null) {
-                return known;
-            }
-        }
-
-        String rawAppList = details.rawAppList;
-        if (rawAppList == null) {
-            try (InputStream in = CacheHelper.openCacheFileForInput(getCacheDir(), "applist", details.uuid)) {
-                rawAppList = CacheHelper.readInputStreamToString(in);
-            } catch (IOException e) {
-                // No list for this host yet.
-                return null;
-            }
-        }
-
-        if (rawAppList.isEmpty()) {
-            return null;
-        }
-
-        try {
-            List<NvApp> apps = NvHTTP.getAppListByReader(new StringReader(rawAppList));
-            for (NvApp app : apps) {
-                if (app.getAppId() == details.runningGameId) {
-                    synchronized (runningAppNames) {
-                        runningAppNames.put(key, app.getAppName());
-                    }
-                    return app.getAppName();
-                }
-            }
-        } catch (XmlPullParserException | IOException e) {
-            // The card falls back to saying only that a game is running.
-            LimeLog.warning("Unable to name the running game: " + e.getMessage());
-        }
-
-        return null;
-    }
-
     private void updateComputer(ComputerDetails details, String runningAppName) {
         HostEntry existingEntry = null;
 
@@ -1139,54 +1079,22 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
 
     /**
      * Fetch the hero image of the game a host is running, which the card bleeds across itself.
-     *
-     * Only newer Sunshine hosts serve one, and only for a game that has one, so a failure is
-     * ordinary and silent: the card falls back to the box art. Fetched once per game — the poll
-     * comes round every few seconds, and this is a picture, not a status.
+     * The fetch itself, and the once-per-game rule, live in {@link RunningGameResolver}.
      */
     private void fetchRunningBackground(final HostEntry computer) {
-        final ComputerDetails details = computer.details;
-
-        if (details.runningGameId == 0 || details.state != ComputerDetails.State.ONLINE ||
-                details.pairState != PairState.PAIRED || managerBinder == null) {
+        if (computer.runningBackground != null || managerBinder == null) {
             return;
         }
 
-        final String key = details.uuid + ":" + details.runningGameId;
-        if (computer.runningBackground != null || !backgroundsRequested.add(key)) {
-            return;
-        }
-
-        backgroundExecutor.execute(() -> {
-            Bitmap loaded = null;
-            try {
-                NvHTTP httpConn = new NvHTTP(ServerHelper.getCurrentAddressFromComputer(details),
-                        details.httpsPort, managerBinder.getUniqueId(), details.serverCert,
-                        PlatformBinding.getCryptoProvider(PcView.this));
-
-                try (InputStream in = httpConn.getBackgroundArt(details.runningGameId)) {
-                    // A hero image is made to fill a screen; this one fills a strip of a card.
-                    BitmapFactory.Options options = new BitmapFactory.Options();
-                    options.inSampleSize = 2;
-                    loaded = BitmapFactory.decodeStream(in, null, options);
-                }
-            } catch (Exception e) {
-                LimeLog.info("No hero image for the running game: " + e.getMessage());
-            }
-
-            if (loaded == null) {
-                return;
-            }
-
-            final Bitmap background = loaded;
-            runOnUiThread(() -> {
-                // The host may have moved on to another game while we were fetching.
-                if (key.equals(computer.details.uuid + ":" + computer.details.runningGameId)) {
-                    computer.runningBackground = background;
-                    pcCardAdapter.notifyDataSetChanged();
-                }
-            });
-        });
+        final String key = RunningGameResolver.keyOf(computer.details);
+        runningGames.fetchRunningBackground(computer.details, managerBinder.getUniqueId(),
+                backgroundExecutor, background -> runOnUiThread(() -> {
+                    // The host may have moved on to another game while we were fetching.
+                    if (key.equals(RunningGameResolver.keyOf(computer.details))) {
+                        computer.runningBackground = background;
+                        pcCardAdapter.notifyDataSetChanged();
+                    }
+                }));
     }
 
     @Override

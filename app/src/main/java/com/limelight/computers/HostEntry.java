@@ -34,6 +34,17 @@ public class HostEntry {
         this.details = details;
     }
 
+    /**
+     * A complete entry, as the repository publishes it.
+     *
+     * @param details a copy of the service's details, never the live object it polls into.
+     */
+    public HostEntry(ComputerDetails details, String runningAppName, Bitmap runningBackground) {
+        this(details);
+        this.runningAppName = runningAppName;
+        this.runningBackground = runningBackground;
+    }
+
     @Override
     public String toString() {
         return details.name;

@@ -5,6 +5,7 @@ import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.ContentUris;
 import android.content.ContentValues;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
@@ -32,15 +33,24 @@ public class TvChannelHelper {
     private static final int INTERNAL_PROVIDER_ID_INDEX = 1;
     private static final int PROGRAM_BROWSABLE_INDEX = 2;
     private static final int ID_INDEX = 0;
-    private Activity context;
+    // Any context will do for the channel and program rows. Only asking the launcher to show a
+    // channel needs an Activity, for its result; see requestChannelOnHomeScreen.
+    private final Context context;
 
-    public TvChannelHelper(Activity context) {
+    public TvChannelHelper(Context context) {
         this.context = context;
     }
 
     void requestChannelOnHomeScreen(ComputerDetails computer) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             if (!isAndroidTV()) {
+                return;
+            }
+
+            // The request is a dialog the launcher answers with a result, so it has to come from
+            // a screen. A helper on the application context (state that outlives screens) only
+            // keeps channels up to date; the screen that just paired a host does the asking.
+            if (!(context instanceof Activity)) {
                 return;
             }
 
@@ -52,7 +62,7 @@ public class TvChannelHelper {
             Intent intent = new Intent(TvContract.ACTION_REQUEST_CHANNEL_BROWSABLE);
             intent.putExtra(TvContract.EXTRA_CHANNEL_ID, getChannelId(computer.uuid));
             try {
-                context.startActivityForResult(intent, 0);
+                ((Activity) context).startActivityForResult(intent, 0);
             } catch (Exception ignored) {
                 // ActivityNotFoundException is the only officially documented
                 // exception that can result from this call. However some buggy

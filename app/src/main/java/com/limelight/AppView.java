@@ -261,86 +261,90 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
         }
     }
 
+    // One listener for the life of the screen, so stopping updates removes exactly the one this
+    // screen added and leaves any other screen's polling alone.
+    private final ComputerManagerListener pollingListener = new ComputerManagerListener() {
+        @Override
+        public void notifyComputerUpdated(final ComputerDetails details) {
+            // Do nothing if updates are suspended
+            if (suspendGridUpdates) {
+                return;
+            }
+
+            // Don't care about other computers
+            if (!details.uuid.equalsIgnoreCase(uuidString)) {
+                return;
+            }
+
+            if (details.state == ComputerDetails.State.OFFLINE) {
+                // The PC is unreachable now
+                AppView.this.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        // Display a toast to the user and quit the activity
+                        Toast.makeText(AppView.this, R.string.lost_connection, Toast.LENGTH_SHORT).show();
+                        finish();
+                    }
+                });
+
+                return;
+            }
+
+            // Close immediately if the PC is no longer paired
+            if (details.state == ComputerDetails.State.ONLINE && details.pairState != PairingManager.PairState.PAIRED) {
+                AppView.this.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        // Disable shortcuts referencing this PC for now
+                        shortcutHelper.disableComputerShortcut(details,
+                                getResources().getString(R.string.scut_not_paired));
+
+                        // Display a toast to the user and quit the activity
+                        Toast.makeText(AppView.this, R.string.scut_not_paired, Toast.LENGTH_SHORT).show();
+                        finish();
+                    }
+                });
+
+                return;
+            }
+
+            // App list is the same or empty
+            if (details.rawAppList == null || details.rawAppList.equals(lastRawApplist)) {
+
+                // Let's check if the running app ID changed
+                if (details.runningGameId != lastRunningAppId) {
+                    // Update the currently running game using the app ID
+                    lastRunningAppId = details.runningGameId;
+                    updateUiWithServerinfo(details);
+                }
+
+                return;
+            }
+
+            lastRunningAppId = details.runningGameId;
+            lastRawApplist = details.rawAppList;
+
+            try {
+                updateUiWithAppList(NvHTTP.getAppListByReader(new StringReader(details.rawAppList)), true);
+                updateUiWithServerinfo(details);
+
+                if (blockingLoadSpinner != null) {
+                    blockingLoadSpinner.dismiss();
+                    blockingLoadSpinner = null;
+                }
+            } catch (XmlPullParserException | IOException e) {
+                e.printStackTrace();
+            }
+        }
+    };
+
     private void startComputerUpdates() {
         // Don't start polling if we're not bound or in the foreground
         if (managerBinder == null || !inForeground) {
             return;
         }
 
-        managerBinder.startPolling(new ComputerManagerListener() {
-            @Override
-            public void notifyComputerUpdated(final ComputerDetails details) {
-                // Do nothing if updates are suspended
-                if (suspendGridUpdates) {
-                    return;
-                }
-
-                // Don't care about other computers
-                if (!details.uuid.equalsIgnoreCase(uuidString)) {
-                    return;
-                }
-
-                if (details.state == ComputerDetails.State.OFFLINE) {
-                    // The PC is unreachable now
-                    AppView.this.runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            // Display a toast to the user and quit the activity
-                            Toast.makeText(AppView.this, R.string.lost_connection, Toast.LENGTH_SHORT).show();
-                            finish();
-                        }
-                    });
-
-                    return;
-                }
-
-                // Close immediately if the PC is no longer paired
-                if (details.state == ComputerDetails.State.ONLINE && details.pairState != PairingManager.PairState.PAIRED) {
-                    AppView.this.runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            // Disable shortcuts referencing this PC for now
-                            shortcutHelper.disableComputerShortcut(details,
-                                    getResources().getString(R.string.scut_not_paired));
-
-                            // Display a toast to the user and quit the activity
-                            Toast.makeText(AppView.this, R.string.scut_not_paired, Toast.LENGTH_SHORT).show();
-                            finish();
-                        }
-                    });
-
-                    return;
-                }
-
-                // App list is the same or empty
-                if (details.rawAppList == null || details.rawAppList.equals(lastRawApplist)) {
-
-                    // Let's check if the running app ID changed
-                    if (details.runningGameId != lastRunningAppId) {
-                        // Update the currently running game using the app ID
-                        lastRunningAppId = details.runningGameId;
-                        updateUiWithServerinfo(details);
-                    }
-
-                    return;
-                }
-
-                lastRunningAppId = details.runningGameId;
-                lastRawApplist = details.rawAppList;
-
-                try {
-                    updateUiWithAppList(NvHTTP.getAppListByReader(new StringReader(details.rawAppList)), true);
-                    updateUiWithServerinfo(details);
-
-                    if (blockingLoadSpinner != null) {
-                        blockingLoadSpinner.dismiss();
-                        blockingLoadSpinner = null;
-                    }
-                } catch (XmlPullParserException | IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        });
+        managerBinder.addPollingListener(pollingListener);
 
         if (poller == null) {
             poller = managerBinder.createAppListPoller(computer);
@@ -354,7 +358,7 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
         }
 
         if (managerBinder != null) {
-            managerBinder.stopPolling();
+            managerBinder.removePollingListener(pollingListener);
         }
 
         if (appGridAdapter != null) {
@@ -937,10 +941,10 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
                     getString(R.string.message_export_sunshine_launcher_file),
                     getString(R.string.proceed),
                     getString(R.string.cancel),
-                    () -> shortcutHelper.exportLauncherFile(computer, app.app),
+                    () -> shortcutHelper.exportLauncherFile(this, computer, app.app),
                     null);
         } else {
-            shortcutHelper.exportLauncherFile(computer, app.app);
+            shortcutHelper.exportLauncherFile(this, computer, app.app);
         }
     }
 

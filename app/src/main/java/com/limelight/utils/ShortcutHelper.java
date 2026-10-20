@@ -2,6 +2,7 @@ package com.limelight.utils;
 
 import android.annotation.TargetApi;
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ShortcutInfo;
 import android.content.pm.ShortcutManager;
@@ -22,10 +23,19 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
+/**
+ * Launcher shortcuts and Android TV channel entries for hosts and games.
+ *
+ * <p>It works from any {@link Context}, so host shortcuts can be published by state that outlives
+ * a screen (the host repository holds one on the application context). The two things that do
+ * need a screen take one explicitly: asking the TV launcher to show a channel, which only happens
+ * when this helper was made with an Activity, and exporting a launcher file, which takes the
+ * Activity as a parameter.
+ */
 public class ShortcutHelper {
 
     private final ShortcutManager sm;
-    private final Activity context;
+    private final Context context;
     private final TvChannelHelper tvChannelHelper;
 
     public static final int REQUEST_CODE_EXPORT_ART_FILE = 778; // Unique request code
@@ -38,7 +48,7 @@ public class ShortcutHelper {
     public static final String KEY_APP_ID = "app_id";
     public static final String KEY_GENERATED_BY = "generated_by";
 
-    public ShortcutHelper(Activity context) {
+    public ShortcutHelper(Context context) {
         this.context = context;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
             sm = context.getSystemService(ShortcutManager.class);
@@ -157,6 +167,26 @@ public class ShortcutHelper {
         createAppViewShortcut(details, false, false);
     }
 
+    /**
+     * Publishes or refreshes a polled host's shortcut, without pushing another one out for it,
+     * and says whether it took.
+     *
+     * <p>The check costs two more ShortcutManager IPCs, which is why it is not folded into
+     * {@link #createAppViewShortcutForOnlineHost}: {@code PcView} calls that on every poll and
+     * ignores the answer, while the publisher calls this once per host and needs it.
+     *
+     * @return whether the host has a shortcut afterwards. False when every dynamic slot was
+     *         taken, so a caller that publishes once can try again later. Always true below
+     *         Android 7.1, which has no launcher shortcuts to wait for.
+     */
+    public boolean publishAppViewShortcut(ComputerDetails details) {
+        createAppViewShortcut(details, false, false);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
+            return getInfoForId(details.uuid) != null;
+        }
+        return true;
+    }
+
     private String getShortcutIdForGame(ComputerDetails computer, NvApp app) {
         return computer.uuid + app.getAppId();
     }
@@ -260,16 +290,21 @@ public class ShortcutHelper {
         return sb.toString();
     }
 
-    public void exportLauncherFile(ComputerDetails computer, NvApp app) {
+    /**
+     * Asks the user where to save a launcher file for this game. The result comes back to
+     * {@code activity}'s {@code onActivityResult} under {@link #REQUEST_CODE_EXPORT_ART_FILE},
+     * which must hand it to {@link #writeArtFileToUri}.
+     */
+    public void exportLauncherFile(Activity activity, ComputerDetails computer, NvApp app) {
         if (computer == null || computer.uuid == null || computer.uuid.isEmpty() ||
             computer.name == null || computer.name.isEmpty()) {
-            Toast.makeText(context, R.string.export_launcher_computer_details_incomplete, Toast.LENGTH_LONG).show();
+            Toast.makeText(activity, R.string.export_launcher_computer_details_incomplete, Toast.LENGTH_LONG).show();
             LimeLog.warning("exportLauncherFile: Computer details incomplete.");
             return;
         }
 
         if (app == null || app.getAppName() == null || app.getAppName().isEmpty() || app.getAppUUID() == null || app.getAppUUID().isEmpty()) {
-            Toast.makeText(context, R.string.export_launcher_app_details_incomplete, Toast.LENGTH_LONG).show();
+            Toast.makeText(activity, R.string.export_launcher_app_details_incomplete, Toast.LENGTH_LONG).show();
             LimeLog.warning("exportLauncherFile: App details incomplete.");
             return;
         }
@@ -286,10 +321,10 @@ public class ShortcutHelper {
         intent.putExtra(Intent.EXTRA_TITLE, fileName);
 
         try {
-            context.startActivityForResult(intent, REQUEST_CODE_EXPORT_ART_FILE);
+            activity.startActivityForResult(intent, REQUEST_CODE_EXPORT_ART_FILE);
         } catch (Exception e) {
             LimeLog.severe("Failed to start activity for file export: " + e.getMessage());
-            Toast.makeText(context, context.getString(R.string.failed_to_initiate_file_export, e.getMessage()), Toast.LENGTH_LONG).show();
+            Toast.makeText(activity, activity.getString(R.string.failed_to_initiate_file_export, e.getMessage()), Toast.LENGTH_LONG).show();
             artFileContentToExport = null; // Clear content if we can't even start the activity
         }
     }
