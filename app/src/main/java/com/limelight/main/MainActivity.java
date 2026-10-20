@@ -24,20 +24,29 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
+import androidx.lifecycle.LiveData;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.preference.PreferenceManager;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.navigationrail.NavigationRailView;
 import com.limelight.R;
+import com.limelight.computers.HostEntry;
+import com.limelight.computers.HostLibrary;
 import com.limelight.computers.HostRepository;
 import com.limelight.computers.PairingRequest;
+import com.limelight.library.LaunchController;
+import com.limelight.library.LibraryFragment;
 import com.limelight.library.LibraryIntents;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.NvHTTP;
 import com.limelight.pcs.HostActions;
 import com.limelight.pcs.PcsFragment;
 import com.limelight.preferences.StreamSettings;
+import com.limelight.stats.AchievementToast;
+import com.limelight.stats.AchievementWatcher;
+import com.limelight.stats.HostLink;
+import com.limelight.stats.HostSession;
 import com.limelight.utils.Dialog;
 import com.limelight.utils.UiHelper;
 
@@ -48,8 +57,8 @@ import com.limelight.utils.UiHelper;
  * <p>It replaces the PcView/AppView pair, where the PC list sat under the library and each bound
  * the computer manager on its own. Here one {@link MainViewModel} owns the host state for every
  * section, and switching sections is a fragment show/hide, not an activity start. Until the
- * switch-over it is reached only from the debug "Zefiro (new UI)" icon, and the sections other
- * than PCs are placeholders.
+ * switch-over it is reached only from the debug "Zefiro (new UI)" icon, and Stats and Search are
+ * still placeholders.
  *
  * <h3>Window</h3>
  *
@@ -83,8 +92,16 @@ import com.limelight.utils.UiHelper;
  * <h3>Controllers</h3>
  *
  * What starts activities, shows dialogs or holds activity-result launchers lives here, not in a
- * section: {@link HostActions} (pairing, wake, delete, export) outlives any section's views.
- * Sections reach it, and the host state, through {@link MainHost}.
+ * section: {@link HostActions} (pairing, wake, delete, export), {@link LaunchController}
+ * (starting, resuming and quitting games) and {@link ArtExport} (a game's launcher file) all
+ * outlive any section's views. Sections reach them, and the host state, through
+ * {@link MainHost}.
+ *
+ * <h3>Back from a stream</h3>
+ *
+ * A stream's achievements may only be written by the host once the game closes, after the
+ * stream's last look. So on resume, a few seconds later, the screen asks the host that was
+ * streamed (not necessarily the selected one) once more, and toasts what is new, as AppView did.
  *
  * <h3>Pairing from a link</h3>
  *
@@ -99,6 +116,9 @@ public class MainActivity extends AppCompatActivity
 
     private static final String STATE_SECTION = "section";
 
+    // SuccessStory refreshes a game's achievements when it closes; give it a moment.
+    private static final long AFTER_STREAM_CHECK_DELAY_MS = 4000;
+
     private MainViewModel viewModel;
     private MainRootLayout root;
     private View railColumn;
@@ -108,7 +128,11 @@ public class MainActivity extends AppCompatActivity
     private SectionNavigator navigator;
     private RendererProbe rendererProbe;
     private HostActions hostActions;
+    private ArtExport artExport;
+    private LaunchController launchController;
     private int railPaddingTop;
+    @Nullable
+    private Runnable achievementCheck;
 
     // Key code to the down time of the press a section handled, so that press's key-up is
     // swallowed too. Keyed by the down time, not the code alone: when the handled press opens
@@ -166,6 +190,7 @@ public class MainActivity extends AppCompatActivity
                 uri -> hostActions.onEsdeFolderPicked(uri));
         hostActions = new HostActions(this, viewModel.repository(), this,
                 pickRomsFolder, pickEsdeFolder);
+        artExport = new ArtExport(this);
 
         setContentView(R.layout.activity_main);
         UiHelper.notifyNewRootView(this);
@@ -201,6 +226,7 @@ public class MainActivity extends AppCompatActivity
 
         rendererProbe = new RendererProbe(this, findViewById(android.R.id.content));
         rendererProbe.start();
+        launchController = new LaunchController(this, viewModel.repository(), rendererProbe, artExport);
 
         goTo(initial);
 
@@ -227,6 +253,12 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        checkAchievementsAfterStream();
+    }
+
+    @Override
     protected void onStop() {
         viewModel.onStop();
         // As PcView did: an informational dialog (a PIN, a host's details) is not left up behind
@@ -243,8 +275,13 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     protected void onDestroy() {
+        if (achievementCheck != null) {
+            root.removeCallbacks(achievementCheck);
+            achievementCheck = null;
+        }
         rendererProbe.release();
         hostActions.release();
+        launchController.release();
         getSupportFragmentManager().unregisterFragmentLifecycleCallbacks(libraryStackWatcher);
         super.onDestroy();
     }
@@ -304,10 +341,14 @@ public class MainActivity extends AppCompatActivity
     // --- Sections and controllers ---
 
     private static Fragment createSection(@NonNull Section section) {
-        if (section == Section.PCS) {
-            return new PcsFragment();
+        switch (section) {
+            case LIBRARY:
+                return new LibraryFragment();
+            case PCS:
+                return new PcsFragment();
+            default:
+                return PlaceholderSectionFragment.newInstance(section);
         }
-        return PlaceholderSectionFragment.newInstance(section);
     }
 
     @NonNull
@@ -322,22 +363,90 @@ public class MainActivity extends AppCompatActivity
         return hostActions;
     }
 
+    @NonNull
+    @Override
+    public LaunchController launchController() {
+        return launchController;
+    }
+
     @Override
     public void showSection(@NonNull Section section) {
         goTo(section);
     }
 
+    @NonNull
+    @Override
+    public LiveData<Boolean> showHiddenGames() {
+        return viewModel.showHiddenGames();
+    }
+
+    @Override
+    public void setShowHiddenGames(boolean show) {
+        viewModel.setShowHiddenGames(show);
+    }
+
     @Override
     public void showLibrary(@NonNull String hostUuid, boolean showHidden) {
-        // showHidden has nowhere to go until the Library's See all exists (S6), which is where
-        // "View all apps" lands; until then it opens the Library like any paired host.
         viewModel.repository().select(hostUuid);
+        // "View all apps" lands on the grid with the hidden games in it; a plain open leaves the
+        // user's own choice as it was.
+        if (showHidden) {
+            viewModel.setShowHiddenGames(true);
+        }
         goTo(Section.LIBRARY);
     }
 
     @Override
     public void whenRendererReady(@NonNull Runnable start) {
         rendererProbe.whenReady(start);
+    }
+
+    // --- Back from a stream ---
+
+    /**
+     * Looks once more for the achievements of the stream that just ended, a few seconds from
+     * now, and toasts what the stream did not announce. When the streamed host cannot be reached
+     * yet (not polled since the process started), the check stays pending for the next resume.
+     */
+    private void checkAchievementsAfterStream() {
+        String streamed = AchievementWatcher.pendingCheckHost();
+        if (streamed == null || achievementCheck != null) {
+            return;
+        }
+        final HostSession session = sessionFor(streamed);
+        if (session == null) {
+            return;
+        }
+        final long since = AchievementWatcher.takePendingCheck(streamed);
+        if (since < 0) {
+            return;
+        }
+        achievementCheck = () -> {
+            achievementCheck = null;
+            if (isFinishing() || isDestroyed()) {
+                return;
+            }
+            AchievementWatcher.checkOnce(session, since, fresh -> {
+                ViewGroup content = findViewById(android.R.id.content);
+                if (!isFinishing() && !isDestroyed() && content != null) {
+                    AchievementToast.show(content, fresh, session);
+                }
+            });
+        };
+        root.postDelayed(achievementCheck, AFTER_STREAM_CHECK_DELAY_MS);
+    }
+
+    /** A connection to a host: the open library's when it is that host, else a new one. */
+    @Nullable
+    private HostSession sessionFor(@NonNull String hostUuid) {
+        HostRepository repository = viewModel.repository();
+        HostLibrary library = repository.currentLibrary();
+        if (library != null && hostUuid.equalsIgnoreCase(library.getHostUuid())) {
+            return library.session();
+        }
+        HostEntry entry = repository.getHost(hostUuid);
+        HostLink link = entry != null ? HostLink.of(entry.details, repository.uniqueId()) : null;
+        return link != null ? new HostSession(this, link) : null;
     }
 
     // --- Pairing from a link ---

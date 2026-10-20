@@ -1088,4 +1088,31 @@
     <!-- Stand-in section content, there only to exercise focus until the real sections land. -->
     <string name="placeholder_first_action">First action</string>
     <string name="placeholder_second_action">Second action</string>
+    <!-- The Library: See all -->
+    <string name="library_see_all">See all</string>
+    <!-- Next to "All games": the host, and how many games the grid shows. -->
+    <plurals name="library_see_all_subtitle">
+        <item quantity="one">%1$s · %2$d game</item>
+        <item quantity="other">%1$s · %2$d games</item>
+    </plurals>
+    <!-- Spoken for the sort chip, which shows only the current order. -->
+    <string name="library_sort_a11y">Sort by, now %1$s</string>
+    <string name="library_show_hidden">Show hidden games</string>
+    <string name="library_back">Back</string>
+    <!-- Stands in for a host's name before the host has answered once. -->
+    <string name="library_this_pc">This PC</string>
+    <!-- The Library's host state panel, where the games would be. -->
+    <string name="library_host_offline_title">%1$s is offline</string>
+    <string name="library_host_offline_message">Wake it, or choose another PC to play from.</string>
+    <string name="library_wake">Wake</string>
+    <string name="library_choose_another_pc">Choose another PC</string>
+    <string name="library_host_unpaired_title">%1$s is not paired</string>
+    <string name="library_host_unpaired_message">Pair this device with it to see its games.</string>
+    <string name="library_pair">Pair</string>
+    <string name="library_host_loading">Connecting to %1$s…</string>
+    <string name="library_no_host_title">No PC selected</string>
+    <string name="library_no_host_message">Choose a PC to see its games.</string>
+    <string name="library_choose_pc">Choose a PC</string>
+    <string name="library_empty_title">No games on %1$s</string>
+    <string name="library_empty_hidden_message">Its games are all hidden. Show them from the sort menu.</string>
 </resources>

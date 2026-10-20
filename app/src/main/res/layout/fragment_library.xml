@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The Library section's frame (library/LibraryFragment): one container for its own stack of
+    screens, home first and See all pushed over it. The screens are added in code, never named
+    here, for the same reason the main screen's sections are not.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/libraryContainer"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface_deep" />

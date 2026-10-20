@@ -278,6 +278,23 @@ public class ServerHelper {
                               final String uniqueId,
                               final Runnable onComplete
     ) {
+        doQuit(parent, computer, app, uniqueId, onComplete, null);
+    }
+
+    /**
+     * The same, also told when the quit fails: the host refused or could not be reached, or no
+     * request could even be made (no address). Exactly one of the two runs, on a background
+     * thread, except that a failure to make the request runs {@code onFail} on the caller's.
+     * A caller that holds something back while the quit is in flight (the library ignores the
+     * host meanwhile) needs to hear about a failure as much as a success, or it never lets go.
+     */
+    public static void doQuit(final Activity parent,
+                              final ComputerDetails computer,
+                              final NvApp app,
+                              final String uniqueId,
+                              final Runnable onComplete,
+                              final Runnable onFail
+    ) {
         try {
             NvHTTP httpConn = new NvHTTP(
                     ServerHelper.getCurrentAddressFromComputer(computer),
@@ -291,13 +308,16 @@ public class ServerHelper {
                     httpConn,
                     app.getAppName(),
                     onComplete,
-                    null
+                    onFail
             );
         } catch (Exception e) {
             e.printStackTrace();
 
             final String toastMessage = e.getMessage();
             parent.runOnUiThread(() -> Toast.makeText(parent, toastMessage, Toast.LENGTH_LONG).show());
+            if (onFail != null) {
+                onFail.run();
+            }
         }
     }
 }

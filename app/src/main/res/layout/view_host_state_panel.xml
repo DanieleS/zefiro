@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    What the Library shows in place of the games when there are none to show (library/
+    HostStatePanel): the host is offline, not paired, still being reached, none is selected, or
+    it has no games. One column, centred in the space the games would take:
+
+      hostStateProgress   a spinner, while the host is being reached
+      hostStateTitle      what is the matter, naming the host
+      hostStateMessage    what can be done about it
+      hostStatePrimary    the way out (Wake, Pair, Choose a PC), focused first
+      hostStateSecondary  the other way out (Choose another PC), where there is one
+
+    It replaces the old library's finish(): an offline or unpaired host used to close the screen.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/hostStatePanel"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_gravity="center"
+    android:gravity="center_horizontal"
+    android:maxWidth="@dimen/host_state_panel_max_width"
+    android:orientation="vertical"
+    android:paddingStart="@dimen/section_gutter"
+    android:paddingEnd="@dimen/section_gutter"
+    android:visibility="gone">
+
+    <ProgressBar
+        android:id="@+id/hostStateProgress"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginBottom="20dp"
+        android:indeterminate="true"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/hostStateTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textColor="@color/content_primary"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        tools:text="Taverna is offline" />
+
+    <TextView
+        android:id="@+id/hostStateMessage"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:lineSpacingMultiplier="1.2"
+        android:textColor="@color/content_muted"
+        android:textSize="14sp"
+        tools:text="Wake it, or choose another PC to play from." />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/hostStatePrimary"
+        style="@style/Widget.Zefiro.PrimaryButton"
+        android:layout_marginTop="20dp"
+        tools:text="@string/library_wake" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/hostStateSecondary"
+        style="@style/Widget.Zefiro.HeaderChip"
+        android:layout_marginTop="4dp"
+        tools:text="@string/library_choose_another_pc" />
+
+</LinearLayout>

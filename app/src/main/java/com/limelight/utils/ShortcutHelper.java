@@ -291,34 +291,56 @@ public class ShortcutHelper {
     }
 
     /**
-     * Asks the user where to save a launcher file for this game. The result comes back to
-     * {@code activity}'s {@code onActivityResult} under {@link #REQUEST_CODE_EXPORT_ART_FILE},
-     * which must hand it to {@link #writeArtFileToUri}.
+     * The body of the {@code .art} file for a game, or null when the host or the game lacks what
+     * the file needs (the host's UUID and name, the game's name and UUID). On null the user has
+     * already been told why, with a toast.
+     *
+     * <p>Unlike {@link #exportLauncherFile}, nothing is parked in {@link #artFileContentToExport}:
+     * the caller keeps the content with the document request it makes, so two exports in flight
+     * can never write each other's file.
      */
-    public void exportLauncherFile(Activity activity, ComputerDetails computer, NvApp app) {
+    public String buildArtFileContent(ComputerDetails computer, NvApp app) {
         if (computer == null || computer.uuid == null || computer.uuid.isEmpty() ||
             computer.name == null || computer.name.isEmpty()) {
-            Toast.makeText(activity, R.string.export_launcher_computer_details_incomplete, Toast.LENGTH_LONG).show();
+            Toast.makeText(context, R.string.export_launcher_computer_details_incomplete, Toast.LENGTH_LONG).show();
             LimeLog.warning("exportLauncherFile: Computer details incomplete.");
-            return;
+            return null;
         }
 
         if (app == null || app.getAppName() == null || app.getAppName().isEmpty() || app.getAppUUID() == null || app.getAppUUID().isEmpty()) {
-            Toast.makeText(activity, R.string.export_launcher_app_details_incomplete, Toast.LENGTH_LONG).show();
+            Toast.makeText(context, R.string.export_launcher_app_details_incomplete, Toast.LENGTH_LONG).show();
             LimeLog.warning("exportLauncherFile: App details incomplete.");
+            return null;
+        }
+
+        return buildLauncherFileContent(computer, app, null);
+    }
+
+    /** The name a game's {@code .art} file is offered under in the save dialog. */
+    public static String artFileName(NvApp app) {
+        return app.getAppName().trim() + ".art";
+    }
+
+    /**
+     * Asks the user where to save a launcher file for this game. The result comes back to
+     * {@code activity}'s {@code onActivityResult} under {@link #REQUEST_CODE_EXPORT_ART_FILE},
+     * which must hand it to {@link #writeArtFileToUri}. The legacy screens' path; the main screen
+     * uses {@link #buildArtFileContent} and {@link #writeArtFile} through the result API.
+     */
+    public void exportLauncherFile(Activity activity, ComputerDetails computer, NvApp app) {
+        String content = new ShortcutHelper(activity).buildArtFileContent(computer, app);
+        if (content == null) {
             return;
         }
 
-        artFileContentToExport = buildLauncherFileContent(computer, app, null);
-
-        String fileName = app.getAppName().trim() + ".art";
+        artFileContentToExport = content;
 
         Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         // Using "application/octet-stream" for generic binary data
         // Since .art is a custom format, octet-stream is safer, or a custom MIME type could be defined.
         intent.setType("application/octet-stream");
-        intent.putExtra(Intent.EXTRA_TITLE, fileName);
+        intent.putExtra(Intent.EXTRA_TITLE, artFileName(app));
 
         try {
             activity.startActivityForResult(intent, REQUEST_CODE_EXPORT_ART_FILE);
@@ -330,40 +352,50 @@ public class ShortcutHelper {
     }
 
     public static void writeArtFileToUri(Activity activityContext, Uri uri) {
+        try {
+            new ShortcutHelper(activityContext).writeArtFile(uri, artFileContentToExport);
+        } finally {
+            artFileContentToExport = null; // Clear content after attempt
+        }
+    }
+
+    /**
+     * Writes a launcher file's content to the document the user picked, and toasts the outcome.
+     * A null {@code uri} is a pick that came back empty; a null or empty {@code content} means
+     * the content was lost on the way (a process death between the request and the pick).
+     * Main thread: the file is a few hundred bytes.
+     */
+    public void writeArtFile(Uri uri, String content) {
         if (uri == null) {
             LimeLog.warning("writeArtFileToUri: URI is null.");
-            Toast.makeText(activityContext, R.string.file_export_failed_no_location_selected, Toast.LENGTH_LONG).show();
-            artFileContentToExport = null; // Clear if URI is null
+            Toast.makeText(context, R.string.file_export_failed_no_location_selected, Toast.LENGTH_LONG).show();
             return;
         }
 
-        if (artFileContentToExport == null || artFileContentToExport.isEmpty()) {
+        if (content == null || content.isEmpty()) {
             LimeLog.warning("writeArtFileToUri: No content to export.");
             // Potentially the content was cleared due to an earlier error or state loss.
             // Or this method was called inappropriately.
-            Toast.makeText(activityContext, R.string.file_export_failed_no_content_to_write, Toast.LENGTH_LONG).show();
+            Toast.makeText(context, R.string.file_export_failed_no_content_to_write, Toast.LENGTH_LONG).show();
             return;
         }
 
-        try (OutputStream outputStream = activityContext.getContentResolver().openOutputStream(uri)) {
+        try (OutputStream outputStream = context.getContentResolver().openOutputStream(uri)) {
             if (outputStream != null) {
-                outputStream.write(artFileContentToExport.getBytes());
+                outputStream.write(content.getBytes());
                 outputStream.flush(); // Ensure all data is written
                 LimeLog.info("Successfully wrote .art file to: " + uri.toString());
-                Toast.makeText(activityContext, R.string.file_exported_successfully, Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, R.string.file_exported_successfully, Toast.LENGTH_SHORT).show();
             } else {
                 LimeLog.severe("Failed to open output stream for URI: " + uri.toString());
-                Toast.makeText(activityContext, R.string.failed_to_open_file_for_writing, Toast.LENGTH_LONG).show();
+                Toast.makeText(context, R.string.failed_to_open_file_for_writing, Toast.LENGTH_LONG).show();
             }
         } catch (IOException e) {
             LimeLog.severe("Error writing .art file to URI: " + uri.toString() + " - " + e.getMessage());
-            Toast.makeText(activityContext, activityContext.getString(R.string.error_writing_file, e.getMessage()), Toast.LENGTH_LONG).show();
+            Toast.makeText(context, context.getString(R.string.error_writing_file, e.getMessage()), Toast.LENGTH_LONG).show();
         } catch (Exception e) {
             LimeLog.severe("Unexpected error writing .art file to URI: " + uri.toString() + " - " + e.getMessage());
-            Toast.makeText(activityContext, R.string.unexpected_error_during_file_export, Toast.LENGTH_LONG).show();
-        }
-        finally {
-            artFileContentToExport = null; // Clear content after attempt
+            Toast.makeText(context, R.string.unexpected_error_during_file_export, Toast.LENGTH_LONG).show();
         }
     }
 }

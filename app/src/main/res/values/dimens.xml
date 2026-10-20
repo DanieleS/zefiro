@@ -146,4 +146,19 @@
     <dimen name="header_chip_corner">18dp</dimen>
     <dimen name="header_chip_icon">18dp</dimen>
 
+    <!--
+        The Library's See all, after the approved mock: tiles 8dp apart (the grid pads by the
+        gutter less half that gap, see fragment_see_all), a title smaller than a section's since
+        it sits under the Library's own, and a back arrow pulled out by its icon inset so the
+        glyph, not its touch target, lines up with the gutter.
+    -->
+    <dimen name="see_all_tile_gap">8dp</dimen>
+    <dimen name="see_all_grid_padding">12dp</dimen>
+    <dimen name="see_all_title_size">20sp</dimen>
+    <dimen name="see_all_back_offset">-12dp</dimen>
+
+    <!-- The Library's host state panel (offline, not paired, …): a readable column, centred. -->
+    <dimen name="host_state_panel_max_width">420dp</dimen>
+    <dimen name="primary_button_corner">18dp</dimen>
+
 </resources>

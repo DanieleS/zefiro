@@ -4,12 +4,14 @@ import android.app.Application;
 
 import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.MutableLiveData;
 
 import com.limelight.computers.HostRepository;
 
 /**
- * The main screen's state that outlives its views: the host repository, and which section is on
- * screen.
+ * The main screen's state that outlives its views: the host repository, which section is on
+ * screen, and whether the Library lists hidden games.
  *
  * <p>It is scoped to the activity, not to the process. With the computer manager taking several
  * listeners, nothing else needs the repository's hosts, and an application-wide copy would only
@@ -31,6 +33,7 @@ public class MainViewModel extends AndroidViewModel {
 
     private final HostRepository repository;
     private Section section = Section.LIBRARY;
+    private final MutableLiveData<Boolean> showHiddenGames = new MutableLiveData<>(false);
 
     public MainViewModel(@NonNull Application application) {
         super(application);
@@ -57,6 +60,16 @@ public class MainViewModel extends AndroidViewModel {
 
     public void setSection(@NonNull Section section) {
         this.section = section;
+    }
+
+    public LiveData<Boolean> showHiddenGames() {
+        return showHiddenGames;
+    }
+
+    public void setShowHiddenGames(boolean show) {
+        if (!Boolean.valueOf(show).equals(showHiddenGames.getValue())) {
+            showHiddenGames.setValue(show);
+        }
     }
 
     @Override

@@ -1,8 +1,10 @@
 package com.limelight.main;
 
 import androidx.annotation.NonNull;
+import androidx.lifecycle.LiveData;
 
 import com.limelight.computers.HostRepository;
+import com.limelight.library.LaunchController;
 import com.limelight.pcs.HostActions;
 
 /**
@@ -26,6 +28,20 @@ public interface MainHost {
     @NonNull
     HostActions hostActions();
 
+    /** Starting, resuming and quitting games, and a game's actions sheet. */
+    @NonNull
+    LaunchController launchController();
+
     /** Switches to a section, checking its navigation item as a tap on it would. */
     void showSection(@NonNull Section section);
+
+    /**
+     * Whether the Library lists hidden games too, dimmed, so they can be shown again. It lives
+     * with the main screen rather than in a Library screen, because the PCs section asks for it
+     * as well (a host's "View all apps").
+     */
+    @NonNull
+    LiveData<Boolean> showHiddenGames();
+
+    void setShowHiddenGames(boolean show);
 }

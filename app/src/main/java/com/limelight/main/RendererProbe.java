@@ -7,7 +7,10 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.ViewGroup;
 
+import androidx.annotation.NonNull;
+
 import com.limelight.LimeLog;
+import com.limelight.library.LaunchController;
 import com.limelight.preferences.GlPreferences;
 
 import java.util.ArrayList;
@@ -27,13 +30,13 @@ import javax.microedition.khronos.opengles.GL10;
  * takes the surface away again; the screen around it is usable the whole time.
  *
  * <p>Whatever needs the renderer known (starting a stream) waits for it through
- * {@link #whenReady(Runnable)}. When the saved value still matches this build there is nothing to
- * probe and it runs at once.
+ * {@link #whenReady(Runnable)}, which is also the {@code LaunchController}'s gate. When the saved
+ * value still matches this build there is nothing to probe and it runs at once.
  *
  * <p>Main thread only, except the renderer callback, which runs on the GL thread and only writes
  * the preferences before posting back.
  */
-final class RendererProbe {
+final class RendererProbe implements LaunchController.StartGate {
 
     private final Context context;
     private final ViewGroup root;
@@ -81,7 +84,8 @@ final class RendererProbe {
     }
 
     /** Runs the task once the renderer is known: now if it is, else when the probe finishes. */
-    void whenReady(Runnable task) {
+    @Override
+    public void whenReady(@NonNull Runnable task) {
         if (ready) {
             task.run();
         } else {

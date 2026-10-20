@@ -19,7 +19,9 @@ import com.limelight.ProfilesActivity;
 import com.limelight.R;
 import com.limelight.TestLogSuppressor;
 import com.limelight.computers.ComputerManagerService;
+import com.limelight.library.LibraryFragment;
 import com.limelight.library.LibraryIntents;
+import com.limelight.library.SeeAllFragment;
 import com.limelight.pcs.PcsFragment;
 import com.limelight.preferences.AddComputerManually;
 import com.limelight.preferences.StreamSettings;
@@ -207,14 +209,39 @@ public class MainActivityShellTest {
     public void focusGate_rightFromTheRailReturnsToTheLastFocusedView() {
         MainActivity activity = launch().get();
         MainRootLayout root = activity.findViewById(R.id.mainRoot);
-        View second = section(activity, Section.LIBRARY).requireView()
+        // A placeholder section: its two buttons make "the last focused" unambiguous.
+        NavigationRailView rail = activity.findViewById(R.id.navRail);
+        rail.findViewById(R.id.nav_stats).performClick();
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
+        View second = section(activity, Section.STATS).requireView()
                 .findViewById(R.id.placeholderSecond);
-        View railItem = activity.findViewById(R.id.navRail).findViewById(R.id.nav_library);
+        View railItem = rail.findViewById(R.id.nav_stats);
 
         second.requestFocus();
         railItem.requestFocus();
 
         assertSame(second, root.focusSearch(railItem, View.FOCUS_RIGHT));
+    }
+
+    @Test
+    @Config(qualifiers = "w900dp-h500dp-land")
+    public void library_opensOnSeeAll_withNoHostOffersToChooseOne() {
+        MainActivity activity = launch().get();
+
+        Fragment library = section(activity, Section.LIBRARY);
+        assertTrue(library instanceof LibraryFragment);
+        Fragment top = library.getChildFragmentManager().findFragmentById(R.id.libraryContainer);
+        assertTrue(top instanceof SeeAllFragment);
+        // The root of the Library's stack: nothing to go back to, so no arrow.
+        View view = top.requireView();
+        assertEquals(View.GONE, view.findViewById(R.id.seeAllBack).getVisibility());
+        assertEquals(View.VISIBLE, view.findViewById(R.id.hostStatePanel).getVisibility());
+
+        view.findViewById(R.id.hostStatePrimary).performClick();
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
+
+        assertTrue(section(activity, Section.PCS).isVisible());
+        assertFalse(activity.isFinishing());
     }
 
     @Test
