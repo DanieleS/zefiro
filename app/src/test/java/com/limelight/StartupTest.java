@@ -5,6 +5,7 @@ import android.content.Intent;
 
 import androidx.test.core.app.ApplicationProvider;
 
+import com.limelight.library.LibraryIntents;
 import com.limelight.profiles.ProfilesManager;
 
 import org.junit.Before;
@@ -72,10 +73,10 @@ public class StartupTest {
     public void testPcViewActivityWithIntent() {
         // Test PcView with various intent extras that might cause crashes
         Intent intent = new Intent();
-        intent.putExtra("hostname", "test.local");
-        intent.putExtra("port", 47989);
-        intent.putExtra("pin", "1234");
-        intent.putExtra("passphrase", "test");
+        intent.putExtra(LibraryIntents.EXTRA_PAIR_HOSTNAME, "test.local");
+        intent.putExtra(LibraryIntents.EXTRA_PAIR_PORT, 47989);
+        intent.putExtra(LibraryIntents.EXTRA_PAIR_PIN, "1234");
+        intent.putExtra(LibraryIntents.EXTRA_PAIR_PASSPHRASE, "test");
 
         PcView activity = Robolectric.buildActivity(PcView.class, intent).create().get();
         assertNotNull("PcView activity should be created with intent", activity);
@@ -86,8 +87,8 @@ public class StartupTest {
     public void testAppViewActivityCreation() {
         // Test AppView activity startup
         Intent intent = new Intent();
-        intent.putExtra(AppView.NAME_EXTRA, "Test Computer");
-        intent.putExtra(AppView.UUID_EXTRA, "test-uuid-123");
+        intent.putExtra(LibraryIntents.EXTRA_NAME, "Test Computer");
+        intent.putExtra(LibraryIntents.EXTRA_UUID, "test-uuid-123");
 
         AppView activity = Robolectric.buildActivity(AppView.class, intent).create().get();
         assertNotNull("AppView activity should be created", activity);

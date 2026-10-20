@@ -16,6 +16,11 @@
 -keep class org.tensorflow.lite.gpu.** { *; }
 -keep class org.opencv.** { *; }
 
+# Fragments: debug builds are minified too, and FragmentManager re-creates a fragment after a
+# configuration or process restore by reflection on its public no-arg constructor. R8 cannot see
+# that call, so without this it may strip the constructor and the restore crashes.
+-keep public class com.limelight.** extends androidx.fragment.app.Fragment { public <init>(); }
+
 # Profiles
 -keep class com.limelight.profiles.ProfilesManager$ProfilesData {*;}
 -keep class com.limelight.profiles.SettingsProfile {*;}

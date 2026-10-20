@@ -6,6 +6,7 @@ import android.content.SharedPreferences;
 
 import androidx.test.core.app.ApplicationProvider;
 
+import com.limelight.library.LibraryIntents;
 import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.profiles.ProfilesManager;
 import com.limelight.utils.UiHelper;
@@ -155,8 +156,8 @@ public class StartupCrashTest {
     public void testInvalidUuidInIntent() {
         // Test AppView with invalid UUID
         Intent intent = new Intent();
-        intent.putExtra(AppView.NAME_EXTRA, "Test Computer");
-        intent.putExtra(AppView.UUID_EXTRA, "invalid-uuid");
+        intent.putExtra(LibraryIntents.EXTRA_NAME, "Test Computer");
+        intent.putExtra(LibraryIntents.EXTRA_UUID, "invalid-uuid");
 
         try {
             AppView activity = Robolectric.buildActivity(AppView.class, intent).create().get();

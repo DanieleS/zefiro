@@ -18,8 +18,8 @@ import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.button.MaterialButton;
-import com.limelight.PcView;
 import com.limelight.R;
+import com.limelight.computers.HostEntry;
 import com.limelight.grid.assets.CachedAppAssetLoader;
 import com.limelight.grid.assets.DiskAssetLoader;
 import com.limelight.grid.assets.ScaledBitmap;
@@ -52,7 +52,7 @@ public class PcCardAdapter extends RecyclerView.Adapter<PcCardAdapter.PcCardHold
 
     /** A tap on the card's action, which is a different thing from a tap on the card. */
     public interface OnActionClickListener {
-        void onClick(PcView.ComputerObject computer, int action);
+        void onClick(HostEntry computer, int action);
     }
 
     public static final int ACTION_NONE = 0;
@@ -62,7 +62,7 @@ public class PcCardAdapter extends RecyclerView.Adapter<PcCardAdapter.PcCardHold
 
     private final Context context;
     private final LayoutInflater inflater;
-    private final ArrayList<PcView.ComputerObject> itemList = new ArrayList<>();
+    private final ArrayList<HostEntry> itemList = new ArrayList<>();
 
     private final DiskAssetLoader assetLoader;
     private final ExecutorService coverExecutor = Executors.newSingleThreadExecutor();
@@ -107,7 +107,7 @@ public class PcCardAdapter extends RecyclerView.Adapter<PcCardAdapter.PcCardHold
      *
      * PcView asks for this too, to give the gamepad's X button the same action the card shows.
      */
-    public static int actionFor(PcView.ComputerObject computer) {
+    public static int actionFor(HostEntry computer) {
         final ComputerDetails details = computer.details;
         final boolean online = details.state == ComputerDetails.State.ONLINE;
         final boolean paired = details.pairState == PairingManager.PairState.PAIRED;
@@ -129,17 +129,17 @@ public class PcCardAdapter extends RecyclerView.Adapter<PcCardAdapter.PcCardHold
         this.actionListener = listener;
     }
 
-    public void addComputer(PcView.ComputerObject computer) {
+    public void addComputer(HostEntry computer) {
         itemList.add(computer);
-        Collections.sort(itemList, new Comparator<PcView.ComputerObject>() {
+        Collections.sort(itemList, new Comparator<HostEntry>() {
             @Override
-            public int compare(PcView.ComputerObject lhs, PcView.ComputerObject rhs) {
+            public int compare(HostEntry lhs, HostEntry rhs) {
                 return lhs.details.name.toLowerCase().compareTo(rhs.details.name.toLowerCase());
             }
         });
     }
 
-    public boolean removeComputer(PcView.ComputerObject computer) {
+    public boolean removeComputer(HostEntry computer) {
         return itemList.remove(computer);
     }
 
@@ -170,7 +170,7 @@ public class PcCardAdapter extends RecyclerView.Adapter<PcCardAdapter.PcCardHold
 
     @Override
     public void onBindViewHolder(@NonNull PcCardHolder holder, int position) {
-        final PcView.ComputerObject computer = itemList.get(position);
+        final HostEntry computer = itemList.get(position);
         final ComputerDetails details = computer.details;
 
         holder.name.setText(details.name);
@@ -287,7 +287,7 @@ public class PcCardAdapter extends RecyclerView.Adapter<PcCardAdapter.PcCardHold
      * them, and for the moment before it arrives. When it is missing the cover stands in for it,
      * which is what this screen showed before there were hero images at all.
      */
-    private void bindArt(PcCardHolder holder, PcView.ComputerObject computer) {
+    private void bindArt(PcCardHolder holder, HostEntry computer) {
         final ComputerDetails details = computer.details;
         final String key = details.uuid + ":" + details.runningGameId;
         holder.coverKey = key;

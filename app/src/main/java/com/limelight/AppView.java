@@ -84,6 +84,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.limelight.grid.AutofitGridLayoutManager;
 import com.limelight.grid.CoverFlowLayoutManager;
 import com.limelight.grid.GridSpacingItemDecoration;
+import com.limelight.library.LibraryIntents;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -157,18 +158,6 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
     private final static int START_WITH_VDISPLAY = 20;
     private final static int START_WITH_QUIT_VDISPLAY = 21;
 
-    public final static String HIDDEN_APPS_PREF_FILENAME = "HiddenApps";
-
-    // The chosen order is one preference for the whole app, not one per PC: it is how the user
-    // likes to browse, not a property of any host.
-    private final static String SORT_ORDER_PREF_FILENAME = "LibrarySortOrder";
-    private final static String SORT_ORDER_PREF_KEY = "sortOrder";
-
-    public final static String NAME_EXTRA = "Name";
-    public final static String UUID_EXTRA = "UUID";
-    public final static String NEW_PAIR_EXTRA = "NewPair";
-    public final static String SHOW_HIDDEN_APPS_EXTRA = "ShowHiddenApps";
-
     private ComputerManagerService.ComputerManagerBinder managerBinder;
     private final ServiceConnection serviceConnection = new ServiceConnection() {
         public void onServiceConnected(ComponentName className, IBinder binder) {
@@ -190,7 +179,7 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
                     }
 
                     // Add a launcher shortcut for this PC (forced, since this is user interaction)
-                    shortcutHelper.createAppViewShortcut(computer, true, getIntent().getBooleanExtra(NEW_PAIR_EXTRA, false));
+                    shortcutHelper.createAppViewShortcut(computer, true, getIntent().getBooleanExtra(LibraryIntents.EXTRA_NEW_PAIR, false));
                     shortcutHelper.reportComputerShortcutUsed(computer);
 
                     try {
@@ -465,20 +454,20 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
         refreshRemoteSessionButton();
         refreshStatsButton();
 
-        showHiddenApps = getIntent().getBooleanExtra(SHOW_HIDDEN_APPS_EXTRA, false);
-        uuidString = getIntent().getStringExtra(UUID_EXTRA);
+        showHiddenApps = getIntent().getBooleanExtra(LibraryIntents.EXTRA_SHOW_HIDDEN, false);
+        uuidString = getIntent().getStringExtra(LibraryIntents.EXTRA_UUID);
 
         sortOrder = AppSortOrder.fromKey(
-                getSharedPreferences(SORT_ORDER_PREF_FILENAME, MODE_PRIVATE)
-                        .getString(SORT_ORDER_PREF_KEY, null),
+                getSharedPreferences(LibraryIntents.PREFS_SORT, MODE_PRIVATE)
+                        .getString(LibraryIntents.KEY_SORT, null),
                 AppSortOrder.HOST);
 
-        SharedPreferences hiddenAppsPrefs = getSharedPreferences(HIDDEN_APPS_PREF_FILENAME, MODE_PRIVATE);
+        SharedPreferences hiddenAppsPrefs = getSharedPreferences(LibraryIntents.PREFS_HIDDEN_APPS, MODE_PRIVATE);
         for (String hiddenAppIdStr : hiddenAppsPrefs.getStringSet(uuidString, new HashSet<String>())) {
             hiddenAppIds.add(Integer.parseInt(hiddenAppIdStr));
         }
 
-        String computerName = getIntent().getStringExtra(NAME_EXTRA);
+        String computerName = getIntent().getStringExtra(LibraryIntents.EXTRA_NAME);
 
         TextView label = findViewById(R.id.appListText);
         setTitle(computerName);
@@ -498,7 +487,7 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
             hiddenAppIdStringSet.add(hiddenAppId.toString());
         }
 
-        getSharedPreferences(HIDDEN_APPS_PREF_FILENAME, MODE_PRIVATE)
+        getSharedPreferences(LibraryIntents.PREFS_HIDDEN_APPS, MODE_PRIVATE)
                 .edit()
                 .putStringSet(uuidString, hiddenAppIdStringSet)
                 .apply();
@@ -865,9 +854,9 @@ public class AppView extends AppCompatActivity implements AdapterFragmentCallbac
         }
         sortOrder = newSortOrder;
 
-        getSharedPreferences(SORT_ORDER_PREF_FILENAME, MODE_PRIVATE)
+        getSharedPreferences(LibraryIntents.PREFS_SORT, MODE_PRIVATE)
                 .edit()
-                .putString(SORT_ORDER_PREF_KEY, newSortOrder.getKey())
+                .putString(LibraryIntents.KEY_SORT, newSortOrder.getKey())
                 .apply();
 
         if (appGridAdapter != null) {

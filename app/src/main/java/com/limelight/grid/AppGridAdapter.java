@@ -18,10 +18,12 @@ import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.preferences.PreferenceConfiguration;
 
 import com.limelight.nvstream.http.AppMetadata;
+import com.limelight.nvstream.http.NvApp;
 import com.limelight.utils.AppLaunchHistory;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -179,7 +181,10 @@ public class AppGridAdapter extends GenericGridAdapter<AppView.AppObject> {
     }
 
     private void sortList(List<AppView.AppObject> list) {
-        Collections.sort(list, sortOrder.comparator(appMetadata, launchHistory));
+        // The order is defined on the bare NvApp; this list holds AppObjects around them. An
+        // explicit lambda rather than Comparator.comparing, which needs API 24.
+        final Comparator<NvApp> byApp = sortOrder.comparator(appMetadata, launchHistory);
+        Collections.sort(list, (a, b) -> byApp.compare(a.app, b.app));
     }
 
     public void addApp(AppView.AppObject app) {

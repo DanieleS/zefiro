@@ -63,6 +63,16 @@ public final class DisplayTargets {
      *                      monitor mode the Activity is launched onto a secondary display.
      */
     public static Display findCompanionDisplay(Context context, int hostDisplayId) {
+        return findCompanionDisplay(context, hostDisplayId, true);
+    }
+
+    /**
+     * @param requireOn whether a display that is currently off or dozing counts. Drawing needs it
+     *                  on; asking whether the device has a companion panel at all must not, since a
+     *                  panel the user switched off (or the burn-in routine blanked) is still there
+     *                  and can come back on at any moment.
+     */
+    private static Display findCompanionDisplay(Context context, int hostDisplayId, boolean requireOn) {
         DisplayManager displayManager = (DisplayManager) context.getSystemService(Context.DISPLAY_SERVICE);
         if (displayManager == null) {
             return null;
@@ -75,7 +85,7 @@ public final class DisplayTargets {
             if (display.getDisplayId() == hostDisplayId) {
                 continue;
             }
-            if (!display.isValid() || display.getState() != Display.STATE_ON) {
+            if (!display.isValid() || (requireOn && display.getState() != Display.STATE_ON)) {
                 continue;
             }
             // Private displays are virtual displays owned by another app, not something we can draw on.
@@ -100,9 +110,22 @@ public final class DisplayTargets {
      * is no companion display to use.
      */
     public static int findCompanionDisplayId(Activity activity) {
+        return findCompanionDisplayId(activity, true);
+    }
+
+    /**
+     * Like {@link #findCompanionDisplayId(Activity)}, but ignoring whether the display is powered
+     * right now: the answer to "does this device have a companion panel", which holds for a whole
+     * session, rather than "can one be drawn on at this moment".
+     */
+    public static int findCompanionHardwareId(Activity activity) {
+        return findCompanionDisplayId(activity, false);
+    }
+
+    private static int findCompanionDisplayId(Activity activity, boolean requireOn) {
         Display host = activity.getWindowManager().getDefaultDisplay();
         int hostId = host != null ? host.getDisplayId() : Display.DEFAULT_DISPLAY;
-        Display companion = findCompanionDisplay(activity, hostId);
+        Display companion = findCompanionDisplay(activity, hostId, requireOn);
         return companion != null ? companion.getDisplayId() : Display.INVALID_DISPLAY;
     }
 

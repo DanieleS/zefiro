@@ -10,8 +10,10 @@ import com.limelight.binding.PlatformBinding;
 import com.limelight.binding.crypto.AndroidCryptoProvider;
 import com.limelight.computers.ComputerManagerListener;
 import com.limelight.computers.ComputerManagerService;
+import com.limelight.computers.HostEntry;
 import com.limelight.grid.PcCardAdapter;
 import com.limelight.grid.assets.DiskAssetLoader;
+import com.limelight.library.LibraryIntents;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.NvApp;
 import com.limelight.nvstream.http.NvHTTP;
@@ -88,9 +90,6 @@ import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
 public class PcView extends AppCompatActivity implements AdapterFragmentCallbacks {
-    /** The PC whose library was last opened from here. See maybeEnterLastPc. */
-    private static final String LAST_PC_PREF_STRING = "last_computer_uuid";
-
     /**
      * Set by AppView when the user asks for this screen from the library: they came here to look
      * at their PCs, so this launch must not send them straight back.
@@ -293,10 +292,10 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
 
         Intent intent = getIntent();
 
-        String hostname = intent.getStringExtra("hostname");
-        int port = intent.getIntExtra("port", NvHTTP.DEFAULT_HTTP_PORT);
-        pendingPairingPin = intent.getStringExtra("pin");
-        pendingPairingPassphrase = intent.getStringExtra("passphrase");
+        String hostname = intent.getStringExtra(LibraryIntents.EXTRA_PAIR_HOSTNAME);
+        int port = intent.getIntExtra(LibraryIntents.EXTRA_PAIR_PORT, NvHTTP.DEFAULT_HTTP_PORT);
+        pendingPairingPin = intent.getStringExtra(LibraryIntents.EXTRA_PAIR_PIN);
+        pendingPairingPassphrase = intent.getStringExtra(LibraryIntents.EXTRA_PAIR_PASSPHRASE);
 
         if (hostname != null && pendingPairingPin != null && pendingPairingPassphrase != null) {
             pendingPairingAddress = new ComputerDetails.AddressTuple(hostname, port);
@@ -360,13 +359,13 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
         }
 
         String lastUuid = PreferenceManager.getDefaultSharedPreferences(this)
-                .getString(LAST_PC_PREF_STRING, null);
+                .getString(LibraryIntents.PREF_LAST_HOST, null);
         if (lastUuid == null) {
             return;
         }
 
         for (int i = 0; i < pcCardAdapter.getCount(); i++) {
-            ComputerObject computer = (ComputerObject) pcCardAdapter.getItem(i);
+            HostEntry computer = (HostEntry) pcCardAdapter.getItem(i);
             if (!lastUuid.equals(computer.details.uuid)) {
                 continue;
             }
@@ -508,7 +507,7 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
         super.onCreateContextMenu(menu, v, menuInfo);
 
         AdapterContextMenuInfo info = (AdapterContextMenuInfo) menuInfo;
-        ComputerObject computer = (ComputerObject) pcCardAdapter.getItem(info.position);
+        HostEntry computer = (HostEntry) pcCardAdapter.getItem(info.position);
 
         // Add a header with PC status details
         menu.clearHeader();
@@ -830,21 +829,21 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
         // The PC we go back to on the next launch, unless the user says otherwise.
         PreferenceManager.getDefaultSharedPreferences(this)
                 .edit()
-                .putString(LAST_PC_PREF_STRING, computer.uuid)
+                .putString(LibraryIntents.PREF_LAST_HOST, computer.uuid)
                 .apply();
 
         Intent i = new Intent(this, AppView.class);
-        i.putExtra(AppView.NAME_EXTRA, computer.name);
-        i.putExtra(AppView.UUID_EXTRA, computer.uuid);
-        i.putExtra(AppView.NEW_PAIR_EXTRA, newlyPaired);
-        i.putExtra(AppView.SHOW_HIDDEN_APPS_EXTRA, showHiddenGames);
+        i.putExtra(LibraryIntents.EXTRA_NAME, computer.name);
+        i.putExtra(LibraryIntents.EXTRA_UUID, computer.uuid);
+        i.putExtra(LibraryIntents.EXTRA_NEW_PAIR, newlyPaired);
+        i.putExtra(LibraryIntents.EXTRA_SHOW_HIDDEN, showHiddenGames);
         startActivity(i);
     }
 
     @Override
     public boolean onContextItemSelected(MenuItem item) {
         AdapterContextMenuInfo info = (AdapterContextMenuInfo) item.getMenuInfo();
-        final ComputerObject computer = (ComputerObject) pcCardAdapter.getItem(info.position);
+        final HostEntry computer = (HostEntry) pcCardAdapter.getItem(info.position);
         switch (item.getItemId()) {
             case PAIR_ID:
                 doPair(computer.details, null, null);
@@ -1010,13 +1009,13 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
         new DiskAssetLoader(this).deleteAssetsForComputer(details.uuid);
 
         // Delete hidden games preference value
-        getSharedPreferences(AppView.HIDDEN_APPS_PREF_FILENAME, MODE_PRIVATE)
+        getSharedPreferences(LibraryIntents.PREFS_HIDDEN_APPS, MODE_PRIVATE)
                 .edit()
                 .remove(details.uuid)
                 .apply();
 
         for (int i = 0; i < pcCardAdapter.getCount(); i++) {
-            ComputerObject computer = (ComputerObject) pcCardAdapter.getItem(i);
+            HostEntry computer = (HostEntry) pcCardAdapter.getItem(i);
 
             if (details.equals(computer.details)) {
                 // Disable or delete shortcuts referencing this PC
@@ -1096,10 +1095,10 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
     }
 
     private void updateComputer(ComputerDetails details, String runningAppName) {
-        ComputerObject existingEntry = null;
+        HostEntry existingEntry = null;
 
         for (int i = 0; i < pcCardAdapter.getCount(); i++) {
-            ComputerObject computer = (ComputerObject) pcCardAdapter.getItem(i);
+            HostEntry computer = (HostEntry) pcCardAdapter.getItem(i);
 
             // Check if this is the same computer
             if (details.uuid.equals(computer.details.uuid)) {
@@ -1120,7 +1119,7 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
         }
         else {
             // Add a new entry
-            existingEntry = new ComputerObject(details);
+            existingEntry = new HostEntry(details);
             existingEntry.runningAppName = runningAppName;
             pcCardAdapter.addComputer(existingEntry);
 
@@ -1145,7 +1144,7 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
      * ordinary and silent: the card falls back to the box art. Fetched once per game — the poll
      * comes round every few seconds, and this is a picture, not a status.
      */
-    private void fetchRunningBackground(final ComputerObject computer) {
+    private void fetchRunningBackground(final HostEntry computer) {
         final ComputerDetails details = computer.details;
 
         if (details.runningGameId == 0 || details.state != ComputerDetails.State.ONLINE ||
@@ -1216,7 +1215,7 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
         });
 
         pcCardAdapter.setOnItemClickListener((view, pos) -> {
-            ComputerObject computer = (ComputerObject) pcCardAdapter.getItem(pos);
+            HostEntry computer = (HostEntry) pcCardAdapter.getItem(pos);
             if (computer.details.state == ComputerDetails.State.UNKNOWN ||
                 computer.details.state == ComputerDetails.State.OFFLINE) {
                 // Open the context menu if a PC is offline or refreshing
@@ -1272,7 +1271,7 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
     }
 
     /** Wake it, pair it, or rejoin it: the card's action, whoever asked for it. */
-    private void doCardAction(ComputerObject computer, int action) {
+    private void doCardAction(HostEntry computer, int action) {
         switch (action) {
             case PcCardAdapter.ACTION_WAKE:
                 doWakeOnLan(computer.details);
@@ -1307,7 +1306,7 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
         if (event.getAction() == KeyEvent.ACTION_DOWN
                 && event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_X
                 && event.getRepeatCount() == 0) {
-            ComputerObject focused = focusedComputer();
+            HostEntry focused = focusedComputer();
             if (focused != null) {
                 int action = PcCardAdapter.actionFor(focused);
                 if (action != PcCardAdapter.ACTION_NONE) {
@@ -1321,7 +1320,7 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
     }
 
     /** The PC whose card holds the focus, or null if the focus is elsewhere — the top bar, say. */
-    private ComputerObject focusedComputer() {
+    private HostEntry focusedComputer() {
         View focus = getCurrentFocus();
         if (pcRecyclerView == null || focus == null) {
             return null;
@@ -1337,32 +1336,6 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
             return null;
         }
 
-        return (ComputerObject) pcCardAdapter.getItem(position);
-    }
-
-    public static class ComputerObject {
-        public ComputerDetails details;
-
-        /** The game this PC is in, named from its app list; null when it is idle. */
-        public String runningAppName;
-
-        /** That game's hero image, fetched from the host; null until it arrives, or if it has none. */
-        public Bitmap runningBackground;
-
-        public ComputerObject(ComputerDetails details) {
-            if (details == null) {
-                throw new IllegalArgumentException("details must not be null");
-            }
-            this.details = details;
-        }
-
-        @Override
-        public String toString() {
-            return details.name;
-        }
-        public String guessManagementUrl() {
-            if (details.activeAddress == null) return null;
-            return "https://" + details.activeAddress.address + ":" + (details.guessExternalPort() + 1);
-        }
+        return (HostEntry) pcCardAdapter.getItem(position);
     }
 }

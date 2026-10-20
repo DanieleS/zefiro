@@ -38,7 +38,9 @@ import com.limelight.bitrate.LiveBitrate;
 import com.limelight.companion.CompanionAppLauncher;
 import com.limelight.companion.CompanionDisplayManager;
 import com.limelight.companion.CompanionState;
+import com.limelight.companion.DisplayTargets;
 import com.limelight.companion.TelemetryController;
+import com.limelight.companion.TelemetryGate;
 import com.limelight.nvstream.http.Achievement;
 import com.limelight.stats.AchievementToast;
 import com.limelight.stats.AchievementWatcher;
@@ -4641,15 +4643,32 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     /**
-     * Start following the host's game telemetry, if it has any to give.
+     * Start following the host's game telemetry, if it has any to give and there is somewhere to
+     * show it.
      *
-     * Started unconditionally rather than behind a check: whether telemetry exists is a question
-     * only the host can answer, and it answers by refusing the request. Nothing is shown unless a
-     * game turns out to have both a profile on the host and a view installed here, so a host without
-     * telemetry costs one failed request per session.
+     * Telemetry is only drawn on the companion panel, so a device that can never show the panel
+     * (no second display, or the panel turned off in settings) does not start it: on a phone it
+     * would hold a connection and a thread open for the whole session to feed nothing.
+     *
+     * The gate deliberately checks the hardware and the setting, not
+     * {@link CompanionDisplayManager#isCompanionAvailable}: that one also asks whether our panel owns
+     * the screen right now, which changes mid-session when the user hides and re-shows the panel or a
+     * companion app borrows the screen. Telemetry starts once, at connect, so a panel that came back
+     * later would find nothing to draw. For the same reason the display is looked up whatever its
+     * power state: a bottom screen that is off or dozing at connect is still there to wake up.
+     * See {@link TelemetryGate}.
+     *
+     * Past the gate it is started without asking the host first: whether telemetry exists is a
+     * question only the host can answer, and it answers by refusing the request. Nothing is shown
+     * unless a game turns out to have both a profile on the host and a view installed here, so a host
+     * without telemetry costs one failed request per session.
      */
     private void startTelemetry() {
         if (httpConn == null || telemetryController != null) {
+            return;
+        }
+        if (!TelemetryGate.shouldStart(CompanionDisplayManager.isConfigured(this),
+                DisplayTargets.findCompanionHardwareId(this))) {
             return;
         }
         telemetryController = new TelemetryController(this, httpConn, CompanionState.getInstance());

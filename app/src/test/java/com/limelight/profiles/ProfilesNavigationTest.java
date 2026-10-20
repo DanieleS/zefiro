@@ -11,6 +11,7 @@ import com.limelight.PcView;
 import com.limelight.ProfilesActivity;
 import com.limelight.R;
 import com.limelight.AppView;
+import com.limelight.library.LibraryIntents;
 
 import androidx.test.core.app.ApplicationProvider;
 
@@ -88,8 +89,8 @@ public class ProfilesNavigationTest {
     public void clickingProfileButton_launchesProfilesActivityFromAppView() {
         prepareEnvironment();
         Intent intent = new Intent(ApplicationProvider.getApplicationContext(), AppView.class);
-        intent.putExtra("UUID", "test-uuid");
-        intent.putExtra("Name", "Test PC");
+        intent.putExtra(LibraryIntents.EXTRA_UUID, "test-uuid");
+        intent.putExtra(LibraryIntents.EXTRA_NAME, "Test PC");
 
         ActivityController<AppView> controller = Robolectric.buildActivity(AppView.class, intent).setup();
         AppView appView = controller.get();

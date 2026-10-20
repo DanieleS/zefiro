@@ -1,7 +1,5 @@
 package com.limelight;
 
-import static com.limelight.utils.ServerHelper.getSecondaryDisplay;
-
 import android.app.Activity;
 import android.app.Service;
 import android.content.ComponentName;
@@ -17,6 +15,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.limelight.computers.ComputerDatabaseManager;
 import com.limelight.computers.ComputerManagerListener;
 import com.limelight.computers.ComputerManagerService;
+import com.limelight.library.LibraryIntents;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.NvApp;
 import com.limelight.nvstream.http.NvHTTP;
@@ -437,10 +436,10 @@ public class ShortcutTrampoline extends AppCompatActivity {
         {
             // PC arguments, both are optional, but at least one must be provided
             if (hostUUID == null) {
-                hostUUID = getIntent().getStringExtra(AppView.UUID_EXTRA);
+                hostUUID = getIntent().getStringExtra(LibraryIntents.EXTRA_UUID);
             }
             if (hostName == null) {
-                hostName = getIntent().getStringExtra(AppView.NAME_EXTRA);
+                hostName = getIntent().getStringExtra(LibraryIntents.EXTRA_NAME);
             }
 
             // App arguments, all optional, but one must be provided in order to start an app
@@ -480,7 +479,7 @@ public class ShortcutTrampoline extends AppCompatActivity {
         uuidString = hostUUID;
 
         // Set the AppView UUID intent
-        setIntent(new Intent(getIntent()).putExtra(AppView.UUID_EXTRA, uuidString));
+        setIntent(new Intent(getIntent()).putExtra(LibraryIntents.EXTRA_UUID, uuidString));
 
         if (validateAppInput(appUUID, appIDStr, appName)) {
             int appID = -1;
