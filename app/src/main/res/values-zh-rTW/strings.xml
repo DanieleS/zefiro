@@ -356,16 +356,12 @@
 
 
 	<!-- In Game menu -->
-	<string name="game_menu_toggle_keyboard">顯示軟體鍵盤</string>
-	<string name="game_menu_toggle_hud">切換即時效能資訊</string>
-	<string name="game_menu_toggle_floating_button">切換浮動按鈕</string>
 	<string name="game_menu_select_mouse_mode">選擇滑鼠模式</string>
 	<string name="game_menu_select_steam_mode">選擇串流模式</string>
 	<string name="game_menu_enable_zoom_mode">啟用平移/縮放</string>
 	<string name="game_menu_disable_zoom_mode">停用平移/縮放</string>
 	<string name="game_menu_rotate_screen">旋轉螢幕</string>
 	<string name="game_menu_toggle_keyboard_model">切換特殊按鍵</string>
-	<string name="game_menu_toggle_virtual_model">切換虛擬手把</string>
 	<string name="game_menu_toggle_virtual_keyboard_model">切換螢幕完整鍵盤</string>
 	<string name="game_menu_switch_touch_sensitivity_model">切換觸控靈敏度</string>
 
@@ -373,9 +369,7 @@
 	<string name="game_menu_toggle_mouse_on">啟用手把滑鼠控制</string>
 	<string name="game_menu_toggle_mouse_off">停用手把滑鼠控制</string>
 	<string name="game_menu_disconnect">中斷連線</string>
-	<string name="game_menu_cancel">取消</string>
 	<string name="game_menu_task_manager">開啟工作管理員</string>
-	<string name="game_menu_send_keys">傳送特殊按鍵</string>
 	<string name="game_menu_send_keys_esc">ESC</string>
 	<string name="game_menu_send_keys_f11">F11</string>
 	<string name="game_menu_send_keys_alt_f4">Alt + F4</string>
@@ -666,10 +660,8 @@
 	<string name="pref_error_occurred">發生錯誤： </string>
 	<string name="pref_save_keyboard_profile">儲存 OSK 設定檔</string>
 
-	<string name="game_menu_advanced">進階選單</string>
 	<string name="game_dialog_title_quit_confirm">確定要離開？</string>
 	<string name="game_dialog_message_quit_confirm">請確認沒有未儲存的進度。離開工作階段將終止您目前執行的應用程式。</string>
-	<string name="game_menu_quit_session">結束工作階段</string>
 	<string name="game_menu_server_cmd">伺服器指令</string>
 	<string name="game_menu_fetch_clipboard">取得剪貼簿</string>
 	<string name="game_menu_upload_clipboard">上傳剪貼簿</string>

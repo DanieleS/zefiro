@@ -329,14 +329,11 @@
 
 
     <!-- In Game menu -->
-    <string name="game_menu_toggle_keyboard">Hiển thị bàn phím mềm</string>
-    <string name="game_menu_toggle_hud">Hiển thị lớp phủ hiệu suất</string>
     <string name="game_menu_select_mouse_mode">Chọn chế độ chuột</string>
     <string name="game_menu_enable_zoom_mode">Bật Pan/Zoom</string>
     <string name="game_menu_disable_zoom_mode">Tắt Pan/Zoom</string>
     <string name="game_menu_rotate_screen">Xoay màn hình</string>
     <string name="game_menu_toggle_keyboard_model">Hiển thị phím đặc biệt</string>s
-    <string name="game_menu_toggle_virtual_model">Hiển thị gamepad</string>
     <string name="game_menu_toggle_virtual_keyboard_model">Hiển thị bàn phím đầy đủ</string>
     <string name="game_menu_switch_touch_sensitivity_model">Thay đổi độ nhạy cảm ứng</string>
 
@@ -344,9 +341,7 @@
     <string name="game_menu_toggle_mouse_on">Bật mô phỏng chuột bằng bộ điều khiển</string>
     <string name="game_menu_toggle_mouse_off">Tắt mô phỏng chuột bằng bộ điều khiển</string>
     <string name="game_menu_disconnect">Ngắt kết nối</string>
-    <string name="game_menu_cancel">Hủy</string>
     <string name="game_menu_task_manager">Mở Trình quản lý tác vụ</string>
-    <string name="game_menu_send_keys">Gửi phím đặc biệt</string>
     <string name="game_menu_send_keys_esc">ESC</string>
     <string name="game_menu_send_keys_f11">F11</string>
     <string name="game_menu_send_keys_alt_f4">Alt + F4</string>
@@ -578,11 +573,9 @@
     <string name="pref_import_success">Nhập thành công!</string>
     <string name="pref_error_occurred">Đã xảy ra lỗi: </string>
     <string name="pref_save_keyboard_profile">Lưu cấu hình bàn phím</string>
-    <string name="game_menu_advanced">Tùy chọn nâng cao</string>
     <string name="game_dialog_title_quit_confirm">Bạn có chắc muốn thoát không?</string>
     <string name="game_dialog_message_quit_confirm">Hãy chắc rằng bạn đã lưu tiến trình. Thoát khỏi phiên sẽ đóng ứng dụng đang chạy.</string>
 
-        <string name="game_menu_quit_session">Thoát phiên</string>
     <string name="game_menu_server_cmd">Lệnh máy chủ</string>
     <string name="game_menu_fetch_clipboard">Lấy nội dung clipboard</string>
     <string name="game_menu_upload_clipboard">Gửi nội dung clipboard</string>

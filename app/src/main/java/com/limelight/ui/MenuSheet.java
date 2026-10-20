@@ -125,6 +125,12 @@ public class MenuSheet {
         return this;
     }
 
+    /** A row with both an icon (0 for none) and the check; the stream's toggles wear both. */
+    public MenuSheet add(CharSequence label, int iconRes, boolean checked, Runnable action) {
+        items.add(new Item(label, iconRes, checked, action));
+        return this;
+    }
+
     /**
      * A row of a choice among several (a radio row): a status dot before the label, the check
      * on the chosen one, and optionally an action of the row's own after the label, which the

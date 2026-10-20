@@ -940,6 +940,16 @@ public class CompanionPresentation extends android.app.Presentation
         for (CompanionMenuItem item : items) {
             View row = inflater.inflate(R.layout.menu_sheet_row, menuItemsView, false);
             ((TextView) row.findViewById(R.id.menuRowLabel)).setText(item.label);
+            // The same row as the centred sheet's, icon and check included, so a toggle reads
+            // the same on either screen.
+            if (item.iconRes != 0) {
+                ImageView icon = row.findViewById(R.id.menuRowIcon);
+                icon.setImageResource(item.iconRes);
+                icon.setVisibility(View.VISIBLE);
+            }
+            if (Boolean.TRUE.equals(item.checked)) {
+                row.findViewById(R.id.menuRowCheck).setVisibility(View.VISIBLE);
+            }
             final int index = menuActions.size();
             row.setOnClickListener(v -> activateAt(index));
             menuItemsView.addView(row);

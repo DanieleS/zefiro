@@ -412,16 +412,12 @@
 
 
     <!-- In Game menu -->
-    <string name="game_menu_toggle_keyboard">Show soft keyboard</string>
-    <string name="game_menu_toggle_hud">Toggle Performance Overlay</string>
-    <string name="game_menu_toggle_floating_button">Toggle Floating Button</string>
     <string name="game_menu_select_mouse_mode">Select Mouse mode</string>
     <string name="game_menu_select_steam_mode">Select Stream mode</string>
     <string name="game_menu_enable_zoom_mode">Enable Pan/Zoom</string>
     <string name="game_menu_disable_zoom_mode">Disable Pan/Zoom</string>
     <string name="game_menu_rotate_screen">Rotate Screen</string>
     <string name="game_menu_toggle_keyboard_model">Toggle Special keys</string>s
-    <string name="game_menu_toggle_virtual_model">Toggle On-screen controller</string>
     <string name="game_menu_toggle_virtual_keyboard_model">Toggle On-screen full keyboard</string>
     <string name="game_menu_switch_touch_sensitivity_model">Switch touch sensitivity</string>
 
@@ -429,9 +425,7 @@
     <string name="game_menu_toggle_mouse_on">Enable Controller Mouse Emulation</string>
     <string name="game_menu_toggle_mouse_off">Disable Controller Mouse Emulation</string>
     <string name="game_menu_disconnect">Disconnect</string>
-    <string name="game_menu_cancel">Cancel</string>
     <string name="game_menu_task_manager">Open Task Manager</string>
-    <string name="game_menu_send_keys">Send special keys</string>
     <string name="game_menu_send_keys_esc">ESC</string>
     <string name="game_menu_send_keys_f11">F11</string>
     <string name="game_menu_send_keys_alt_f4">Alt + F4</string>
@@ -676,10 +670,8 @@
     <string name="pref_import_success">Import success!</string>
     <string name="pref_error_occurred">An error occurred: </string>
     <string name="pref_save_keyboard_profile">Save OSK profile</string>
-    <string name="game_menu_advanced">Advanced Menu</string>
     <string name="game_dialog_title_quit_confirm">Really want to quit?</string>
     <string name="game_dialog_message_quit_confirm">Please make sure you have no unsaved progress. Quitting the session will terminate your current running application.</string>
-    <string name="game_menu_quit_session">Quit Session</string>
     <string name="game_menu_server_cmd">Server Commands</string>
     <string name="game_menu_fetch_clipboard">Fetch Clipboard</string>
     <string name="game_menu_upload_clipboard">Upload Clipboard</string>
@@ -1020,6 +1012,15 @@
     <string name="game_menu_bitrate_choice_current">%1$s Mbps (now)</string>
     <string name="game_menu_bitrate_adaptive_on">Adaptive bitrate: on</string>
     <string name="game_menu_bitrate_adaptive_off">Adaptive bitrate: off</string>
+    <!-- The stream controls' own entries (stream/StreamActions): short, since the tiles they
+         name are narrow. -->
+    <string name="stream_action_keyboard">Keyboard</string>
+    <string name="stream_action_gamepad">Gamepad</string>
+    <string name="stream_action_mouse">Mouse</string>
+    <string name="stream_action_overlay">Overlay</string>
+    <string name="stream_action_special_keys">Special keys</string>
+    <string name="stream_action_more">More</string>
+    <string name="stream_action_quit">Quit game</string>
     <string name="toast_bitrate_set">Bitrate set to %1$s Mbps</string>
     <string name="toast_bitrate_failed">Couldn\'t change the bitrate to %1$s Mbps</string>
     <string name="toast_adaptive_bitrate_stopped">Adaptive bitrate turned off: the host stopped taking changes. Back to the chosen bitrate.</string>

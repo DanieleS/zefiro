@@ -61,6 +61,7 @@ import com.limelight.profiles.ProfilesManager;
 import com.limelight.ui.ConnectionOverlay;
 import com.limelight.ui.ExternalControllerView;
 import com.limelight.ui.GameGestures;
+import com.limelight.stream.ControlsSurface;
 import com.limelight.ui.StreamContainer;
 import com.limelight.ui.TextFocusKeyboard;
 import com.limelight.utils.CacheHelper;
@@ -391,6 +392,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         void showMenu(GameInputDevice devic);
         void hideMenu();
         boolean isMenuOpen();
+        /** Steer the open menu; returns whether it took the input. */
+        boolean onNav(ControlsSurface.Nav nav);
     }
 
     public GameMenuCallbacks gameMenuCallbacks;
@@ -3737,28 +3740,39 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     }
 
+    // The panel's menu is driven through the open surface, so its page stack moves with it. A
+    // panel that lost the menu some other way is still shut, so the pad is never left stuck.
+    private void navCompanionMenu(ControlsSurface.Nav nav) {
+        if (gameMenuCallbacks == null || !gameMenuCallbacks.onNav(nav)) {
+            CompanionDisplayManager.hideMenu();
+        }
+    }
+
     // Route a key to the menu on the companion panel. Nav on the d-pad, select on A, dismiss on
     // B or the menu button; everything is swallowed so the host sees nothing while it is open.
     private boolean handleCompanionMenuKeyDown(KeyEvent event) {
         if (event.getRepeatCount() == 0) {
             switch (event.getKeyCode()) {
                 case KeyEvent.KEYCODE_DPAD_UP:
-                    CompanionDisplayManager.moveMenuSelection(-1);
+                    navCompanionMenu(ControlsSurface.Nav.UP);
                     break;
                 case KeyEvent.KEYCODE_DPAD_DOWN:
-                    CompanionDisplayManager.moveMenuSelection(1);
+                    navCompanionMenu(ControlsSurface.Nav.DOWN);
                     break;
                 case KeyEvent.KEYCODE_DPAD_CENTER:
                 case KeyEvent.KEYCODE_BUTTON_A:
                 case KeyEvent.KEYCODE_ENTER:
                 case KeyEvent.KEYCODE_NUMPAD_ENTER:
-                    CompanionDisplayManager.activateMenuSelection();
+                    navCompanionMenu(ControlsSurface.Nav.ACTIVATE);
                     break;
+                // B steps back a page, as on the centred sheet; Menu and Start shut the lot.
                 case KeyEvent.KEYCODE_BUTTON_B:
                 case KeyEvent.KEYCODE_BACK:
+                    navCompanionMenu(ControlsSurface.Nav.BACK);
+                    break;
                 case KeyEvent.KEYCODE_MENU:
                 case KeyEvent.KEYCODE_BUTTON_START:
-                    CompanionDisplayManager.hideMenu();
+                    navCompanionMenu(ControlsSurface.Nav.CLOSE);
                     break;
                 default:
                     break;
@@ -5422,6 +5436,16 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         // Always exit zoom mode if mouse mode has changed
         isPanZoomMode = false;
         updateZoomButtonAppearance();
+    }
+
+    /** Whether the performance numbers are asked for; the controls' Overlay tile shows it. */
+    public boolean isHudVisible() {
+        return statsVisible;
+    }
+
+    /** Whether the on-screen controller is up; the controls' Gamepad tile shows it. */
+    public boolean isVirtualControllerShown() {
+        return virtualController != null && prefConfig.onscreenController;
     }
 
     public void toggleHUD() {

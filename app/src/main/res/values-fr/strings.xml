@@ -321,22 +321,17 @@
     <string name="accessibility_description_text">Utilisé uniquement lorsque les raccourcis clavier physiques sont interceptés par le système. Dans certains systèmes, plusieurs raccourcis clavier sont définis et utilisés par le système Android, empêchant leur transmission au PC hôte. Artemis ne regardera pas votre saisie, ni ne collectera votre mot de passe, votre numéro de carte de crédit ou toute autre information personnelle.</string>
 
     <!-- In Game menu -->
-    <string name="game_menu_toggle_keyboard">Afficher le clavier logiciel</string>
-    <string name="game_menu_toggle_hud">Basculer l\'affichage des performances</string>
     <string name="game_menu_select_mouse_mode">Sélectionner le mode de la souris</string>
     <string name="game_menu_enable_zoom_mode">Activer le mode Zoom/Panoramique</string>
     <string name="game_menu_disable_zoom_mode">Désactiver le mode Zoom/Panoramique</string>
     <string name="game_menu_rotate_screen">Pivoter l\'écran</string>
     <string name="game_menu_toggle_keyboard_model">Basculer les touches spéciales</string>
-    <string name="game_menu_toggle_virtual_model">Basculer le contrôleur à l\'écran</string>
     <string name="game_menu_toggle_virtual_keyboard_model">Basculer le clavier virtuel complet</string>
     <string name="game_menu_switch_touch_sensitivity_model">Changer la sensibilité tactile</string>
     <string name="game_menu_toggle_mouse_on">Activer l\'émulation de la souris par la manette</string>
     <string name="game_menu_toggle_mouse_off">Désactiver l\'émulation de la souris par la manette</string>
     <string name="game_menu_disconnect">Déconnecter</string>
-    <string name="game_menu_cancel">Annuler</string>
     <string name="game_menu_task_manager">Ouvrir le gestionnaire des tâches</string>
-    <string name="game_menu_send_keys">Envoyer des touches spéciales</string>
     <string name="game_menu_send_keys_esc">ÉCHAP</string>
     <string name="game_menu_send_keys_f11">F11</string>
     <string name="game_menu_send_keys_alt_f4">Alt + F4</string>
@@ -539,10 +534,8 @@
     <string name="pref_import_success">Importation réussie !</string>
     <string name="pref_error_occurred">Une erreur s\'est produite : </string>
     <string name="pref_save_keyboard_profile">Enregistrer le profil OSK</string>
-    <string name="game_menu_advanced">Menu avancé</string>
     <string name="game_dialog_title_quit_confirm">Voulez-vous vraiment quitter ?</string>
     <string name="game_dialog_message_quit_confirm">Veuillez vous assurer que vous n\'avez aucune progression non enregistrée. La quittance de la session mettra fin à l\'application en cours d\'exécution.</string>
-    <string name="game_menu_quit_session">Quitter la session</string>
     <string name="game_menu_server_cmd">Commandes du serveur</string>
     <string name="game_menu_fetch_clipboard">Récupérer le presse-papiers</string>
     <string name="game_menu_upload_clipboard">Télécharger le presse-papiers</string>
