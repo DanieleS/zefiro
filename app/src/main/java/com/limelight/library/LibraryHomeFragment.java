@@ -414,7 +414,8 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
 
     @Override
     public void onTileFocused(@NonNull LibraryApp app) {
-        // The shelves remember their tile, and the focus watcher which shelf.
+        // The shelves remember their tile, and the focus watcher which shelf; the watcher also
+        // tells the companion panel, for the hero as much as the shelves.
     }
 
     @Override
@@ -523,6 +524,14 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
         if (focus == null || header == null || hero == null || panel == null || recent == null
                 || all == null || !isInList(focus)) {
             return;
+        }
+        // Every part of the screen reports through the one listener: a game for the hero and
+        // the shelves, the selected host for the chip and the state panel.
+        LibraryApp game = focusedGame();
+        if (game != null) {
+            host.gameFocus().focusGame(game);
+        } else {
+            host.gameFocus().focusHost(null);
         }
         if (header.isChip(focus)) {
             lastSpot = Spot.CHIP;

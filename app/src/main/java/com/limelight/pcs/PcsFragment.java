@@ -131,6 +131,8 @@ public class PcsFragment extends Fragment implements SectionKeys, SectionFocus, 
             if (hasFocus) {
                 lastFocusedUuid = null;
                 lastFocusedAdd = true;
+                // Not a PC of its own: the companion panel goes back to the selected one.
+                host.gameFocus().focusHost(null);
             } else {
                 focusAwaitingCards = false;
             }
@@ -243,6 +245,8 @@ public class PcsFragment extends Fragment implements SectionKeys, SectionFocus, 
     public void onCardFocused(@NonNull HostEntry entry) {
         lastFocusedUuid = entry.details.uuid;
         lastFocusedAdd = false;
+        // The companion panel follows the card, whichever PC is selected.
+        host.gameFocus().focusHost(entry.details.uuid);
     }
 
     private void showActions(HostEntry entry) {

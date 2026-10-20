@@ -32,6 +32,13 @@ public interface MainHost {
     @NonNull
     LaunchController launchController();
 
+    /**
+     * Where a section reports what the d-pad is on, for the companion panel. Sections call it
+     * on every focus move; it settles the reports itself.
+     */
+    @NonNull
+    GameFocusListener gameFocus();
+
     /** Switches to a section, checking its navigation item as a tap on it would. */
     void showSection(@NonNull Section section);
 

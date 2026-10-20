@@ -855,6 +855,11 @@
     <string name="companion_value_unavailable">—</string>
     <!-- The quiet line under a game's telemetry view: frame rate and network latency. -->
     <string name="companion_telemetry_strip">%1$d fps · %2$d ms  ›</string>
+    <!-- The companion panel while browsing: the focused game's start button, and a PC chip on
+         the hosts row as a screen reader says it ("Taverna, Online"). -->
+    <string name="companion_play">Play</string>
+    <string name="companion_host_a11y">%1$s, %2$s</string>
+    <string name="companion_host_selected_a11y">%1$s, %2$s, selected</string>
     <string name="action_companion_show">Show companion screen</string>
     <string name="action_companion_hide">Hide companion screen</string>
     <string name="game_menu_companion_show">Show Companion Screen</string>

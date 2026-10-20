@@ -1,11 +1,14 @@
 package com.limelight.main;
 
+import android.app.ActivityManager;
+import android.content.Context;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.util.SparseLongArray;
 import android.view.KeyEvent;
 import android.view.View;
@@ -24,12 +27,14 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
+import androidx.lifecycle.Lifecycle;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.preference.PreferenceManager;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.navigationrail.NavigationRailView;
+import com.limelight.LimeLog;
 import com.limelight.R;
 import com.limelight.computers.HostEntry;
 import com.limelight.computers.HostLibrary;
@@ -105,6 +110,15 @@ import com.limelight.utils.UiHelper;
  * outlive any section's views. Sections reach them, and the host state, through
  * {@link MainHost}.
  *
+ * <h3>The companion panel</h3>
+ *
+ * On a device with a second screen (the Thor's bottom one), {@link CompanionFeed} keeps it on
+ * what the d-pad is on up here, and runs its Play and host taps. That panel never takes key
+ * focus, but a touch on its display can still move the system's focused display there, leaving
+ * this window without keys until it is touched. So after every tap on the panel the d-pad is
+ * handed back: focus is asked again for the view that last held it, and only if the window has
+ * actually lost focus is the task moved to the front, which costs a window transition.
+ *
  * <h3>Back from a stream</h3>
  *
  * A stream's achievements may only be written by the host once the game closes, after the
@@ -127,6 +141,11 @@ public class MainActivity extends AppCompatActivity
     // SuccessStory refreshes a game's achievements when it closes; give it a moment.
     private static final long AFTER_STREAM_CHECK_DELAY_MS = 4000;
 
+    // How long after a tap on the companion panel a loss of window focus is taken to be that
+    // tap's doing, and undone. The focused display moves a frame or two after the touch, so the
+    // check right after the tap can come too early to see it.
+    private static final long COMPANION_RECLAIM_WINDOW_MS = 600;
+
     private MainViewModel viewModel;
     private MainRootLayout root;
     private View railColumn;
@@ -138,7 +157,10 @@ public class MainActivity extends AppCompatActivity
     private HostActions hostActions;
     private ArtExport artExport;
     private LaunchController launchController;
+    private CompanionFeed companionFeed;
     private int railPaddingTop;
+    // Until when a lost window focus is put down to a tap on the companion panel; see above.
+    private long companionReclaimUntil;
     @Nullable
     private Runnable achievementCheck;
 
@@ -235,6 +257,8 @@ public class MainActivity extends AppCompatActivity
         rendererProbe = new RendererProbe(this, findViewById(android.R.id.content));
         rendererProbe.start();
         launchController = new LaunchController(this, viewModel.repository(), rendererProbe, artExport);
+        companionFeed = new CompanionFeed(this, viewModel.repository(), launchController,
+                this::reclaimFocusFromCompanion);
 
         goTo(initial);
 
@@ -256,6 +280,7 @@ public class MainActivity extends AppCompatActivity
     protected void onStart() {
         super.onStart();
         viewModel.onStart();
+        companionFeed.start();
         // A switch asked for while the state was saved is applied now, with its initial focus.
         navigator.resume();
         updateBackEnabled();
@@ -269,6 +294,8 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     protected void onStop() {
+        companionFeed.stop();
+        companionReclaimUntil = 0;
         viewModel.onStop();
         // As PcView did: an informational dialog (a PIN, a host's details) is not left up behind
         // a stream or another app. A pairing in progress carries on without its PIN dialog.
@@ -324,6 +351,12 @@ public class MainActivity extends AppCompatActivity
             // The system bars come back on a swipe or when returning from another screen; a wide
             // window puts them away again.
             applySystemBars();
+        } else if (SystemClock.uptimeMillis() < companionReclaimUntil) {
+            // Most likely lost to the tap on the companion panel just now. A dialog the tap
+            // raised takes window focus too, but moving a task already in front leaves that
+            // dialog on top of it, and a game it launched has paused this activity by now.
+            companionReclaimUntil = 0;
+            moveToFrontIfStillHere();
         }
     }
 
@@ -379,6 +412,12 @@ public class MainActivity extends AppCompatActivity
     @Override
     public LaunchController launchController() {
         return launchController;
+    }
+
+    @NonNull
+    @Override
+    public GameFocusListener gameFocus() {
+        return companionFeed;
     }
 
     @Override
@@ -518,6 +557,8 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onSectionChosen(@NonNull Section section) {
         viewModel.setSection(section);
+        // First, so the section's own focus report, posted by the switch, lands after it.
+        companionFeed.onSection(section);
         navigator.show(section);
         updateBackEnabled();
     }
@@ -538,6 +579,51 @@ public class MainActivity extends AppCompatActivity
                     && library.getChildFragmentManager().getBackStackEntryCount() > 0;
         }
         backCallback.setEnabled(work);
+    }
+
+    // --- The companion panel ---
+
+    /**
+     * Hands the d-pad back after a tap on the companion panel (see the class comment). Runs after
+     * the tap's action, so a game it launched or a dialog it raised is left alone.
+     */
+    private void reclaimFocusFromCompanion() {
+        companionReclaimUntil = SystemClock.uptimeMillis() + COMPANION_RECLAIM_WINDOW_MS;
+        root.post(() -> {
+            if (!getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
+                // A launch took over; the stream has the keys now.
+                return;
+            }
+            View last = getCurrentFocus();
+            if (last == null && !root.isInTouchMode()) {
+                last = sectionRestoreTarget();
+            }
+            if (last != null) {
+                last.requestFocus();
+            }
+            if (!hasWindowFocus()) {
+                companionReclaimUntil = 0;
+                moveToFrontIfStillHere();
+            }
+        });
+    }
+
+    /**
+     * Gives this task the focused display back, as Game does for the panel's menu. Only while
+     * this activity is resumed: from a stopped one it would pull the library over the stream.
+     */
+    private void moveToFrontIfStillHere() {
+        if (isFinishing() || !getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
+            return;
+        }
+        try {
+            ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+            if (am != null) {
+                am.moveTaskToFront(getTaskId(), 0);
+            }
+        } catch (Exception e) {
+            LimeLog.warning("Unable to reclaim focus from the companion panel: " + e);
+        }
     }
 
     // --- Focus gate ---

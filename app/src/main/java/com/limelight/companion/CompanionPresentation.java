@@ -2,6 +2,7 @@ package com.limelight.companion;
 
 import android.annotation.TargetApi;
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.os.Build;
@@ -29,12 +30,14 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import androidx.core.content.ContextCompat;
+import androidx.core.view.ViewCompat;
+
 import com.limelight.LimeLog;
 import com.limelight.R;
 import com.limelight.binding.input.virtual_controller.keyboard.KeyBoardLayoutController;
 import com.limelight.binding.video.PerfStats;
 import com.limelight.nvstream.http.Achievement;
-import com.limelight.nvstream.http.AppMetadata;
 import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.stats.AchievementToast;
 import com.limelight.stats.HostSession;
@@ -50,8 +53,14 @@ import java.util.List;
  * The companion surface rendered on the secondary panel.
  *
  * While a stream is running it draws the game's own telemetry view when one is installed, and the
- * performance stats — which would otherwise sit on top of the game — when there is none. The rest
- * of the time it shows nothing but the app name.
+ * performance stats — which would otherwise sit on top of the game — when there is none. While the
+ * main screen is browsing it draws what the d-pad is on up there ({@link CompanionState.Browsing}):
+ * a game's details with Play, or Resume and Quit game for the one running, or a host's state,
+ * over a row of the known PCs. The rest of the time it shows nothing but the app name.
+ *
+ * <p>Those browsing controls are touch only. The window is never focusable (see
+ * {@link #onCreate}), so the d-pad stays on the main screen, which offers the same actions; a tap
+ * goes back to it through {@link CompanionDisplayManager#setBrowsingActions}.
  *
  * It never polls: {@link CompanionState} pushes, roughly once a second, and only while it is on
  * screen. Telemetry frames are the exception, and deliberately bypass that path: they arrive up to
@@ -76,6 +85,17 @@ public class CompanionPresentation extends android.app.Presentation
     /** The description HTML we last parsed, for the same reason. */
     private String renderedDescriptionHtml;
     private DescriptionImages descriptionImages;
+    /** Play, or Resume and Quit game; under the meta line while a game is browsed. */
+    private View actionsView;
+    private TextView playLabelView;
+    private View quitView;
+    /** The hosts row, and the chips in it. */
+    private View hostsView;
+    private LinearLayout hostItemsView;
+    /** The hosts the row was last built for, so a poll that changed nothing rebuilds nothing. */
+    private List<CompanionState.HostChip> renderedHosts;
+    /** What the browsing controls were last drawn for: the one a tap acts on. */
+    private CompanionState.Browsing shownBrowsing;
     private ImageView backdropView;
     private View backdropScrimView;
     private View statsView;
@@ -236,6 +256,22 @@ public class CompanionPresentation extends android.app.Presentation
         idleDescriptionView = findViewById(R.id.companionIdleDescription);
         idleDescriptionScrollView = findViewById(R.id.companionIdleDescriptionScroll);
         descriptionImages = new DescriptionImages(idleDescriptionView, this::onDescriptionImageLoaded);
+        actionsView = findViewById(R.id.companionActions);
+        playLabelView = findViewById(R.id.companionPlayLabel);
+        quitView = findViewById(R.id.companionQuit);
+        hostsView = findViewById(R.id.companionHosts);
+        hostItemsView = findViewById(R.id.companionHostItems);
+        // Each acts on the browsing the buttons were drawn for, not whatever the state holds by
+        // the time the tap lands: what the user saw is what they meant.
+        findViewById(R.id.companionPlay).setOnClickListener(v -> {
+            CompanionState.Browsing browsing = shownBrowsing;
+            if (browsing != null && browsing.running) {
+                CompanionDisplayManager.onBrowsingResume(browsing);
+            } else {
+                CompanionDisplayManager.onBrowsingPlay(browsing);
+            }
+        });
+        quitView.setOnClickListener(v -> CompanionDisplayManager.onBrowsingQuit(shownBrowsing));
         backdropView = findViewById(R.id.companionBackdrop);
         backdropScrimView = findViewById(R.id.companionBackdropScrim);
         statsView = findViewById(R.id.companionStats);
@@ -347,10 +383,20 @@ public class CompanionPresentation extends android.app.Presentation
             statsOverTelemetry = false;
         }
 
+        // The browsing controls belong to browsing alone: a tap on Play mid-stream, or on an idle
+        // panel whose main screen has gone, would act for a screen that is not there.
+        CompanionState.Browsing browsing =
+                content == CompanionState.Content.BROWSING ? state.getBrowsing() : null;
+        showBrowsingControls(browsing, browsing != null ? state.getHosts() : null);
+
         switch (content) {
             case BROWSING:
-                showSpotlight(state.getBrowsingTitle(), state.getBrowsingMetadata(),
-                        state.getBrowsingBackground());
+                if (browsing == null) {
+                    showSpotlight(null, null, null, null);
+                } else {
+                    showSpotlight(browsing.title, browsing.meta, browsing.descriptionHtml,
+                            browsing.backdrop);
+                }
                 return;
             case STREAMING:
                 // A game that has a view: that view is what the panel is for, and the stats are what
@@ -371,12 +417,12 @@ public class CompanionPresentation extends android.app.Presentation
                 } else {
                     // Stats switched off mid-stream: a bare surface. Not the library spotlight —
                     // that game is not the one being played.
-                    showSpotlight(null, null, null);
+                    showSpotlight(null, null, null, null);
                 }
                 return;
             case IDLE:
             default:
-                showSpotlight(null, null, null);
+                showSpotlight(null, null, null, null);
         }
     }
 
@@ -601,11 +647,11 @@ public class CompanionPresentation extends android.app.Presentation
     }
 
     /**
-     * The non-stats surface: a spotlight on the given game, or a bare panel when passed nothing.
-     * Callers hand it the content to draw rather than a mode to interpret, so "nothing to show"
-     * and "show this game" are the same code path with different arguments.
+     * The non-stats surface: a spotlight on the given game or host, or a bare panel when passed
+     * nothing. Callers hand it the content to draw rather than a mode to interpret, so "nothing
+     * to show" and "show this game" are the same code path with different arguments.
      */
-    private void showSpotlight(String title, AppMetadata meta, Bitmap backdrop) {
+    private void showSpotlight(String title, String metaLine, String html, Bitmap backdrop) {
         hideTelemetryView();
         if (idleTitleView == null) {
             return;
@@ -629,8 +675,7 @@ public class CompanionPresentation extends android.app.Presentation
 
         idleTitleView.setText(title);
 
-        String metaLine = meta != null ? buildMetaLine(meta) : "";
-        if (metaLine.isEmpty()) {
+        if (metaLine == null || metaLine.isEmpty()) {
             idleMetaView.setVisibility(View.GONE);
         } else {
             idleMetaView.setText(metaLine);
@@ -639,7 +684,6 @@ public class CompanionPresentation extends android.app.Presentation
 
         // Re-parsing the HTML on every push would be wasted work, and re-setting the text would
         // fight the reader's scroll position, so only touch it when the description itself changed.
-        String html = meta != null ? meta.getDescription() : null;
         if (!TextUtils.equals(html, renderedDescriptionHtml)) {
             renderedDescriptionHtml = html;
             // The images belong to the description being replaced: let them go with it.
@@ -673,27 +717,59 @@ public class CompanionPresentation extends android.app.Presentation
         }
     }
 
-    // "2020 · Action, RPG · 88%" — only the parts we actually have.
-    private String buildMetaLine(AppMetadata meta) {
-        List<String> parts = new ArrayList<>(3);
+    /**
+     * Play, or Resume and Quit game, for a browsed game; and the hosts row under any browsing.
+     * Both are left out when no screen has registered to act on them: a button that does
+     * nothing when pressed is worse than no button.
+     *
+     * @param browsing what is browsed, or null to take the controls away
+     * @param hosts    the row's PCs; null or empty for no row
+     */
+    private void showBrowsingControls(CompanionState.Browsing browsing,
+                                      List<CompanionState.HostChip> hosts) {
+        if (actionsView == null) {
+            return;
+        }
+        boolean actionable = browsing != null && CompanionDisplayManager.hasBrowsingActions();
+        shownBrowsing = actionable ? browsing : null;
 
-        String year = meta.getReleaseYear();
-        if (!year.isEmpty()) {
-            parts.add(year);
+        if (actionable && browsing.hasGame()) {
+            playLabelView.setText(browsing.running ? R.string.library_resume : R.string.companion_play);
+            quitView.setVisibility(browsing.running ? View.VISIBLE : View.GONE);
+            actionsView.setVisibility(View.VISIBLE);
+        } else {
+            actionsView.setVisibility(View.GONE);
         }
 
-        List<String> genres = meta.getGenres();
-        if (genres != null && !genres.isEmpty()) {
-            int limit = Math.min(3, genres.size());
-            parts.add(TextUtils.join(", ", genres.subList(0, limit)));
+        if (!actionable || hosts == null || hosts.isEmpty()) {
+            hostsView.setVisibility(View.GONE);
+            return;
         }
-
-        int score = meta.getCommunityScore();
-        if (score >= 0) {
-            parts.add(score + "%");
+        hostsView.setVisibility(View.VISIBLE);
+        if (hosts.equals(renderedHosts)) {
+            return;
         }
-
-        return TextUtils.join("  ·  ", parts);
+        renderedHosts = hosts;
+        hostItemsView.removeAllViews();
+        Context context = getContext();
+        LayoutInflater inflater = LayoutInflater.from(context);
+        for (final CompanionState.HostChip host : hosts) {
+            View chip = inflater.inflate(R.layout.item_companion_host, hostItemsView, false);
+            String name = host.name != null ? host.name : context.getString(R.string.library_this_pc);
+            ((TextView) chip.findViewById(R.id.companionHostName)).setText(name);
+            // The PC card's dot, in the PC card's colours: a host looks the same wherever it is.
+            ViewCompat.setBackgroundTintList(chip.findViewById(R.id.companionHostDot),
+                    ColorStateList.valueOf(ContextCompat.getColor(context,
+                            host.online ? R.color.signal : R.color.content_faint)));
+            chip.setSelected(host.selected);
+            String status = context.getString(host.online
+                    ? R.string.pcview_status_online : R.string.pcview_status_offline);
+            chip.setContentDescription(context.getString(host.selected
+                    ? R.string.companion_host_selected_a11y : R.string.companion_host_a11y,
+                    name, status));
+            chip.setOnClickListener(v -> CompanionDisplayManager.onBrowsingSelectHost(host.uuid));
+            hostItemsView.addView(chip);
+        }
     }
 
     // An image has landed: draw the description again, and put the reader back where they were —

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A chip on the companion panel's hosts row: the Library's host chip (host_chip_bg) at its
+    full 48dp, since on this panel the chip is the touch target itself. The selected PC sits
+    in the signal container, as the profile avatar does; a press fills with the wash and rings.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:exitFadeDuration="120">
+
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/companion_host_corner" />
+            <solid android:color="@color/signal_wash" />
+            <stroke
+                android:width="@dimen/tile_focus_stroke"
+                android:color="@color/signal" />
+        </shape>
+    </item>
+
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/companion_host_corner" />
+            <solid android:color="@color/signal_container" />
+        </shape>
+    </item>
+
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/companion_host_corner" />
+            <solid android:color="@color/surface_container" />
+        </shape>
+    </item>
+
+</selector>

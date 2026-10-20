@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The companion panel's Play / Resume pill: the hero's filled signal pill, drawn by hand
+    because the panel cannot rely on a Material theme (see companion_surface). The panel never
+    takes focus, so there is no focus state: a press dims it under the wash and rings it.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:exitFadeDuration="120">
+
+    <item android:state_pressed="true">
+        <layer-list>
+            <item>
+                <shape android:shape="rectangle">
+                    <corners android:radius="@dimen/primary_button_corner" />
+                    <solid android:color="@color/signal" />
+                </shape>
+            </item>
+            <item>
+                <shape android:shape="rectangle">
+                    <corners android:radius="@dimen/primary_button_corner" />
+                    <solid android:color="@color/scrim_soft" />
+                    <stroke
+                        android:width="@dimen/tile_focus_stroke"
+                        android:color="@color/content_primary" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/primary_button_corner" />
+            <solid android:color="@color/signal" />
+        </shape>
+    </item>
+
+</selector>

@@ -172,6 +172,8 @@ public class SearchFragment extends Fragment
         field.setOnFocusChangeListener((v, hasFocus) -> {
             if (hasFocus) {
                 lastFocusedField = true;
+                // No game under the d-pad: the companion panel shows the selected host.
+                host.gameFocus().focusHost(null);
             }
         });
 
@@ -308,6 +310,7 @@ public class SearchFragment extends Fragment
     public void onTileFocused(@NonNull LibraryApp app) {
         lastFocusedAppId = app.appId();
         lastFocusedField = false;
+        host.gameFocus().focusGame(app);
     }
 
     // --- The host state panel ---

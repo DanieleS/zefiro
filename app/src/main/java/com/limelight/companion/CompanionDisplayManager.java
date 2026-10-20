@@ -57,6 +57,10 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
     // raise the in-game menu here.
     private Runnable menuRequestListener;
 
+    // What the browsing surface's Play, Resume, Quit and host taps do; the main screen registers
+    // it while it is started, the way the stream activity registers the menu request below.
+    private BrowsingActions browsingActions;
+
     // Invoked when the panel's menu opens and closes; the stream activity registers these to
     // track whether it should be steering the gamepad into the menu drawn here.
     private Runnable menuOpenedListener;
@@ -153,6 +157,65 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
     public static void toggle() {
         CompanionState state = CompanionState.getInstance();
         setVisible(state.getOwner() != CompanionState.Owner.PANEL);
+    }
+
+    // --- The browsing surface's controls ---
+
+    /**
+     * What the browsing surface's buttons do. Each call names the {@link CompanionState.Browsing}
+     * the tap landed on, so a tap that races a focus move still acts on the game the user saw.
+     *
+     * <p>The panel never takes key focus, so these are reached by touch alone; the main screen
+     * offers the same actions to the d-pad itself (A plays, Y opens a game's actions).
+     */
+    public interface BrowsingActions {
+        void play(CompanionState.Browsing browsing);
+
+        void resume(CompanionState.Browsing browsing);
+
+        void quit(CompanionState.Browsing browsing);
+
+        void selectHost(String hostUuid);
+    }
+
+    /**
+     * Register what the browsing surface's buttons do, or null to take them away. The main
+     * screen sets it while started and clears it when stopped, so a button drawn for a screen
+     * that has gone does nothing rather than act on its behalf.
+     */
+    public static void setBrowsingActions(BrowsingActions actions) {
+        if (instance != null) {
+            instance.browsingActions = actions;
+        }
+    }
+
+    /** Whether a tap on the browsing surface would reach anyone; the panel hides what would not. */
+    static boolean hasBrowsingActions() {
+        return instance != null && instance.browsingActions != null;
+    }
+
+    static void onBrowsingPlay(CompanionState.Browsing browsing) {
+        if (instance != null && instance.browsingActions != null && browsing != null) {
+            instance.browsingActions.play(browsing);
+        }
+    }
+
+    static void onBrowsingResume(CompanionState.Browsing browsing) {
+        if (instance != null && instance.browsingActions != null && browsing != null) {
+            instance.browsingActions.resume(browsing);
+        }
+    }
+
+    static void onBrowsingQuit(CompanionState.Browsing browsing) {
+        if (instance != null && instance.browsingActions != null && browsing != null) {
+            instance.browsingActions.quit(browsing);
+        }
+    }
+
+    static void onBrowsingSelectHost(String hostUuid) {
+        if (instance != null && instance.browsingActions != null && hostUuid != null) {
+            instance.browsingActions.selectHost(hostUuid);
+        }
     }
 
     // --- The in-game menu, when it is drawn on the companion panel ---

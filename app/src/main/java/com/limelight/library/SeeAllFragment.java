@@ -159,6 +159,8 @@ public class SeeAllFragment extends Fragment
         sortChip.setOnFocusChangeListener((v, hasFocus) -> {
             if (hasFocus) {
                 lastFocusedChip = true;
+                // No game under the d-pad: the companion panel shows the selected host.
+                host.gameFocus().focusHost(null);
             } else {
                 focusAwaitingTiles = false;
             }
@@ -438,6 +440,7 @@ public class SeeAllFragment extends Fragment
     public void onTileFocused(@NonNull LibraryApp app) {
         lastFocusedAppId = app.appId();
         lastFocusedChip = false;
+        host.gameFocus().focusGame(app);
     }
 
     // --- The host state panel ---
