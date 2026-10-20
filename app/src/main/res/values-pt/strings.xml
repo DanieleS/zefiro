@@ -147,9 +147,6 @@
     <string name="title_details">Detalhes</string>
     <string name="help">Ajuda</string>
     <string name="delete_pc_msg">Tem certeza de que deseja apagar este PC\?</string>
-    <string name="poor_connection_msg">Conexão ruim com o PC</string>
-    <string name="slow_connection_msg">Conexão lenta com o PC
-\nReduza sua taxa de bits</string>
     <string name="perf_overlay_streamdetails">Transmissão: %1$s %2$.2f FPS</string>
     <string name="perf_overlay_decoder">Decodificador: %1$s</string>
     <string name="perf_overlay_incomingfps">Taxa de quadros recebidos pela rede:: %1$.2f FPS</string>

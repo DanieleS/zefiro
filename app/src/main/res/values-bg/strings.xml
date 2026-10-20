@@ -87,7 +87,6 @@
     <string name="help">Помощ</string>
     <string name="title_details">Подробности</string>
     <string name="delete_pc_msg">Сигурни ли сте, че искате да изтриете този компютър\?</string>
-    <string name="poor_connection_msg">Лоша връзка с компютъра</string>
     <string name="perf_overlay_streamdetails">Видео поток: %1$s %2$.2f FPS</string>
     <string name="perf_overlay_decoder">Декодер: %1$s</string>
     <string name="perf_overlay_netdrops">Кадри, пропуснати от вашата мрежова връзка: %1$.2f%%</string>

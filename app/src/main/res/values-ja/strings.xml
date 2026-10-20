@@ -160,10 +160,7 @@
 \nHDRモードを無効にするか、ストリーミング解像度を変更するか、ホストPCのディスプレイ解像度を変更してください。</string>
     <string name="help">ヘルプ</string>
     <string name="title_details">詳細</string>
-    <string name="poor_connection_msg">PCとの接続不良</string>
     <string name="perf_overlay_decoder">デコーダー: %1$s</string>
-    <string name="slow_connection_msg">PCへの接続が低速
-\nビットレートを下げてください</string>
     <string name="perf_overlay_incomingfps">ネットワークからの受信フレームレート: %1$.2f FPS</string>
     <string name="perf_overlay_renderingfps">レンダリングフレームレート: %1$.2f FPS</string>
     <string name="text_native_res_dialog">ネイティブ解像度やFPSがストリーミングサーバーによってサポートされていない可能性があります。ホストPCに対して、手動で一致するカスタム表示モードを設定する必要があるでしょう。

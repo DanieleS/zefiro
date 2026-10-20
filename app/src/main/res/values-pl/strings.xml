@@ -18,9 +18,6 @@
     <string name="error_code_prefix">Kod błędu:</string>
     <string name="help">Pomoc</string>
     <string name="delete_pc_msg">Czy na pewno chcesz usunąć ten komputer?</string>
-    <string name="slow_connection_msg">Wolne połączenie z komputerem
-\nZmniejsz szybkość transmisji</string>
-    <string name="poor_connection_msg">Słabe połączenie z komputerem</string>
     <string name="perf_overlay_streamdetails">Strumień wideo: %1$s %2$.2f FPS</string>
     <string name="perf_overlay_decoder">Dekoder: %1$s</string>
     <string name="perf_overlay_incomingfps">Przychodząca liczba klatek na sekundę z sieci: %1$.2f FPS</string>

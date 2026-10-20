@@ -113,8 +113,6 @@
     <string name="title_details">Chi tiết</string>
     <string name="help">Trợ giúp</string>
     <string name="delete_pc_msg">Bạn có chắc chắn muốn xóa PC này không?</string>
-    <string name="slow_connection_msg">Kết nối chậm với PC\nGiảm tốc độ bit của bạn</string>
-    <string name="poor_connection_msg">Kết nối kém với PC</string>
     <string name="perf_overlay_streamdetails">Luồng video: %1$s %2$.2f FPS</string>
     <string name="perf_overlay_decoder">Bộ giải mã: %1$s</string>
     <string name="perf_overlay_incomingfps">Tốc độ khung hình đến từ mạng: %1$.2f FPS</string>
@@ -365,12 +363,6 @@
     <string name="analogscroll_left">Cần điều khiển bên trái</string>
 
 
-    <string name="perf_overlay_lite_net">%1$dms</string>
-    <string name="perf_overlay_lite_dectime">%1$.2fms</string>
-    <string name="perf_overlay_lite_netdrops">%1$.2f%%</string>
-    <string name="perf_overlay_lite_streamdetails">%1$s</string>
-    <string name="perf_overlay_lite_fps">%1$.2f</string>
-    <string name="perf_overlay_lite_decoder">Bộ giải mã: %1$s</string>
     <string name="title_import_keyboard_layout">Nhập bố cục bàn phím</string>
     <string name="title_export_keyboard_layout">Xuất bố cục bàn phím</string>
     <string name="summary_import_keyboard_layout">Thao tác này sẽ ghi đè bố cục hiện tại.</string>
@@ -395,11 +387,7 @@
     <string name="title_checkbox_onscreen_style_official">Giao diện tay cầm ảo chính thức</string>
     <string name="summary_checkbox_onscreen_style_official">Nếu bạn vẫn thích kiểu giao diện tay cầm ảo cũ, bạn có thể chọn tùy chọn này.\nNút có thể là hình vuông nếu bạn chọn nút ảo phía dưới [Nút bình thường là nút vuông]</string>
 
-    <string name="title_checkbox_enable_perf_overlay_lite">Bật chế độ đơn giản</string>
-    <string name="summary_checkbox_enable_perf_overlay_lite">Hiển thị thông tin hiệu suất đơn giản: Tốc độ mạng / Độ trễ / Giải mã / Tỷ lệ mất gói / FPS</string>
 
-    <string name="title_checkbox_enable_perf_overlay_lite_dialog">Nhấp chế độ đơn giản để hiển thị tùy chọn nhanh</string>
-    <string name="summary_checkbox_enable_perf_overlay_lite_dialog">Thay đổi chức năng nút quay lại, hiển thị menu nhanh trong game.</string>
 
     <string name="title_virtual_trackpad_settings">Cài đặt bàn di chuột ảo</string>
 
@@ -509,8 +497,6 @@
     <string name="summary_hide_clipboard_content">Đánh dấu clipboard từ xa là thông tin nhạy cảm</string>
     <string name="title_settings_misc">KHÁC</string>
     <string name="perf_overlay_lite_bandwidth">Băng thông</string>
-    <string name="perf_overlay_lite_network_decoding_delay">Độ trễ mạng/Giải mã</string>
-    <string name="perf_overlay_lite_packet_loss">Tỷ lệ mất gói</string>
     <string name="quick_menu_title">Menu nhanh</string>
     <string name="wrong_import_format">Định dạng nhập sai, vui lòng kiểm tra lại!</string>
     <string name="title_checkbox_gamepad_enable_battery_report">Bật báo cáo pin tay cầm</string>

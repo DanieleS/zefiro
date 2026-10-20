@@ -172,19 +172,6 @@ public class CompanionState {
         notifyChanged();
     }
 
-    /**
-     * Drop the numbers without leaving the stream: the user switched the stats off, so the panel
-     * falls back to a bare surface rather than sitting on a frozen snapshot. It must not fall back
-     * to the library spotlight — that game is not the one being played.
-     */
-    public void clearStats() {
-        if (stats == null) {
-            return;
-        }
-        stats = null;
-        notifyChanged();
-    }
-
     public PerfStats getStats() {
         return stats;
     }

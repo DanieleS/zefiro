@@ -149,9 +149,6 @@
 \n Βεβαιωθείτε ότι το GameStream είναι ενεργοποιημένο στις ρυθμίσεις GeForce Experience SHIELD.</string>
     <string name="no">Οχι</string>
     <string name="delete_pc_msg">Είστε βέβαιοι ότι θέλετε να διαγράψετε αυτόν τον υπολογιστή;</string>
-    <string name="slow_connection_msg">Αργή σύνδεση με υπολογιστή
-\nΜειώστε το bitrate σας</string>
-    <string name="poor_connection_msg">Κακή σύνδεση με τον υπολογιστή</string>
     <string name="applist_connect_msg">Σύνδεση σε υπολογιστή…</string>
     <string name="applist_menu_quit_and_start">Τερματισμός τρέχοντος παιχνιδιού και έναρξη</string>
     <string name="summary_checkbox_touchscreen_trackpad">Εάν είναι ενεργοποιημένη, η οθόνη αφής λειτουργεί σαν trackpad. Εάν είναι απενεργοποιημένη, η οθόνη αφής ελέγχει απευθείας τον κέρσορα του ποντικιού.</string>

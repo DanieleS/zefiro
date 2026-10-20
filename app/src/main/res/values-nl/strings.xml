@@ -131,9 +131,6 @@
     <string name="no_video_received_error">Geen video ontvangen van de host.</string>
     <string name="no_frame_received_error">De kwaliteit van uw netwerkverbinding is niet goed. Verlaag de bitrate of gebruik een snellere verbinding.</string>
     <string name="check_ports_msg">Controleer uw firewall en port forwarding regels voor de poort(en):</string>
-    <string name="slow_connection_msg">Trage verbinding met PC
-\nVerlaag uw bitrate</string>
-    <string name="poor_connection_msg">Slechte verbinding met PC</string>
     <string name="applist_connect_msg">Verbinden met PC…</string>
     <string name="applist_menu_details">Details Bekijken</string>
     <string name="applist_menu_scut">Snelkoppeling Maken</string>

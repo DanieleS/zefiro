@@ -62,6 +62,7 @@ import com.limelight.ui.ConnectionOverlay;
 import com.limelight.ui.ExternalControllerView;
 import com.limelight.ui.GameGestures;
 import com.limelight.stream.ControlsSurface;
+import com.limelight.stream.StreamHud;
 import com.limelight.ui.StreamContainer;
 import com.limelight.ui.TextFocusKeyboard;
 import com.limelight.utils.CacheHelper;
@@ -129,7 +130,6 @@ import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.view.inputmethod.InputMethodManager;
-import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ImageButton;
 import androidx.annotation.NonNull;
@@ -260,53 +260,42 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private float lastAbsTouchDownX, lastAbsTouchDownY;
 
     private boolean quitOnStop = false;
-    private boolean isHidingOverlays;
     private boolean floatingButtonShown;
     private boolean overlayToggleZoomButtonShown;
-    private TextView notificationOverlayView;
-    private int requestedNotificationOverlayVisibility = View.GONE;
-    private View performanceOverlayView;
-
-    private TextView performanceOverlayLite;
-
-    private TextView performanceOverlayBig;
+    /**
+     * The one line over the stream: the numbers when {@link #hudVisible}, the reconnect status
+     * whenever there is one, and a health dot fed by both the numbers and the host's poor
+     * connection reports. See {@link StreamHud} for which input wins.
+     */
+    private StreamHud streamHud;
 
     /**
-     * When the companion panel is there to show the stats, they go there instead of on top of
-     * the game. Resolved once at startup so the overlay does not appear and disappear mid-stream.
+     * Whether the user wants the HUD's numbers over the stream: the perf overlay setting at
+     * start, then the Overlay tile. Only the HUD; the companion panel gets the stats regardless
+     * (see {@link #perfStatsWanted()}).
      */
-    /** Show or hide the on-stream stats overlay, leaving the lite/big choice as configured. */
-    private void syncLocalPerfOverlay(boolean visible) {
-        if (performanceOverlayView == null) {
-            return;
-        }
-        int visibility = visible ? View.VISIBLE : View.GONE;
-        if (performanceOverlayView.getVisibility() == visibility) {
-            return;
-        }
-        performanceOverlayView.setVisibility(visibility);
-        if (prefConfig.enablePerfOverlayLite) {
-            performanceOverlayLite.setVisibility(visibility);
-        } else {
-            performanceOverlayBig.setVisibility(visibility);
-        }
+    private boolean hudVisible;
+
+    /**
+     * Whether this session has a companion panel that could show the stats: the panel switched on
+     * in settings and a second display for it, whatever its power state or owner right now. The
+     * same session-long question {@link TelemetryGate} asks, for the same reason: the panel can
+     * be hidden, borrowed by a companion app or blanked, and come back, and the decoder must
+     * still be measuring when it does.
+     */
+    private boolean hasCompanionPanel() {
+        return TelemetryGate.shouldStart(CompanionDisplayManager.isConfigured(this),
+                DisplayTargets.findCompanionHardwareId(this));
     }
 
     /**
-     * Where the stats belong right now. Asked afresh each time rather than settled at startup: the
-     * panel can be hidden, turned back on, or handed to a companion app at any point during the
-     * stream, and a decision made once at connect time would be wrong for the rest of it.
+     * Whether the decoder should measure at all: for the HUD, and independently for the companion
+     * panel, so on a two-screen device the top screen can show the HUD while the bottom shows the
+     * stats at the same time.
      */
-    private boolean statsOnCompanion() {
-        return prefConfig.enableCompanionStats && CompanionDisplayManager.isCompanionAvailable(this);
+    private boolean perfStatsWanted() {
+        return hudVisible || hasCompanionPanel();
     }
-
-    /**
-     * Whether the stats are on screen at all, wherever they are drawn. The companion shows them
-     * without being asked, so this starts out true more often than the perf overlay preference
-     * does. The in-game menu toggles it.
-     */
-    private boolean statsVisible;
 
     private MediaCodecDecoderRenderer decoderRenderer;
     private boolean reportedCrash;
@@ -488,7 +477,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         // The renderer seeds itself from the perf overlay preference, which says nothing about
         // the companion. Tell it who is really watching.
-        renderer.setPerfStatsRequested(statsVisible);
+        renderer.setPerfStatsRequested(perfStatsWanted());
 
 // --- Force tight thresholds (prefConfig.forceTightThresholds) ---
         try {
@@ -706,13 +695,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             );
         }
 
-        notificationOverlayView = findViewById(R.id.notificationOverlay);
-
-        performanceOverlayView = findViewById(R.id.performanceOverlay);
-
-        performanceOverlayLite = findViewById(R.id.performanceOverlayLite);
-
-        performanceOverlayBig = findViewById(R.id.performanceOverlayBig);
+        streamHud = findViewById(R.id.streamHud);
 
         inputCaptureProvider = InputCaptureManager.getInputCaptureProvider(this, this);
 
@@ -836,29 +819,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             }
         }
 
-        // Stats are collected whenever they could be shown anywhere — the panel may be off now and
-        // switched on mid-stream, and asking the decoder for them only at startup would leave it
-        // with nothing to report by then.
-        statsVisible = prefConfig.enableCompanionStats || prefConfig.enablePerfOverlay;
-
-        // Check if the user has enabled performance stats overlay
-        if (statsVisible && !statsOnCompanion()) {
-            performanceOverlayView.setVisibility(View.VISIBLE);
-            if (prefConfig.enablePerfOverlayLite) {
-                performanceOverlayLite.setVisibility(View.VISIBLE);
-                if(prefConfig.enablePerfOverlayLiteDialog){
-                    performanceOverlayLite.setOnClickListener(v -> showGameMenu(null));
-                }
-            } else {
-                performanceOverlayBig.setVisibility(View.VISIBLE);
-            }
-            if (prefConfig.enablePerfOverlayBottom) {
-                //performanceOverlayView.getLayoutParams().layout_gravity = Gravity.BOTTOM;
-                FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) performanceOverlayView.getLayoutParams();
-                params.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
-                performanceOverlayView.setLayoutParams(params);
-            }
-        }
+        // Settled before the decoder is built below, which asks perfStatsWanted() at once. The
+        // target is the rate the stream was negotiated at, which the frame rate rule of the
+        // health dot measures against.
+        hudVisible = prefConfig.enablePerfOverlay;
+        streamHud.setStatsShown(hudVisible);
+        streamHud.setTargetFps(prefConfig.fps);
 
         // Kept for createDecoderRenderer(), which also builds the decoder of each reconnect attempt
         decoderNetworkMetered = connMgr.isActiveNetworkMetered();
@@ -1502,8 +1468,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         // Hide on-screen overlays in PiP mode
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             if (isInPictureInPictureMode()) {
-                isHidingOverlays = true;
-
                 floatingButtonShown = floatingMenuButton.isShown();
 
                 if (floatingButtonShown) {
@@ -1530,8 +1494,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
                 hideGameMenu();
 
-                performanceOverlayView.setVisibility(View.GONE);
-                notificationOverlayView.setVisibility(View.GONE);
+                streamHud.setSuppressed(true);
 
                 // Disable sensors while in PiP mode
                 controllerHandler.disableSensors();
@@ -1540,8 +1503,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 UiHelper.notifyStreamEnteringPiP(this);
             }
             else {
-                isHidingOverlays = false;
-
                 if (floatingButtonShown) {
                     floatingMenuButton.setVisibility(View.VISIBLE);
                 }
@@ -1564,11 +1525,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                     keyBoardLayoutController.show();
                 }
 
-                if (statsVisible && !statsOnCompanion()) {
-                    performanceOverlayView.setVisibility(View.VISIBLE);
-                }
-
-                notificationOverlayView.setVisibility(requestedNotificationOverlayVisibility);
+                streamHud.setSuppressed(false);
 
                 // Enable sensors again after exiting PiP
                 controllerHandler.enableSensors();
@@ -3930,8 +3887,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private long lastReconnectedAtMs;   // when a reconnect last brought the stream back, 0 = never
     private DecoderParking decoderParking;
     private boolean reconnectStatusShown;
-    private CharSequence notificationTextBeforeReconnect;
-    private int notificationVisibilityBeforeReconnect;
     private ConnectivityManager.NetworkCallback reconnectNetworkCallback;
     private final Random reconnectRandom = new Random();
 
@@ -3963,19 +3918,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
     }
 
-    // The reconnect status borrows the notification overlay that otherwise says the connection is
-    // poor; whatever that had to say comes back when the status goes.
+    // The reconnect status takes the HUD's line over, shown even with the numbers switched off;
+    // the numbers (or nothing) come back when it goes. PiP still hides it, like the rest.
     private void showReconnectStatus(String text) {
-        if (!reconnectStatusShown) {
-            reconnectStatusShown = true;
-            notificationTextBeforeReconnect = notificationOverlayView.getText();
-            notificationVisibilityBeforeReconnect = requestedNotificationOverlayVisibility;
-        }
-        notificationOverlayView.setText(text);
-        requestedNotificationOverlayVisibility = View.VISIBLE;
-        if (!isHidingOverlays) {
-            notificationOverlayView.setVisibility(View.VISIBLE);
-        }
+        reconnectStatusShown = true;
+        streamHud.setStatus(text);
     }
 
     private void hideReconnectStatus() {
@@ -3983,11 +3930,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             return;
         }
         reconnectStatusShown = false;
-        notificationOverlayView.setText(notificationTextBeforeReconnect);
-        requestedNotificationOverlayVisibility = notificationVisibilityBeforeReconnect;
-        if (!isHidingOverlays) {
-            notificationOverlayView.setVisibility(requestedNotificationOverlayVisibility);
-        }
+        streamHud.setStatus(null);
     }
 
     // Android's view of the network: a loss explains a socket error that comes with it, and a
@@ -4183,7 +4126,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         endReconnect();
         // A "poor connection" warning belonged to the dead connection. The new one starts out
         // okay and only reports a change, so it would never take that warning down.
-        notificationVisibilityBeforeReconnect = View.GONE;
+        streamHud.setPoorConnection(false);
         hideReconnectStatus();
 
         // The host is running a new session that has never seen our controllers
@@ -4492,35 +4435,14 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                     return;
                 }
 
-                if (reconnectStatusShown) {
-                    // The reconnect status has the overlay; this is what it gives back
-                    if (connectionStatus == MoonBridge.CONN_STATUS_POOR) {
-                        notificationTextBeforeReconnect = getResources().getString(prefConfig.bitrate > 5000 ?
-                                R.string.slow_connection_msg : R.string.poor_connection_msg);
-                        notificationVisibilityBeforeReconnect = View.VISIBLE;
-                    }
-                    else if (connectionStatus == MoonBridge.CONN_STATUS_OKAY) {
-                        notificationVisibilityBeforeReconnect = View.GONE;
-                    }
-                    return;
-                }
-
+                // No text of its own any more: the host's verdict holds the HUD's dot at amber
+                // or worse until it says the link is okay again. The dot keeps the flag under a
+                // reconnect status too, so it is right again the moment the status goes.
                 if (connectionStatus == MoonBridge.CONN_STATUS_POOR) {
-                    if (prefConfig.bitrate > 5000) {
-                        notificationOverlayView.setText(getResources().getString(R.string.slow_connection_msg));
-                    }
-                    else {
-                        notificationOverlayView.setText(getResources().getString(R.string.poor_connection_msg));
-                    }
-
-                    requestedNotificationOverlayVisibility = View.VISIBLE;
+                    streamHud.setPoorConnection(true);
                 }
                 else if (connectionStatus == MoonBridge.CONN_STATUS_OKAY) {
-                    requestedNotificationOverlayVisibility = View.GONE;
-                }
-
-                if (!isHidingOverlays) {
-                    notificationOverlayView.setVisibility(requestedNotificationOverlayVisibility);
+                    streamHud.setPoorConnection(false);
                 }
             }
         });
@@ -5150,27 +5072,19 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     @Override
-    public void onPerfUpdate(final String text, final PerfStats stats) {
+    public void onPerfUpdate(final PerfStats stats) {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                // Routed per update, so switching the panel on or off mid-stream moves the stats
-                // rather than stranding them where they were when the stream started.
-                boolean onCompanion = statsOnCompanion();
-                if (onCompanion) {
+                // Two independent readers, never one or the other: the HUD over the stream when
+                // it is on, and the companion panel whenever it can show them. Asked per update,
+                // so a panel hidden or handed back mid-stream picks the stats up within a second.
+                if (CompanionDisplayManager.isCompanionAvailable(Game.this)) {
                     CompanionState.getInstance().setStats(stats);
                 }
-                else if(prefConfig.enablePerfOverlayLite){
-                    performanceOverlayLite.setText(text);
-                }else{
-                    performanceOverlayBig.setText(text);
-                }
-
-                // The local overlay is the fallback for when the panel is not showing them, so it
-                // has to come and go with it.
-                if (statsVisible) {
-                    syncLocalPerfOverlay(!onCompanion);
-                }
+                // Bound even while the numbers are off, so the dot behind a reconnect status and
+                // the line shown the moment the HUD is switched on are both current.
+                streamHud.bind(stats);
             }
         });
     }
@@ -5438,9 +5352,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         updateZoomButtonAppearance();
     }
 
-    /** Whether the performance numbers are asked for; the controls' Overlay tile shows it. */
+    /** Whether the HUD's numbers are on; the controls' Overlay tile shows it. */
     public boolean isHudVisible() {
-        return statsVisible;
+        return hudVisible;
     }
 
     /** Whether the on-screen controller is up; the controls' Gamepad tile shows it. */
@@ -5449,20 +5363,14 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     public void toggleHUD() {
-        statsVisible = !statsVisible;
+        hudVisible = !hudVisible;
+        streamHud.setStatsShown(hudVisible);
 
+        // The HUD alone: the companion panel keeps its stats whichever way this goes, so the
+        // decoder only stops measuring when there is no panel either.
         if (decoderRenderer != null) {
-            decoderRenderer.setPerfStatsRequested(statsVisible);
+            decoderRenderer.setPerfStatsRequested(perfStatsWanted());
         }
-
-        // Switching off stops the updates, so drop the numbers already there: otherwise the panel
-        // would sit on a frozen snapshot. It stays on the streaming surface either way — the
-        // library spotlight belongs to a game that is not the one being played.
-        if (!statsVisible) {
-            CompanionState.getInstance().clearStats();
-        }
-
-        syncLocalPerfOverlay(statsVisible && !statsOnCompanion());
     }
 
     //切换触控灵敏度开关

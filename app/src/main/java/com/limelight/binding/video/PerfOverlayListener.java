@@ -2,8 +2,8 @@ package com.limelight.binding.video;
 
 public interface PerfOverlayListener {
     /**
-     * @param text  the stats preformatted for the overlay drawn over the stream
-     * @param stats the same measurements unformatted, for surfaces that lay them out themselves
+     * One second's measurements, unformatted: every surface that shows them (the stream HUD, the
+     * companion panel) lays them out itself. Called on a decoder thread.
      */
-    void onPerfUpdate(final String text, final PerfStats stats);
+    void onPerfUpdate(final PerfStats stats);
 }

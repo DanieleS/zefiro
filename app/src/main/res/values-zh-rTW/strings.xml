@@ -118,8 +118,6 @@
 	<string name="title_details">詳細資訊</string>
 	<string name="help">說明</string>
 	<string name="delete_pc_msg">您確定要刪除此電腦嗎？</string>
-	<string name="slow_connection_msg">與電腦連線速度緩慢\n請降低位元率</string>
-	<string name="poor_connection_msg">與電腦的連線品質不佳</string>
 	<string name="perf_overlay_streamdetails">影片串流：%1$s %2$.2f FPS</string>
 	<string name="perf_overlay_decoder">解碼器：%1$s</string>
 	<string name="perf_overlay_incomingfps">從網路接收的影格率：%1$.2f FPS</string>
@@ -396,15 +394,9 @@
 	<string name="analogscroll_right">右搖桿</string>
 	<string name="analogscroll_left">左搖桿</string>
 
-	<string name="perf_overlay_lite_net">%1$dms</string>
-	<string name="perf_overlay_lite_dectime">%1$.2fms</string>
-	<string name="perf_overlay_lite_netdrops">%1$.2f%%</string>
-	<string name="perf_overlay_lite_streamdetails">%1$s</string>
-	<string name="perf_overlay_lite_fps">%1$.2f</string>
 	<string name="perf_overlay_drawn_fps">GPU FPS：</string>
 	<string name="perf_overlay_ai_fps">3D FPS：</string>
 	<string name="perf_overlay_ai_delegate">代理：</string>
-	<string name="perf_overlay_lite_decoder">解碼器：%1$s</string>
 
 	<string name="title_import_keyboard_layout">匯入鍵盤佈局</string>
 	<string name="title_export_keyboard_layout">匯出鍵盤佈局</string>
@@ -440,14 +432,10 @@
 	<string name="title_checkbox_onscreen_style_official">官方虛擬手把外觀</string>
 	<string name="summary_checkbox_onscreen_style_official">若偏好舊版官方虛擬手把按鈕樣式，可選擇此項。\n若選擇底部虛擬按鈕，按鍵外形可為方形【一般按鍵預設為方形】</string>
 
-	<string name="title_checkbox_enable_perf_overlay_lite">啟用精簡模式</string>
-	<string name="summary_checkbox_enable_perf_overlay_lite">顯示簡化的效能資訊：網路速度 / 延遲 / 解碼 / 封包遺失率 / FPS</string>
 
 	<string name="title_checkbox_enable_perf_logging">啟用效能記錄</string>
 	<string name="summary_checkbox_enable_perf_logging">「離線時」依組態儲存效能資料。</string>
 
-	<string name="title_checkbox_enable_perf_overlay_lite_dialog">精簡模式點擊彈出快速選項</string>
-	<string name="summary_checkbox_enable_perf_overlay_lite_dialog">取代返回鍵邏輯，改為彈出遊戲快速選單。</string>
 
 	<string name="title_show_overlay_zoom_toggle_button">顯示覆蓋層縮放切換按鈕</string>
 	<string name="summary_show_overlay_zoom_toggle_button">在畫面頂部顯示可拖曳的按鈕，用於切換平移/縮放模式。</string>
@@ -577,8 +565,6 @@
 
 	<string name="title_settings_misc">雜項</string>
 	<string name="perf_overlay_lite_bandwidth">頻寬</string>
-	<string name="perf_overlay_lite_network_decoding_delay">網路/解碼延遲</string>
-	<string name="perf_overlay_lite_packet_loss">封包遺失</string>
 	<string name="wrong_import_format">匯入格式錯誤，請檢查！</string>
 
 	<string name="title_checkbox_gamepad_enable_battery_report">啟用手把電量回報</string>
@@ -731,8 +717,6 @@
 	<string name="summary_enable_commit_text">將軟體鍵盤的多字元輸入（手勢輸入、建議字詞、語音聽寫）轉送到主機。可能會影響依賴逐鍵輸入的遊戲。</string>
 	<string name="title_checkbox_remember_zoom_pan">記住縮放與平移</string>
 	<string name="summary_checkbox_remember_zoom_pan">在工作階段之間儲存縮放與平移位置</string>
-	<string name="title_checkbox_enable_perf_overlay_bottom">將效能資訊移至底部</string>
-	<string name="summary_checkbox_enable_perf_overlay_bottom">在非原生解析度串流、同時啟用「置頂置中顯示」與精簡模式時特別有用。</string>
 
 	<string name="title_edit_profile">編輯設定檔</string>
 	<string name="profile_manager_new_profile">新增設定檔</string>

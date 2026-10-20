@@ -50,7 +50,6 @@ public class PreferenceConfiguration {
     private static final String ENABLE_ULTRA_LOW_LATENCY_PREF_STRING = "checkbox_ultra_low_latency";
     private static final String ENFORCE_DISPLAY_MODE_PREF_STRING = "checkbox_enforce_display_mode";
     private static final String ENABLE_COMPANION_DISPLAY_PREF_STRING = "checkbox_enable_companion_display";
-    private static final String ENABLE_COMPANION_STATS_PREF_STRING = "checkbox_enable_companion_stats";
     private static final String ENABLE_COMPANION_APP_PREF_STRING = "checkbox_enable_companion_app";
     private static final String USE_VIRTUAL_DISPLAY_PREF_STRING = "checkbox_use_virtual_display";
     private static final String AUTO_INVERT_VIDEO_RESOLUTION_PREF_STRING = "checkbox_auto_invert_video_resolution";
@@ -166,9 +165,6 @@ public class PreferenceConfiguration {
     private static final boolean DEFAULT_ENABLE_ULTRA_LOW_LATENCY = false;
     private static final boolean DEFAULT_ENFORCE_DISPLAY_MODE = false;
     private static final boolean DEFAULT_ENABLE_COMPANION_DISPLAY = false;
-    // A companion panel with nothing on it is worth less than one showing the stats, so this is
-    // on by default. It only takes effect once the companion display itself is switched on.
-    private static final boolean DEFAULT_ENABLE_COMPANION_STATS = true;
     // Independent of the companion panel: it only needs a secondary screen to open the app on,
     // so it stays available even with the panel switched off. Harmless until a game is assigned
     // one, and invisible on single-screen devices, so it is on by default.
@@ -195,7 +191,6 @@ public class PreferenceConfiguration {
     private static final boolean DEFAULT_ENABLE_PYROWAVE = false;
     private static final boolean DEFAULT_ENABLE_PIP = false;
     private static final boolean DEFAULT_ENABLE_PERF_OVERLAY = false;
-    private static final boolean DEFAULT_PERF_OVERLAY_BOTTOM = false;
     private static final boolean DEFAULT_ENABLE_PERF_LOGGING = false;
     private static final boolean DEFAULT_BIND_ALL_USB = false;
     private static final boolean DEFAULT_MOUSE_EMULATION = true;
@@ -321,13 +316,6 @@ public class PreferenceConfiguration {
     public float balance_shift;
     public boolean enablePerfOverlay;
     public boolean enablePerfLogging;
-    //简化版性能信息
-    public boolean enablePerfOverlayLite;
-
-    public boolean enablePerfOverlayLiteDialog;
-
-    public boolean enablePerfOverlayBottom;
-
     public boolean enableLatencyToast;
     public boolean vsyncTargetPresent;
     public boolean enableBackMenu;
@@ -353,8 +341,6 @@ public class PreferenceConfiguration {
     public boolean enableCompanionApp;
 
     public boolean enableCompanionDisplay;
-
-    public boolean enableCompanionStats;
 
     //串流画面顶部居中显示
     public boolean alignDisplayTopCenter;
@@ -1004,8 +990,6 @@ private static int getFramePacingValue(Context context) {
         config.enablePip = prefs.getBoolean(ENABLE_PIP_PREF_STRING, DEFAULT_ENABLE_PIP);
         config.enablePerfOverlay = prefs.getBoolean(ENABLE_PERF_OVERLAY_STRING, DEFAULT_ENABLE_PERF_OVERLAY);
         config.enablePerfLogging = prefs.getBoolean(ENABLE_PERF_LOGGING, DEFAULT_ENABLE_PERF_LOGGING);
-        config.enablePerfOverlayLite = prefs.getBoolean("checkbox_enable_perf_overlay_lite",DEFAULT_ENABLE_PERF_OVERLAY);
-        config.enablePerfOverlayBottom = prefs.getBoolean("checkbox_enable_perf_overlay_bottom",DEFAULT_PERF_OVERLAY_BOTTOM);
         config.bindAllUsb = prefs.getBoolean(BIND_ALL_USB_STRING, DEFAULT_BIND_ALL_USB);
         config.mouseEmulation = prefs.getBoolean(MOUSE_EMULATION_STRING, DEFAULT_MOUSE_EMULATION);
         config.mouseNavButtons = prefs.getBoolean(MOUSE_NAV_BUTTONS_STRING, DEFAULT_MOUSE_NAV_BUTTONS);
@@ -1050,8 +1034,6 @@ private static int getFramePacingValue(Context context) {
 
         config.enableCompanionDisplay = prefs.getBoolean(ENABLE_COMPANION_DISPLAY_PREF_STRING, DEFAULT_ENABLE_COMPANION_DISPLAY);
 
-        config.enableCompanionStats = prefs.getBoolean(ENABLE_COMPANION_STATS_PREF_STRING, DEFAULT_ENABLE_COMPANION_STATS);
-
         config.enableCompanionApp = prefs.getBoolean(ENABLE_COMPANION_APP_PREF_STRING, DEFAULT_ENABLE_COMPANION_APP);
 
         config.alignDisplayTopCenter =prefs.getBoolean("checkbox_enable_view_top_center",false);
@@ -1070,8 +1052,6 @@ private static int getFramePacingValue(Context context) {
 
         config.enableMultiTouchGestures = prefs.getBoolean("checkbox_multi_touch_gestures", false);
 
-
-        config.enablePerfOverlayLiteDialog=prefs.getBoolean("checkbox_enable_perf_overlay_lite_dialog",false);
 
         config.disableDefaultExtraKeys =prefs.getBoolean("checkbox_enable_clear_default_special_button", false);
 

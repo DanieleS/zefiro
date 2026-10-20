@@ -166,7 +166,6 @@
     <string name="summary_checkbox_touchscreen_trackpad">Если включено, сенсор выступает в роли тачпада. Если отключено, сенсор напрямую контролирует курсор мыши.</string>
     <string name="delete_pc_msg">Вы уверены что хотите удалить этот ПК?</string>
     <string name="pcview_menu_details">Посмотреть детали</string>
-    <string name="poor_connection_msg">Слабое соединение с ПК</string>
     <string name="title_details">Детали</string>
     <string name="summary_prevent_packet_loss">Для устройств, которые теряют пакеты по неизвестным причинам, можно попробовать включить эту опцию.</string>
     <string name="title_enable_perf_overlay">Включить отображение статистики</string>
@@ -179,8 +178,6 @@
     <string name="scut_pc_not_found">ПК не найден</string>
     <string name="unable_to_pin_shortcut">Текущий лаунчер не позволяет создавать закреплённые ярлыки.</string>
     <string name="title_checkbox_mouse_nav_buttons">Включить кнопки вперед и назад для мыши</string>
-    <string name="slow_connection_msg">Медленное подключение к ПК
-\nСнизьте битрейт</string>
     <string name="summary_unlock_fps">Трансляция со скоростью 90 или 120 кадров в секунду может уменьшить задержку на устройствах высокого класса, но может вызвать задержки или сбой на устройствах без поддержки этого функционала</string>
     <string name="summary_enable_perf_overlay">Отображение оверлея на экране с информацией о производительности во время трансляции в режиме реального времени</string>
     <string name="perf_overlay_decoder">Декодер: %1$s</string>
@@ -352,7 +349,6 @@
     <string name="toggle_pan_zoom_mode">Переключить режим прокрутки/масш.</string>
     <string name="pan_zoom_mode_enabled">Режим прокрутки/масш. включён</string>
     <string name="perf_overlay_ai_delegate">Делегат:</string>
-    <string name="perf_overlay_lite_decoder">Декодер: %1$s</string>
     <string name="title_import_keyboard_layout">Импорт раскладки клавиатуры</string>
     <string name="title_export_keyboard_layout">Экспорт раскладки клавиатуры</string>
     <string name="summary_import_keyboard_layout">Это перезапишет текущую раскладку.</string>
@@ -373,12 +369,8 @@
     <string name="summary_checkbox_multi_touch_gestures">Включить жест с 3 пальцами для клавиатуры, 4 пальцами для полной клавиатуры, 5 пальцами для быстрого меню при использовании режима мультитач.</string>
     <string name="title_checkbox_onscreen_style_official">Официальная тема виртуального геймпада</string>
     <string name="summary_checkbox_onscreen_style_official">Выберите этот вариант, если предпочитаете старый стиль виртуального геймпада. Форма кнопок может быть квадратной при выборе нижней виртуальной кнопки [Обычные кнопки - квадратные]</string>
-    <string name="title_checkbox_enable_perf_overlay_lite">Включить упрощённый режим</string>
-    <string name="summary_checkbox_enable_perf_overlay_lite">Отображать упрощённую информацию: скорость сети / задержка / декодирование / потеря пакетов / FPS</string>
     <string name="title_checkbox_enable_perf_logging">Включить логирование производительности</string>
     <string name="summary_checkbox_enable_perf_logging">Сохраняет данные производительности по конфигурациям (только офлайн)</string>
-    <string name="title_checkbox_enable_perf_overlay_lite_dialog">В упрощенном режиме нажмите, чтобы открыть быстрые опции.</string>
-    <string name="summary_checkbox_enable_perf_overlay_lite_dialog">Заменяет логику кнопки Back, открывая быстрое меню игры.</string>
     <string name="title_show_overlay_zoom_toggle_button">Показать кнопку переключения масш. панели</string>
     <string name="summary_show_overlay_zoom_toggle_button">Показывает перетаскиваемую кнопку вверху экрана для переключения прокрутки/масш.</string>
     <string name="title_virtual_trackpad_settings">Настройки виртуального трекпада</string>
@@ -476,8 +468,6 @@
     <string name="summary_hide_clipboard_content">Пометить удалённый буфер как конфиденциальный</string>
     <string name="title_settings_misc">РАЗНОЕ</string>
     <string name="perf_overlay_lite_bandwidth">Пропускная способность</string>
-    <string name="perf_overlay_lite_network_decoding_delay">Задержка сети/декодирования</string>
-    <string name="perf_overlay_lite_packet_loss">Потери пакетов</string>
     <string name="wrong_import_format">Неверный формат импорта!</string>
     <string name="title_checkbox_gamepad_enable_battery_report">Включить отчёт о заряде батареи геймпада</string>
     <string name="summary_checkbox_gamepad_enable_battery_report">Отправлять информацию о заряде батареи геймпада, если это возможно.\nОтключение может помочь при редких фризах ввода (тач/трекпад/стилус/мышь).</string>
@@ -592,8 +582,6 @@
     <string name="title_export_sunshine_launcher_file">Экспорт файла запуска для Sunshine</string>
     <string name="title_checkbox_remember_zoom_pan">Запоминать прокрутку/масш.</string>
     <string name="summary_checkbox_remember_zoom_pan">Сохранять масштаб и позицию между сессиями</string>
-    <string name="title_checkbox_enable_perf_overlay_bottom">Переместить панель вниз</string>
-    <string name="summary_checkbox_enable_perf_overlay_bottom">Полезно когда дисплей вверху в центре и упрощенном режиме при ненативном разрешении.</string>
     <string name="title_edit_profile">Редактировать профиль</string>
     <string name="profile_manager_new_profile">Новый профиль</string>
     <string name="profile_manager_profile_not_found">Профиль не найден</string>
@@ -623,8 +611,6 @@
     <string name="title_checkbox_remember_mouse_mode">Запоминать режим мыши</string>
     <string name="title_enable_rumble">Включить вибрацию</string>
     <string name="title_prevent_packet_loss">Предотвращать потерю пакетов</string>
-    <string name="perf_overlay_lite_net">%1$dмс</string>
-    <string name="perf_overlay_lite_dectime">%1$.2fмс</string>
     <string name="summary_low_latency_frame_balance">Уменьшает задержку за счёт пропуска кадров в очереди</string>
     <string name="category_perf_monitor_settings">Монитор производительности</string>
     <string name="title_low_latency_frame_balance">LFR (эксперементально)</string>

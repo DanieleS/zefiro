@@ -99,9 +99,6 @@
     <string name="title_details">Detalhes</string>
     <string name="help">Ajuda</string>
     <string name="delete_pc_msg">Tem certeza de que deseja excluir este PC\?</string>
-    <string name="slow_connection_msg">Conexão lenta com o PC
-\nReduza sua taxa de bits</string>
-    <string name="poor_connection_msg">Conexão ruim com o PC</string>
     <string name="conn_terminated_title">Conexão Encerrada</string>
     <string name="title_decoding_error">Decodificador de Vídeo Crashou</string>
     <string name="title_decoding_reset">Resetar Configurações de Vídeo</string>

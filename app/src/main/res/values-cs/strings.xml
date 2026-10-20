@@ -198,9 +198,6 @@
     <string name="wol_fail">Nezdařilo se odeslat Wake-On-LAN pakety</string>
     <string name="help">Nápověda</string>
     <string name="delete_pc_msg">Určitě chcete smazat tento PC\?</string>
-    <string name="slow_connection_msg">Pomalé připojení k PC
-\nSnižte datový tok</string>
-    <string name="poor_connection_msg">Špatné připojení k PC</string>
     <string name="perf_overlay_streamdetails">Video stream: %1$s %2$.2f FPS</string>
     <string name="perf_overlay_decoder">Dekodér: %1$s</string>
     <string name="perf_overlay_incomingfps">Příchozí snímková frekvence po síti: %1$.2f FPS</string>

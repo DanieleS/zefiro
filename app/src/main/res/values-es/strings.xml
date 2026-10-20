@@ -174,7 +174,6 @@
 \n
 \nAsegúrate de que no tienes ningún contenido protegido por DRM abierto en tu ordenador. También puedes probar a reiniciar el ordenador.</string>
     <string name="title_details">Detalles</string>
-    <string name="poor_connection_msg">Conexión pobre al PC</string>
     <string name="applist_menu_details">Ver Detalles</string>
     <string name="applist_menu_scut">Crear Acceso Directo</string>
     <string name="applist_menu_tv_channel">Agregar al Canal</string>
@@ -201,8 +200,6 @@
     <string name="summary_enable_post_stream_toast">Mostrar un mensaje sobre la información de latencia cuando la transmisión termine</string>
     <string name="help">Ayuda</string>
     <string name="delete_pc_msg">¿Estás seguro de eliminar este PC\?</string>
-    <string name="slow_connection_msg">Conexión lenta al PC
-\nReduce la tasa de bits</string>
     <string name="addpc_wrong_sitelocal">La dirección no luce correcta. Debes usar la dirección IP Pública de tu Rúter para la transmisión por Internet.</string>
     <string name="title_native_res_dialog">Advertencia Resolución Nativa</string>
     <string name="suffix_seekbar_bitrate_mbps">Mbps</string>

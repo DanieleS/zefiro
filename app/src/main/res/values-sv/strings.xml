@@ -61,9 +61,6 @@
     <string name="title_details">Detaljer</string>
     <string name="help">Hjälp</string>
     <string name="delete_pc_msg">Är du säker på att du vill ta bort den här datorn\?</string>
-    <string name="slow_connection_msg">Långsam anslutning till datorn
-\nMinska din bithastighet</string>
-    <string name="poor_connection_msg">Dålig anslutning till datorn</string>
     <string name="perf_overlay_streamdetails">Videoström: %1$s %2$.2f FPS</string>
     <string name="perf_overlay_decoder">Avkodare: %1$s</string>
     <string name="perf_overlay_incomingfps">Inkommande bildfrekvens från nätverket: %1$.2f FPS</string>

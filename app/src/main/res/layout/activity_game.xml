@@ -36,57 +36,18 @@
 <!--        app:aperture_middle_color="#6CD2F8">-->
 <!--    </com.limelight.ui.ApertureViewGroup>-->
 
-    <TextView
-        android:id="@+id/notificationOverlay"
+    <!-- The one-line HUD (and the reconnect status): top-left, as on the approved Stream
+         mock. Never focusable or clickable, so the stream under it keeps every touch. -->
+    <com.limelight.stream.StreamHud
+        android:id="@+id/streamHud"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginRight="10dp"
-        android:layout_marginEnd="10dp"
+        android:layout_gravity="top|start"
+        android:layout_marginStart="10dp"
+        android:layout_marginLeft="10dp"
         android:layout_marginTop="10dp"
-        android:layout_gravity="right"
-        android:textAppearance="?android:attr/textAppearanceLarge"
-        android:gravity="right"
-        android:background="@color/scrim"
         android:preferKeepClear="true"
         android:visibility="gone" />
-
-    <LinearLayout
-        android:id="@+id/performanceOverlay"
-        android:orientation="vertical"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-
-        <TextView
-            android:id="@+id/performanceOverlayBig"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginLeft="10dp"
-            android:layout_marginStart="10dp"
-            android:layout_marginTop="10dp"
-            android:layout_gravity="left"
-            android:textAppearance="?android:attr/textAppearanceSmall"
-            android:gravity="left"
-            android:background="@color/scrim"
-            android:preferKeepClear="true"
-            android:visibility="gone" />
-
-        <TextView
-            android:id="@+id/performanceOverlayLite"
-            tools:text="延迟/解码：109ms/7ms 丢包率：69% FPS：60"
-            android:textSize="10sp"
-            android:layout_marginTop="4dp"
-            android:background="@drawable/ic_hud_bg"
-            android:paddingLeft="5dp"
-            android:paddingRight="5dp"
-            android:paddingTop="2dp"
-            android:paddingBottom="2dp"
-            android:visibility="gone"
-            android:textAppearance="?android:attr/textAppearanceLarge"
-            android:layout_gravity="center_horizontal"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
-
-    </LinearLayout>
 
     <!-- Floating Menu Button -->
     <ImageButton

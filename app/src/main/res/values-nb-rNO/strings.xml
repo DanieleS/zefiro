@@ -82,9 +82,6 @@
     <string name="applist_menu_quit">Avslutt økt</string>
     <string name="applist_menu_resume">Fortsett økt</string>
     <string name="applist_connect_msg">Kobler til PC …</string>
-    <string name="poor_connection_msg">Dårlig tilknytning til PC</string>
-    <string name="slow_connection_msg">Vis tilkobling til PC
-\nReduser bitraten din</string>
     <string name="delete_pc_msg">Er du sikker på at du vil slette denne PC-en\?</string>
     <string name="help">Hjelp</string>
     <string name="title_details">Detaljer</string>

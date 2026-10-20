@@ -141,13 +141,12 @@
     <string name="title_details">Details</string>
     <string name="help">Help</string>
     <string name="delete_pc_msg">Are you sure you want to delete this PC?</string>
-    <string name="slow_connection_msg">Slow connection to PC\nReduce your bitrate</string>
-    <string name="poor_connection_msg">Poor connection to PC</string>
     <string name="reconnect_waiting_msg">Network lost, waiting for the PC… %1$d s</string>
     <string name="reconnect_reconnecting_msg">Connection lost, reconnecting… %1$d s</string>
     <string name="reconnect_failed_msg">The connection could not be restored within %1$d seconds.</string>
     <string name="reconnect_failed_no_session_msg">The game is no longer running on the PC, so there was nothing to reconnect to.</string>
     <string name="reconnect_failed_refused_msg">The PC refused to resume the session (error %1$d).</string>
+    <string name="stream_hud_stats">%1$.1f FPS · %2$d ms · %3$.1f%%</string>
     <string name="perf_overlay_streamdetails">Video stream: %1$s %2$.2f FPS</string>
     <string name="perf_overlay_decoder">Decoder: %1$s</string>
     <string name="perf_overlay_incomingfps">Incoming frame rate from network: %1$.2f FPS</string>
@@ -452,15 +451,9 @@
     <string name="analogscroll_right">Right analog stick</string>
     <string name="analogscroll_left">Left analog stick</string>
 
-    <string name="perf_overlay_lite_net">%1$dms</string>
-    <string name="perf_overlay_lite_dectime">%1$.2fms</string>
-    <string name="perf_overlay_lite_netdrops">%1$.2f%%</string>
-    <string name="perf_overlay_lite_streamdetails">%1$s</string>
-    <string name="perf_overlay_lite_fps">%1$.2f</string>
     <string name="perf_overlay_drawn_fps">GpuFPS:</string>
     <string name="perf_overlay_ai_fps">3DFPS:</string>
     <string name="perf_overlay_ai_delegate">Delegate:</string>
-    <string name="perf_overlay_lite_decoder">Decoder: %1$s</string>
     <string name="title_import_keyboard_layout">Import keyboard layout</string>
     <string name="title_export_keyboard_layout">Export keyboard layout</string>
     <string name="summary_import_keyboard_layout">This will overwrite the current layout.</string>
@@ -487,12 +480,8 @@
     <string name="summary_checkbox_multi_touch_gestures">Enable 3 finger tap for keyboard, 4 finger tap for full keyboard, 5 finger tap for quick menu when using multi-touch mode.</string>
     <string name="title_checkbox_onscreen_style_official">Official Virtual Gamepad Skin</string>
     <string name="summary_checkbox_onscreen_style_official">If you still like the old style of official virtual gamepad buttons, you can select this option.\nButton shapes can be square if you selected the bottom virtual button [Normal buttons are square buttons]</string>
-    <string name="title_checkbox_enable_perf_overlay_lite">Enable Lite mode</string>
-    <string name="summary_checkbox_enable_perf_overlay_lite">Display simplified performance information: Network Speed / Latency / Decode / Packet Loss Rate / FPS</string>
     <string name="title_checkbox_enable_perf_logging">Enable Performance Logging</string>
     <string name="summary_checkbox_enable_perf_logging">"Stores performance data per configuration. (Offline only) "</string>
-    <string name="title_checkbox_enable_perf_overlay_lite_dialog">Lite mode click to pop up quick options</string>
-    <string name="summary_checkbox_enable_perf_overlay_lite_dialog">Replace the back button logic, pop up the game quick menu.</string>
     <string name="title_show_overlay_zoom_toggle_button">Show overlay zoom toggle button</string>
     <string name="summary_show_overlay_zoom_toggle_button">Displays a draggable button at the top of the screen to toggle pan/zoom mode.</string>
     <string name="title_virtual_trackpad_settings">Virtual Trackpad Settings</string>
@@ -601,8 +590,6 @@
     <string name="summary_cocoon_sync_host">Only one PC is exported: the frontend shows every game in one list, so a second PC would only add titles you could not tell apart</string>
     <string name="summary_cocoon_sync_no_pcs">No PCs paired yet</string>
     <string name="perf_overlay_lite_bandwidth">Bandwidth</string>
-    <string name="perf_overlay_lite_network_decoding_delay">Network/Decoding delay</string>
-    <string name="perf_overlay_lite_packet_loss">Packet loss</string>
     <string name="wrong_import_format">Wrong import format, please check!</string>
     <string name="title_checkbox_gamepad_enable_battery_report">Enable battery status report for gamepad</string>
     <string name="summary_checkbox_gamepad_enable_battery_report">Report gamepad battery status when possible.\nDisable this option might help if you experience stutter with touch screen/touch pad/stylus/mouse input occasionally.</string>
@@ -740,8 +727,6 @@
     <string name="summary_text_focus_keyboard">Open a keyboard by itself when you select a text field on the PC: on the second screen when the companion panel or the external display controls are there, otherwise over the stream. Needs a Scirocco host with text field focus hints on; other hosts are unaffected.</string>
     <string name="title_checkbox_remember_zoom_pan">Remember Zoom&amp;Pan</string>
     <string name="summary_checkbox_remember_zoom_pan">Save changes to zoom and pan position between sessions</string>
-    <string name="title_checkbox_enable_perf_overlay_bottom">Move overlay to bottom</string>
-    <string name="summary_checkbox_enable_perf_overlay_bottom">Useful when Display in Top Center and Lite mode are enabled during non-native resolution streaming.</string>
     <string name="title_edit_profile">Edit Profile</string>
     <string name="profile_manager_new_profile">New Profile</string>
     <string name="profile_manager_profile_not_found">Profile not found</string>
@@ -801,8 +786,6 @@
 
     <string name="title_enable_companion_display">Companion Screen (Beta)</string>
     <string name="summary_enable_companion_display">Show a companion surface on the secondary screen while the app is open. Ignored when Fully External Display Mode is enabled.</string>
-    <string name="title_enable_companion_stats">Performance Stats on Companion Screen</string>
-    <string name="summary_enable_companion_stats">Show the streaming stats on the companion screen instead of on top of the game. Overrides the performance overlay setting while streaming.</string>
     <string name="companion_label_stream">Stream</string>
     <string name="companion_label_fps">fps</string>
     <string name="companion_label_latency">Latency</string>

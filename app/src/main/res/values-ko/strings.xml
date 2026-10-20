@@ -133,9 +133,6 @@
     <string name="perf_overlay_renderingfps">렌더링 프레임속도 : %1$.2f FPS</string>
     <string name="perf_overlay_incomingfps">네트워크를 통해 받은 프레임속도: %1$.2f FPS</string>
     <string name="perf_overlay_decoder">디코더:%1$s</string>
-    <string name="poor_connection_msg">PC와의 연결이 불안정함</string>
-    <string name="slow_connection_msg">PC와의 연결이 불안정합니다.
-\n비트레이트를 줄이세요</string>
     <string name="delete_pc_msg">이 PC를 삭제 하시겠습니까\?</string>
     <string name="title_details">세부정보</string>
     <string name="check_ports_msg">다음 포트의 방화벽 및 포트 포워딩 설정을 확인하십시오:</string>

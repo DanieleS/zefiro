@@ -84,9 +84,6 @@
     <string name="title_details">Details</string>
     <string name="help">Hilfe</string>
     <string name="delete_pc_msg">Bist du sicher, dass du diesen Host löschen möchtest\?</string>
-    <string name="slow_connection_msg">Langsame Verbindung zum Host
-\nReduziere die Bitrate</string>
-    <string name="poor_connection_msg">Sehr langsame Verbindung zum Host</string>
     <string name="perf_overlay_decoder">Decoder: %1$s</string>
     <string name="perf_overlay_incomingfps">Bildwiederholrate der Netzwerkübertragung: %1$.2f FPS</string>
     <string name="perf_overlay_renderingfps">Wiedergabe-Bildwiederholungsrate: %1$.2f FPS</string>

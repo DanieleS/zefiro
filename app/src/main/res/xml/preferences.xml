@@ -269,14 +269,6 @@
             android:title="@string/title_enable_companion_display"
             app:iconSpaceReserved="false" />
 
-        <SwitchPreferenceCompat
-            android:defaultValue="true"
-            android:dependency="checkbox_enable_companion_display"
-            android:key="checkbox_enable_companion_stats"
-            android:summary="@string/summary_enable_companion_stats"
-            android:title="@string/title_enable_companion_stats"
-            app:iconSpaceReserved="false" />
-
         <CheckBoxPreference
             android:defaultValue="true"
             android:key="checkbox_enable_companion_app"
@@ -982,31 +974,10 @@
             android:summary="@string/summary_enable_perf_overlay"
             android:title="@string/title_enable_perf_overlay"
             app:iconSpaceReserved="false" />
+        <!-- No dependency on the overlay: the decoder measures for the log on its own
+             account, whether or not anything is drawn over the stream. -->
         <SwitchPreferenceCompat
             android:defaultValue="false"
-            android:dependency="checkbox_enable_perf_overlay"
-            android:key="checkbox_enable_perf_overlay_lite"
-            android:summary="@string/summary_checkbox_enable_perf_overlay_lite"
-            android:title="@string/title_checkbox_enable_perf_overlay_lite"
-            app:iconSpaceReserved="false" />
-        <SwitchPreferenceCompat
-            android:defaultValue="false"
-            android:dependency="checkbox_enable_perf_overlay_lite"
-            android:key="checkbox_enable_perf_overlay_lite_dialog"
-            android:summary="@string/summary_checkbox_enable_perf_overlay_lite_dialog"
-            android:title="@string/title_checkbox_enable_perf_overlay_lite_dialog"
-            app:iconSpaceReserved="false" />
-        <SwitchPreferenceCompat
-            android:defaultValue="false"
-            android:dependency="checkbox_enable_perf_overlay"
-            android:key="checkbox_enable_perf_overlay_bottom"
-            android:summary="@string/summary_checkbox_enable_perf_overlay_bottom"
-            android:title="@string/title_checkbox_enable_perf_overlay_bottom"
-            app:iconSpaceReserved="false" />
-
-        <SwitchPreferenceCompat
-            android:defaultValue="false"
-            android:dependency="checkbox_enable_perf_overlay"
             android:key="checkbox_enable_perf_logging"
             android:summary="@string/summary_checkbox_enable_perf_logging"
             android:title="@string/title_checkbox_enable_perf_logging"

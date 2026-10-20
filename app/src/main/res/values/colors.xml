@@ -54,6 +54,20 @@
     -->
     <color name="status_online">#FF7EE08A</color>
 
+    <!--
+        The stream HUD's health dot (StreamHealth): the only place the app speaks in traffic
+        lights, so the three are their own names. Good is the mock's green, the same as a PC
+        that is online; warn and bad are softened amber and red, bright enough to read as a
+        6dp dot over any game but kept inside the cold, low-glow scale.
+    -->
+    <color name="health_good">#FF7EE08A</color>
+    <color name="health_warn">#FFF2C46D</color>
+    <color name="health_bad">#FFF28B82</color>
+
+    <!-- Behind the stream HUD: the mock's 60% black, darker than @color/scrim so the
+         one line of numbers holds over a bright frame. -->
+    <color name="hud_scrim">#99000000</color>
+
     <!-- The signal, thinned to a wash, for the moment a focused tile is pressed. -->
     <color name="signal_wash">#334FC3F7</color>
 

@@ -84,9 +84,6 @@
     <string name="yes">Evet</string>
     <string name="help">Yardım</string>
     <string name="delete_pc_msg">Bu bilgisayarı silmek istediğinizden emin misiniz\?</string>
-    <string name="slow_connection_msg">Bilgisayara yavaş bağlantı
-\nBit hızınızı düşürün</string>
-    <string name="poor_connection_msg">Bilgisayar ile zayıf bağlantı</string>
     <string name="perf_overlay_streamdetails">Video akışı: %1$s %2$.2f FPS</string>
     <string name="perf_overlay_decoder">Kod çözücü: %1$s</string>
     <string name="perf_overlay_incomingfps">Ağdan gelen kare hızı: %1$.2f FPS</string>

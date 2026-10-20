@@ -150,9 +150,6 @@
 
     <string name="title_details">Dettagli</string>
     <string name="delete_pc_msg">Sei sicuro di voler rimuovere questo PC\?</string>
-    <string name="slow_connection_msg">Connessione lenta al PC
-\nRidurre il bitrate</string>
-    <string name="poor_connection_msg">Connessione al PC di bassa qualità</string>
     <string name="reconnect_waiting_msg">Rete persa, in attesa del PC… %1$d s</string>
     <string name="reconnect_reconnecting_msg">Connessione persa, riconnessione… %1$d s</string>
     <string name="reconnect_failed_msg">Non è stato possibile ristabilire la connessione entro %1$d secondi.</string>

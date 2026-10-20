@@ -48,7 +48,6 @@
     <string name="conn_terminated_msg">החיבור הופסק</string>
     <string name="ip_hint">כתובת IP של המחשב המארח</string>
     <string name="title_details">פרטים</string>
-    <string name="poor_connection_msg">חיבור חלש למחשב</string>
     <string name="perf_overlay_decoder">מפענח: %1$s</string>
     <string name="perf_overlay_incomingfps">פריימים לשניה מהרשת: %1$.2f FPS</string>
     <string name="perf_overlay_netdrops">פריימים שנפלו בחיבור רשת: %1$.2f%%</string>
@@ -89,8 +88,6 @@
     <string name="early_termination_error">מששהו קרה במחשב המארח כשהחלה הזרמה.
 \n
 \nאנא וודא שאין תוכן מוגן DRM פתוח במחשב. אפשר לנסות להפעיל מחדש את המחשב.</string>
-    <string name="slow_connection_msg">חיבור איטי למחשב
-\nהורד Bitrate</string>
     <string name="frame_conversion_error">המחשב המארח דיווח על שגיאת הצפנת וידיאו.
 \n
 \nנסה לבטל הגדרת HDR, החלפת רזולוציית הזרמה או לשנות את רזולוציית המחשב המארח.</string>

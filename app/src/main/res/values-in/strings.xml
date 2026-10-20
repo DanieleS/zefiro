@@ -61,9 +61,6 @@
     <string name="no">Tidak</string>
     <string name="title_details">Rincian</string>
     <string name="delete_pc_msg">Apakah Anda yakin ingin menghapus komputer ini\?</string>
-    <string name="slow_connection_msg">Koneksi terhadap komputer lambat
-\nKurangi bitrate anda</string>
-    <string name="poor_connection_msg">Koneksi dengan komputer buruk</string>
     <string name="perf_overlay_streamdetails">Stream video: %1$s %2$.2f FPS</string>
     <string name="perf_overlay_decoder">Dekoder: %1$s</string>
     <string name="perf_overlay_incomingfps">Kecepatan bingkai masuk dari jaringan: %1$.2f FPS</string>
