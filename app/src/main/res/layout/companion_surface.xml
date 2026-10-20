@@ -31,10 +31,12 @@
         android:visibility="gone" />
 
     <!--
-        Browsing surface. Shows what the main screen is on: a game's name, a meta line
-        (year · genres · score), Play (or Resume and Quit game while it runs) and a
-        description; or a host's name and state. With nothing to show it falls back to the app
-        name, so it is never empty. The hosts row sits under it all while browsing.
+        Browsing surface, after the approved Shelves and See all mocks' bottom screen: what the
+        main screen is on, read from the top left. For a game, a "Focused" label, its name, a
+        meta line (year · genres · score) and its description, then Play (or Resume and Quit
+        game while it runs) at the foot; for a host, its name and state. With nothing to show it
+        falls back to the app name, centred, so it is never empty. The hosts row sits at the
+        bottom of it all while browsing.
     -->
     <LinearLayout
         android:id="@+id/companionIdle"
@@ -42,124 +44,60 @@
         android:layout_height="match_parent"
         android:orientation="vertical">
 
+        <!-- Its gravity is set from code: top-start over a game or host, centred when idle. -->
         <LinearLayout
+            android:id="@+id/companionIdleColumn"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
             android:orientation="vertical"
             android:gravity="center"
-            android:padding="28dp">
+            android:paddingStart="@dimen/companion_padding"
+            android:paddingTop="@dimen/companion_padding"
+            android:paddingEnd="@dimen/companion_padding"
+            android:paddingBottom="16dp">
+
+            <TextView
+                android:id="@+id/companionIdleLabel"
+                style="@style/CompanionSectionLabel"
+                android:layout_marginBottom="10dp"
+                android:text="@string/companion_focused"
+                android:visibility="gone" />
 
             <TextView
                 android:id="@+id/companionIdleTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:gravity="center"
-                android:maxWidth="720dp"
                 android:maxLines="2"
                 android:ellipsize="end"
                 android:text="@string/app_label"
                 android:textColor="@color/content_primary"
-                android:textSize="30sp"
-                android:letterSpacing="0.04"
-                android:fontFamily="sans-serif-light" />
+                android:textSize="32sp"
+                android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/companionIdleMeta"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:gravity="center"
-                android:maxWidth="720dp"
+                android:layout_marginTop="8dp"
                 android:maxLines="2"
                 android:ellipsize="end"
-                android:textColor="@color/content_muted"
-                android:textSize="13sp"
-                android:letterSpacing="0.12"
-                android:textAllCaps="true"
+                android:textColor="@color/content_secondary"
+                android:textSize="17sp"
                 android:visibility="gone" />
 
             <!--
-                The browsed game's actions: Play, or Resume and Quit game for the one the host
-                is running. Pills after the hero's (item_continue_hero), drawn without
-                MaterialButton because this panel is hosted on every activity, including ones
-                whose theme is not a Material one.
-            -->
-            <LinearLayout
-                android:id="@+id/companionActions"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:orientation="horizontal"
-                android:visibility="gone">
-
-                <LinearLayout
-                    android:id="@+id/companionPlay"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:minHeight="@dimen/action_size"
-                    android:background="@drawable/companion_primary_bg"
-                    android:clickable="true"
-                    android:focusable="false"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingStart="22dp"
-                    android:paddingEnd="26dp">
-
-                    <ImageView
-                        android:layout_width="16dp"
-                        android:layout_height="16dp"
-                        android:importantForAccessibility="no"
-                        android:src="@drawable/ic_resume"
-                        android:tint="@color/on_signal" />
-
-                    <TextView
-                        android:id="@+id/companionPlayLabel"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
-                        android:singleLine="true"
-                        android:text="@string/companion_play"
-                        android:textColor="@color/on_signal"
-                        android:textSize="15sp"
-                        android:textStyle="bold"
-                        android:letterSpacing="0.02" />
-
-                </LinearLayout>
-
-                <TextView
-                    android:id="@+id/companionQuit"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp"
-                    android:minHeight="@dimen/action_size"
-                    android:background="@drawable/companion_ghost_bg"
-                    android:clickable="true"
-                    android:focusable="false"
-                    android:gravity="center"
-                    android:paddingStart="22dp"
-                    android:paddingEnd="22dp"
-                    android:singleLine="true"
-                    android:text="@string/library_quit_game"
-                    android:textColor="@color/content_primary"
-                    android:textSize="15sp"
-                    android:letterSpacing="0.02"
-                    android:visibility="gone" />
-
-            </LinearLayout>
-
-            <!--
                 The description is as long as the host makes it, so it scrolls rather than
-                truncating. Sized wrap_content inside a match_parent column, it grows only as
-                far as the space the title, meta line and actions leave it, and scrolls beyond
-                that. The fading edge is what tells the reader there is more below.
+                truncating. It takes the space the title, meta line and actions leave it, and
+                scrolls beyond that; without one, the spacer below takes that space instead. The
+                fading edge is what tells the reader there is more below.
             -->
             <ScrollView
                 android:id="@+id/companionIdleDescriptionScroll"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:fillViewport="true"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:layout_marginTop="16dp"
                 android:scrollbars="vertical"
                 android:scrollbarThumbVertical="@color/divider"
                 android:requiresFadingEdge="vertical"
@@ -170,40 +108,130 @@
                     android:id="@+id/companionIdleDescription"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:maxWidth="720dp"
-                    android:lineSpacingMultiplier="1.2"
-                    android:textColor="@color/content_secondary"
-                    android:textSize="14sp" />
+                    android:lineSpacingMultiplier="1.3"
+                    android:textColor="@color/content_muted"
+                    android:textSize="16sp" />
 
             </ScrollView>
+
+            <!-- Pushes the actions to the foot of the column when there is no description. -->
+            <Space
+                android:id="@+id/companionIdleSpacer"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:visibility="gone" />
+
+            <!--
+                The browsed game's actions: Play, across the column, or Resume and Quit game for
+                the one the host is running. Pills after the hero's (item_continue_hero), drawn
+                without MaterialButton because this panel is hosted on every activity, including
+                ones whose theme is not a Material one.
+            -->
+            <LinearLayout
+                android:id="@+id/companionActions"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:id="@+id/companionPlay"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:minHeight="@dimen/companion_play_height"
+                    android:background="@drawable/companion_primary_bg"
+                    android:clickable="true"
+                    android:focusable="false"
+                    android:gravity="center"
+                    android:orientation="horizontal"
+                    android:paddingStart="22dp"
+                    android:paddingEnd="26dp">
+
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_resume"
+                        android:tint="@color/on_signal" />
+
+                    <TextView
+                        android:id="@+id/companionPlayLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:ellipsize="end"
+                        android:singleLine="true"
+                        android:text="@string/companion_play"
+                        android:textColor="@color/on_signal"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.02" />
+
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/companionQuit"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:minHeight="@dimen/companion_play_height"
+                    android:background="@drawable/companion_ghost_bg"
+                    android:clickable="true"
+                    android:focusable="false"
+                    android:gravity="center"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:singleLine="true"
+                    android:text="@string/library_quit_game"
+                    android:textColor="@color/content_primary"
+                    android:textSize="17sp"
+                    android:letterSpacing="0.02"
+                    android:visibility="gone" />
+
+            </LinearLayout>
 
         </LinearLayout>
 
         <!--
             The hosts row: every known PC as a compact chip (item_companion_host), the selected
-            one in the signal. A tap selects that PC on the main screen. It scrolls sideways
-            when there are more PCs than fit, and is gone when not browsing.
+            one in the signal, under a "Hosts" label. A tap selects that PC on the main screen.
+            It scrolls sideways when there are more PCs than fit, and is gone when not browsing.
         -->
-        <HorizontalScrollView
+        <LinearLayout
             android:id="@+id/companionHosts"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:clipToPadding="false"
-            android:fillViewport="false"
-            android:paddingStart="20dp"
-            android:paddingEnd="12dp"
-            android:paddingBottom="20dp"
-            android:scrollbars="none"
+            android:orientation="vertical"
+            android:paddingBottom="@dimen/companion_padding"
             android:visibility="gone">
 
-            <LinearLayout
-                android:id="@+id/companionHostItems"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal" />
+            <TextView
+                style="@style/CompanionSectionLabel"
+                android:layout_marginStart="@dimen/companion_padding"
+                android:layout_marginBottom="10dp"
+                android:text="@string/companion_hosts" />
 
-        </HorizontalScrollView>
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:clipToPadding="false"
+                android:fillViewport="false"
+                android:paddingStart="@dimen/companion_padding"
+                android:paddingEnd="12dp"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/companionHostItems"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal" />
+
+            </HorizontalScrollView>
+
+        </LinearLayout>
 
     </LinearLayout>
 

@@ -185,6 +185,16 @@
     </declare-styleable>
 
     <!-- Companion surface: a headline stat tile, and a label/value line for secondary detail. -->
+    <!-- A section's label on the companion panel's browsing surface: "Focused", "Hosts". -->
+    <style name="CompanionSectionLabel">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">@color/content_muted</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:letterSpacing">0.16</item>
+        <item name="android:textAllCaps">true</item>
+    </style>
+
     <style name="CompanionTileLabel">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>

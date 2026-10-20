@@ -6,6 +6,7 @@ import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.SimpleItemAnimator;
@@ -48,16 +49,44 @@ import java.util.ArrayList;
  * A shelf shows {@link GridSpanRule#shelfTiles} tiles across its own width, all one size, so the
  * adapter is told that width ({@link GameGridAdapter.FixedTileWidth}) and every tile, "See all"
  * included, is laid out at it, in box art's 3:4. The width is the shelf's, measured, never the
- * screen's.
+ * screen's. In a wide window the home may cap the tiles' height ({@link #setMaxTileHeight}), so
+ * its shelves fit the window's height too; the row then shows more of them across.
+ *
+ * <h3>As a grid</h3>
+ *
+ * On a phone in portrait one row of tiles leaves most of the screen empty, so the home can lay a
+ * shelf out as a few rows of a fixed number of columns instead ({@link #setGridColumns}). The
+ * grid does not scroll on its own: it is as tall as its tiles, and the home's list scrolls it.
+ * The focus memory and the edges above hold for it as they do for a row.
+ *
+ * <h3>Opening at the start</h3>
+ *
+ * A row opens at its first tile. Games inserted ahead of the tiles already laid out (the "See
+ * all" tile is there before the games' diff lands, or a poll puts a game first) would otherwise
+ * open it scrolled: the layout keeps the first tile it had in place and lays the new ones out
+ * to its left, off screen. A row that was at its start, and that the d-pad is not in, stays
+ * there. Its place is kept otherwise, which is what it comes back to from See all.
  *
  * Main thread only, as views are.
  */
 public class ShelfRecyclerView extends RecyclerView implements GameGridAdapter.FixedTileWidth {
 
-    private final ShelfLayoutManager layoutManager;
     private final int gapPx;
+    private final AdapterDataObserver startKeeper = new AdapterDataObserver() {
+        @Override
+        public void onItemRangeInserted(int positionStart, int itemCount) {
+            if (positionStart == 0 && !hasFocus() && isAtStart()) {
+                scrollToPosition(0);
+            }
+        }
+    };
 
+    private LinearLayoutManager layoutManager;
+    @Nullable
+    private Adapter<?> observed;
     private int tileWidthPx;
+    private int maxTileHeightPx;
+    private int gridColumns;
     private long rememberedId = NO_ID;
 
     public ShelfRecyclerView(@NonNull Context context) {
@@ -67,11 +96,7 @@ public class ShelfRecyclerView extends RecyclerView implements GameGridAdapter.F
     public ShelfRecyclerView(@NonNull Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
         gapPx = context.getResources().getDimensionPixelSize(R.dimen.see_all_tile_gap);
-        layoutManager = new ShelfLayoutManager(context);
-        // The shelves share one pool of tiles; a shelf scrolled off hands its tiles back to it
-        // rather than keeping them for itself.
-        layoutManager.setRecycleChildrenOnDetach(true);
-        setLayoutManager(layoutManager);
+        installLayoutManager();
         addItemDecoration(new GridSpacingItemDecoration(gapPx));
         // Tiles take focus, never the row itself: an empty row that held focus would swallow
         // the next d-pad press.
@@ -89,15 +114,70 @@ public class ShelfRecyclerView extends RecyclerView implements GameGridAdapter.F
         return tileWidthPx;
     }
 
+    /**
+     * The tallest a tile may be, in px; 0 for no cap. Only a row is capped: a grid's columns
+     * already divide the width.
+     */
+    public void setMaxTileHeight(int px) {
+        if (px != maxTileHeightPx) {
+            maxTileHeightPx = px;
+            requestLayout();
+        }
+    }
+
+    /** Lays the shelf out as a grid of this many columns; 0 for a single row (the default). */
+    public void setGridColumns(int columns) {
+        if (columns != gridColumns) {
+            gridColumns = columns;
+            installLayoutManager();
+        }
+    }
+
+    private void installLayoutManager() {
+        layoutManager = gridColumns > 0
+                ? new ShelfGridLayoutManager(getContext(), gridColumns)
+                : new ShelfLayoutManager(getContext());
+        // The shelves share one pool of tiles; a shelf scrolled off hands its tiles back to it
+        // rather than keeping them for itself.
+        layoutManager.setRecycleChildrenOnDetach(true);
+        setLayoutManager(layoutManager);
+        // A grid is as tall as its rows, and the home's list does the scrolling.
+        setNestedScrollingEnabled(gridColumns == 0);
+    }
+
+    @Override
+    public void setAdapter(@Nullable Adapter adapter) {
+        if (observed != null) {
+            observed.unregisterAdapterDataObserver(startKeeper);
+        }
+        super.setAdapter(adapter);
+        observed = adapter;
+        if (adapter != null) {
+            adapter.registerAdapterDataObserver(startKeeper);
+        }
+    }
+
+    // Whether the row shows its first tile at the start, as laid out before the change at hand.
+    private boolean isAtStart() {
+        return gridColumns > 0 || getChildCount() == 0
+                || layoutManager.findFirstCompletelyVisibleItemPosition() <= 0;
+    }
+
     @Override
     protected void onMeasure(int widthSpec, int heightSpec) {
         // Before super: measuring a wrap_content row lays its tiles out, and they are sized then.
         if (MeasureSpec.getMode(widthSpec) != MeasureSpec.UNSPECIFIED) {
             int usable = MeasureSpec.getSize(widthSpec) - getPaddingLeft() - getPaddingRight();
             float density = getResources().getDisplayMetrics().density;
-            int across = GridSpanRule.SHELF.spanCount(Math.round(usable / density));
+            int across = gridColumns > 0
+                    ? gridColumns : GridSpanRule.SHELF.spanCount(Math.round(usable / density));
             // Each tile carries half the gap on either side (GridSpacingItemDecoration).
-            tileWidthPx = Math.max(1, usable / Math.max(1, across) - gapPx);
+            int width = Math.max(1, usable / Math.max(1, across) - gapPx);
+            if (gridColumns == 0 && maxTileHeightPx > 0) {
+                width = Math.max(1, Math.min(width, maxTileHeightPx * 3 / 4));
+                across = Math.max(across, usable / (width + gapPx));
+            }
+            tileWidthPx = width;
             layoutManager.setInitialPrefetchItemCount(across + 1);
         }
         super.onMeasure(widthSpec, heightSpec);
@@ -207,6 +287,14 @@ public class ShelfRecyclerView extends RecyclerView implements GameGridAdapter.F
      * view's layout params, which it does for every view it hands the layout, new, recycled or
      * scrapped alike, so a new width (a rotation) reaches the tiles already on screen too.
      */
+    private void sizeTile(LayoutParams lp) {
+        if (tileWidthPx > 0) {
+            lp.width = tileWidthPx;
+            lp.height = tileWidthPx * 4 / 3;
+        }
+    }
+
+    /** The row: see {@link #sizeTile}. */
     private final class ShelfLayoutManager extends LinearLayoutManager {
         ShelfLayoutManager(Context context) {
             super(context, HORIZONTAL, false);
@@ -214,11 +302,26 @@ public class ShelfRecyclerView extends RecyclerView implements GameGridAdapter.F
 
         @Override
         public boolean checkLayoutParams(LayoutParams lp) {
-            if (tileWidthPx > 0) {
-                lp.width = tileWidthPx;
-                lp.height = tileWidthPx * 4 / 3;
-            }
+            sizeTile(lp);
             return super.checkLayoutParams(lp);
+        }
+    }
+
+    /** The grid: see {@link #sizeTile}. Never scrolls itself; the home's list does. */
+    private final class ShelfGridLayoutManager extends GridLayoutManager {
+        ShelfGridLayoutManager(Context context, int columns) {
+            super(context, columns);
+        }
+
+        @Override
+        public boolean checkLayoutParams(RecyclerView.LayoutParams lp) {
+            sizeTile(lp);
+            return super.checkLayoutParams(lp);
+        }
+
+        @Override
+        public boolean canScrollVertically() {
+            return false;
         }
     }
 }

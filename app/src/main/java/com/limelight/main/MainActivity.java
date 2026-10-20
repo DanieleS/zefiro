@@ -10,9 +10,11 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.util.SparseLongArray;
+import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
@@ -36,6 +38,8 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.navigationrail.NavigationRailView;
 import com.limelight.LimeLog;
 import com.limelight.R;
+import com.limelight.companion.CompanionDisplayManager;
+import com.limelight.companion.DisplayTargets;
 import com.limelight.computers.HostEntry;
 import com.limelight.computers.HostLibrary;
 import com.limelight.computers.HostRepository;
@@ -88,8 +92,8 @@ import com.limelight.utils.UiHelper;
  *
  * <pre>
  *   WIDE     rail column shown, bottom bar gone, system bars hidden (immersive, as the old
- *            library was):
- *            only a display cutout pads the content
+ *            library was): the window runs under a display cutout on any edge, and only one
+ *            on a side (a phone's punch hole, in landscape) pads the content
  *   COMPACT  bottom bar shown, rail column gone, system bars kept: the status bar inset pads
  *            the sections, the navigation bar inset pads the bottom bar
  * </pre>
@@ -444,6 +448,31 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
+    public boolean isDpadFirst() {
+        if (navChrome.windowClass() != WindowClass.WIDE) {
+            return false;
+        }
+        if (CompanionDisplayManager.isConfigured(this)
+                && DisplayTargets.findCompanionDisplay(this, windowDisplayId()) != null) {
+            return true;
+        }
+        for (int id : InputDevice.getDeviceIds()) {
+            InputDevice device = InputDevice.getDevice(id);
+            if (device != null && !device.isVirtual() && (device.getSources()
+                    & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // The display this window is on.
+    @SuppressWarnings("deprecation")
+    private int windowDisplayId() {
+        return getWindowManager().getDefaultDisplay().getDisplayId();
+    }
+
+    @Override
     public void showSection(@NonNull Section section) {
         goTo(section);
     }
@@ -704,6 +733,7 @@ public class MainActivity extends AppCompatActivity
         getWindow().setStatusBarColor(Color.TRANSPARENT);
         getWindow().setNavigationBarColor(Color.TRANSPARENT);
 
+        applyCutoutMode();
         WindowInsetsControllerCompat controller =
                 WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
         if (navChrome.windowClass() == WindowClass.WIDE) {
@@ -712,6 +742,27 @@ public class MainActivity extends AppCompatActivity
             controller.hide(WindowInsetsCompat.Type.systemBars());
         } else {
             controller.show(WindowInsetsCompat.Type.systemBars());
+        }
+    }
+
+    /**
+     * A wide window lays out under a cutout on any edge. With the short-edges mode UiHelper sets,
+     * a cutout on a long edge (the top of a landscape screen with the hole there, or of an
+     * emulator) letterboxes the whole window below it: a band across the full width, for a hole
+     * a fraction of it wide, over the rows the shelves need. The header's top padding is where
+     * such a hole sits. A compact window keeps short edges: its status bar covers the hole.
+     */
+    private void applyCutoutMode() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            return;
+        }
+        int mode = navChrome.windowClass() == WindowClass.WIDE
+                ? WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                : WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+        WindowManager.LayoutParams attrs = getWindow().getAttributes();
+        if (attrs.layoutInDisplayCutoutMode != mode) {
+            attrs.layoutInDisplayCutoutMode = mode;
+            getWindow().setAttributes(attrs);
         }
     }
 
@@ -740,10 +791,16 @@ public class MainActivity extends AppCompatActivity
             // all: before Android 11 the window keeps SYSTEM_UI_FLAG_LAYOUT_STABLE (set by
             // setDecorFitsSystemWindows, and by notifyNewRootView on Q), and with it hidden bars
             // still report their full size, which would leave black bands where they were.
-            int types = compact
-                    ? WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout()
-                    : WindowInsetsCompat.Type.displayCutout();
-            Insets bars = insets.getInsets(types);
+            // Nor is a cutout on the top or bottom edge (see applyCutoutMode): its inset is the
+            // depth of the hole across the whole width.
+            Insets bars;
+            if (compact) {
+                bars = insets.getInsets(WindowInsetsCompat.Type.systemBars()
+                        | WindowInsetsCompat.Type.displayCutout());
+            } else {
+                Insets cutout = insets.getInsets(WindowInsetsCompat.Type.displayCutout());
+                bars = Insets.of(cutout.left, 0, cutout.right, 0);
+            }
             v.setPadding(overscan.left + bars.left, overscan.top,
                     overscan.right + bars.right, overscan.bottom);
             railColumn.setPadding(0, railPaddingTop + bars.top, 0, bars.bottom);

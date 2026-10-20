@@ -39,6 +39,14 @@ public interface MainHost {
     @NonNull
     GameFocusListener gameFocus();
 
+    /**
+     * Whether the screen is driven by a d-pad first: a wide window with a companion panel or a
+     * gamepad attached (the Thor). Such a screen opens with a game focused, even though it
+     * starts in touch mode, so the companion panel has a game to show and the first press
+     * moves from somewhere visible.
+     */
+    boolean isDpadFirst();
+
     /** Switches to a section, checking its navigation item as a tap on it would. */
     void showSection(@NonNull Section section);
 

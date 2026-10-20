@@ -25,6 +25,7 @@ import com.limelight.main.MainHost;
 import com.limelight.main.Section;
 import com.limelight.main.SectionFocus;
 import com.limelight.main.SectionKeys;
+import com.limelight.main.WindowClass;
 
 import java.util.Collections;
 import java.util.List;
@@ -43,6 +44,17 @@ import java.util.Objects;
  *   StatePanelAdapter   offline, not paired, connecting, no games…                   (or none)
  *   ShelfAdapter        Recently played                                               (or none)
  *   ShelfAdapter        All games                  See all · N   …  [See all · N]     (or none)
+ * </pre>
+ *
+ * <h3>Shape</h3>
+ *
+ * The shelves take the window's shape ({@link #shapeShelves}):
+ *
+ * <pre>
+ *   wide window      two rows of tiles, their height capped so the header, the hero when there
+ *                    is one, and both shelves fit the window's height, down to a floor
+ *   compact window   Recently played a row, All games a three-column grid of three rows
+ *                    whose last cell is "See all", as the phone frame of the Shelves mock
  * </pre>
  *
  * Like See all it reads the shared {@code HostRepository}'s snapshot, launches through the
@@ -69,6 +81,10 @@ import java.util.Objects;
  *        ─▶ the panel's way out (Wake on an offline host) ─▶ the host chip
  * </pre>
  *
+ * A d-pad-first screen ({@link MainHost#isDpadFirst}) is given that focus at launch even
+ * though it starts in touch mode, once, so the companion panel shows a game rather than the
+ * host. Focus placed by this screen, and not moved since, moves up when a row earlier in the
+ * order arrives: the history behind Recently played is read after the games are listed.
  * Focus left on the chip only for want of anything else moves on when the games arrive; focus
  * in the content when the panel comes or goes is placed again by that order, which is how an
  * offline host lands the d-pad on Wake. Coming back from See all, focus returns to the tile that
@@ -95,6 +111,12 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
     private static final int TILE_POOL_SIZE = 24;
     // GameGridAdapter's one view type.
     private static final int TILE_VIEW_TYPE = 0;
+    // All games on a compact window: a grid of this many columns by rows.
+    private static final int COMPACT_GRID_COLUMNS = 3;
+    private static final int COMPACT_GRID_ROWS = 3;
+    // The shortest a tile gets to make two shelves fit a wide window; past it, the second shelf
+    // scrolls into view instead.
+    private static final int MIN_TILE_HEIGHT_DP = 80;
 
     private MainHost host;
 
@@ -134,6 +156,14 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
     // The panel came or went with focus in the content; place it again once laid out.
     private boolean focusNeedsPlacing;
     private boolean focusSettlePosted;
+    // A d-pad-first screen's launch focus, taken out of touch mode, is placed once.
+    private boolean launchFocusPlaced;
+    // The view this screen focused on its own, until the user moves off it: while it holds
+    // focus, a row that arrives ahead of it in the order (Recently played, once the history is
+    // read) takes the focus over.
+    @Nullable
+    private View placedFocus;
+    private boolean shapePosted;
 
     public LibraryHomeFragment() {
     }
@@ -167,7 +197,15 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
         recent = new ShelfAdapter(R.string.library_recently_played, tiles, this, null);
         all = new ShelfAdapter(R.string.library_all_games, tiles, this, this::openSeeAll);
 
-        list.setLayoutManager(new LinearLayoutManager(requireContext()));
+        list.setLayoutManager(new LinearLayoutManager(requireContext()) {
+            @Override
+            public void onLayoutCompleted(RecyclerView.State state) {
+                super.onLayoutCompleted(state);
+                // The rows above the shelves are laid out now, and their height is what the
+                // shelves have left; see shapeShelves.
+                shapeShelvesSoon();
+            }
+        });
         list.setAdapter(new ConcatAdapter(header, hero, panel, recent, all));
         // A row changes in place (the chip, a shelf's count); the default change animation would
         // swap the focused view for a new one while a poll lands.
@@ -245,6 +283,7 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
         focusAwaitingContent = false;
         focusNeedsPlacing = false;
         focusSettlePosted = false;
+        placedFocus = null;
         super.onDestroyView();
     }
 
@@ -256,6 +295,7 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
         if (hero != null && hero.getItemCount() > 0) {
             hero.notifyItemChanged(0);
         }
+        shapeShelvesSoon();
     }
 
     @Override
@@ -281,6 +321,56 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
     }
 
     // --- Drawing ---
+
+    private void shapeShelvesSoon() {
+        if (shapePosted || list == null) {
+            return;
+        }
+        shapePosted = true;
+        // Posted: a shelf's new shape asks for a layout, which is not to be asked during one.
+        list.post(() -> {
+            shapePosted = false;
+            shapeShelves();
+        });
+    }
+
+    /**
+     * Gives the shelves the window's shape (see the class comment). In a wide window the tiles'
+     * height is what the list's height leaves two shelves once the rows above them (the header,
+     * the hero, the state panel) and each shelf's own label and spacing are taken out. The rows
+     * above are measured as laid out, so the hero coming or going resizes the tiles.
+     */
+    private void shapeShelves() {
+        if (!isAdded() || list == null || recent == null || all == null) {
+            return;
+        }
+        boolean compact = WindowClass.from(getResources().getConfiguration().screenWidthDp)
+                == WindowClass.COMPACT;
+        if (compact) {
+            recent.setShape(0, 0, 0);
+            all.setShape(COMPACT_GRID_COLUMNS, COMPACT_GRID_ROWS, 0);
+            return;
+        }
+        int height = list.getHeight() - list.getPaddingTop() - list.getPaddingBottom();
+        if (height <= 0) {
+            return;
+        }
+        int above = 0;
+        for (int i = 0; i < list.getChildCount(); i++) {
+            View child = list.getChildAt(i);
+            if (!(list.getChildViewHolder(child) instanceof ShelfAdapter.Holder)) {
+                above += child.getHeight();
+            }
+        }
+        android.content.res.Resources res = getResources();
+        int shelfChrome = res.getDimensionPixelSize(R.dimen.action_size)
+                + res.getDimensionPixelSize(R.dimen.shelf_spacing)
+                + res.getDimensionPixelSize(R.dimen.see_all_tile_gap);
+        int floor = Math.round(MIN_TILE_HEIGHT_DP * res.getDisplayMetrics().density);
+        int tileHeight = Math.max(floor, (height - above) / 2 - shelfChrome);
+        recent.setShape(0, 0, tileHeight);
+        all.setShape(0, 0, tileHeight);
+    }
 
     private void render() {
         if (!isAdded() || getView() == null || list == null || header == null || hero == null
@@ -379,11 +469,18 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
                 return;
             }
             View focus = requireActivity().getCurrentFocus();
+            if (placedFocus != null && focus == placedFocus && !focusAwaitingContent) {
+                View first = contentTarget();
+                if (first != null && first != focus) {
+                    placeFocus(first);
+                }
+                return;
+            }
             if (focusAwaitingContent && focus != null && header.isChip(focus)) {
                 View content = contentTarget();
                 if (content != null) {
                     focusAwaitingContent = false;
-                    content.requestFocus();
+                    placeFocus(content);
                 }
                 return;
             }
@@ -392,12 +489,31 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
                 // Focus outside the section (the rail) is the user's, not ours to move.
                 if (focus == null || isInList(focus)) {
                     View target = initialTarget();
-                    if (target != null && target.requestFocus()) {
+                    if (target != null && placeFocus(target)) {
                         focusAwaitingContent = header.isChip(target);
                     }
                 }
             }
         });
+    }
+
+    /**
+     * Focuses the view. A d-pad-first screen still in touch mode at launch has its first game
+     * focused anyway, once: requestFocus would refuse in touch mode, and the companion panel
+     * would show only the host until the first press. The chip does not count: it is where focus
+     * waits for the games, not where it is meant to be.
+     */
+    private boolean placeFocus(@NonNull View target) {
+        boolean placed;
+        if (!launchFocusPlaced && target.isInTouchMode() && header != null
+                && !header.isChip(target) && host.isDpadFirst()) {
+            launchFocusPlaced = true;
+            placed = target.requestFocusFromTouch();
+        } else {
+            placed = target.requestFocus();
+        }
+        placedFocus = placed ? target : null;
+        return placed;
     }
 
     // --- Rows' callbacks ---
@@ -521,6 +637,9 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
     // --- Focus ---
 
     private void onFocusMoved(@Nullable View focus) {
+        if (focus != placedFocus) {
+            placedFocus = null;
+        }
         if (focus == null || header == null || hero == null || panel == null || recent == null
                 || all == null || !isInList(focus)) {
             return;

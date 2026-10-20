@@ -72,8 +72,8 @@ public final class HostCardBinder {
     public static final int ACTION_RESUME = 3;
 
     /**
-     * The colour of a host's status dot: the signal only for a host that is online and paired,
-     * the one state in which it can be played on. The Library's host chip and host sheet draw
+     * The colour of a host's status dot: green only for a host that is online and paired, the
+     * one state in which it can be played on. The Library's host chip and host sheet draw
      * their dots with it too, so a host looks the same wherever it is listed.
      */
     @ColorRes
@@ -82,7 +82,7 @@ public final class HostCardBinder {
             return R.color.content_faint;
         }
         return details.pairState == PairingManager.PairState.PAIRED
-                ? R.color.signal : R.color.content_muted;
+                ? R.color.status_online : R.color.content_muted;
     }
 
     /** What the dot means, in words: checking, offline, not paired or online. */
@@ -192,7 +192,7 @@ public final class HostCardBinder {
         final boolean checking = details.state == ComputerDetails.State.UNKNOWN;
         final boolean inGame = online && paired && details.runningGameId != 0;
 
-        // The state, as a dot and a line: online and paired is the only state worth the signal.
+        // The state, as a dot and a line: online and paired is the only state worth the green.
         final int dotColor = statusColor(details);
         final StringBuilder status = new StringBuilder(context.getString(statusLabel(details)));
 

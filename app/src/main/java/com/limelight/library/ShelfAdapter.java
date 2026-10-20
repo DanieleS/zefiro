@@ -46,6 +46,12 @@ import java.util.WeakHashMap;
  * "See all" tile is its layout's id. Stable ids are shared too: the game's app id, which is
  * what the shelf's focus memory keys on, and an id no app id can take for the "See all" tile.
  *
+ * <h3>Shape</h3>
+ *
+ * The home decides each shelf's shape from the window ({@link #setShape}): a row, with its tiles'
+ * height capped or not, or a grid of a few rows. A grid shows only as many games as fill its
+ * cells, the "See all" tile taking the last; a row shows them all.
+ *
  * <h3>Rows off screen</h3>
  *
  * A row scrolled off is cached or pooled by the outer list with the tiles still attached, which
@@ -75,6 +81,10 @@ final class ShelfAdapter extends RecyclerView.Adapter<ShelfAdapter.Holder> {
 
     private boolean shown;
     private int seeAllCount;
+    private List<LibraryApp> games = Collections.emptyList();
+    private int gridColumns;
+    private int gridRows;
+    private int maxTileHeightPx;
     @Nullable
     private Holder bound;
     // Every row whose shelf has `content` attached, on screen or not. Weak, so a row the outer
@@ -115,13 +125,11 @@ final class ShelfAdapter extends RecyclerView.Adapter<ShelfAdapter.Holder> {
      * @param seeAllCount how many games "See all" leads to; ignored on a shelf that leads nowhere
      */
     void submit(@NonNull List<LibraryApp> games, int seeAllCount) {
+        this.games = games;
         boolean show = !games.isEmpty();
         boolean countChanged = seeAllCount != this.seeAllCount;
         this.seeAllCount = seeAllCount;
-        tiles.submitList(games);
-        if (seeAllTile != null) {
-            seeAllTile.set(show, seeAllCount);
-        }
+        submitTiles();
         if (show != shown) {
             shown = show;
             if (show) {
@@ -132,6 +140,47 @@ final class ShelfAdapter extends RecyclerView.Adapter<ShelfAdapter.Holder> {
         } else if (show && countChanged && onSeeAll != null) {
             notifyItemChanged(0, PAYLOAD_LABEL);
         }
+    }
+
+    /**
+     * The shelf's shape: a grid of {@code columns} by {@code rows} when columns is above 0,
+     * otherwise a row whose tiles are at most {@code maxTileHeightPx} tall (0 for no cap).
+     */
+    void setShape(int columns, int rows, int maxTileHeightPx) {
+        boolean cellsChanged = columns != gridColumns || (columns > 0 && rows != gridRows);
+        gridColumns = columns;
+        gridRows = rows;
+        this.maxTileHeightPx = maxTileHeightPx;
+        for (Holder holder : holding) {
+            applyShape(holder);
+        }
+        if (cellsChanged) {
+            submitTiles();
+        }
+    }
+
+    private void applyShape(Holder holder) {
+        holder.shelf.setGridColumns(gridColumns);
+        holder.shelf.setMaxTileHeight(gridColumns > 0 ? 0 : maxTileHeightPx);
+    }
+
+    // The games that fit the shape, then the "See all" tile once they are in: added in the same
+    // pass it would be laid out before them, as the row's first tile, and open it scrolled.
+    private void submitTiles() {
+        List<LibraryApp> shownGames = games;
+        if (gridColumns > 0 && seeAllTile != null) {
+            int cells = gridColumns * gridRows - 1;
+            if (shownGames.size() > cells) {
+                shownGames = new ArrayList<>(shownGames.subList(0, Math.max(0, cells)));
+            }
+        }
+        final boolean show = !games.isEmpty();
+        final int count = seeAllCount;
+        tiles.submitList(shownGames, () -> {
+            if (seeAllTile != null) {
+                seeAllTile.set(show, count);
+            }
+        });
     }
 
     void refreshArt() {
@@ -220,6 +269,7 @@ final class ShelfAdapter extends RecyclerView.Adapter<ShelfAdapter.Holder> {
             holder.shelf.setAdapter(content);
             holding.add(holder);
         }
+        applyShape(holder);
         if (onSeeAll != null) {
             holder.link.setText(holder.itemView.getContext()
                     .getString(R.string.library_see_all_count, seeAllCount));

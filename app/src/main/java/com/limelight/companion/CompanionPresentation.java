@@ -13,6 +13,7 @@ import android.text.SpannableStringBuilder;
 import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.view.Display;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -70,12 +71,15 @@ import java.util.List;
 public class CompanionPresentation extends android.app.Presentation
         implements CompanionState.Listener, TelemetryStream.Listener {
 
-    /** Matches the padding on the idle surface in @layout/companion_surface. */
-    private static final int IDLE_PADDING_DP = 28;
+    /** Matches the side padding on the idle surface in @layout/companion_surface. */
+    private static final int IDLE_PADDING_DP = 32;
 
     private final CompanionState state;
 
     private View idleView;
+    private LinearLayout idleColumnView;
+    private View idleLabelView;
+    private View idleSpacerView;
     private TextView idleTitleView;
     private TextView idleMetaView;
     private TextView idleDescriptionView;
@@ -251,6 +255,9 @@ public class CompanionPresentation extends android.app.Presentation
 
         setContentView(R.layout.companion_surface);
         idleView = findViewById(R.id.companionIdle);
+        idleColumnView = findViewById(R.id.companionIdleColumn);
+        idleLabelView = findViewById(R.id.companionIdleLabel);
+        idleSpacerView = findViewById(R.id.companionIdleSpacer);
         idleTitleView = findViewById(R.id.companionIdleTitle);
         idleMetaView = findViewById(R.id.companionIdleMeta);
         idleDescriptionView = findViewById(R.id.companionIdleDescription);
@@ -396,6 +403,10 @@ public class CompanionPresentation extends android.app.Presentation
                 } else {
                     showSpotlight(browsing.title, browsing.meta, browsing.descriptionHtml,
                             browsing.backdrop);
+                    // "Focused" names a game the d-pad is on; a host is the fallback, unlabelled.
+                    idleLabelView.setVisibility(browsing.kind == CompanionState.Browsing.Kind.GAME
+                            && browsing.title != null && !browsing.title.isEmpty()
+                            ? View.VISIBLE : View.GONE);
                 }
                 return;
             case STREAMING:
@@ -666,12 +677,18 @@ public class CompanionPresentation extends android.app.Presentation
         boolean spotlightChanged = !TextUtils.equals(title, renderedTitle);
         renderedTitle = title;
 
+        idleLabelView.setVisibility(View.GONE);
         if (title == null || title.isEmpty()) {
+            // Nothing to show: the app name alone, in the middle of the panel.
+            idleColumnView.setGravity(Gravity.CENTER);
+            idleSpacerView.setVisibility(View.GONE);
             idleTitleView.setText(R.string.app_label);
             idleMetaView.setVisibility(View.GONE);
             idleDescriptionScrollView.setVisibility(View.GONE);
             return;
         }
+        // A game or a host reads from the top left, its actions at the foot of the column.
+        idleColumnView.setGravity(Gravity.TOP | Gravity.START);
 
         idleTitleView.setText(title);
 
@@ -688,14 +705,16 @@ public class CompanionPresentation extends android.app.Presentation
             renderedDescriptionHtml = html;
             // The images belong to the description being replaced: let them go with it.
             descriptionImages.reset();
-            CharSequence description = toRichText(html);
-            idleDescriptionView.setText(description);
-            idleDescriptionScrollView.setVisibility(
-                    description.length() == 0 ? View.GONE : View.VISIBLE);
+            idleDescriptionView.setText(toRichText(html));
         } else {
             // Coming back from a stream, the images are still the right ones: play them again.
             descriptionImages.setAnimating(true);
         }
+        // From the text drawn, not only when it changes: the bare panel hid it in between.
+        // Without one, the spacer keeps the actions at the foot of the column.
+        boolean hasDescription = idleDescriptionView.getText().length() > 0;
+        idleDescriptionScrollView.setVisibility(hasDescription ? View.VISIBLE : View.GONE);
+        idleSpacerView.setVisibility(hasDescription ? View.GONE : View.VISIBLE);
         if (spotlightChanged) {
             idleDescriptionScrollView.scrollTo(0, 0);
         }
@@ -717,6 +736,19 @@ public class CompanionPresentation extends android.app.Presentation
         }
     }
 
+    /** The name of the PC with this uuid in the hosts row; null when it is not there. */
+    private static String hostName(List<CompanionState.HostChip> hosts, String uuid) {
+        if (hosts == null || uuid == null) {
+            return null;
+        }
+        for (CompanionState.HostChip host : hosts) {
+            if (uuid.equals(host.uuid)) {
+                return host.name;
+            }
+        }
+        return null;
+    }
+
     /**
      * Play, or Resume and Quit game, for a browsed game; and the hosts row under any browsing.
      * Both are left out when no screen has registered to act on them: a button that does
@@ -734,7 +766,14 @@ public class CompanionPresentation extends android.app.Presentation
         shownBrowsing = actionable ? browsing : null;
 
         if (actionable && browsing.hasGame()) {
-            playLabelView.setText(browsing.running ? R.string.library_resume : R.string.companion_play);
+            String hostName = hostName(hosts, browsing.hostUuid);
+            if (browsing.running) {
+                playLabelView.setText(R.string.library_resume);
+            } else if (hostName != null) {
+                playLabelView.setText(getContext().getString(R.string.companion_play_on, hostName));
+            } else {
+                playLabelView.setText(R.string.companion_play);
+            }
             quitView.setVisibility(browsing.running ? View.VISIBLE : View.GONE);
             actionsView.setVisibility(View.VISIBLE);
         } else {
@@ -760,7 +799,7 @@ public class CompanionPresentation extends android.app.Presentation
             // The PC card's dot, in the PC card's colours: a host looks the same wherever it is.
             ViewCompat.setBackgroundTintList(chip.findViewById(R.id.companionHostDot),
                     ColorStateList.valueOf(ContextCompat.getColor(context,
-                            host.online ? R.color.signal : R.color.content_faint)));
+                            host.online ? R.color.status_online : R.color.content_faint)));
             chip.setSelected(host.selected);
             String status = context.getString(host.online
                     ? R.string.pcview_status_online : R.string.pcview_status_offline);

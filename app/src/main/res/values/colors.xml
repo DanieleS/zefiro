@@ -48,6 +48,12 @@
     <!-- The signal. -->
     <color name="signal">#FF4FC3F7</color>
 
+    <!--
+        A PC that is online and paired, as its status dot: green, as in the approved mocks, so
+        "this PC can be played on" never reads as the signal's "this is focused" or "running".
+    -->
+    <color name="status_online">#FF7EE08A</color>
+
     <!-- The signal, thinned to a wash, for the moment a focused tile is pressed. -->
     <color name="signal_wash">#334FC3F7</color>
 

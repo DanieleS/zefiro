@@ -834,6 +834,9 @@
     <!-- The companion panel while browsing: the focused game's start button, and a PC chip on
          the hosts row as a screen reader says it ("Taverna, Online"). -->
     <string name="companion_play">Play</string>
+    <string name="companion_play_on">Start on %1$s</string>
+    <string name="companion_focused">Focused</string>
+    <string name="companion_hosts">Hosts</string>
     <string name="companion_host_a11y">%1$s, %2$s</string>
     <string name="companion_host_selected_a11y">%1$s, %2$s, selected</string>
     <string name="action_companion_show">Show companion screen</string>
