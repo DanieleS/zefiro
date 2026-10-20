@@ -34,6 +34,21 @@ public final class StreamCapabilities {
         }
     }
 
+    /**
+     * A way the touchscreen can drive the host's mouse, as the Mouse mode page offers it: its
+     * index in {@code R.array.mouse_mode_names} (what Game applies and remembers) and its name.
+     */
+    public static final class MouseMode {
+        public final int index;
+        @NonNull
+        public final String label;
+
+        public MouseMode(int index, @NonNull String label) {
+            this.index = index;
+            this.label = label;
+        }
+    }
+
     /** A shortcut the user imported in the settings: a name and the keys it presses. */
     public static final class CustomKey {
         @NonNull
@@ -71,6 +86,11 @@ public final class StreamCapabilities {
     public final Locale locale;
 
     public final boolean allowChangeMouseMode;
+    /** The modes this display allows, in the order offered; empty when it cannot change. */
+    @NonNull
+    public final List<MouseMode> mouseModes;
+    /** The index of the mode in use, or -1 when none was applied yet this session. */
+    public final int currentMouseMode;
     public final boolean onExternalDisplay;
     public final boolean companionConfigured;
     public final boolean companionShowing;
@@ -102,6 +122,8 @@ public final class StreamCapabilities {
         bitrateChosenKbps = b.bitrateChosenKbps;
         locale = b.locale;
         allowChangeMouseMode = b.allowChangeMouseMode;
+        mouseModes = Collections.unmodifiableList(new ArrayList<>(b.mouseModes));
+        currentMouseMode = b.currentMouseMode;
         onExternalDisplay = b.onExternalDisplay;
         companionConfigured = b.companionConfigured;
         companionShowing = b.companionShowing;
@@ -170,6 +192,8 @@ public final class StreamCapabilities {
         private int bitrateChosenKbps;
         private Locale locale = Locale.getDefault();
         private boolean allowChangeMouseMode;
+        private List<MouseMode> mouseModes = Collections.emptyList();
+        private int currentMouseMode = -1;
         private boolean onExternalDisplay;
         private boolean companionConfigured;
         private boolean companionShowing;
@@ -208,6 +232,13 @@ public final class StreamCapabilities {
 
         public Builder allowChangeMouseMode(boolean v) {
             allowChangeMouseMode = v;
+            return this;
+        }
+
+        /** The modes the Mouse mode page lists, and which of them is in use (-1: none yet). */
+        public Builder mouseModes(@NonNull List<MouseMode> modes, int current) {
+            mouseModes = modes;
+            currentMouseMode = current;
             return this;
         }
 

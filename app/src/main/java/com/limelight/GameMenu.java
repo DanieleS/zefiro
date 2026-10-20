@@ -15,11 +15,13 @@ import com.limelight.bitrate.LiveBitrate;
 import com.limelight.companion.CompanionDisplayManager;
 import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.stream.CompanionListSurface;
+import com.limelight.stream.ControlsInputRouter;
 import com.limelight.stream.ControlsSurface;
 import com.limelight.stream.MenuSheetSurface;
 import com.limelight.stream.StreamAction;
 import com.limelight.stream.StreamActions;
 import com.limelight.stream.StreamCapabilities;
+import com.limelight.stream.StreamControlsPanel;
 import com.limelight.utils.CaptureTool;
 
 import java.util.ArrayList;
@@ -35,12 +37,17 @@ import java.util.List;
  * <h3>Which surface</h3>
  *
  * <pre>
- *   opened for the external display's phone   the centred sheet, on that phone
  *   companion panel showing                   the panel's list, so the game stays whole
- *   otherwise                                 the centred sheet, over the game
+ *   opened for the external display's phone   the centred sheet, on that phone
+ *   otherwise                                 the side panel, over the game
  * </pre>
  *
- * Chosen again on every open, since the panel can come and go mid-stream.
+ * Chosen again on every open, since the companion panel can come and go mid-stream.
+ *
+ * <h3>Open and closed</h3>
+ *
+ * Whatever surface is up owns the pad and the keys ({@link ControlsInputRouter}); Game is told
+ * when one comes up and when it goes, so it can let go of the host's input and take it back.
  */
 public class GameMenu implements Game.GameMenuCallbacks, ControlsSurface.Callbacks {
 
@@ -76,8 +83,11 @@ public class GameMenu implements Game.GameMenuCallbacks, ControlsSurface.Callbac
     private final Context dialogScreenContext;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
-    private final ControlsSurface sheetSurface;
+    /** Over the game: the side panel. From the external display's phone: the centred sheet. */
+    private final ControlsSurface mainSurface;
     private final ControlsSurface companionSurface;
+    // The surface the open tree is on, for what differs between them; null while none is.
+    private ControlsSurface activeSurface;
 
     // What the open tree was built from, for what the tree only points at by index or flag.
     private List<MenuOption> deviceOptions = Collections.emptyList();
@@ -87,7 +97,13 @@ public class GameMenu implements Game.GameMenuCallbacks, ControlsSurface.Callbac
     public GameMenu(Game game, Context dialogScreenContext) {
         this.game = game;
         this.dialogScreenContext = dialogScreenContext;
-        this.sheetSurface = new MenuSheetSurface(dialogScreenContext, this);
+        if (dialogScreenContext == game) {
+            StreamControlsPanel panel = game.getControlsPanel();
+            panel.bind(this);
+            this.mainSurface = panel;
+        } else {
+            this.mainSurface = new MenuSheetSurface(dialogScreenContext, this);
+        }
         this.companionSurface = new CompanionListSurface(game.getResources(), this);
     }
 
@@ -108,8 +124,14 @@ public class GameMenu implements Game.GameMenuCallbacks, ControlsSurface.Callbac
 
         boolean overGame = dialogScreenContext == game;
         ControlsSurface surface = overGame && CompanionDisplayManager.isShowing()
-                ? companionSurface : sheetSurface;
+                ? companionSurface : mainSurface;
+        activeSurface = surface;
         surface.open(StreamActions.build(caps));
+        if (surface.isOpen()) {
+            game.onControlsOpened();
+        } else {
+            activeSurface = null;
+        }
     }
 
     private StreamCapabilities capture(PreferenceConfiguration prefs) {
@@ -122,6 +144,7 @@ public class GameMenu implements Game.GameMenuCallbacks, ControlsSurface.Callbac
                 .captureEnabled(captureTool.isEnabled())
                 .locale(game.getResources().getConfiguration().locale)
                 .allowChangeMouseMode(game.allowChangeMouseMode)
+                .mouseModes(game.getMouseModes(), game.getMouseModeIndex())
                 .onExternalDisplay(game.isOnExternalDisplay())
                 .companion(CompanionDisplayManager.isConfigured(game), CompanionDisplayManager.isShowing())
                 .companionAppSupported(game.isCompanionAppSupported())
@@ -147,8 +170,9 @@ public class GameMenu implements Game.GameMenuCallbacks, ControlsSurface.Callbac
     @Override
     public boolean onPageOpening(@NonNull StreamAction page) {
         if (page.id == StreamAction.Id.SERVER_COMMANDS && page.children != null
-                && page.children.isEmpty()) {
-            // Said in a dialog, as it always was; the side panel will say it on a page instead.
+                && page.children.isEmpty() && !(activeSurface instanceof StreamControlsPanel)) {
+            // The side panel says it on the page itself; the sheet and the companion's list
+            // have nowhere to put a paragraph, so they say it in a dialog, as it always was.
             Context themedContext = new ContextThemeWrapper(dialogScreenContext,
                     game.getApplicationInfo().theme);
             new MaterialAlertDialogBuilder(themedContext, R.style.ThemeOverlay_Zefiro_MaterialAlertDialog)
@@ -189,8 +213,11 @@ public class GameMenu implements Game.GameMenuCallbacks, ControlsSurface.Callbac
             case GAMEPAD:
                 game.toggleVirtualController();
                 break;
-            case MOUSE_MODE:
-                game.selectMouseMode(dialogScreenContext);
+            case MOUSE_MODE_CHOICE:
+                game.chooseMouseMode(action.arg);
+                break;
+            case LOCAL_CURSOR:
+                game.toggleMouseLocalCursor();
                 break;
             case DEVICE_OPTION:
                 if (action.arg < deviceOptions.size()) {
@@ -281,7 +308,8 @@ public class GameMenu implements Game.GameMenuCallbacks, ControlsSurface.Callbac
     /**
      * Run once the game window has focus again. The centred sheet is a Dialog and takes it while
      * up; keys injected before it is back are lost, and a dialog opened before it would be
-     * dismissed by the focus change. Polled, since there is no callback for it here.
+     * dismissed by the focus change. Polled, since there is no callback for it here. The side
+     * panel never takes the focus, so from it this runs at once.
      */
     private void runWithGameFocus(Runnable runnable) {
         if (game.isFinishing()) {
@@ -294,24 +322,32 @@ public class GameMenu implements Game.GameMenuCallbacks, ControlsSurface.Callbac
         runnable.run();
     }
 
+    @Override
+    public void onClosed() {
+        if (!isMenuOpen()) {
+            activeSurface = null;
+            game.onControlsClosed();
+        }
+    }
+
     /** Hand a surface's input to whichever surface is open. Main thread only. */
     @Override
     public boolean onNav(ControlsSurface.Nav nav) {
         if (companionSurface.isOpen()) {
             return companionSurface.onNav(nav);
         }
-        return sheetSurface.onNav(nav);
+        return mainSurface.onNav(nav);
     }
 
     @Override
     public void hideMenu() {
-        sheetSurface.close();
+        mainSurface.close();
         // Also when this menu did not open it: the panel's menu is shut on any hide, as before.
         companionSurface.close();
     }
 
     @Override
     public boolean isMenuOpen() {
-        return sheetSurface.isOpen() || companionSurface.isOpen();
+        return mainSurface.isOpen() || companionSurface.isOpen();
     }
 }

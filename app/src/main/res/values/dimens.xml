@@ -193,4 +193,16 @@
     <dimen name="menu_sheet_anchor_gap">4dp</dimen>
     <dimen name="menu_sheet_window_margin">12dp</dimen>
 
+    <!--
+        The in-stream side panel, after the approved Stream mock: at most 360dp wide (less on a
+        narrow window, see StreamControlsPanel), tiles 56dp tall so each is a comfortable touch
+        target, 6dp apart, rounded between the rows' 10dp and the panels' 16dp. The panel
+        itself is square, as in the mock.
+    -->
+    <dimen name="controls_panel_max_width">360dp</dimen>
+    <dimen name="controls_panel_padding">14dp</dimen>
+    <dimen name="controls_tile_height">56dp</dimen>
+    <dimen name="controls_tile_corner">12dp</dimen>
+    <dimen name="controls_tile_gap">6dp</dimen>
+
 </resources>

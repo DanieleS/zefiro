@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A stream-controls tile (and the Disconnect button), after the approved Stream mock: a
+    raised-by-a-hair surface, the signal container while its toggle is on. Focus is the
+    signal ring and a press fills it with the wash, as on every other control.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:exitFadeDuration="120">
+
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/controls_tile_corner" />
+            <solid android:color="@color/signal_wash" />
+            <stroke
+                android:width="@dimen/tile_focus_stroke"
+                android:color="@color/signal" />
+        </shape>
+    </item>
+
+    <!-- A toggle that is on: the signal sunk into its container. -->
+    <item android:state_focused="true" android:state_activated="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/controls_tile_corner" />
+            <solid android:color="@color/signal_container" />
+            <stroke
+                android:width="@dimen/tile_focus_stroke"
+                android:color="@color/signal" />
+        </shape>
+    </item>
+
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/controls_tile_corner" />
+            <solid android:color="@color/surface" />
+            <stroke
+                android:width="@dimen/tile_focus_stroke"
+                android:color="@color/signal" />
+        </shape>
+    </item>
+
+    <item android:state_activated="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/controls_tile_corner" />
+            <solid android:color="@color/signal_container" />
+        </shape>
+    </item>
+
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/controls_tile_corner" />
+            <solid android:color="@color/surface" />
+        </shape>
+    </item>
+
+</selector>

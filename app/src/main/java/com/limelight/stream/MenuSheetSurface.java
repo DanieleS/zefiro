@@ -10,9 +10,9 @@ import androidx.annotation.NonNull;
 import com.limelight.ui.MenuSheet;
 
 /**
- * The controls as the centred {@link MenuSheet}: over the game on a phone or tablet, and on the
- * phone that drives an external display. One page at a time, each a fresh sheet, as the old menu
- * drew its submenus.
+ * The controls as the centred {@link MenuSheet}, on the phone that drives an external display
+ * (over the game itself, the side panel draws them instead). One page at a time, each a fresh
+ * sheet, as the old menu drew its submenus.
  *
  * <p>The sheet is a Dialog, so it takes the window focus from the game while up; the router runs
  * focus-bound actions only once the game has it back. Main thread only.

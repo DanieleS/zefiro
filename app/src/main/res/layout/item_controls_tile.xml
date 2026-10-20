@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    One of the stream controls' four tiles: an icon over a short label, the mock's .tile.
+    Activated while its toggle is on, which turns the ground to the signal's container and the
+    content to the signal (@color/controls_tile_content).
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="0dp"
+    android:layout_height="@dimen/controls_tile_height"
+    android:layout_weight="1"
+    android:background="@drawable/controls_tile_bg"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:paddingLeft="4dp"
+    android:paddingRight="4dp">
+
+    <ImageView
+        android:id="@+id/controlsTileIcon"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:duplicateParentState="true"
+        android:importantForAccessibility="no"
+        android:tint="@color/controls_tile_content" />
+
+    <TextView
+        android:id="@+id/controlsTileLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="5dp"
+        android:duplicateParentState="true"
+        android:ellipsize="end"
+        android:singleLine="true"
+        android:textColor="@color/controls_tile_content"
+        android:textSize="11sp" />
+
+</LinearLayout>

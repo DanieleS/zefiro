@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Quit game in the stream controls: the mock's .warn tile, the one danger hue sunk into its
+    container so it stands apart from Disconnect without shouting. Focus is still the
+    signal ring: focus never changes colour with what it lands on.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:exitFadeDuration="120">
+
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/controls_tile_corner" />
+            <solid android:color="@color/signal_wash" />
+            <stroke
+                android:width="@dimen/tile_focus_stroke"
+                android:color="@color/signal" />
+        </shape>
+    </item>
+
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/controls_tile_corner" />
+            <solid android:color="@color/danger_container" />
+            <stroke
+                android:width="@dimen/tile_focus_stroke"
+                android:color="@color/signal" />
+        </shape>
+    </item>
+
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/controls_tile_corner" />
+            <solid android:color="@color/danger_container" />
+        </shape>
+    </item>
+
+</selector>

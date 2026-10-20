@@ -134,7 +134,6 @@ public class PreferenceConfiguration {
 
     private static final String CHECKBOX_ENABLE_QUIT_DIALOG = "checkbox_enable_quit_dialog";
 
-    private static final String CHECKBOX_ENABLE_FLOATING_BUTTON = "checkbox_enable_floating_button";
 
     private static final String CHECKBOX_SHOW_OVERLAY_ZOOM_TOGGLE_BUTTON = "checkbox_show_overlay_zoom_toggle_button";
 
@@ -229,7 +228,6 @@ public class PreferenceConfiguration {
     private static final boolean DEFAULT_SEND_META_ON_PHYSICAL_BACK = false;
     private static final boolean DEFAULT_RIGHT_ALT_AS_META = false;
     private static final boolean DEFAULT_IGNORE_SYNTH_EVENTS = false;
-    private static final boolean DEFAULT_ENABLE_FLOATING_BUTTON = false;
     private static final boolean DEFAULT_BACK_AS_GUIDE = false;
     private static final boolean DEFAULT_SMART_CLIPBOARD_SYNC = false;
     private static final boolean DEFAULT_SMART_CLIPBOARD_SYNC_TOAST = true;
@@ -319,7 +317,6 @@ public class PreferenceConfiguration {
     public boolean enableLatencyToast;
     public boolean vsyncTargetPresent;
     public boolean enableBackMenu;
-    public boolean enableFloatingButton;
     public boolean showOverlayZoomToggleButton;
 
     //Invert video width/height
@@ -1003,7 +1000,6 @@ private static int getFramePacingValue(Context context) {
         config.enableLatencyToast = prefs.getBoolean(LATENCY_TOAST_PREF_STRING, DEFAULT_LATENCY_TOAST);
         config.vsyncTargetPresent = prefs.getBoolean(VSYNC_TARGET_PREF_STRING, DEFAULT_VSYNC_TARGET);
         config.enableBackMenu = prefs.getBoolean(CHECKBOX_ENABLE_QUIT_DIALOG,true);
-        config.enableFloatingButton = prefs.getBoolean(CHECKBOX_ENABLE_FLOATING_BUTTON,DEFAULT_ENABLE_FLOATING_BUTTON);
         config.showOverlayZoomToggleButton = prefs.getBoolean(CHECKBOX_SHOW_OVERLAY_ZOOM_TOGGLE_BUTTON, DEFAULT_SHOW_OVERLAY_TOGGLE_BUTTON);
         config.autoOrientation = prefs.getBoolean(CHECKBOX_AUTO_ORIENTATION,false);
         config.autoInvertVideoResolution = prefs.getBoolean(AUTO_INVERT_VIDEO_RESOLUTION_PREF_STRING, DEFAULT_AUTO_INVERT_VIDEO_RESOLUTION);

@@ -129,4 +129,13 @@
     <color name="hero_scrim_start">#E6000000</color>
     <color name="hero_scrim_end">#59000000</color>
 
+    <!--
+        The in-stream side panel (StreamControlsPanel). The scrim is the mock's 35% black: the
+        game stays readable behind it, so the panel reads as laid over a running stream rather
+        than as a screen of its own. The edge handle is a white pill whose alpha is set where it
+        is drawn, faint at rest and full under the finger.
+    -->
+    <color name="controls_scrim">#59000000</color>
+    <color name="edge_handle">#FFF2F5F8</color>
+
 </resources>

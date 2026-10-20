@@ -4,9 +4,9 @@ import androidx.annotation.NonNull;
 
 /**
  * Somewhere the {@link StreamActions} tree is drawn and driven: the centred sheet, the companion
- * panel's list, and later the phone's side panel and the Thor bottom sheet. The router
- * (GameMenu) picks one each time the controls open and talks to it only through this, so a new
- * surface never touches what the entries do.
+ * panel's list, the phone's side panel ({@link StreamControlsPanel}), and later the Thor bottom
+ * sheet. The router (GameMenu) picks one each time the controls open and talks to it only
+ * through this, so a new surface never touches what the entries do.
  *
  * <p>A surface keeps its own page stack: choosing a page shows it on the same surface, and
  * {@link #back()} returns to the page before, closing only from the first. Main thread only, all
@@ -27,6 +27,13 @@ public interface ControlsSurface {
 
         /** A leaf was chosen. The surface has already closed, so the action owns the screen. */
         void onLeaf(@NonNull StreamAction leaf);
+
+        /**
+         * The surface went down, however it was closed: from its first page, by a leaf (just
+         * before {@link #onLeaf}), or by the router. Only when it was showing something.
+         */
+        default void onClosed() {
+        }
     }
 
     /** Show the tree's root page, replacing whatever the surface showed. */

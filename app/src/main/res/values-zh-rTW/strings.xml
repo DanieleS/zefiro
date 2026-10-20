@@ -445,8 +445,6 @@
 	<string name="title_quit_dialog">返回選單</string>
 	<string name="summary_quit_dialog">啟用後，在串流介面按下實體返回鍵會顯示相關選項！\n軟體鍵盤、效能資訊、觸控模式切換、傳送特殊按鍵</string>
 
-	<string name="title_floating_button">浮動按鈕</string>
-	<string name="summary_floating_button">啟用浮動按鈕</string>
 
 	<string name="dialog_custom_resolution">設定解析度並離開設定頁面後生效！</string>
 	<string name="summary_custom_resolution">新增自訂解析度，以 x 分隔；不常見的解析度可能無法運作。\n例如：1920x1080\n若非原生解析度，預設可能不會填滿瀏海區域。若長寬比相同，可手動設定拉伸畫面以全螢幕顯示。</string>

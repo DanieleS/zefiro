@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The in-stream side panel: true black, so on the OLED panels it is pixels off beside the
+    game. Square, as the approved Stream mock draws it: it is a strip of the screen given over
+    to the controls, not a card floating on the game.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/surface_deep" />
+</shape>

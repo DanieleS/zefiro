@@ -22,7 +22,8 @@ import java.util.List;
  *   List     Screenshot (capture tool on) · Bitrate▸ (live bitrate) · Special keys▸ · More▸
  *   Danger   Disconnect · Quit game
  *
- *   Mouse▸         Select mouse mode (if allowed) · the gamepad's own options
+ *   Mouse▸         Mouse mode▸ (if allowed) · the gamepad's own options
+ *   Mouse mode▸    the modes this display allows · toggle the local cursor
  *   Bitrate▸       Adaptive on/off · the bitrate ladder
  *   Special keys▸  14 built-in combos (unless cleared) · the user's imported shortcuts
  *   More▸          clipboard up/down · Server commands▸ · pan/zoom · rotate · companion screen ·
@@ -144,7 +145,8 @@ public final class StreamActions {
         List<StreamAction> page = new ArrayList<>();
         if (caps.allowChangeMouseMode) {
             page.add(StreamAction.of(Id.MOUSE_MODE, Group.LIST)
-                    .label(R.string.game_menu_select_mouse_mode).withGameFocus().build());
+                    .label(R.string.game_menu_select_mouse_mode)
+                    .children(mouseModePage(caps)).build());
         }
         // The gamepad's own entries (its mouse emulation), only when the controls were opened
         // from one: they act on that pad.
@@ -157,6 +159,26 @@ public final class StreamActions {
             }
             page.add(b.build());
         }
+        return page;
+    }
+
+    /**
+     * The modes this display allows, the one in use checked, then the local cursor's toggle. A
+     * page rather than the dialog it used to be, so it is walked like every other page and the
+     * side panel never has to hand the screen to a window of its own.
+     *
+     * <p>Both wait for the game: the cursor's toggle asks for pointer capture, which only a
+     * focused window gets, and a mode change cancels the touches in flight on the stream.
+     */
+    private static List<StreamAction> mouseModePage(StreamCapabilities caps) {
+        List<StreamAction> page = new ArrayList<>();
+        for (StreamCapabilities.MouseMode mode : caps.mouseModes) {
+            page.add(StreamAction.of(Id.MOUSE_MODE_CHOICE, Group.LIST)
+                    .text(mode.label).arg(mode.index)
+                    .checked(mode.index == caps.currentMouseMode).withGameFocus().build());
+        }
+        page.add(StreamAction.of(Id.LOCAL_CURSOR, Group.LIST)
+                .label(R.string.toggle_local_mouse_cursor).withGameFocus().build());
         return page;
     }
 
@@ -198,8 +220,9 @@ public final class StreamActions {
         page.add(more(Id.CLIPBOARD_UPLOAD, R.string.game_menu_upload_clipboard).withGameFocus().build());
         page.add(more(Id.CLIPBOARD_FETCH, R.string.game_menu_fetch_clipboard).withGameFocus().build());
 
-        // A page even when the host sent none: the router says so there, rather than the entry
-        // vanishing and leaving people to wonder where it went.
+        // A page even when the host sent none: the surface says so there (the side panel on the
+        // page, the others in a dialog), rather than the entry vanishing and leaving people to
+        // wonder where it went.
         List<StreamAction> cmds = new ArrayList<>();
         for (int i = 0; i < caps.serverCmds.size(); i++) {
             cmds.add(StreamAction.of(Id.SERVER_COMMAND, Group.LIST)

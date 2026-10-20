@@ -394,8 +394,6 @@
     <string name="title_virtual_trackpad_settings">虚拟触摸板设置</string>
     <string name="title_quit_dialog">返回菜单</string>
     <string name="summary_quit_dialog">启用返回菜单</string>
-    <string name="title_floating_button">悬浮按钮</string>
-    <string name="summary_floating_button">启用悬浮按钮</string>
     <string name="dialog_custom_resolution">设置完分辨率后，退出设置页面 重新打开生效！</string>
     <string name="summary_custom_resolution">添加一个自定义分辨率,x号分割,比较奇怪的分辨率可能无法生效。
             \n例如：1920x1080

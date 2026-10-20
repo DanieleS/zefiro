@@ -12,8 +12,8 @@ import java.util.ArrayDeque;
  *   open(root)      [root]              render(root)
  *   activate(page)  [root, page]        render(page)
  *   back()          [root]              render(root)
- *   back()          []                  dismissView()
- *   activate(leaf)  []                  dismissView(), then the router runs it
+ *   back()          []                  dismissView(), onClosed()
+ *   activate(leaf)  []                  dismissView(), onClosed(), then the router runs it
  * </pre>
  */
 abstract class PagedSurface implements ControlsSurface {
@@ -49,8 +49,17 @@ abstract class PagedSurface implements ControlsSurface {
 
     @Override
     public void close() {
+        boolean wasShowing = !pages.isEmpty();
         pages.clear();
         dismissView();
+        if (wasShowing) {
+            callbacks.onClosed();
+        }
+    }
+
+    /** Whether the page shown is the tree's root, which has no page to go back to. */
+    protected final boolean isOnRootPage() {
+        return pages.size() <= 1;
     }
 
     /** A row of the shown page was chosen. */

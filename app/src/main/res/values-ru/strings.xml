@@ -376,8 +376,6 @@
     <string name="title_virtual_trackpad_settings">Настройки виртуального трекпада</string>
     <string name="title_quit_dialog">Быстрое меню</string>
     <string name="summary_quit_dialog">При включении нажатие физической кнопки Back в интерфейсе стрима покажет связанные опции!\nЭкранная клавиатура, инфо о производительности, переключение режима ввода, отправка спец-клавиш</string>
-    <string name="title_floating_button">Плавающая кнопка</string>
-    <string name="summary_floating_button">Включить плавающую кнопку</string>
     <string name="dialog_custom_resolution">Установите разрешение и выйдите из настроек для применения!</string>
     <string name="summary_custom_resolution">Добавьте пользовательское разрешение, разделённое знаком X, нестандартные разрешения могут не работать.\nНапример: 1920×1080\nЕсли разрешение не является нативным, оно по умолчанию может не заполнять область выреза. Если соотношение сторон совпадает, вы можете вручную настроить растягивание экрана на полный экран</string>
     <string name="title_custom_resolution">Пользовательское разрешение</string>

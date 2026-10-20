@@ -49,20 +49,6 @@
         android:preferKeepClear="true"
         android:visibility="gone" />
 
-    <!-- Floating Menu Button -->
-    <ImageButton
-        android:id="@+id/floatingMenuButton"
-        android:layout_width="36dp"
-        android:layout_height="36dp"
-        android:layout_gravity="top|start"
-        android:layout_marginTop="24dp"
-        android:background="@drawable/floating_menu_button"
-        android:contentDescription="@string/menu_button"
-        android:src="@drawable/ic_menu"
-        android:padding="6dp"
-        android:visibility="gone"
-        android:elevation="9999dp" />
-
     <ImageButton
         android:id="@+id/overlayToggleZoomButton"
         android:layout_width="36dp"
@@ -76,6 +62,28 @@
         android:contentDescription="@string/toggle_pan_zoom_mode"
         android:visibility="gone"
         android:elevation="9999dp" />
+
+    <!-- The way into the stream controls on a phone: a pill on the right edge, in a 24 x 120dp
+         touch zone that takes only its own touches (see EdgeHandleView). Above the on-screen
+         controller and keyboards, which carry no elevation, and under the connection scene. -->
+    <com.limelight.stream.EdgeHandleView
+        android:id="@+id/controlsHandle"
+        android:layout_width="24dp"
+        android:layout_height="120dp"
+        android:layout_gravity="right|center_vertical"
+        android:elevation="100dp"
+        android:visibility="gone" />
+
+    <!-- The stream controls on a phone (StreamControlsPanel). Over everything the stream draws,
+         the zoom toggle's 9999dp and the connection scene included: while it is open it is the
+         only thing that takes a touch. It has no background of its own, so the height casts no
+         shadow. -->
+    <com.limelight.stream.StreamControlsPanel
+        android:id="@+id/controlsPanel"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:elevation="10000dp"
+        android:visibility="gone" />
 
     <!--
         The connection scene. Shown from the moment the activity is created until the

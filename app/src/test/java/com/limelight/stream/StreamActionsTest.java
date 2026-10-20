@@ -36,6 +36,8 @@ public class StreamActionsTest {
                 .liveBitrate(false, 40000, 50000)
                 .locale(Locale.US)
                 .allowChangeMouseMode(true)
+                .mouseModes(Arrays.asList(new StreamCapabilities.MouseMode(0, "Multi-touch"),
+                        new StreamCapabilities.MouseMode(2, "Trackpad")), 2)
                 .onExternalDisplay(false)
                 .companion(true, false)
                 .companionAppSupported(true)
@@ -104,7 +106,7 @@ public class StreamActionsTest {
                 Id.KEYBOARD, Id.PAN_ZOOM, Id.ROTATE, Id.COMPANION_SCREEN,
                 Id.SCREENSHOT, Id.SAVE_REPLAY, Id.RECORD,
                 Id.BITRATE, Id.BITRATE_ADAPTIVE, Id.BITRATE_CHOICE,
-                Id.MOUSE_MODE, Id.OVERLAY, Id.COMPANION_APP,
+                Id.MOUSE_MODE, Id.MOUSE_MODE_CHOICE, Id.LOCAL_CURSOR, Id.OVERLAY, Id.COMPANION_APP,
                 Id.SPECIAL_KEYS_BAR, Id.GAMEPAD, Id.FULL_KEYBOARD, Id.TASK_MANAGER,
                 Id.SPECIAL_KEYS, Id.SPECIAL_KEY,
                 Id.TOUCH_SENSITIVITY, Id.DEVICE_OPTION,
@@ -131,6 +133,26 @@ public class StreamActionsTest {
             assertTrue(action + " out of order", action.group.ordinal() >= last.ordinal());
             last = action.group;
         }
+    }
+
+    @Test
+    public void mouseModeIsAPageOfTheAllowedModesWithTheOneInUseChecked() {
+        StreamAction modes = page(StreamActions.build(everything().build()), Id.MOUSE_MODE);
+        List<StreamAction> rows = modes.children;
+        assertEquals(Arrays.asList(Id.MOUSE_MODE_CHOICE, Id.MOUSE_MODE_CHOICE, Id.LOCAL_CURSOR),
+                idsOf(rows, Group.LIST));
+        assertEquals("Multi-touch", rows.get(0).labelText);
+        assertEquals(0, rows.get(0).arg);
+        assertEquals(Boolean.FALSE, rows.get(0).checked);
+        assertEquals(2, rows.get(1).arg);
+        assertEquals(Boolean.TRUE, rows.get(1).checked);
+        assertEquals(R.string.toggle_local_mouse_cursor, rows.get(2).labelRes);
+
+        // Nothing applied yet: the toggle alone, nothing checked.
+        StreamAction none = page(StreamActions.build(everything()
+                .mouseModes(Collections.singletonList(new StreamCapabilities.MouseMode(1, "Mouse")), -1)
+                .build()), Id.MOUSE_MODE);
+        assertEquals(Boolean.FALSE, none.children.get(0).checked);
     }
 
     @Test
@@ -305,7 +327,8 @@ public class StreamActionsTest {
     public void focusFlagsMatchTheOldMenu() {
         StreamAction tree = StreamActions.build(everything().build());
         // These inject keys or open something over the game.
-        for (Id id : new Id[]{Id.KEYBOARD, Id.GAMEPAD, Id.OVERLAY, Id.MOUSE_MODE, Id.SCREENSHOT,
+        for (Id id : new Id[]{Id.KEYBOARD, Id.GAMEPAD, Id.OVERLAY, Id.MOUSE_MODE_CHOICE,
+                Id.LOCAL_CURSOR, Id.SCREENSHOT,
                 Id.SAVE_REPLAY, Id.RECORD, Id.CLIPBOARD_UPLOAD, Id.CLIPBOARD_FETCH, Id.PAN_ZOOM,
                 Id.ROTATE, Id.SPECIAL_KEYS_BAR, Id.FULL_KEYBOARD, Id.TASK_MANAGER,
                 Id.TOUCH_SENSITIVITY}) {
