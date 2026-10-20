@@ -31,6 +31,21 @@ jobs:
       - name: Install the NDK
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;27.0.12077973" > /dev/null
 
+      # Every runner would otherwise generate its own debug key, and an APK signed with one can't
+      # update an install signed with another: the live test's emulator kept the first build it got
+      # and streamed that one for every later test. The shared key is the developer machine's, so
+      # CI builds also install over debug builds put on the Thor by hand. Absent on forks' PRs.
+      - name: Shared debug key
+        env:
+          DEBUG_KEYSTORE: ${{ secrets.ZEFIRO_DEBUG_KEYSTORE }}
+        run: |
+          if [ -n "$DEBUG_KEYSTORE" ]; then
+            mkdir -p ~/.android
+            echo "$DEBUG_KEYSTORE" | base64 -d > ~/.android/debug.keystore
+          else
+            echo "::warning::ZEFIRO_DEBUG_KEYSTORE not set: this debug APK can't update an installed one"
+          fi
+
       - name: Native parser tests
         run: sh app/src/test/native/run.sh
 
