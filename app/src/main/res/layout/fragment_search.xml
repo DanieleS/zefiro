@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The Search section (library/SearchFragment): a text field over the selected host's games,
+    narrowed to those whose name contains what is typed.
+
+    The field is the header, at the gutter like the other sections' titles, and the first stop
+    for the d-pad; A on it opens the keyboard, and DOWN leaves it for the results. The grid below
+    is See all's (the same tiles, gaps, padding and column rule), so a game looks the same found
+    as browsed.
+
+    In the grid's place: the host state panel when the host cannot list its games (none chosen,
+    offline, not paired, being reached), or a line saying nothing matched.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/searchRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface_deep"
+    android:orientation="vertical">
+
+    <FrameLayout
+        android:id="@+id/searchHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="@dimen/section_gutter"
+        android:paddingTop="@dimen/section_header_padding_top"
+        android:paddingEnd="@dimen/section_gutter"
+        android:paddingBottom="@dimen/section_header_padding_bottom">
+
+        <EditText
+            android:id="@+id/searchField"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/action_size"
+            android:background="@drawable/search_field_bg"
+            android:drawablePadding="10dp"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:hint="@string/search_hint"
+            android:imeOptions="actionSearch|flagNoExtractUi"
+            android:importantForAutofill="no"
+            android:inputType="text|textNoSuggestions"
+            android:maxLines="1"
+            android:paddingStart="@dimen/search_field_padding"
+            android:paddingEnd="@dimen/search_field_padding"
+            android:singleLine="true"
+            android:textColor="@color/content_primary"
+            android:textColorHint="@color/content_muted"
+            android:textSize="16sp"
+            app:drawableStartCompat="@drawable/ic_search"
+            app:drawableTint="@color/content_muted" />
+
+    </FrameLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/searchResults"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingStart="@dimen/see_all_grid_padding"
+            android:paddingEnd="@dimen/see_all_grid_padding"
+            android:paddingBottom="@dimen/section_gutter"
+            android:scrollbars="none" />
+
+        <TextView
+            android:id="@+id/searchNoMatch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="48dp"
+            android:gravity="center"
+            android:maxWidth="@dimen/host_state_panel_max_width"
+            android:paddingStart="@dimen/section_gutter"
+            android:paddingEnd="@dimen/section_gutter"
+            android:textColor="@color/content_muted"
+            android:textSize="15sp"
+            android:visibility="gone"
+            tools:text="No games match “zelda”" />
+
+        <include layout="@layout/view_host_state_panel" />
+
+    </FrameLayout>
+
+</LinearLayout>

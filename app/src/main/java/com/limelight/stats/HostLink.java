@@ -2,6 +2,7 @@ package com.limelight.stats;
 
 import android.content.Context;
 import android.content.Intent;
+import android.os.Bundle;
 
 import com.limelight.binding.PlatformBinding;
 import com.limelight.nvstream.http.ComputerDetails;
@@ -55,30 +56,48 @@ public final class HostLink {
     }
 
     public void putInto(Intent intent) {
-        intent.putExtra(EXTRA_ADDRESS, address.address);
-        intent.putExtra(EXTRA_PORT, address.port);
-        intent.putExtra(EXTRA_HTTPS_PORT, httpsPort);
-        intent.putExtra(EXTRA_UNIQUE_ID, uniqueId);
-        intent.putExtra(EXTRA_PC_UUID, pcUuid);
-        intent.putExtra(EXTRA_PC_NAME, pcName);
+        intent.putExtras(toBundle());
+    }
+
+    /**
+     * The link as a bundle: an Intent's extras, or a fragment's arguments (the Stats section
+     * hosted by the legacy statistics screen).
+     */
+    public Bundle toBundle() {
+        Bundle out = new Bundle();
+        out.putString(EXTRA_ADDRESS, address.address);
+        out.putInt(EXTRA_PORT, address.port);
+        out.putInt(EXTRA_HTTPS_PORT, httpsPort);
+        out.putString(EXTRA_UNIQUE_ID, uniqueId);
+        out.putString(EXTRA_PC_UUID, pcUuid);
+        out.putString(EXTRA_PC_NAME, pcName);
         if (serverCert != null) {
             try {
-                intent.putExtra(EXTRA_CERT, serverCert.getEncoded());
+                out.putByteArray(EXTRA_CERT, serverCert.getEncoded());
             } catch (CertificateEncodingException e) {
                 // Without the pin the connection is refused, which the screen reports as a failure.
             }
         }
+        return out;
     }
 
     /** The link an Intent carries, or null when it carries none. */
     public static HostLink from(Intent intent) {
-        String host = intent.getStringExtra(EXTRA_ADDRESS);
-        String uniqueId = intent.getStringExtra(EXTRA_UNIQUE_ID);
+        return from(intent.getExtras());
+    }
+
+    /** The link a bundle carries (see {@link #toBundle()}), or null when it carries none. */
+    public static HostLink from(Bundle in) {
+        if (in == null) {
+            return null;
+        }
+        String host = in.getString(EXTRA_ADDRESS);
+        String uniqueId = in.getString(EXTRA_UNIQUE_ID);
         if (host == null || uniqueId == null) {
             return null;
         }
         X509Certificate cert = null;
-        byte[] der = intent.getByteArrayExtra(EXTRA_CERT);
+        byte[] der = in.getByteArray(EXTRA_CERT);
         if (der != null) {
             try {
                 cert = (X509Certificate) CertificateFactory.getInstance("X.509")
@@ -88,11 +107,11 @@ public final class HostLink {
             }
         }
         return new HostLink(
-                new ComputerDetails.AddressTuple(host, intent.getIntExtra(EXTRA_PORT, NvHTTP.DEFAULT_HTTP_PORT)),
-                intent.getIntExtra(EXTRA_HTTPS_PORT, 0),
+                new ComputerDetails.AddressTuple(host, in.getInt(EXTRA_PORT, NvHTTP.DEFAULT_HTTP_PORT)),
+                in.getInt(EXTRA_HTTPS_PORT, 0),
                 uniqueId, cert,
-                intent.getStringExtra(EXTRA_PC_UUID),
-                intent.getStringExtra(EXTRA_PC_NAME));
+                in.getString(EXTRA_PC_UUID),
+                in.getString(EXTRA_PC_NAME));
     }
 
     /** A fresh connection; call off the main thread, as every request on it blocks. */

@@ -26,4 +26,12 @@ public final class SnapshotFixtures {
                 Collections.<String, AppMetadata>emptyMap(), false, AppSortOrder.HOST,
                 Collections.<NoArtDetector.ArtFingerprint>emptySet(), 0, 0);
     }
+
+    /** A ready library with no games, whose host serves play statistics or not. */
+    public static HostLibrary.Snapshot withStats(String hostUuid, boolean statsAvailable) {
+        return new HostLibrary.Snapshot(hostUuid, HostLibrary.State.READY,
+                Collections.<LibraryApp>emptyList(), null, LibraryModel.Specials.NONE,
+                Collections.<String, AppMetadata>emptyMap(), statsAvailable, AppSortOrder.HOST,
+                Collections.<NoArtDetector.ArtFingerprint>emptySet(), 0, 0);
+    }
 }

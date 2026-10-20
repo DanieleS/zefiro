@@ -157,6 +157,13 @@
     <dimen name="see_all_title_size">20sp</dimen>
     <dimen name="see_all_back_offset">-12dp</dimen>
 
+    <!--
+        The Search section's field: a full touch target tall, rounded like the mocks' cards
+        (between the tiles' 10dp and the panels' 16dp), with the glyph inset as the chips' are.
+    -->
+    <dimen name="search_field_corner">12dp</dimen>
+    <dimen name="search_field_padding">14dp</dimen>
+
     <!-- The Library's host state panel (offline, not paired, …): a readable column, centred. -->
     <dimen name="host_state_panel_max_width">420dp</dimen>
     <dimen name="primary_button_corner">18dp</dimen>

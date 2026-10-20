@@ -1,33 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    How much is played on this PC: a week, month or year at a time, then the library at large.
-    CouchPilot's statistics page, as one centred column so a d-pad walks it top to bottom: the
-    range, the period and its chart, the most played, the latest unlocks, then the library.
-    Every row that leads somewhere takes focus; the bumpers step the period from anywhere.
+    The Stats section (stats/StatsFragment): how much is played on this PC, a week, month or year
+    at a time, then the library at large. CouchPilot's statistics page, as one centred column so
+    a d-pad walks it top to bottom: the range, the period and its chart, the most played, the
+    latest unlocks, then the library. Every row that leads somewhere takes focus; the bumpers
+    step the period from anywhere.
+
+    The header is a section's, as on PCs: the big title and the host in muted type, not
+    focusable, since the navigation is the way out and B goes back. It had a top bar with a back
+    arrow when it was a screen of its own; the rail or the bottom bar stands in for that now.
+    The column's side padding, and the header's with it, is set in code from this section's own
+    width, never the screen's, since the rail takes its share of a wide window.
 -->
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/statsRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/surface"
-    tools:context=".stats.StatsActivity">
+    android:background="@color/surface_deep"
+    tools:context=".stats.StatsFragment">
 
     <LinearLayout
-        android:id="@+id/statsTopBar"
-        style="@style/TopBar"
-        android:layout_alignParentTop="true">
-
-        <ImageButton
-            android:id="@+id/statsBackButton"
-            style="@style/TopBarAction"
-            android:contentDescription="@string/stats_back"
-            android:src="@drawable/ic_arrow_back" />
+        android:id="@+id/statsHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/stats_gutter"
+        android:paddingTop="@dimen/section_header_padding_top"
+        android:paddingEnd="@dimen/stats_gutter"
+        android:paddingBottom="@dimen/section_header_padding_bottom">
 
         <TextView
             android:id="@+id/statsTitle"
-            style="@style/TopBarTitle"
-            android:text="@string/stats_title" />
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:singleLine="true"
+            android:text="@string/nav_stats"
+            android:textColor="@color/content_primary"
+            android:textSize="@dimen/section_title_size"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/statsHostName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:textColor="@color/content_muted"
+            android:textSize="13sp"
+            tools:text="Taverna" />
 
     </LinearLayout>
 
@@ -35,7 +61,7 @@
         android:id="@+id/statsScroll"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_below="@id/statsTopBar"
+        android:layout_below="@id/statsHeader"
         android:clipToPadding="false"
         android:fillViewport="true"
         android:paddingBottom="72dp"
@@ -148,7 +174,7 @@
                         <LinearLayout
                             android:id="@+id/statsPeriodNav"
                             android:layout_width="match_parent"
-                            android:layout_height="44dp"
+                            android:layout_height="@dimen/action_size"
                             android:background="@drawable/menu_row_bg"
                             android:focusable="true"
                             android:clickable="true"
@@ -490,7 +516,8 @@
 
     <!--
         The gamepad shortcuts, in the library's hint pill: the bumpers step the period, X and Y
-        the range. Not focusable, so it never takes the d-pad.
+        the range. Not focusable, so it never takes the d-pad. Hidden in a compact window, where
+        it would sit on the bottom bar and over the column's last rows.
     -->
     <LinearLayout
         android:id="@+id/statsHint"

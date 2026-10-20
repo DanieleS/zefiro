@@ -19,13 +19,16 @@ import com.limelight.ProfilesActivity;
 import com.limelight.R;
 import com.limelight.TestLogSuppressor;
 import com.limelight.computers.ComputerManagerService;
+import com.limelight.computers.SnapshotFixtures;
 import com.limelight.library.LibraryFragment;
 import com.limelight.library.LibraryHomeFragment;
 import com.limelight.library.LibraryIntents;
+import com.limelight.library.SearchFragment;
 import com.limelight.library.SeeAllFragment;
 import com.limelight.pcs.PcsFragment;
 import com.limelight.preferences.AddComputerManually;
 import com.limelight.preferences.StreamSettings;
+import com.limelight.stats.StatsFragment;
 
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -210,18 +213,79 @@ public class MainActivityShellTest {
     public void focusGate_rightFromTheRailReturnsToTheLastFocusedView() {
         MainActivity activity = launch().get();
         MainRootLayout root = activity.findViewById(R.id.mainRoot);
-        // A placeholder section: its two buttons make "the last focused" unambiguous.
         NavigationRailView rail = activity.findViewById(R.id.navRail);
-        rail.findViewById(R.id.nav_stats).performClick();
+        rail.findViewById(R.id.nav_search).performClick();
         Shadows.shadowOf(Looper.getMainLooper()).idle();
-        View second = section(activity, Section.STATS).requireView()
-                .findViewById(R.id.placeholderSecond);
-        View railItem = rail.findViewById(R.id.nav_stats);
+        View field = section(activity, Section.SEARCH).requireView().findViewById(R.id.searchField);
+        View railItem = rail.findViewById(R.id.nav_search);
 
-        second.requestFocus();
+        field.requestFocus();
         railItem.requestFocus();
 
-        assertSame(second, root.focusSearch(railItem, View.FOCUS_RIGHT));
+        assertSame(field, root.focusSearch(railItem, View.FOCUS_RIGHT));
+    }
+
+    @Test
+    @Config(qualifiers = "w900dp-h500dp-land")
+    public void search_isTheRealSection_focusOnTheField() {
+        MainActivity activity = launch().get();
+        NavigationRailView rail = activity.findViewById(R.id.navRail);
+
+        rail.findViewById(R.id.nav_search).performClick();
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
+
+        Fragment search = section(activity, Section.SEARCH);
+        assertTrue(search instanceof SearchFragment);
+        View field = search.requireView().findViewById(R.id.searchField);
+        assertTrue("Entering Search focuses its field", field.isFocused());
+        // No PC chosen: the panel offers one, in the results' place.
+        assertEquals(View.VISIBLE,
+                search.requireView().findViewById(R.id.hostStatePanel).getVisibility());
+        assertEquals(View.GONE, search.requireView().findViewById(R.id.searchResults).getVisibility());
+    }
+
+    @Test
+    @Config(qualifiers = "w900dp-h500dp-land")
+    public void stats_isOfferedOnlyWhileTheHostServesThem() {
+        MainActivity activity = launch().get();
+        NavigationRailView rail = activity.findViewById(R.id.navRail);
+        BottomNavigationView bottom = activity.findViewById(R.id.navBottom);
+        // No host yet: nothing serves statistics.
+        assertFalse(rail.getMenu().findItem(R.id.nav_stats).isVisible());
+        assertFalse(bottom.getMenu().findItem(R.id.nav_stats).isVisible());
+
+        activity.onLibrary(SnapshotFixtures.withStats("host-1", true));
+
+        assertTrue(rail.getMenu().findItem(R.id.nav_stats).isVisible());
+        assertTrue(bottom.getMenu().findItem(R.id.nav_stats).isVisible());
+        rail.findViewById(R.id.nav_stats).performClick();
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
+        assertTrue(section(activity, Section.STATS) instanceof StatsFragment);
+        assertTrue(section(activity, Section.STATS).isVisible());
+    }
+
+    @Test
+    @Config(qualifiers = "w900dp-h500dp-land")
+    public void stats_hiddenWhileSelected_fallsBackToTheLibrary() {
+        MainActivity activity = launch().get();
+        NavigationRailView rail = activity.findViewById(R.id.navRail);
+        BottomNavigationView bottom = activity.findViewById(R.id.navBottom);
+        activity.onLibrary(SnapshotFixtures.withStats("host-1", true));
+        rail.findViewById(R.id.nav_stats).performClick();
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
+        assertEquals(R.id.nav_stats, rail.getSelectedItemId());
+
+        // Another host, one without /appstats.
+        activity.onLibrary(SnapshotFixtures.withStats("host-2", false));
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
+
+        assertFalse(rail.getMenu().findItem(R.id.nav_stats).isVisible());
+        assertFalse(bottom.getMenu().findItem(R.id.nav_stats).isVisible());
+        assertEquals(R.id.nav_library, rail.getSelectedItemId());
+        assertEquals(R.id.nav_library, bottom.getSelectedItemId());
+        assertTrue(section(activity, Section.LIBRARY).isVisible());
+        assertTrue(section(activity, Section.STATS).isHidden());
+        assertFalse(activity.isFinishing());
     }
 
     @Test

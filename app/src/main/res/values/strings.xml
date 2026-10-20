@@ -724,12 +724,6 @@
     <string name="permission_launch_app">Launch Apps</string>
     <string name="permission_sync_clipboard">Sync Clipboard</string>
 
-    <string name="searchpreference_search">Search…</string>
-    <string name="searchpreference_clear">Clear</string>
-    <string name="searchpreference_history_entry">History entry</string>
-    <string name="searchpreference_more">More</string>
-    <string name="searchpreference_clear_history">Clear history</string>
-    <string name="searchpreference_no_results">No results</string>
 
     <!-- Keyboard -->
     <string name="keyboard_clear_all">Clear All</string>
@@ -883,8 +877,6 @@
     <!-- Statistics, from Scirocco's /appstats: CouchPilot's play statistics, with the sessions
          GameActivity records and the achievements SuccessStory keeps. -->
     <string name="action_stats">Statistics</string>
-    <string name="stats_title">Statistics</string>
-    <string name="stats_back">Back</string>
     <string name="stats_range_week">Week</string>
     <string name="stats_range_month">Month</string>
     <string name="stats_range_year">Year</string>
@@ -1085,9 +1077,11 @@
     <string name="new_ui_preview_label">Zefiro (new UI)</string>
     <!-- The PCs section -->
     <string name="pcs_add_pc">Add PC</string>
-    <!-- Stand-in section content, there only to exercise focus until the real sections land. -->
-    <string name="placeholder_first_action">First action</string>
-    <string name="placeholder_second_action">Second action</string>
+    <!-- The Search section: the field's hint, naming the host once one is chosen. -->
+    <string name="search_hint">Search games</string>
+    <string name="search_hint_host">Search games on %1$s</string>
+    <!-- In the results' place when nothing matched what was typed. -->
+    <string name="search_no_match">No games match “%1$s”</string>
     <!-- The Library: See all -->
     <string name="library_see_all">See all</string>
     <!-- Next to "All games": the host, and how many games the grid shows. -->

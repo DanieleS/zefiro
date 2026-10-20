@@ -38,6 +38,7 @@ import com.limelight.computers.PairingRequest;
 import com.limelight.library.LaunchController;
 import com.limelight.library.LibraryFragment;
 import com.limelight.library.LibraryIntents;
+import com.limelight.library.SearchFragment;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.NvHTTP;
 import com.limelight.pcs.HostActions;
@@ -47,6 +48,7 @@ import com.limelight.stats.AchievementToast;
 import com.limelight.stats.AchievementWatcher;
 import com.limelight.stats.HostLink;
 import com.limelight.stats.HostSession;
+import com.limelight.stats.StatsFragment;
 import com.limelight.utils.Dialog;
 import com.limelight.utils.UiHelper;
 
@@ -57,8 +59,7 @@ import com.limelight.utils.UiHelper;
  * <p>It replaces the PcView/AppView pair, where the PC list sat under the library and each bound
  * the computer manager on its own. Here one {@link MainViewModel} owns the host state for every
  * section, and switching sections is a fragment show/hide, not an activity start. Until the
- * switch-over it is reached only from the debug "Zefiro (new UI)" icon, and Stats and Search are
- * still placeholders.
+ * switch-over it is reached only from the debug "Zefiro (new UI)" icon.
  *
  * <h3>Window</h3>
  *
@@ -76,6 +77,13 @@ import com.limelight.utils.UiHelper;
  *
  * Insets pass through {@code android.R.id.content} untouched and are applied, then consumed, by
  * the root, which knows which of its parts sits against which edge.
+ *
+ * <h3>Stats</h3>
+ *
+ * Stats is offered only while the selected host is known to serve statistics (its library's
+ * {@code statsAvailable}), in the rail and the bar alike. A host switch, or a host that stops
+ * answering for them, can take the item away while it is the one selected; the screen then falls
+ * back to the Library rather than leave a section on screen that the navigation no longer names.
  *
  * <h3>Back</h3>
  *
@@ -232,6 +240,7 @@ public class MainActivity extends AppCompatActivity
 
         // Delivered only while started, so the PIN dialog never comes up behind another screen.
         viewModel.repository().getPairingRequests().observe(this, this::onPairingRequest);
+        viewModel.repository().getLibrary().observe(this, this::onLibrary);
     }
 
     @Override
@@ -346,8 +355,11 @@ public class MainActivity extends AppCompatActivity
                 return new LibraryFragment();
             case PCS:
                 return new PcsFragment();
+            case STATS:
+                return new StatsFragment();
+            case SEARCH:
             default:
-                return PlaceholderSectionFragment.newInstance(section);
+                return new SearchFragment();
         }
     }
 
@@ -399,6 +411,22 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void whenRendererReady(@NonNull Runnable start) {
         rendererProbe.whenReady(start);
+    }
+
+    // --- Stats ---
+
+    /**
+     * Offers Stats for a host that serves statistics, and takes it away from one that does not,
+     * falling back to the Library when it was the section on screen. Package-private so a test
+     * can hand in a snapshot without a host to poll.
+     */
+    void onLibrary(@Nullable HostLibrary.Snapshot snapshot) {
+        boolean available = snapshot != null && snapshot.statsAvailable;
+        if (!available && navigator.current() == Section.STATS) {
+            // First, so the item is not hidden while it is still the checked one.
+            goTo(Section.LIBRARY);
+        }
+        navChrome.setStatsVisible(available);
     }
 
     // --- Back from a stream ---
