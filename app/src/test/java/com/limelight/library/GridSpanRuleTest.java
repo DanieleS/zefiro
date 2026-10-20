@@ -44,4 +44,13 @@ public class GridSpanRuleTest {
     public void theSeeAllRuleIsTheBucketRule() {
         assertEquals(GridSpanRule.spans(1100), GridSpanRule.SEE_ALL.spanCount(1100));
     }
+
+    @Test
+    public void aShelfShowsOneMoreTileThanTheGridHasColumns() {
+        assertEquals(4, GridSpanRule.shelfTiles(380));
+        assertEquals(6, GridSpanRule.shelfTiles(650));
+        assertEquals(7, GridSpanRule.shelfTiles(880));
+        assertEquals(8, GridSpanRule.shelfTiles(1280));
+        assertEquals(GridSpanRule.shelfTiles(1100), GridSpanRule.SHELF.spanCount(1100));
+    }
 }

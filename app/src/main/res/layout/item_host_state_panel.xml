@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The host state panel as a row of the Library home's list (library/StatePanelAdapter): the
+    same panel See all shows over its grid, here between the header and where the shelves would
+    be, so the hero above it (a hidden game running on a host whose games are all hidden) and
+    the header's host chip stay in reach.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingTop="@dimen/home_state_panel_padding_vertical"
+    android:paddingBottom="@dimen/home_state_panel_padding_vertical">
+
+    <include layout="@layout/view_host_state_panel" />
+
+</FrameLayout>

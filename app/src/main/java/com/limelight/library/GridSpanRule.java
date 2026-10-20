@@ -18,11 +18,21 @@ package com.limelight.library;
  * The width is the grid's, never the screen's: the rail takes part of a wide window, and a
  * multi-window split takes more. It is an interface so a layout manager can be handed the rule
  * rather than a column width; {@link #SEE_ALL} is the one the See all grid uses.
+ *
+ * <h3>Shelves</h3>
+ *
+ * A shelf on the Library home is a row of the same tiles, one more across than the grid's
+ * columns at that width ({@link #shelfTiles}): four on a portrait phone and seven or eight on the
+ * Thor, as the Shelves mock draws them. A row reads as a glance rather than a page, and its
+ * tiles stay a little smaller than the grid's, which they lead to.
  */
 public interface GridSpanRule {
 
     /** The See all grid's rule, {@link #spans}. */
     GridSpanRule SEE_ALL = GridSpanRule::spans;
+
+    /** The tiles a shelf shows across, {@link #shelfTiles}. */
+    GridSpanRule SHELF = GridSpanRule::shelfTiles;
 
     /** The column count for a grid this many dp wide; at least 1. */
     int spanCount(int widthDp);
@@ -36,5 +46,10 @@ public interface GridSpanRule {
             return 5;
         }
         return Math.max(6, Math.min(7, widthDp / 150));
+    }
+
+    /** How many tiles a shelf this many dp wide shows across: one more than the grid's columns. */
+    static int shelfTiles(int widthDp) {
+        return spans(widthDp) + 1;
     }
 }

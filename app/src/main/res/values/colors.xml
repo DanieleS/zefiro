@@ -94,4 +94,19 @@
     <color name="outline">#FF4A5361</color>
     <color name="outline_variant">#FF2A2E34</color>
 
+    <!--
+        The hero's second button (Quit game) after the mock's .ghost pill: a white wash over
+        whatever the backdrop is, so it reads as a button on art and on the plain card alike
+        without competing with the one filled button beside it.
+    -->
+    <color name="ghost_fill">#1AFFFFFF</color>
+
+    <!--
+        Laid over the hero's backdrop, left to right: near-opaque where the title and buttons
+        sit, thinning towards the right so the art still shows. Its own pair so the hero can be
+        retuned without touching the stream's scrims.
+    -->
+    <color name="hero_scrim_start">#E6000000</color>
+    <color name="hero_scrim_end">#59000000</color>
+
 </resources>

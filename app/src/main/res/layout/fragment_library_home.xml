@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The Library's home (library/LibraryHomeFragment): one vertical list whose rows are the
+    header, the hero, the host state panel and the shelves, each from its own adapter, joined in
+    code. One list rather than a scroll view of fixed parts, so a phone in portrait scrolls the
+    lot and every row is laid out, and recycled, only when it is on screen.
+
+    The list itself never takes focus (its rows do), so an empty home never swallows the first
+    d-pad press.
+-->
+<androidx.recyclerview.widget.RecyclerView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/libraryHomeList"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface_deep"
+    android:clipToPadding="false"
+    android:focusable="false"
+    android:paddingBottom="@dimen/section_gutter"
+    android:scrollbars="none" />

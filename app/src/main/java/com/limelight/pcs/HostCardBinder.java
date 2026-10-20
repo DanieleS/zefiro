@@ -11,8 +11,10 @@ import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
+import androidx.annotation.ColorRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.StringRes;
 import androidx.core.content.ContextCompat;
 
 import com.google.android.material.button.MaterialButton;
@@ -68,6 +70,33 @@ public final class HostCardBinder {
     public static final int ACTION_WAKE = 1;
     public static final int ACTION_PAIR = 2;
     public static final int ACTION_RESUME = 3;
+
+    /**
+     * The colour of a host's status dot: the signal only for a host that is online and paired,
+     * the one state in which it can be played on. The Library's host chip and host sheet draw
+     * their dots with it too, so a host looks the same wherever it is listed.
+     */
+    @ColorRes
+    public static int statusColor(@NonNull ComputerDetails details) {
+        if (details.state != ComputerDetails.State.ONLINE) {
+            return R.color.content_faint;
+        }
+        return details.pairState == PairingManager.PairState.PAIRED
+                ? R.color.signal : R.color.content_muted;
+    }
+
+    /** What the dot means, in words: checking, offline, not paired or online. */
+    @StringRes
+    public static int statusLabel(@NonNull ComputerDetails details) {
+        if (details.state == ComputerDetails.State.UNKNOWN) {
+            return R.string.pcview_status_checking;
+        }
+        if (details.state != ComputerDetails.State.ONLINE) {
+            return R.string.pcview_status_offline;
+        }
+        return details.pairState == PairingManager.PairState.PAIRED
+                ? R.string.pcview_status_online : R.string.pcview_status_unpaired;
+    }
 
     /** The views of one card, looked up once per holder. */
     public static final class CardViews {
@@ -164,24 +193,8 @@ public final class HostCardBinder {
         final boolean inGame = online && paired && details.runningGameId != 0;
 
         // The state, as a dot and a line: online and paired is the only state worth the signal.
-        final int dotColor;
-        final StringBuilder status = new StringBuilder();
-        if (checking) {
-            dotColor = R.color.content_faint;
-            status.append(context.getString(R.string.pcview_status_checking));
-        }
-        else if (!online) {
-            dotColor = R.color.content_faint;
-            status.append(context.getString(R.string.pcview_status_offline));
-        }
-        else if (!paired) {
-            dotColor = R.color.content_muted;
-            status.append(context.getString(R.string.pcview_status_unpaired));
-        }
-        else {
-            dotColor = R.color.signal;
-            status.append(context.getString(R.string.pcview_status_online));
-        }
+        final int dotColor = statusColor(details);
+        final StringBuilder status = new StringBuilder(context.getString(statusLabel(details)));
 
         if (online && details.activeAddress != null) {
             status.append(" · ").append(details.activeAddress.address);

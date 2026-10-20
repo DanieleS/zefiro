@@ -58,10 +58,11 @@ import java.util.List;
  * known, focus waits on the chip and moves to the first tile once one appears, unless the user
  * moved it meanwhile.
  *
- * <h3>For this step</h3>
+ * <h3>In the Library's stack</h3>
  *
- * It is the Library's root until the home screen lands (S7), which then pushes it; the back
- * arrow shows only when there is something under it to go back to.
+ * The Library's home pushes it, from the All games shelf's link or its trailing tile, and back
+ * pops it; the back arrow shows only when there is something under it to go back to. X raises
+ * the host sheet here as on the home; the Library's frame handles it for both.
  *
  * Main thread only; every callback checks that the view still exists.
  */

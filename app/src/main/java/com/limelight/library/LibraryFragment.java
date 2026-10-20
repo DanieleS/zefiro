@@ -10,8 +10,10 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
+import androidx.fragment.app.FragmentTransaction;
 
 import com.limelight.R;
+import com.limelight.main.MainHost;
 import com.limelight.main.SectionFocus;
 import com.limelight.main.SectionKeys;
 
@@ -26,15 +28,22 @@ import com.limelight.main.SectionKeys;
  * work to do here.
  *
  * <pre>
- *   S6 (now):  [See all]                          root, nothing to pop
- *   S7:        [Home] ──"See all"──▶ [Home, See all]  back pops to Home
+ *   [Home] ──"See all"──▶ [Home (hidden), See all] ──back──▶ [Home]
  * </pre>
  *
- * Keys and focus are the screen on top's business: this frame passes {@link SectionKeys} and
- * {@link SectionFocus} through to it. Main thread only.
+ * See all is added over the home, which is hidden rather than replaced: its views, its shelves'
+ * scroll and its focus memory are all still there when back pops the grid, so focus can return
+ * to the tile that led to it.
+ *
+ * <h3>Keys</h3>
+ *
+ * X is the Library's own: anywhere in it, on either screen, it raises the {@link HostSheet}.
+ * Every other key, and focus, is the screen on top's business: this frame passes
+ * {@link SectionKeys} and {@link SectionFocus} through to it. Main thread only.
  */
 public class LibraryFragment extends Fragment implements SectionKeys, SectionFocus {
 
+    private static final String TAG_HOME = "library:home";
     private static final String TAG_SEE_ALL = "library:seeAll";
 
     public LibraryFragment() {
@@ -53,14 +62,61 @@ public class LibraryFragment extends Fragment implements SectionKeys, SectionFoc
         FragmentManager children = getChildFragmentManager();
         // A restore brings the stack back by itself; only a first creation adds the root.
         if (children.findFragmentById(R.id.libraryContainer) == null) {
-            // S7 replaces: the home screen becomes the root, and See all is pushed over it.
             // Now, not later: the navigator posts the section's initial focus right after the
             // section is shown, and the root has to be there to take it.
             children.beginTransaction()
                     .setReorderingAllowed(true)
-                    .add(R.id.libraryContainer, new SeeAllFragment(), TAG_SEE_ALL)
+                    .add(R.id.libraryContainer, new LibraryHomeFragment(), TAG_HOME)
                     .commitNow();
         }
+    }
+
+    /**
+     * Pushes See all over the home, and gives it focus once it is laid out. A second push while
+     * it is already up does nothing.
+     */
+    public void showSeeAll() {
+        if (!isAdded() || isStateSaved()) {
+            return;
+        }
+        FragmentManager children = getChildFragmentManager();
+        if (children.findFragmentByTag(TAG_SEE_ALL) != null) {
+            return;
+        }
+        Fragment home = children.findFragmentByTag(TAG_HOME);
+        FragmentTransaction tx = children.beginTransaction()
+                .setReorderingAllowed(true);
+        if (home != null) {
+            tx.hide(home);
+        }
+        tx.add(R.id.libraryContainer, new SeeAllFragment(), TAG_SEE_ALL)
+                .addToBackStack(TAG_SEE_ALL)
+                .commit();
+        // Run now, so See all's view exists for the focus posted below.
+        children.executePendingTransactions();
+        View view = getView();
+        if (view != null) {
+            view.post(this::requestInitialFocus);
+        }
+    }
+
+    /**
+     * Raises the host sheet: dropped from the home's host chip when it is on screen, otherwise
+     * wherever the window puts a menu (see {@link HostSheet#show}).
+     *
+     * @param anchor the chip that asked; null to use the home's own when it is shown
+     */
+    public void showHostSheet(@Nullable View anchor) {
+        if (!isAdded() || !(getActivity() instanceof MainHost)) {
+            return;
+        }
+        if (anchor == null) {
+            Fragment top = top();
+            if (top instanceof LibraryHomeFragment) {
+                anchor = ((LibraryHomeFragment) top).hostChip();
+            }
+        }
+        HostSheet.show(requireActivity(), (MainHost) requireActivity(), anchor);
     }
 
     /** The screen on top of the Library's stack, or null before the first one is added. */
@@ -75,6 +131,14 @@ public class LibraryFragment extends Fragment implements SectionKeys, SectionFoc
 
     @Override
     public boolean onSectionKey(KeyEvent event) {
+        if (event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_X) {
+            if (event.getRepeatCount() != 0 || top() == null) {
+                // Held, X raises one sheet, not one per repeat.
+                return top() != null;
+            }
+            showHostSheet(null);
+            return true;
+        }
         Fragment top = top();
         return top instanceof SectionKeys && ((SectionKeys) top).onSectionKey(event);
     }

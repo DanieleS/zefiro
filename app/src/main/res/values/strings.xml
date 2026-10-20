@@ -1115,4 +1115,26 @@
     <string name="library_choose_pc">Choose a PC</string>
     <string name="library_empty_title">No games on %1$s</string>
     <string name="library_empty_hidden_message">Its games are all hidden. Show them from the sort menu.</string>
+    <!-- The Library: home -->
+    <string name="library_title">Library</string>
+    <!-- Spoken for the host chip, which shows only the host's name and a status dot. -->
+    <string name="library_host_chip_a11y">PC: %1$s, %2$s. Switch PC</string>
+    <!-- The hero over the shelves: the game the host is running, to go back to. -->
+    <string name="library_continue">Continue</string>
+    <string name="library_resume">Resume</string>
+    <string name="library_quit_game">Quit game</string>
+    <string name="library_recently_played">Recently played</string>
+    <string name="library_all_games">All games</string>
+    <!-- The All games shelf's way to the grid: its header link and its trailing tile. -->
+    <string name="library_see_all_count">See all · %d</string>
+    <!-- The host sheet (X anywhere in the Library, or the host chip). -->
+    <string name="library_host_sheet_title">PCs</string>
+    <!-- Spoken for a host row: the name, then what its status dot shows. -->
+    <string name="library_host_row_a11y">%1$s, %2$s</string>
+    <!-- The same for the chosen PC's row, whose check is only drawn. -->
+    <string name="library_host_row_selected_a11y">%1$s, %2$s, selected</string>
+    <string name="library_host_sheet_virtual_display">Virtual display</string>
+    <string name="library_host_sheet_remote_session">Remote session</string>
+    <string name="library_host_sheet_wake">Wake %1$s</string>
+    <string name="library_host_sheet_manage">Manage PCs</string>
 </resources>

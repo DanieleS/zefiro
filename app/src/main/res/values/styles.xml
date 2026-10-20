@@ -639,4 +639,40 @@
         <item name="rippleColor">@color/scrim_soft</item>
     </style>
 
+    <!--
+        The quiet button beside the filled one (the hero's Quit game): the mock's .ghost pill,
+        a white wash with the content colour on it. Its focus is the signal ring, as on a chip.
+    -->
+    <style name="Widget.Zefiro.GhostButton" parent="Widget.Material3.Button.UnelevatedButton">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:minHeight">@dimen/action_size</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:paddingStart">20dp</item>
+        <item name="android:paddingEnd">20dp</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:letterSpacing">0.02</item>
+        <item name="android:textColor">@color/content_primary</item>
+        <item name="backgroundTint">@color/ghost_fill</item>
+        <item name="cornerRadius">@dimen/primary_button_corner</item>
+        <item name="strokeColor">@color/action_stroke</item>
+        <item name="strokeWidth">@dimen/tile_focus_stroke</item>
+        <item name="rippleColor">@color/signal_wash</item>
+    </style>
+
+    <!-- A shelf's label, the mocks' .sect: the row's name in the primary colour, medium weight. -->
+    <style name="ShelfLabel">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:textColor">@color/content_primary</item>
+        <item name="android:textSize">@dimen/shelf_label_size</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:ellipsize">end</item>
+    </style>
+
 </resources>

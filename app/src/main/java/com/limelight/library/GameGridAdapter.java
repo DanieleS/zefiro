@@ -18,8 +18,8 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * The See all grid: one {@link GameTileView} per {@link LibraryApp}, its cover loaded from the
- * selected host's {@link HostLibrary}.
+ * The See all grid, and each shelf of the Library home: one {@link GameTileView} per
+ * {@link LibraryApp}, its cover loaded from the selected host's {@link HostLibrary}.
  *
  * <p>The library publishes a new snapshot whenever anything about it changes, and the host is
  * polled every 1.5 s. The old grid answered each change with {@code notifyDataSetChanged()},
@@ -46,7 +46,8 @@ import java.util.Objects;
  * Each tile holds at most one request. It is cancelled when the tile is bound to another game,
  * and left to finish when the tile is bound to the same game again while it is still on its way.
  * A cover comes in the size bucket of the tile's width (see {@code CachedAppAssetLoader}), so a
- * 3-column phone grid and a 7-column TV grid each decode what they draw.
+ * 3-column phone grid and a 7-column TV grid each decode what they draw. A shelf decides its
+ * tiles' width itself rather than by columns, and says so by being a {@link FixedTileWidth}.
  *
  * Main thread only.
  */
@@ -60,6 +61,15 @@ public class GameGridAdapter extends ListAdapter<LibraryApp, GameGridAdapter.Hol
 
         /** A tile took focus, for the section's focus memory. */
         void onTileFocused(@NonNull LibraryApp app);
+    }
+
+    /**
+     * A list that gives every tile one width of its own choosing (a shelf), rather than a grid's
+     * column. The tiles are made at that width, and their covers asked for at it.
+     */
+    public interface FixedTileWidth {
+        /** The width of every tile, in px; 0 while the list has not been measured. */
+        int tileWidthPx();
     }
 
     /** Only the running and hidden flags changed: rebind them, keep the cover. */
@@ -166,20 +176,26 @@ public class GameGridAdapter extends ListAdapter<LibraryApp, GameGridAdapter.Hol
     @Override
     public Holder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         GameTileView tile = new GameTileView(parent.getContext());
-        // The cell's width is the column's; the tile takes its 3:4 height from it.
+        int fixed = fixedTileWidth();
+        // In a grid the cell's width is the column's; in a shelf it is the shelf's choice. The
+        // tile takes its 3:4 height from either.
         tile.setLayoutParams(new RecyclerView.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+                fixed > 0 ? fixed : ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
         final Holder holder = new Holder(tile);
 
         // Wired once per holder; each reads the game the holder shows at the time of the event.
+        // That is the game it was last bound to, not this adapter's item at its position: the
+        // shelves share one pool of tiles, so a tile made here may be bound by another shelf's
+        // adapter, whose positions mean nothing in this one's list.
         tile.setOnClickListener(v -> {
-            LibraryApp app = appAt(holder.getBindingAdapterPosition());
+            LibraryApp app = holder.app;
             if (app != null) {
                 listener.onTileClicked(app);
             }
         });
         tile.setOnLongClickListener(v -> {
-            LibraryApp app = appAt(holder.getBindingAdapterPosition());
+            LibraryApp app = holder.app;
             if (app == null) {
                 return false;
             }
@@ -187,7 +203,7 @@ public class GameGridAdapter extends ListAdapter<LibraryApp, GameGridAdapter.Hol
             return true;
         });
         tile.setOnFocusChangeListener((v, hasFocus) -> {
-            LibraryApp app = hasFocus ? appAt(holder.getBindingAdapterPosition()) : null;
+            LibraryApp app = hasFocus ? holder.app : null;
             if (app != null) {
                 listener.onTileFocused(app);
             }
@@ -271,6 +287,10 @@ public class GameGridAdapter extends ListAdapter<LibraryApp, GameGridAdapter.Hol
     // The layout manager sets its span count before it lays out (and binds) any child. Failing
     // both, the standard box art width, which is what every host serves anyway.
     private int tileWidthPx(Holder holder) {
+        int fixed = fixedTileWidth();
+        if (fixed > 0) {
+            return fixed;
+        }
         int width = holder.tile.getWidth();
         if (width <= 0 && recyclerView != null) {
             int usable = recyclerView.getWidth() - recyclerView.getPaddingLeft()
@@ -280,6 +300,11 @@ public class GameGridAdapter extends ListAdapter<LibraryApp, GameGridAdapter.Hol
             width = usable / Math.max(1, spans);
         }
         return width > 0 ? width : FALLBACK_TILE_WIDTH_PX;
+    }
+
+    private int fixedTileWidth() {
+        return recyclerView instanceof FixedTileWidth
+                ? ((FixedTileWidth) recyclerView).tileWidthPx() : 0;
     }
 
     public static final class Holder extends RecyclerView.ViewHolder {

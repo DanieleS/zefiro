@@ -3,6 +3,11 @@
     One action in a menu. A row that takes the signal ring on focus and fills on a press,
     the same as a tile. The icon and the check are optional and start gone; the label
     carries the weight.
+
+    A row can also carry a status dot before its label and one action of its own after it
+    (the host sheet: a PC's state, and Wake on an offline one). The trailing action is a
+    separate stop, RIGHT of the row (MenuSheet walks the d-pad between the two by hand), so
+    the row's own press still does the row's thing.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -27,6 +32,15 @@
         android:tint="@color/content_secondary"
         android:visibility="gone" />
 
+    <View
+        android:id="@+id/menuRowDot"
+        android:layout_width="@dimen/pc_status_dot"
+        android:layout_height="@dimen/pc_status_dot"
+        android:layout_marginEnd="14dp"
+        android:background="@drawable/pc_status_dot"
+        android:importantForAccessibility="no"
+        android:visibility="gone" />
+
     <TextView
         android:id="@+id/menuRowLabel"
         android:layout_width="0dp"
@@ -34,6 +48,25 @@
         android:layout_weight="1"
         android:textColor="@color/content_primary"
         android:textSize="16sp" />
+
+    <!-- A plain TextView on the chip's drawable rather than a MaterialButton: menus are also
+         raised from the stream, whose theme is not a Material one. -->
+    <TextView
+        android:id="@+id/menuRowTrailing"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:background="@drawable/host_chip_bg"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center"
+        android:minHeight="@dimen/action_size"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:singleLine="true"
+        android:textColor="@color/content_primary"
+        android:textSize="14sp"
+        android:visibility="gone" />
 
     <ImageView
         android:id="@+id/menuRowCheck"

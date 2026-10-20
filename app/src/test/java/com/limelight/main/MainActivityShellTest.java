@@ -20,6 +20,7 @@ import com.limelight.R;
 import com.limelight.TestLogSuppressor;
 import com.limelight.computers.ComputerManagerService;
 import com.limelight.library.LibraryFragment;
+import com.limelight.library.LibraryHomeFragment;
 import com.limelight.library.LibraryIntents;
 import com.limelight.library.SeeAllFragment;
 import com.limelight.pcs.PcsFragment;
@@ -225,22 +226,48 @@ public class MainActivityShellTest {
 
     @Test
     @Config(qualifiers = "w900dp-h500dp-land")
-    public void library_opensOnSeeAll_withNoHostOffersToChooseOne() {
+    public void library_opensOnHome_withNoHostOffersToChooseOne() {
         MainActivity activity = launch().get();
 
         Fragment library = section(activity, Section.LIBRARY);
         assertTrue(library instanceof LibraryFragment);
         Fragment top = library.getChildFragmentManager().findFragmentById(R.id.libraryContainer);
-        assertTrue(top instanceof SeeAllFragment);
-        // The root of the Library's stack: nothing to go back to, so no arrow.
+        assertTrue(top instanceof LibraryHomeFragment);
+        // The home's own stack has nothing under it: back has no work in the Library.
+        assertEquals(0, library.getChildFragmentManager().getBackStackEntryCount());
         View view = top.requireView();
-        assertEquals(View.GONE, view.findViewById(R.id.seeAllBack).getVisibility());
-        assertEquals(View.VISIBLE, view.findViewById(R.id.hostStatePanel).getVisibility());
+        View primary = view.findViewById(R.id.hostStatePrimary);
+        assertNotNull("The home lists the host state panel when no PC is chosen", primary);
+        assertEquals(View.VISIBLE, primary.getVisibility());
+        assertNotNull(view.findViewById(R.id.libraryHostChip));
 
-        view.findViewById(R.id.hostStatePrimary).performClick();
+        primary.performClick();
         Shadows.shadowOf(Looper.getMainLooper()).idle();
 
         assertTrue(section(activity, Section.PCS).isVisible());
+        assertFalse(activity.isFinishing());
+    }
+
+    @Test
+    @Config(qualifiers = "w900dp-h500dp-land")
+    public void seeAll_isPushedOverTheHome_andBackPopsIt() {
+        MainActivity activity = launch().get();
+        LibraryFragment library = (LibraryFragment) section(activity, Section.LIBRARY);
+
+        library.showSeeAll();
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
+
+        Fragment top = library.getChildFragmentManager().findFragmentById(R.id.libraryContainer);
+        assertTrue(top instanceof SeeAllFragment);
+        // Something to go back to now, so the arrow shows.
+        assertEquals(View.VISIBLE, top.requireView().findViewById(R.id.seeAllBack).getVisibility());
+
+        activity.getOnBackPressedDispatcher().onBackPressed();
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
+
+        top = library.getChildFragmentManager().findFragmentById(R.id.libraryContainer);
+        assertTrue(top instanceof LibraryHomeFragment);
+        assertTrue(top.isVisible());
         assertFalse(activity.isFinishing());
     }
 
