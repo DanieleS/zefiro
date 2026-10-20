@@ -117,6 +117,36 @@
                 <category android:name="tv.ouya.intent.category.APP" />
             </intent-filter>
         </activity>
+        <!-- The new main screen: Library, PCs, Stats and Search as sections of one activity. Not
+             exported and not the launcher yet; it is built next to PcView and AppView and replaces
+             them in one switch. It handles the same configuration changes as PcView, so the rail
+             and the bottom bar swap on rotation without recreating the screen. -->
+        <activity
+            android:name=".main.MainActivity"
+            android:exported="false"
+            android:resizeableActivity="true"
+            android:enableOnBackInvokedCallback="true"
+            android:configChanges="mcc|mnc|touchscreen|keyboard|keyboardHidden|navigation|screenLayout|fontScale|uiMode|orientation|screenSize|smallestScreenSize|layoutDirection">
+
+            <meta-data android:name="WindowManagerPreference:FreeformWindowSize" android:value="system-default" />
+            <meta-data android:name="WindowManagerPreference:FreeformWindowOrientation" android:value="landscape" />
+        </activity>
+        <!-- A second launcher icon for the new main screen, enabled in debug builds only
+             (@bool/new_ui_preview), so it can be tried on the Thor and on a phone while the
+             shipped screens stay the launcher. An alias must follow its target. Removed in S10,
+             when .PcView itself becomes the alias to MainActivity. -->
+        <activity-alias
+            android:name="com.limelight.main.NewUiPreview"
+            android:targetActivity=".main.MainActivity"
+            android:exported="true"
+            android:enabled="@bool/new_ui_preview"
+            android:label="@string/new_ui_preview_label">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
         <!-- Small hack to support launcher shortcuts without relaunching over and over again when the back button is pressed -->
         <activity
             android:name=".ShortcutTrampoline"

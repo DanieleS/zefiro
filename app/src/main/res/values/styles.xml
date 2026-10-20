@@ -74,6 +74,11 @@
              materialAlertDialogTheme; without this they stay on Material's stock grey. -->
         <item name="alertDialogTheme">@style/ThemeOverlay.Zefiro.AlertDialog</item>
         <item name="preferenceTheme">@style/PreferenceThemeOverlay.Zefiro</item>
+
+        <!-- The main screen's rail and bottom bar, and every bottom sheet raised from it. -->
+        <item name="navigationRailStyle">@style/Widget.Zefiro.NavigationRail</item>
+        <item name="bottomNavigationStyle">@style/Widget.Zefiro.BottomNavigation</item>
+        <item name="bottomSheetDialogTheme">@style/ThemeOverlay.Zefiro.BottomSheetDialog</item>
     </style>
 
     <style name="StreamBaseTheme" parent="AppBaseTheme">
@@ -491,6 +496,80 @@
         <item name="android:layout_height">wrap_content</item>
         <item name="android:textColor">@color/content_muted</item>
         <item name="android:textSize">12sp</item>
+    </style>
+
+    <!--
+        The main screen's navigation, rail and bottom bar alike: laid on the true-black ground
+        rather than on Material's container grey, the selected section in the signal over its
+        sunk container, everything else muted. Focus gets the tiles' signal ring through the
+        item background, because Material's own focus tint is too faint to find on OLED black;
+        that background is a ripple and carries the press wash too, since Material drops its
+        itemRippleColor whenever an item background is set.
+        Window insets are applied by the main screen itself, which knows when the bars are
+        hidden, so the widgets must not pad for them on their own. The rail is told so here.
+        The bottom bar has no such attributes (its inset padding is hard-wired), so MainActivity
+        replaces its inset listener instead.
+    -->
+    <style name="Widget.Zefiro.NavigationRail" parent="Widget.Material3.NavigationRailView">
+        <item name="android:minWidth">@dimen/nav_rail_width</item>
+        <item name="android:background">@color/surface_deep</item>
+        <item name="elevation">0dp</item>
+        <item name="labelVisibilityMode">unlabeled</item>
+        <item name="menuGravity">top</item>
+        <item name="itemMinHeight">@dimen/nav_rail_item_min_height</item>
+        <item name="itemIconTint">@color/nav_item_tint</item>
+        <item name="itemTextColor">@color/nav_item_tint</item>
+        <item name="itemBackground">@drawable/nav_item_focus_ring</item>
+        <item name="itemActiveIndicatorStyle">@style/Widget.Zefiro.NavigationRail.ActiveIndicator</item>
+        <item name="paddingTopSystemWindowInsets">false</item>
+        <item name="paddingBottomSystemWindowInsets">false</item>
+        <item name="paddingStartSystemWindowInsets">false</item>
+    </style>
+
+    <style name="Widget.Zefiro.NavigationRail.ActiveIndicator" parent="Widget.Material3.NavigationRailView.ActiveIndicator">
+        <item name="android:width">@dimen/nav_rail_indicator_size</item>
+        <item name="android:height">@dimen/nav_rail_indicator_size</item>
+        <item name="android:color">@color/signal_container</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Zefiro.NavRailIndicator</item>
+    </style>
+
+    <style name="ShapeAppearance.Zefiro.NavRailIndicator" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">@dimen/nav_rail_indicator_corner</item>
+    </style>
+
+    <style name="Widget.Zefiro.BottomNavigation" parent="Widget.Material3.BottomNavigationView">
+        <item name="android:background">@color/surface_deep</item>
+        <item name="elevation">0dp</item>
+        <item name="labelVisibilityMode">labeled</item>
+        <item name="itemIconTint">@color/nav_item_tint</item>
+        <item name="itemTextColor">@color/nav_item_tint</item>
+        <item name="itemBackground">@drawable/nav_item_focus_ring</item>
+        <item name="itemActiveIndicatorStyle">@style/Widget.Zefiro.BottomNavigation.ActiveIndicator</item>
+    </style>
+
+    <style name="Widget.Zefiro.BottomNavigation.ActiveIndicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
+        <item name="android:width">@dimen/nav_bottom_indicator_width</item>
+        <item name="android:height">@dimen/nav_bottom_indicator_height</item>
+        <item name="android:color">@color/signal_container</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Zefiro.NavBottomIndicator</item>
+    </style>
+
+    <style name="ShapeAppearance.Zefiro.NavBottomIndicator" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">@dimen/nav_bottom_indicator_corner</item>
+    </style>
+
+    <!--
+        Bottom sheets. Without this a BottomSheetDialog is painted in Material's
+        surfaceContainerLow grey; the palette's step for it is surface_container_low.
+    -->
+    <style name="ThemeOverlay.Zefiro.BottomSheetDialog" parent="ThemeOverlay.Material3.BottomSheetDialog">
+        <item name="bottomSheetStyle">@style/Widget.Zefiro.BottomSheet</item>
+    </style>
+
+    <style name="Widget.Zefiro.BottomSheet" parent="Widget.Material3.BottomSheet.Modal">
+        <item name="backgroundTint">@color/surface_container_low</item>
     </style>
 
 </resources>

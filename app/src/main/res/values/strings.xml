@@ -1071,4 +1071,19 @@
     <!-- Spoken after the game's name by TalkBack; the badge and the dimming are only drawn. -->
     <string name="tile_a11y_running">running</string>
     <string name="tile_a11y_hidden">hidden</string>
+
+    <!-- Main screen navigation -->
+    <string name="nav_library">Library</string>
+    <string name="nav_pcs">PCs</string>
+    <string name="nav_stats">Stats</string>
+    <string name="nav_search">Search</string>
+    <string name="nav_settings">Settings</string>
+    <!-- Spoken for the rail's profile avatar, which only draws an initial or an icon. -->
+    <string name="nav_profile_a11y">Profiles, active: %1$s</string>
+    <string name="nav_profile_a11y_none">Profiles, none active</string>
+    <!-- The debug-only launcher icon that opens the new main screen before it ships. -->
+    <string name="new_ui_preview_label">Zefiro (new UI)</string>
+    <!-- Stand-in section content, there only to exercise focus until the real sections land. -->
+    <string name="placeholder_first_action">First action</string>
+    <string name="placeholder_second_action">Second action</string>
 </resources>

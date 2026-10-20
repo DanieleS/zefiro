@@ -100,4 +100,36 @@
     <dimen name="stats_list_max_width">640dp</dimen>
     <dimen name="stats_gutter">24dp</dimen>
 
+    <!--
+        The main screen's navigation. The rail is narrow and icon-only, as in the mocks: on the
+        Thor it costs width, which a landscape screen has to spare, rather than height. Its
+        items stay at least 56dp tall, so each one is a full touch target around a 40dp
+        indicator. The bottom bar's pill is the mocks' 52 by 28.
+
+        The Thor mock draws the rail at 56 and only the phone at 72. One width is kept on
+        purpose: the window size cannot tell a Thor from a landscape phone (their dp sizes
+        overlap), and of the two only 72 suits both: it is Material's own rail width, and the
+        focus ring keeps clear space around the 40dp indicator. The Thor gives up 16dp of
+        width for it.
+    -->
+    <dimen name="nav_rail_width">72dp</dimen>
+    <dimen name="nav_rail_item_min_height">56dp</dimen>
+    <!-- Brings ic_settings to 24dp inside a 56dp rail cell, the size of the rail's own icons. -->
+    <dimen name="nav_rail_settings_icon_padding">16dp</dimen>
+    <dimen name="nav_rail_padding_top">12dp</dimen>
+    <dimen name="nav_rail_indicator_size">40dp</dimen>
+    <dimen name="nav_rail_indicator_corner">12dp</dimen>
+    <dimen name="nav_bottom_indicator_width">52dp</dimen>
+    <dimen name="nav_bottom_indicator_height">28dp</dimen>
+    <dimen name="nav_bottom_indicator_corner">14dp</dimen>
+    <dimen name="nav_item_focus_inset">6dp</dimen>
+    <dimen name="nav_item_focus_inset_vertical">2dp</dimen>
+    <dimen name="nav_item_focus_corner">14dp</dimen>
+
+    <!-- The profile avatar under the rail: a 48dp target holding a 40dp disc. -->
+    <dimen name="nav_avatar_size">48dp</dimen>
+    <dimen name="nav_avatar_inset">4dp</dimen>
+    <dimen name="nav_avatar_icon_size">20dp</dimen>
+    <dimen name="nav_avatar_margin_bottom">12dp</dimen>
+
 </resources>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Whether the "Zefiro (new UI)" launcher icon exists. The new main screen is built next to
+        the shipped one and only reached from this second icon until it replaces it, so release
+        builds never show it; src/debug turns it on for trying the new UI on a device.
+    -->
+    <bool name="new_ui_preview">false</bool>
+</resources>

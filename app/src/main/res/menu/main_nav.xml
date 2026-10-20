@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The main screen's destinations, shared by the rail (wide windows) and the bottom bar
+    (compact ones), so the two always offer the same places in the same order.
+
+    Settings is an action, not a destination: choosing it opens the settings screen and the
+    selection stays where it was. The bottom bar shows it as its last item; the rail hides it
+    and shows a button at its foot instead (see activity_main), because a rail item cannot sit
+    apart from the others. Stats is hidden until the selected host is known to answer for
+    statistics.
+-->
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_library"
+        android:icon="@drawable/ic_nav_library"
+        android:title="@string/nav_library" />
+    <item
+        android:id="@+id/nav_pcs"
+        android:icon="@drawable/ic_computer"
+        android:title="@string/nav_pcs" />
+    <item
+        android:id="@+id/nav_stats"
+        android:icon="@drawable/ic_stats"
+        android:title="@string/nav_stats"
+        android:visible="false" />
+    <item
+        android:id="@+id/nav_search"
+        android:icon="@drawable/ic_search"
+        android:title="@string/nav_search" />
+    <item
+        android:id="@+id/nav_settings"
+        android:icon="@drawable/ic_settings"
+        android:title="@string/nav_settings" />
+</menu>
