@@ -9,9 +9,11 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.SystemClock;
+import android.util.SparseArray;
 import android.util.SparseLongArray;
 import android.view.InputDevice;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
@@ -119,7 +121,9 @@ import com.limelight.utils.UiHelper;
  * <h3>Keys</h3>
  *
  * Key-downs go to the visible section first ({@link SectionKeys}), then to the focused view.
- * Directional focus between navigation and section is decided by {@link MainRootLayout}.
+ * Directional focus between navigation and section is decided by {@link MainRootLayout}. A pad's
+ * analog triggers reach the section as L2 and R2 key-downs too ({@link TriggerEdges}): many pads
+ * send only the axis, and a press reported by both the axis and the key reaches it once.
  *
  * <h3>Controllers</h3>
  *
@@ -190,6 +194,9 @@ public class MainActivity extends AppCompatActivity
     // would linger and eat the key-up of the next, unrelated press of that key, losing a click.
     // A key-up carries its press's down time, so a stale entry can never match a later press.
     private final SparseLongArray sectionHeldKeys = new SparseLongArray();
+
+    // Each pad's triggers, by input device id: two pads' samples must not press each other's.
+    private final SparseArray<TriggerEdges> triggerEdges = new SparseArray<>();
 
     private final OnBackPressedCallback backCallback = new OnBackPressedCallback(false) {
         @Override
@@ -365,7 +372,13 @@ public class MainActivity extends AppCompatActivity
             // The system bars come back on a swipe or when returning from another screen; a wide
             // window puts them away again.
             applySystemBars();
-        } else if (SystemClock.uptimeMillis() < companionReclaimUntil) {
+            return;
+        }
+        // A trigger held now has its release delivered to whichever window took focus, so the
+        // pressed state kept here would go stale and swallow the next pull as "already down".
+        // Forgotten instead: each pad's edges start again from released.
+        triggerEdges.clear();
+        if (SystemClock.uptimeMillis() < companionReclaimUntil) {
             // Most likely lost to the tap on the companion panel just now. A dialog the tap
             // raised takes window focus too, but moving a task already in front leaves that
             // dialog on top of it, and a game it launched has paused this activity by now.
@@ -377,6 +390,13 @@ public class MainActivity extends AppCompatActivity
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         int code = event.getKeyCode();
+        if ((code == KeyEvent.KEYCODE_BUTTON_L2 || code == KeyEvent.KEYCODE_BUTTON_R2)
+                && event.getRepeatCount() == 0 && event.getAction() != KeyEvent.ACTION_MULTIPLE
+                && !triggersOf(event.getDeviceId()).onKey(code == KeyEvent.KEYCODE_BUTTON_R2,
+                        event.getAction() == KeyEvent.ACTION_DOWN)) {
+            // The same pull, already reported from the trigger's axis.
+            return true;
+        }
         if (event.getAction() == KeyEvent.ACTION_DOWN) {
             Fragment section = navigator.currentFragment();
             if (section instanceof SectionKeys && section.isAdded() && section.getView() != null
@@ -392,6 +412,54 @@ public class MainActivity extends AppCompatActivity
             }
         }
         return super.dispatchKeyEvent(event);
+    }
+
+    /**
+     * A pad's analog triggers, as L2 and R2 key-downs for the visible section (see
+     * {@link TriggerEdges}). Only the section hears them, as for a real L2: no view binds the
+     * triggers. The sample still goes on to the views, for the sticks it carries.
+     */
+    @Override
+    public boolean dispatchGenericMotionEvent(MotionEvent event) {
+        boolean handled = false;
+        if (event.getActionMasked() == MotionEvent.ACTION_MOVE
+                && (event.getSource() & InputDevice.SOURCE_JOYSTICK)
+                        == InputDevice.SOURCE_JOYSTICK) {
+            int edges = triggersOf(event.getDeviceId()).onAxes(
+                    Math.max(event.getAxisValue(MotionEvent.AXIS_LTRIGGER),
+                            event.getAxisValue(MotionEvent.AXIS_BRAKE)),
+                    Math.max(event.getAxisValue(MotionEvent.AXIS_RTRIGGER),
+                            event.getAxisValue(MotionEvent.AXIS_GAS)));
+            if ((edges & TriggerEdges.L2_DOWN) != 0) {
+                handled = offerTrigger(event, KeyEvent.KEYCODE_BUTTON_L2);
+            }
+            if ((edges & TriggerEdges.R2_DOWN) != 0) {
+                handled |= offerTrigger(event, KeyEvent.KEYCODE_BUTTON_R2);
+            }
+        }
+        return super.dispatchGenericMotionEvent(event) || handled;
+    }
+
+    @NonNull
+    private TriggerEdges triggersOf(int deviceId) {
+        TriggerEdges edges = triggerEdges.get(deviceId);
+        if (edges == null) {
+            edges = new TriggerEdges();
+            triggerEdges.put(deviceId, edges);
+        }
+        return edges;
+    }
+
+    // A trigger's press, as the key-down a pad with a trigger button would have sent.
+    private boolean offerTrigger(MotionEvent sample, int code) {
+        Fragment section = navigator.currentFragment();
+        if (!(section instanceof SectionKeys) || !section.isAdded() || section.getView() == null) {
+            return false;
+        }
+        KeyEvent press = new KeyEvent(sample.getEventTime(), sample.getEventTime(),
+                KeyEvent.ACTION_DOWN, code, 0, 0, sample.getDeviceId(), 0, 0,
+                InputDevice.SOURCE_GAMEPAD);
+        return ((SectionKeys) section).onSectionKey(press);
     }
 
     // --- Sections and controllers ---
@@ -431,6 +499,12 @@ public class MainActivity extends AppCompatActivity
     @NonNull
     @Override
     public GameFocusListener gameFocus() {
+        return companionFeed;
+    }
+
+    @NonNull
+    @Override
+    public CompanionPages companionPages() {
         return companionFeed;
     }
 

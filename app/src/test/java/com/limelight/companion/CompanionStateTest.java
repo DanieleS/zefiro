@@ -1,5 +1,11 @@
 package com.limelight.companion;
 
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+
+import androidx.annotation.NonNull;
+
 import org.junit.Before;
 import org.junit.Test;
 
@@ -8,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -331,5 +338,155 @@ public class CompanionStateTest {
         assertEquals(0, outside.count);
         assertFalse(new CompanionState.Browsing(CompanionState.Browsing.Kind.GAME, "HOST-A", 7,
                 "Celeste", null, null, null, false).hasPosition());
+    }
+
+    // --- Pages ---
+
+    /** A page of rows, standing in for a screen's lower half. */
+    private static final class RowsPage extends CompanionPage {
+        private static final CompanionPageRenderer RENDERER = new CompanionPageRenderer() {
+            @NonNull
+            @Override
+            public View create(@NonNull LayoutInflater inflater, @NonNull ViewGroup parent) {
+                throw new UnsupportedOperationException("not drawn here");
+            }
+
+            @Override
+            public void bind(@NonNull View view, @NonNull CompanionPage page,
+                             @NonNull PageTaps taps) {
+                throw new UnsupportedOperationException("not drawn here");
+            }
+        };
+
+        final List<String> rows;
+
+        RowsPage(List<String> rows, int focusedStop) {
+            super(focusedStop);
+            this.rows = rows;
+        }
+
+        @NonNull
+        @Override
+        public CompanionPageRenderer renderer() {
+            return RENDERER;
+        }
+
+        @NonNull
+        @Override
+        public CompanionPage withFocus(int stop) {
+            return new RowsPage(rows, stop);
+        }
+
+        @Override
+        protected boolean sameContent(@NonNull CompanionPage other) {
+            return sameList(rows, ((RowsPage) other).rows);
+        }
+
+        @Override
+        protected int contentHash() {
+            return Objects.hashCode(rows);
+        }
+    }
+
+    private static RowsPage rows(String... rows) {
+        return new RowsPage(Arrays.asList(rows), CompanionPage.NO_STOP);
+    }
+
+    @Test
+    public void anEqualPageReplacesTheOneHeldWithoutARedraw() {
+        state.setBrowsing(game("Hades", 12, false));
+        RowsPage first = rows("Escaped Tartarus", "Pact of Punishment");
+        state.setPage(first);
+        assertSame(first, state.getPage());
+        int before = changes;
+
+        // Another list, the same rows: the same page to draw.
+        RowsPage again = rows("Escaped Tartarus", "Pact of Punishment");
+        state.setPage(again);
+        assertEquals(before, changes);
+        assertSame(again, state.getPage());
+
+        // The d-pad moving onto a row is a new page, and is drawn.
+        state.setPage(again.withFocus(1));
+        assertEquals(before + 1, changes);
+        assertEquals(1, state.getPage().focusedStop());
+    }
+
+    @Test
+    public void pagesAreEqualByContentAndFocus() {
+        List<String> shared = Arrays.asList("A", "B");
+        assertEquals(new RowsPage(shared, 0), new RowsPage(shared, 0));
+        assertEquals(rows("A", "B"), rows("A", "B"));
+        assertEquals(rows("A", "B").hashCode(), rows("A", "B").hashCode());
+        assertNotEquals(rows("A", "B"), rows("A", "C"));
+        assertNotEquals(rows("A", "B"), rows("A", "B").withFocus(0));
+        // Any negative stop is "no stop".
+        assertEquals(rows("A").withFocus(-7), rows("A"));
+    }
+
+    @Test
+    public void clearingBrowsingDropsThePage() {
+        state.setBrowsing(game("Hades", 12, false));
+        state.setPage(rows("Escaped Tartarus"));
+
+        state.clearBrowsing();
+        assertNull(state.getPage());
+    }
+
+    @Test
+    public void leavingBrowsingDropsThePage() {
+        state.setBrowsing(game("Hades", 12, false));
+        state.setPage(rows("Escaped Tartarus"));
+
+        state.leaveBrowsing();
+        assertNull(state.getPage());
+        assertEquals(CompanionState.Content.IDLE, state.getContent());
+
+        // Left while not browsing at all, a page set ahead of time is dropped too, and drawn away.
+        state.setPage(rows("Early"));
+        int before = changes;
+        state.leaveBrowsing();
+        assertNull(state.getPage());
+        assertEquals(before + 1, changes);
+    }
+
+    @Test
+    public void thereIsNoPageWhileStreaming() {
+        state.setBrowsing(game("Hades", 12, false));
+        state.setPage(rows("Escaped Tartarus"));
+        state.enterStreaming();
+        assertNull(state.getPage());
+
+        // Nor is one pushed now drawn: the panel is the stream's.
+        int before = changes;
+        state.setPage(rows("Late push"));
+        assertNull(state.getPage());
+        assertEquals(before, changes);
+    }
+
+    @Test
+    public void aPagePushedBeforeTheStreamHasLeftIsDrawnAfterIt() {
+        // The main screen starts again before the finished game's activity is destroyed, so its
+        // page arrives while the content still says STREAMING.
+        state.enterStreaming();
+        RowsPage page = rows("Escaped Tartarus");
+        state.setPage(page);
+        assertNull(state.getPage());
+
+        state.leaveStreaming();
+        state.setBrowsing(game("Hades", 12, false));
+        assertEquals(CompanionState.Content.BROWSING, state.getContent());
+        assertSame(page, state.getPage());
+    }
+
+    @Test
+    public void aPageIsKeptWhileThePanelIsOff() {
+        state.setBrowsing(game("Hades", 12, false));
+        state.setOwner(CompanionState.Owner.OFF);
+        RowsPage page = rows("Escaped Tartarus");
+        state.setPage(page);
+
+        state.setOwner(CompanionState.Owner.PANEL);
+        assertSame(page, state.getPage());
     }
 }

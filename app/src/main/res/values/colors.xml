@@ -115,4 +115,15 @@
     <color name="hero_scrim_start">#E6000000</color>
     <color name="hero_scrim_end">#59000000</color>
 
+    <!--
+        The charts' bars, after the Stats and game page mocks. A bar is the signal
+        sunk into the ground; one with nothing in it a step of grey; a period that has not
+        happened yet barely there. The selected bar is drawn in @color/signal.
+    -->
+    <color name="chart_bar">#FF1B4554</color>
+    <color name="chart_bar_future">#FF151515</color>
+    <color name="chart_bar_zero">#FF262626</color>
+    <!-- The game page's twelve-week bars, a little greyer than the Stats chart's. -->
+    <color name="week_bar">#FF2C4652</color>
+
 </resources>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One segment of a SegmentedControlView: a 48dp target, its pill drawn inset. -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="0dp"
+    android:layout_height="@dimen/action_size"
+    android:layout_weight="1"
+    android:background="@drawable/segment_item_bg"
+    android:ellipsize="end"
+    android:fontFamily="sans-serif-medium"
+    android:gravity="center"
+    android:paddingStart="8dp"
+    android:paddingEnd="8dp"
+    android:singleLine="true"
+    android:textColor="@color/segment_text"
+    android:textSize="14sp" />

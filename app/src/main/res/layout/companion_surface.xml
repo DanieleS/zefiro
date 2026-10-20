@@ -584,4 +584,13 @@
 
     </FrameLayout>
 
+    <!-- A screen's lower half (a game's achievements, the Stats remote), drawn over all of the
+         browsing surface while the main screen publishes one. Last, so it covers the rest. -->
+    <FrameLayout
+        android:id="@+id/companionPage"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/surface_deep"
+        android:visibility="gone" />
+
 </FrameLayout>

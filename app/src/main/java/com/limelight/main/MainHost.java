@@ -40,6 +40,15 @@ public interface MainHost {
     GameFocusListener gameFocus();
 
     /**
+     * Where a section screen puts its lower half on the companion panel. A page may be published
+     * at any time: while the panel is off ({@code CompanionDisplayManager.panelShowing()}) it is
+     * held, and drawn when the panel comes back. A screen that lays the lower half out inline
+     * meanwhile clears it (or has no page to give) if it must not reappear on the panel then.
+     */
+    @NonNull
+    CompanionPages companionPages();
+
+    /**
      * Whether the screen is driven by a d-pad first: a wide window with a companion panel or a
      * gamepad attached (the Thor). Such a screen opens with a game focused, even though it
      * starts in touch mode, so the companion panel has a game to show and the first press

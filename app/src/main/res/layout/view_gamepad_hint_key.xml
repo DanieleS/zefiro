@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A gamepad button in a hint ("A", "LB"), after the mocks' .gk. -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="@dimen/key_glyph_height"
+    android:background="@drawable/key_glyph_bg"
+    android:fontFamily="sans-serif"
+    android:gravity="center"
+    android:importantForAccessibility="no"
+    android:minWidth="@dimen/key_glyph_min_width"
+    android:paddingStart="4dp"
+    android:paddingEnd="4dp"
+    android:singleLine="true"
+    android:textColor="@color/content_secondary"
+    android:textSize="11sp"
+    android:textStyle="bold" />

@@ -193,4 +193,27 @@
     <dimen name="menu_sheet_anchor_gap">4dp</dimen>
     <dimen name="menu_sheet_window_margin">12dp</dimen>
 
+    <!--
+        The stop ring, chips, pills, segmented controls and gamepad hints shared by the Stats,
+        game and Settings screens.
+    -->
+    <!-- A stop's ring (@drawable/stop_bg): rows and cards the d-pad stops on. -->
+    <dimen name="stop_corner">8dp</dimen>
+    <!-- A chip is drawn 36dp tall inside its 48dp target, as the header chip is. -->
+    <dimen name="chip_inset">6dp</dimen>
+    <dimen name="chip_corner">18dp</dimen>
+    <dimen name="pill_corner">100dp</dimen>
+    <!-- A segmented control: a 48dp row whose segments are drawn 40dp tall in the track. -->
+    <dimen name="segment_track_corner">12dp</dimen>
+    <dimen name="segment_track_padding">3dp</dimen>
+    <dimen name="segment_item_inset">4dp</dimen>
+    <dimen name="segment_item_corner">9dp</dimen>
+    <!-- A gamepad hint: key glyphs, then the label, hints spaced apart. -->
+    <dimen name="key_glyph_height">20dp</dimen>
+    <dimen name="key_glyph_min_width">22dp</dimen>
+    <dimen name="key_glyph_corner">4dp</dimen>
+    <dimen name="key_glyph_gap">3dp</dimen>
+    <dimen name="hint_label_gap">6dp</dimen>
+    <dimen name="hint_gap">14dp</dimen>
+
 </resources>
