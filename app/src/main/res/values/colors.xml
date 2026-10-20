@@ -21,6 +21,21 @@
     <!-- Laid over box art, to say the app behind it is already running. -->
     <color name="scrim_soft">#66000000</color>
 
+    <!--
+        The RUNNING badge on a game tile. It is the signal, deliberately: a running game is
+        the one thing in the library that is live, which is what the signal is spent on. Its
+        own name so the badge can move off the signal without touching focus.
+    -->
+    <color name="running_badge">#FF4FC3F7</color>
+
+    <!--
+        The title card of a game with no cover, as the approved See all mock draws it: a
+        slightly blue-cold surface and a hairline a step brighter than outline_variant, so a
+        card reads as a tile among covers and not as a gap in the grid.
+    -->
+    <color name="tile_placeholder">#FF1A1D22</color>
+    <color name="tile_placeholder_outline">#FF333944</color>
+
     <!-- Content, most prominent first. -->
     <color name="content_primary">#FFF2F5F8</color>
     <color name="content_secondary">#FFBFC7D2</color>

@@ -5,6 +5,7 @@ import android.widget.Toast;
 
 import com.limelight.binding.video.PyroWaveSupport;
 import com.limelight.companion.CompanionDisplayManager;
+import com.limelight.grid.assets.MemoryAssetLoader;
 import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.profiles.ProfilesManager;
 
@@ -24,5 +25,14 @@ public class ArtemisApplication extends Application {
         if (PreferenceConfiguration.isPyroWaveEnabled(this)) {
             PyroWaveSupport.probeInBackground(this);
         }
+    }
+
+    // The decoded covers are a process-wide cache that no screen empties when it stops, so they
+    // are given back here, where the system's request arrives whichever screen is up (the PC
+    // list, a stream) and even when the library screen that filled them is gone.
+    @Override
+    public void onTrimMemory(int level) {
+        super.onTrimMemory(level);
+        new MemoryAssetLoader().trimMemory(level);
     }
 }

@@ -10,6 +10,7 @@ import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.preference.PreferenceManager;
 
+import com.limelight.grid.assets.MemoryAssetLoader;
 import com.limelight.library.LibraryIntents;
 import com.limelight.nvstream.http.ComputerDetails;
 
@@ -327,6 +328,10 @@ public class HostRepository {
             return;
         }
         forgotten.add(uuid);
+        // The decoded covers are process-wide and outlive every screen, so whoever removes the
+        // host has to drop them; here, every removal path does. Even for a host this repository
+        // never listed: its library may have been drawn from the cache before the first poll.
+        new MemoryAssetLoader().clearHost(uuid);
         HostEntry removed = entries.remove(uuid);
         if (removed == null) {
             return;

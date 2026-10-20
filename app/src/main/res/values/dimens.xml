@@ -17,6 +17,14 @@
     <dimen name="tile_spacing_small">10dp</dimen>
     <dimen name="tile_focus_stroke">2dp</dimen>
 
+    <!--
+        The game tile's own layers: the RUNNING badge pinned in a corner of the art, and the
+        title card's inset, which keeps a three-line title clear of the rounded corners.
+    -->
+    <dimen name="tile_badge_corner">4dp</dimen>
+    <dimen name="tile_badge_margin">5dp</dimen>
+    <dimen name="tile_title_padding">7dp</dimen>
+
     <!-- The PC cells are an icon over a label rather than art, and are ringed as a whole. -->
     <dimen name="pc_tile_corner">12dp</dimen>
 

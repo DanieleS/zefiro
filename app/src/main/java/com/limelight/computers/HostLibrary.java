@@ -1,5 +1,6 @@
 package com.limelight.computers;
 
+import android.content.ComponentCallbacks2;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
@@ -10,6 +11,11 @@ import android.util.LruCache;
 import com.limelight.LimeLog;
 import com.limelight.R;
 import com.limelight.grid.AppSortOrder;
+import com.limelight.grid.assets.CachedAppAssetLoader;
+import com.limelight.grid.assets.DiskAssetLoader;
+import com.limelight.grid.assets.MemoryAssetLoader;
+import com.limelight.grid.assets.NetworkAssetLoader;
+import com.limelight.grid.assets.NoArtDetector;
 import com.limelight.library.LibraryApp;
 import com.limelight.library.LibraryIntents;
 import com.limelight.library.LibraryModel;
@@ -35,6 +41,7 @@ import java.io.InputStream;
 import java.io.StringReader;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +51,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Everything the library knows about one host: its games, which one is running, what the user
@@ -58,8 +66,9 @@ import java.util.concurrent.RejectedExecutionException;
  *
  * One instance per selected host. {@link HostRepository} makes one when a host is selected and
  * {@link #close()}s it on a host switch, which releases everything: the app list poller, the
- * executor and the cached backgrounds. Nothing carries over from one host to the next, so no
- * state can leak across hosts by construction.
+ * executor, the cover loader's workers and the cached backgrounds. Nothing carries over from one
+ * host to the next, so no state can leak across hosts by construction. (The decoded covers live
+ * in a process-wide cache keyed by host, which is shared rather than carried.)
  *
  * <pre>
  *            open()                  host answers, list parsed
@@ -109,12 +118,19 @@ public class HostLibrary {
         public final AppSortOrder sortOrder;
         /**
          * Fingerprints of the cached cover files that are the host's stand-in art rather than a
-         * game's own, so a tile can draw its title card instead. Always empty for now: the art
-         * pipeline that fingerprints the cache comes with the game tile, and narrows the element
-         * type to its fingerprint class. The field is here already so that change touches only
-         * how the set is filled, not the snapshot's shape. Unmodifiable.
+         * game's own, so a tile draws its title card instead; see {@link NoArtDetector}. It
+         * grows as covers arrive, and a new set is a new snapshot, so a screen rebinds its tiles
+         * and their covers are judged again. Unmodifiable.
          */
-        public final Set<?> noArtFingerprints;
+        public final Set<NoArtDetector.ArtFingerprint> noArtFingerprints;
+        /**
+         * Goes up when covers have landed in the disk cache, and when the host becomes reachable,
+         * so a screen rebinds its tiles and they load again. A tile the host could not be asked
+         * about (no address before the first poll, or offline) keeps its LOADING card, and
+         * nothing else would tell it the cover is there now: a cover with a fingerprint of its
+         * own leaves {@link #noArtFingerprints} as it was.
+         */
+        public final int artVersion;
         /**
          * Goes up each time this device records a launch on the host. The history itself is not
          * copied in (it is a preferences file, read through {@link #getLaunchHistory()}), so
@@ -125,7 +141,8 @@ public class HostLibrary {
 
         Snapshot(String hostUuid, State state, List<LibraryApp> apps, NvApp running,
                  LibraryModel.Specials specials, Map<String, AppMetadata> metadata,
-                 boolean statsAvailable, AppSortOrder sortOrder, Set<?> noArtFingerprints,
+                 boolean statsAvailable, AppSortOrder sortOrder,
+                 Set<NoArtDetector.ArtFingerprint> noArtFingerprints, int artVersion,
                  int launchHistoryVersion) {
             this.hostUuid = hostUuid;
             this.state = state;
@@ -136,6 +153,7 @@ public class HostLibrary {
             this.statsAvailable = statsAvailable;
             this.sortOrder = sortOrder;
             this.noArtFingerprints = noArtFingerprints;
+            this.artVersion = artVersion;
             this.launchHistoryVersion = launchHistoryVersion;
         }
 
@@ -143,7 +161,8 @@ public class HostLibrary {
         public static Snapshot loading(String hostUuid) {
             return new Snapshot(hostUuid, State.LOADING, Collections.<LibraryApp>emptyList(), null,
                     LibraryModel.Specials.NONE, Collections.<String, AppMetadata>emptyMap(),
-                    false, AppSortOrder.HOST, Collections.emptySet(), 0);
+                    false, AppSortOrder.HOST,
+                    Collections.<NoArtDetector.ArtFingerprint>emptySet(), 0, 0);
         }
 
         // Whether a screen would draw the two the same. Specials and metadata are compared by
@@ -159,6 +178,7 @@ public class HostLibrary {
                     && statsAvailable == other.statsAvailable
                     && sortOrder == other.sortOrder
                     && noArtFingerprints.equals(other.noArtFingerprints)
+                    && artVersion == other.artVersion
                     && launchHistoryVersion == other.launchHistoryVersion;
         }
 
@@ -212,6 +232,8 @@ public class HostLibrary {
     private final AppLaunchHistory launchHistory;
     private final ShortcutHelper shortcuts;
     private final LruCache<Integer, Bitmap> backgrounds;
+    private final DiskAssetLoader diskArt;
+    private final CachedAppAssetLoader art;
 
     private CmsGateway.AppListPoller poller;
     private boolean active;
@@ -256,6 +278,22 @@ public class HostLibrary {
     private boolean closed;
     private Snapshot snapshot;
 
+    private Set<NoArtDetector.ArtFingerprint> noArtFingerprints = Collections.emptySet();
+    // Whether a fingerprint pass is queued and not yet started. Covers arrive in bursts (a whole
+    // grid's worth at once), and one pass after the burst sees them all; one per cover would
+    // read every file again each time. Set from the loader's workers, so atomic.
+    private final AtomicBoolean fingerprintQueued = new AtomicBoolean();
+    // Whether a cover has been written to disk since the last fingerprint pass, which then
+    // bumps artVersion; one bump per burst, as for the pass itself. Set from the loader's workers.
+    private final AtomicBoolean coversLanded = new AtomicBoolean();
+    private int artVersion;
+
+    // Whether every game's cover is to be fetched ahead of the tiles, once the host can be asked.
+    // True from the start, so the first answer of the session prefetches even when its list is
+    // the one cached by the last visit (which never reaches applyList again); set again whenever
+    // the host's list changes or the host comes back.
+    private boolean prefetchPending = true;
+
     /**
      * @param executor where disk, network and parsing run; null for a single thread of the
      *                 library's own, shut down by {@link #close()}.
@@ -287,6 +325,10 @@ public class HostLibrary {
                 return Math.max(1, value.getByteCount() / 1024);
             }
         };
+        this.diskArt = new DiskAssetLoader(this.context);
+        this.art = new CachedAppAssetLoader(new NetworkAssetLoader(this.context, uniqueId),
+                new MemoryAssetLoader(), diskArt, main);
+        this.art.setArtFetchListener(this::onCoverFetched);
 
         this.hiddenIds = LibraryModel.parseHiddenIds(hiddenPrefs.getStringSet(hostUuid, null));
         this.sortOrder = AppSortOrder.fromKey(sortPrefs.getString(LibraryIntents.KEY_SORT, null),
@@ -312,6 +354,8 @@ public class HostLibrary {
         // Launches are recorded on the launch path, which does not know this library exists.
         launchWatch = launchHistory.watch(this::onLaunchRecorded);
         runInBackground(this::readCachedList);
+        // The covers cached by earlier visits tell the stand-in apart before any tile asks.
+        queueFingerprint();
     }
 
     public String getHostUuid() {
@@ -414,6 +458,46 @@ public class HostLibrary {
         return session;
     }
 
+    /**
+     * The covers of this host's games. Owned here so it is closed with the library; a screen
+     * uses it for what {@link #loadArt} does not cover, such as {@code getBitmap} for a shortcut.
+     */
+    public CachedAppAssetLoader getArtLoader() {
+        return art;
+    }
+
+    /**
+     * A game's cover on this host, as the loader identifies it. It carries the host as last
+     * polled, address included, so a cover not on disk yet can be fetched; before the first
+     * poll it carries the bare identity, which serves the disk cache only. A cover that needed
+     * the host then stays LOADING until {@link Snapshot#artVersion} moves and the tile is bound
+     * again.
+     */
+    public CachedAppAssetLoader.LoaderTuple artTuple(NvApp app) {
+        return new CachedAppAssetLoader.LoaderTuple(hostIdentity(), app);
+    }
+
+    /**
+     * Loads a game's cover for a view targetWidthPx wide; see {@link CachedAppAssetLoader#load}.
+     * Main thread. On a closed library nothing calls back.
+     */
+    public CachedAppAssetLoader.Request loadArt(NvApp app, int targetWidthPx,
+                                                CachedAppAssetLoader.ArtCallback callback) {
+        return art.load(artTuple(app), targetWidthPx, callback);
+    }
+
+    /**
+     * Gives this library's decoded backgrounds back as the system asks; see
+     * {@code ComponentCallbacks2}. The covers are not trimmed here: their cache is shared by the
+     * whole process, and ArtemisApplication trims it whatever screen is up. Nothing calls this
+     * yet; the screen that owns the library (MainActivity, from S4) forwards its onTrimMemory.
+     */
+    public void trimMemory(int level) {
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
+            backgrounds.evictAll();
+        }
+    }
+
     /** A game's background art if it was loaded already, or null. */
     public Bitmap cachedBackground(int appId) {
         return backgrounds.get(appId);
@@ -471,6 +555,14 @@ public class HostLibrary {
         host = entry;
         ComputerDetails details = entry.details;
 
+        if (canFetchArt(details) && (previous == null || !canFetchArt(previous.details))) {
+            // Tiles bound while the host could not be asked kept their LOADING card and ended
+            // their request; a rebind asks again, now that someone will answer. The prefetch
+            // fills in the covers of tiles no screen is showing.
+            artVersion++;
+            prefetchPending = true;
+        }
+
         // The poller could not exist before the service knew the host; it may now.
         updatePoller();
 
@@ -497,13 +589,16 @@ public class HostLibrary {
             });
         }
 
+        maybePrefetchArt();
         maybeStartProbe();
         publish();
     }
 
     /**
      * Releases everything: the poller, the executor (queued work is dropped, running work's
-     * results are ignored) and the cached backgrounds. Idempotent.
+     * results are ignored), the cover loader's workers and the cached backgrounds. The decoded
+     * covers themselves stay in the shared memory cache, so switching back is instant.
+     * Idempotent.
      */
     public void close() {
         if (closed) {
@@ -521,6 +616,7 @@ public class HostLibrary {
             pollerRunning = false;
         }
         backgrounds.evictAll();
+        art.close();
         if (ownedExecutor != null) {
             ownedExecutor.shutdownNow();
         }
@@ -614,7 +710,9 @@ public class HostLibrary {
         updateGameShortcuts(reduction);
         if (fromHost) {
             syncCocoonLibrary();
+            prefetchPending = true;
         }
+        maybePrefetchArt();
         maybeStartProbe();
         publish();
     }
@@ -648,6 +746,86 @@ public class HostLibrary {
         ComputerDetails identity = new ComputerDetails();
         identity.uuid = hostUuid;
         return identity;
+    }
+
+    // Every game's cover into the disk cache ahead of any tile, as AppView did on every visit:
+    // the grid then fills from disk, and the stand-in detection has every cover to compare
+    // rather than only the ones scrolled past. Hidden games too: the stand-in shared by one
+    // visible and one hidden game is only found with both on disk, and hidden games are still
+    // drawn, dimmed, when the user asks. Waits for a list and a host that can answer, so it runs
+    // on the first answer of the session, after a change of list, and when the host comes back;
+    // covers already on disk are skipped by the loader, so a repeat costs a file check each.
+    // The loader's prefetch queue has no bound, unlike its tile queues, so a library of
+    // hundreds of games is fetched whole rather than losing its first games to the newest.
+    private void maybePrefetchArt() {
+        if (!prefetchPending || !haveList || host == null || !canFetchArt(host.details)) {
+            return;
+        }
+        prefetchPending = false;
+        for (NvApp app : games) {
+            art.queueCacheLoad(artTuple(app));
+        }
+    }
+
+    /**
+     * A cover has just been written to the disk cache. It may be one more copy of the host's
+     * stand-in, and it is in any case a cover that tiles waiting on it can now load. Any thread:
+     * the loader calls it from the worker that fetched the cover.
+     */
+    void onCoverFetched(CachedAppAssetLoader.LoaderTuple tuple) {
+        if (hostUuid.equals(tuple.computer.uuid)) {
+            coversLanded.set(true);
+            queueFingerprint();
+        }
+    }
+
+    // Any thread.
+    private void queueFingerprint() {
+        if (fingerprintQueued.compareAndSet(false, true)) {
+            runInBackground(this::fingerprintArt);
+        }
+    }
+
+    /**
+     * On the executor. Fingerprints every cover cached for this host and publishes the ones
+     * that games share, which are the host's stand-in art. Bytes rather than pixels, because the
+     * disk cache stores each response as it came, so the stand-in is the same file for every
+     * game it stands in for; see {@link NoArtDetector}. Covers that landed since the last pass
+     * bump {@link Snapshot#artVersion} as well, so the tiles waiting on them load them.
+     */
+    private void fingerprintArt() {
+        // Cleared first, so a cover that lands while this pass runs queues another one. The
+        // landed flag is read before the listing: a cover it reports is on disk by then.
+        fingerprintQueued.set(false);
+        final boolean landed = coversLanded.getAndSet(false);
+        Map<Integer, NoArtDetector.ArtFingerprint> byAppId = new HashMap<>();
+        for (Map.Entry<Integer, File> entry : diskArt.listCachedFiles(hostUuid).entrySet()) {
+            NoArtDetector.ArtFingerprint fp = NoArtDetector.fingerprint(entry.getValue());
+            if (fp != null) {
+                byAppId.put(entry.getKey(), fp);
+            }
+        }
+        final Set<NoArtDetector.ArtFingerprint> found =
+                NoArtDetector.placeholderFingerprints(byAppId);
+        main.execute(() -> {
+            if (closed) {
+                return;
+            }
+            boolean standInsChanged = !found.equals(noArtFingerprints);
+            if (!standInsChanged && !landed) {
+                return;
+            }
+            if (standInsChanged) {
+                noArtFingerprints = Collections.unmodifiableSet(found);
+                // The loader judges covers it delivers from now on; the new snapshot makes
+                // screens rebind, which re-judges the ones already showing.
+                art.setPlaceholderFingerprints(noArtFingerprints);
+            }
+            if (landed) {
+                artVersion++;
+            }
+            publish();
+        });
     }
 
     // The poller says the same thing over and over, and the sync touches storage, so it only
@@ -777,7 +955,7 @@ public class HostLibrary {
         NvApp running = LibraryModel.resolveRunning(games, specials, runningId,
                 host != null ? host.runningAppName : null);
         return new Snapshot(hostUuid, computeState(), apps, running, specials, metadata,
-                statsAvailable, sortOrder, Collections.emptySet(), launchHistoryVersion);
+                statsAvailable, sortOrder, noArtFingerprints, artVersion, launchHistoryVersion);
     }
 
     private State computeState() {
@@ -798,6 +976,12 @@ public class HostLibrary {
 
     private static boolean isReachable(ComputerDetails details) {
         return details.state == ComputerDetails.State.ONLINE && details.pairState == PairState.PAIRED;
+    }
+
+    // Whether a cover asked for now has someone to answer it: the loader needs an address, and
+    // the box art endpoint a paired host.
+    private static boolean canFetchArt(ComputerDetails details) {
+        return isReachable(details) && details.activeAddress != null;
     }
 
     private void runInBackground(Runnable task) {

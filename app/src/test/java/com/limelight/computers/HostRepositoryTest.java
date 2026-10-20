@@ -1,12 +1,17 @@
 package com.limelight.computers;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.os.Looper;
 
 import androidx.preference.PreferenceManager;
 import androidx.test.core.app.ApplicationProvider;
 
 import com.limelight.TestLogSuppressor;
+import com.limelight.grid.assets.CachedAppAssetLoader;
+import com.limelight.grid.assets.DiskAssetLoader;
+import com.limelight.grid.assets.MemoryAssetLoader;
+import com.limelight.grid.assets.ScaledBitmap;
 import com.limelight.library.LibraryApp;
 import com.limelight.library.LibraryIntents;
 import com.limelight.nvstream.http.ComputerDetails;
@@ -21,6 +26,9 @@ import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -501,6 +509,24 @@ public class HostRepositoryTest {
     }
 
     @Test
+    public void forgettingAHostDropsItsDecodedCovers() {
+        gateway.addHost("uuid-a", "Alpha");
+        repo.start();
+        ComputerDetails identity = new ComputerDetails();
+        identity.uuid = "uuid-a";
+        CachedAppAssetLoader.LoaderTuple cover = new CachedAppAssetLoader.LoaderTuple(
+                identity, new NvApp("Game", null, 1, false));
+        MemoryAssetLoader memory = new MemoryAssetLoader();
+        memory.populateCache(cover, 300, new ScaledBitmap(300, 400,
+                Bitmap.createBitmap(3, 4, Bitmap.Config.ARGB_8888)));
+
+        repo.forgetHost("uuid-a");
+
+        // The cache is process-wide: left alone, the removed host's covers would outlive it.
+        assertNull(memory.loadBitmapFromCache(cover, 300));
+    }
+
+    @Test
     public void aPollQueuedBeforeARemovalDoesNotBringTheHostBack() {
         List<Runnable> background = new ArrayList<>();
         repo = newRepository(DIRECT, background::add);
@@ -555,6 +581,45 @@ public class HostRepositoryTest {
 
         assertNotNull(repo.getHost("uuid-a"));
         assertEquals(1, shortcutsPublished.size());
+    }
+
+    @Test
+    public void aCoverLandingAfterItsTileGaveUpRepublishesTheLibrary() throws IOException {
+        ComputerDetails live = gateway.addHost("uuid-a", "Alpha");
+        repo.start();
+        repo.select("uuid-a");
+        live.rawAppList = "<root status_code=\"200\">"
+                + "<App><AppTitle>Alpha</AppTitle><ID>1</ID><IDX>0</IDX></App>"
+                + "</root>";
+        gateway.emit(live);
+        HostLibrary library = repo.currentLibrary();
+        HostLibrary.Snapshot before = repo.getLibrary().getValue();
+
+        // The tile asked before the host could be, and kept its LOADING card. Then the cover
+        // lands, with bytes of its own: not a stand-in, so the fingerprints stay as they were,
+        // and only artVersion tells the screen to bind the tile again.
+        File cover = new DiskAssetLoader(context).getFile("uuid-a", 1);
+        assertTrue(cover.getParentFile().isDirectory() || cover.getParentFile().mkdirs());
+        try (FileOutputStream out = new FileOutputStream(cover)) {
+            out.write(new byte[] {1, 2, 3, 4, 5, 6, 7, 8});
+        }
+        try {
+            library.onCoverFetched(library.artTuple(new NvApp("Alpha", null, 1, false)));
+
+            HostLibrary.Snapshot after = repo.getLibrary().getValue();
+            assertNotSame(before, after);
+            assertTrue(after.artVersion > before.artVersion);
+            assertEquals(before.noArtFingerprints, after.noArtFingerprints);
+
+            // Another host's cover is not this library's news.
+            ComputerDetails other = new ComputerDetails();
+            other.uuid = "uuid-b";
+            library.onCoverFetched(new CachedAppAssetLoader.LoaderTuple(other,
+                    new NvApp("Beta", null, 1, false)));
+            assertSame(after, repo.getLibrary().getValue());
+        } finally {
+            cover.delete();
+        }
     }
 
     @Test

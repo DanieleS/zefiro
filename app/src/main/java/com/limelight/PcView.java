@@ -14,6 +14,7 @@ import com.limelight.computers.HostEntry;
 import com.limelight.computers.RunningGameResolver;
 import com.limelight.grid.PcCardAdapter;
 import com.limelight.grid.assets.DiskAssetLoader;
+import com.limelight.grid.assets.MemoryAssetLoader;
 import com.limelight.library.LibraryIntents;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.NvApp;
@@ -1006,6 +1007,8 @@ public class PcView extends AppCompatActivity implements AdapterFragmentCallback
         managerBinder.removeComputer(details);
 
         new DiskAssetLoader(this).deleteAssetsForComputer(details.uuid);
+        // The decoded covers are shared and outlive every screen, so they are dropped here too.
+        new MemoryAssetLoader().clearHost(details.uuid);
 
         // Delete hidden games preference value
         getSharedPreferences(LibraryIntents.PREFS_HIDDEN_APPS, MODE_PRIVATE)

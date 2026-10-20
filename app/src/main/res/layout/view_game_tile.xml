@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The layers of a game tile (ui/GameTileView), bottom first, all inside tileContent:
+
+      tileTitle         the title card: the game's name on a raised surface, for a tile with no
+                        cover yet (dimmed) or none at all (full strength)
+      tileArt           the cover, over the card, shown only once there is a real one
+      tileRunningBadge  RUNNING, pinned in the top corner, over whatever is showing
+
+    The hidden-game dimming is tileContent's alpha, not the tile's: the tile carries the focus
+    ring as its foreground, and dimming the tile would dim the ring with it, leaving a focused
+    hidden game hard to find with a d-pad. Which of the first two layers shows is decided by
+    the art state alone, in GameTileView.
+-->
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:parentTag="android.widget.FrameLayout">
+
+    <FrameLayout
+        android:id="@+id/tileContent"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <!--
+            Sized to the tile, so the text shrinks on a small shelf tile instead of losing lines;
+            13sp at most, as the approved See all mock sets a title card.
+        -->
+        <androidx.appcompat.widget.AppCompatTextView
+            android:id="@+id/tileTitle"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/tile_placeholder"
+            android:padding="@dimen/tile_title_padding"
+            android:gravity="center"
+            android:textAlignment="center"
+            android:maxLines="3"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif"
+            android:textStyle="bold"
+            android:textColor="@color/content_primary"
+            android:textSize="13sp"
+            android:importantForAccessibility="no"
+            app:autoSizeTextType="uniform"
+            app:autoSizeMinTextSize="11sp"
+            app:autoSizeMaxTextSize="13sp"
+            app:autoSizeStepGranularity="1sp"
+            tools:text="Alan Wake 2" />
+
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/tileArt"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:importantForAccessibility="no"
+            android:visibility="gone"
+            app:shapeAppearanceOverlay="@style/TileShape" />
+
+        <!--
+            The See all mock's .badge: 5dp in from the corner, 2dp by 5dp of padding, a 4dp radius.
+            Its 8px text is not kept: on a TV across the room, and at the edge of legibility on a
+            phone, 8sp is unreadable, so the label is 10sp, the smallest that reads at a glance.
+        -->
+        <TextView
+            android:id="@+id/tileRunningBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|start"
+            android:layout_margin="@dimen/tile_badge_margin"
+            android:background="@drawable/tile_running_badge"
+            android:paddingStart="5dp"
+            android:paddingEnd="5dp"
+            android:paddingTop="2dp"
+            android:paddingBottom="2dp"
+            android:fontFamily="sans-serif"
+            android:textStyle="bold"
+            android:letterSpacing="0.04"
+            android:text="@string/tile_running"
+            android:textColor="@color/on_signal"
+            android:textSize="10sp"
+            android:importantForAccessibility="no"
+            android:visibility="gone" />
+
+    </FrameLayout>
+
+</merge>

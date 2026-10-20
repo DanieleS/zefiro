@@ -1065,4 +1065,10 @@
     <string name="perf_overlay_upscaling">Upscaling: %1$s · added %2$s</string>
     <string name="upscaling_timing_estimate">Estimate includes texture handoff, GPU completion and swap wait (1 ms polling). Display presentation timing is unavailable.</string>
     <string name="upscaling_last_timing">Last GPU path estimate: %1$s</string>
+
+    <!-- Game tile -->
+    <string name="tile_running">RUNNING</string>
+    <!-- Spoken after the game's name by TalkBack; the badge and the dimming are only drawn. -->
+    <string name="tile_a11y_running">running</string>
+    <string name="tile_a11y_hidden">hidden</string>
 </resources>

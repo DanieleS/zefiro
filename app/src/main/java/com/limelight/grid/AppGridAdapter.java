@@ -160,8 +160,9 @@ public class AppGridAdapter extends GenericGridAdapter<AppView.AppObject> {
         LimeLog.info("Art scaling divisor: " + scalingDivisor);
 
         if (loader != null) {
-            // Cancel operations on the old loader
+            // Cancel operations on the old loader, and stop its workers: it is replaced, not paused
             cancelQueuedOperations();
+            loader.close();
         }
 
         this.loader = new CachedAppAssetLoader(computer, scalingDivisor,
@@ -174,10 +175,12 @@ public class AppGridAdapter extends GenericGridAdapter<AppView.AppObject> {
         setLayoutId(currentLayoutId(prefs));
     }
 
+    // The decoded covers stay in memory: they are shared, and what makes the grid come back
+    // instantly after a stream. They go when the system asks for memory, which ArtemisApplication
+    // handles for the whole process, whether this screen is alive or not.
     public void cancelQueuedOperations() {
         loader.cancelForegroundLoads();
         loader.cancelBackgroundLoads();
-        loader.freeCacheMemory();
     }
 
     private void sortList(List<AppView.AppObject> list) {

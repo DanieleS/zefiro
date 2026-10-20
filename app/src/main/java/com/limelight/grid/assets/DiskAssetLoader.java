@@ -14,6 +14,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.HashMap;
+import java.util.Map;
 
 public class DiskAssetLoader {
     // 5 MB
@@ -58,7 +60,20 @@ public class DiskAssetLoader {
         return inSampleSize;
     }
 
+    /**
+     * The cover decoded at the legacy size: the standard 300x400 box, divided by sampleSize.
+     * Worker thread.
+     */
     public ScaledBitmap loadBitmapFromCache(CachedAppAssetLoader.LoaderTuple tuple, int sampleSize) {
+        return loadBitmapAtWidth(tuple, STANDARD_ASSET_WIDTH / Math.max(1, sampleSize));
+    }
+
+    /**
+     * The cover decoded to cover a 3:4 box targetWidth wide, the shape every tile has. It is
+     * never decoded larger than the file is: the view scales up for free, memory does not.
+     * Worker thread.
+     */
+    public ScaledBitmap loadBitmapAtWidth(CachedAppAssetLoader.LoaderTuple tuple, int targetWidth) {
         File file = getFile(tuple.computer.uuid, tuple.app.getAppId());
 
         // Don't bother with anything if it doesn't exist
@@ -72,6 +87,9 @@ public class DiskAssetLoader {
             file.delete();
             return null;
         }
+
+        final int boxWidth = Math.max(1, targetWidth);
+        final int boxHeight = boxWidth * STANDARD_ASSET_HEIGHT / STANDARD_ASSET_WIDTH;
 
         Bitmap bmp;
 
@@ -90,9 +108,7 @@ public class DiskAssetLoader {
 
             // Load the image scaled to the appropriate size
             BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inSampleSize = calculateInSampleSize(decodeOnlyOptions,
-                    STANDARD_ASSET_WIDTH / sampleSize,
-                    STANDARD_ASSET_HEIGHT / sampleSize);
+            options.inSampleSize = calculateInSampleSize(decodeOnlyOptions, boxWidth, boxHeight);
             if (isLowRamDevice) {
                 options.inPreferredConfig = Bitmap.Config.RGB_565;
                 options.inDither = true;
@@ -119,15 +135,18 @@ public class DiskAssetLoader {
 
                         float aspectRatio = (float) scaledBitmap.originalWidth / scaledBitmap.originalHeight;
                         float standardAspectRatio = (float) STANDARD_ASSET_WIDTH / STANDARD_ASSET_HEIGHT;
-                        int targetWidth = STANDARD_ASSET_WIDTH;
-                        int targetHeight = STANDARD_ASSET_HEIGHT;
+                        int targetWidth = boxWidth;
+                        int targetHeight = boxHeight;
 
                         if (aspectRatio < standardAspectRatio) {
                             targetHeight = (int) (standardAspectRatio / aspectRatio * targetHeight);
                         } else {
                             targetWidth = (int) (aspectRatio / standardAspectRatio * targetWidth);
                         }
-                        imageDecoder.setTargetSize(targetWidth, targetHeight);
+                        // Only ever shrink: a cover smaller than the box is decoded as it is.
+                        if (targetWidth < scaledBitmap.originalWidth) {
+                            imageDecoder.setTargetSize(targetWidth, targetHeight);
+                        }
                         if (isLowRamDevice) {
                             imageDecoder.setMemorySizePolicy(ImageDecoder.MEMORY_POLICY_LOW_RAM);
                         }
@@ -145,6 +164,30 @@ public class DiskAssetLoader {
 
     public File getFile(String computerUuid, int appId) {
         return CacheHelper.openPath(false, cacheDir, "boxart", computerUuid, appId + ".png");
+    }
+
+    /**
+     * Every cover cached for a host, keyed by app id: what the stand-in detection fingerprints.
+     * Worker thread.
+     */
+    public Map<Integer, File> listCachedFiles(String computerUuid) {
+        Map<Integer, File> byAppId = new HashMap<>();
+        File[] files = CacheHelper.openPath(false, cacheDir, "boxart", computerUuid).listFiles();
+        if (files == null) {
+            return byAppId;
+        }
+        for (File f : files) {
+            String name = f.getName();
+            if (!name.endsWith(".png")) {
+                continue;
+            }
+            try {
+                byAppId.put(Integer.parseInt(name.substring(0, name.length() - 4)), f);
+            } catch (NumberFormatException ignored) {
+                // Not one of ours.
+            }
+        }
+        return byAppId;
     }
 
     public void deleteAssetsForComputer(String computerUuid) {
