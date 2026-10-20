@@ -40,8 +40,8 @@ jobs:
           DEBUG_KEYSTORE: ${{ secrets.ZEFIRO_DEBUG_KEYSTORE }}
         run: |
           if [ -n "$DEBUG_KEYSTORE" ]; then
-            mkdir -p ~/.android
-            echo "$DEBUG_KEYSTORE" | base64 -d > ~/.android/debug.keystore
+            echo "$DEBUG_KEYSTORE" | base64 -d > "$RUNNER_TEMP/debug.keystore"
+            echo "ZEFIRO_DEBUG_KEYSTORE_FILE=$RUNNER_TEMP/debug.keystore" >> "$GITHUB_ENV"
           else
             echo "::warning::ZEFIRO_DEBUG_KEYSTORE not set: this debug APK can't update an installed one"
           fi
@@ -54,6 +54,18 @@ jobs:
 
       - name: Debug build
         run: ./gradlew --no-daemon :app:assembleNonRoot_gameDebug
+
+      # A debug APK signed with any other key is useless to the live test, and nothing else would
+      # notice: the first attempt at the shared key built fine and still signed with a fresh one.
+      - name: Check the debug signature
+        if: env.ZEFIRO_DEBUG_KEYSTORE_FILE != ''
+        run: |
+          apksigner=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner
+          cert=$("$apksigner" verify --print-certs app/build/outputs/apk/nonRoot_game/debug/app-nonRoot_game-universal-debug.apk | sed -n 's/.*certificate SHA-256 digest: //p' | head -1)
+          echo "debug certificate: $cert"
+          [ "$cert" = "$EXPECTED_DEBUG_CERT_SHA256" ] || { echo "::error::debug APK not signed with the shared key"; exit 1; }
+        env:
+          EXPECTED_DEBUG_CERT_SHA256: f92e2eb6e4aa08c107185bfcea749e09e3aec0b3dfb80d99dbea5bc56d8cc16e
 
       # The live test installs this build on the emulator paired with the PC: the debug package
       # is the one paired there, so it is the one the test needs.
