@@ -59,4 +59,10 @@ public interface MainHost {
     LiveData<Boolean> showHiddenGames();
 
     void setShowHiddenGames(boolean show);
+
+    /**
+     * Whether back has work in a section may have changed: a screen was pushed or popped, or a
+     * mode entered or left. The main screen asks the visible section again ({@link SectionBack}).
+     */
+    void backWorkChanged();
 }

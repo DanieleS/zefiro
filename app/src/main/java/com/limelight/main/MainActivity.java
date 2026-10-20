@@ -28,7 +28,6 @@ import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentManager;
 import androidx.lifecycle.Lifecycle;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.ViewModelProvider;
@@ -47,7 +46,7 @@ import com.limelight.computers.PairingRequest;
 import com.limelight.library.LaunchController;
 import com.limelight.library.LibraryFragment;
 import com.limelight.library.LibraryIntents;
-import com.limelight.library.SearchFragment;
+import com.limelight.library.SearchSectionFragment;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.NvHTTP;
 import com.limelight.pcs.HostActions;
@@ -57,7 +56,7 @@ import com.limelight.stats.AchievementToast;
 import com.limelight.stats.AchievementWatcher;
 import com.limelight.stats.HostLink;
 import com.limelight.stats.HostSession;
-import com.limelight.stats.StatsFragment;
+import com.limelight.stats.StatsSectionFragment;
 import com.limelight.utils.Dialog;
 import com.limelight.utils.UiHelper;
 
@@ -110,10 +109,12 @@ import com.limelight.utils.UiHelper;
  *
  * <h3>Back</h3>
  *
- * Back has work to do only away from the Library's home: from another section it returns to the
- * Library, and inside the Library it pops the Library's own stack (See all). At the Library's
- * home the callback is disabled and the system's default applies, which leaves the app; with one
- * activity there is nothing underneath to return to.
+ * Back asks the visible section first ({@link SectionBack}): a section with a stack of its own
+ * (the Library's See all, a screen pushed over Stats or Search) pops it, one screen at a time.
+ * Only a section with nothing to undo is left, back to the Library. At the Library's home the
+ * callback is disabled and the system's default applies, which leaves the app; with one activity
+ * there is nothing underneath to return to. Sections report every change of their back work
+ * ({@link MainHost#backWorkChanged()}), so the callback's enabled state always follows it.
  *
  * <h3>Keys</h3>
  *
@@ -193,36 +194,17 @@ public class MainActivity extends AppCompatActivity
     private final OnBackPressedCallback backCallback = new OnBackPressedCallback(false) {
         @Override
         public void handleOnBackPressed() {
-            if (navigator.current() != Section.LIBRARY) {
+            SectionBack section = sectionBack();
+            if (section != null && section.hasBackWork()) {
+                section.onBack();
+            } else if (navigator.current() != Section.LIBRARY) {
                 goTo(Section.LIBRARY);
-                return;
-            }
-            Fragment library = navigator.fragment(Section.LIBRARY);
-            if (library != null && library.isAdded()
-                    && library.getChildFragmentManager().getBackStackEntryCount() > 0) {
-                library.getChildFragmentManager().popBackStack();
             }
         }
     };
 
-    // The Library's child stack (See all) decides whether back has work at the Library. Its
-    // fragment can be created by a restore before this activity's onCreate gets past super, so
-    // the watch is set up on the fragment's creation, not on our first show of it.
-    private final FragmentManager.FragmentLifecycleCallbacks libraryStackWatcher =
-            new FragmentManager.FragmentLifecycleCallbacks() {
-                @Override
-                public void onFragmentCreated(@NonNull FragmentManager fm, @NonNull Fragment f,
-                                              @Nullable Bundle savedInstanceState) {
-                    if (Section.LIBRARY.tag().equals(f.getTag())) {
-                        f.getChildFragmentManager().addOnBackStackChangedListener(
-                                MainActivity.this::updateBackEnabled);
-                    }
-                }
-            };
-
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
-        getSupportFragmentManager().registerFragmentLifecycleCallbacks(libraryStackWatcher, false);
         super.onCreate(savedInstanceState);
 
         // Defaults first: the repository the view model makes reads the preferences at once.
@@ -347,7 +329,6 @@ public class MainActivity extends AppCompatActivity
         rendererProbe.release();
         hostActions.release();
         launchController.release();
-        getSupportFragmentManager().unregisterFragmentLifecycleCallbacks(libraryStackWatcher);
         super.onDestroy();
     }
 
@@ -422,10 +403,10 @@ public class MainActivity extends AppCompatActivity
             case PCS:
                 return new PcsFragment();
             case STATS:
-                return new StatsFragment();
+                return new StatsSectionFragment();
             case SEARCH:
             default:
-                return new SearchFragment();
+                return new SearchSectionFragment();
         }
     }
 
@@ -646,23 +627,37 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     public void onSectionReselected(@NonNull Section section) {
-        // The Library goes back to its home from See all; the other sections have one screen.
+        // A section with a stack goes back to its root (the Library's home from See all); the
+        // others have one screen.
         Fragment fragment = navigator.fragment(section);
-        if (fragment instanceof LibraryFragment) {
-            ((LibraryFragment) fragment).showHome();
+        if (fragment instanceof StackedSectionFragment) {
+            ((StackedSectionFragment) fragment).popToRoot();
         }
     }
 
+    @Override
+    public void backWorkChanged() {
+        updateBackEnabled();
+    }
+
+    /**
+     * The visible section's back, or null when it has none. A view is not required: after a
+     * restore the section's stack is back before its views are, and back has work there already.
+     */
+    @Nullable
+    private SectionBack sectionBack() {
+        Fragment section = navigator.currentFragment();
+        return section instanceof SectionBack && section.isAdded() ? (SectionBack) section : null;
+    }
+
+    // See SectionBack: enabled iff the visible section has back work or is not the Library.
     private void updateBackEnabled() {
         if (navigator == null) {
             return;
         }
-        boolean work = navigator.current() != Section.LIBRARY;
-        if (!work) {
-            Fragment library = navigator.fragment(Section.LIBRARY);
-            work = library != null && library.isAdded()
-                    && library.getChildFragmentManager().getBackStackEntryCount() > 0;
-        }
+        SectionBack section = sectionBack();
+        boolean work = navigator.current() != Section.LIBRARY
+                || (section != null && section.hasBackWork());
         backCallback.setEnabled(work);
     }
 

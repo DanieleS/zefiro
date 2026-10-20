@@ -18,11 +18,13 @@ import com.limelight.library.LibraryFragment;
 import com.limelight.library.LibraryHomeFragment;
 import com.limelight.library.LibraryIntents;
 import com.limelight.library.SearchFragment;
+import com.limelight.library.SearchSectionFragment;
 import com.limelight.library.SeeAllFragment;
 import com.limelight.pcs.PcsFragment;
 import com.limelight.preferences.AddComputerManually;
 import com.limelight.preferences.StreamSettings;
 import com.limelight.stats.StatsFragment;
+import com.limelight.stats.StatsSectionFragment;
 
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -83,6 +85,11 @@ public class MainActivityShellTest {
 
     private static Fragment section(MainActivity activity, Section section) {
         return activity.getSupportFragmentManager().findFragmentByTag(section.tag());
+    }
+
+    /** The first screen of a stacked section, under whatever is pushed over it. */
+    private static Fragment root(Fragment section) {
+        return section.getChildFragmentManager().getFragments().get(0);
     }
 
     @Test
@@ -228,7 +235,8 @@ public class MainActivityShellTest {
         Shadows.shadowOf(Looper.getMainLooper()).idle();
 
         Fragment search = section(activity, Section.SEARCH);
-        assertTrue(search instanceof SearchFragment);
+        assertTrue(search instanceof SearchSectionFragment);
+        assertTrue(root(search) instanceof SearchFragment);
         View field = search.requireView().findViewById(R.id.searchField);
         assertTrue("Entering Search focuses its field", field.isFocused());
         // No PC chosen: the panel offers one, in the results' place.
@@ -253,8 +261,10 @@ public class MainActivityShellTest {
         assertTrue(bottom.getMenu().findItem(R.id.nav_stats).isVisible());
         rail.findViewById(R.id.nav_stats).performClick();
         Shadows.shadowOf(Looper.getMainLooper()).idle();
-        assertTrue(section(activity, Section.STATS) instanceof StatsFragment);
-        assertTrue(section(activity, Section.STATS).isVisible());
+        Fragment stats = section(activity, Section.STATS);
+        assertTrue(stats instanceof StatsSectionFragment);
+        assertTrue(root(stats) instanceof StatsFragment);
+        assertTrue(stats.isVisible());
     }
 
     @Test
@@ -291,7 +301,7 @@ public class MainActivityShellTest {
 
         Fragment library = section(activity, Section.LIBRARY);
         assertTrue(library instanceof LibraryFragment);
-        Fragment top = library.getChildFragmentManager().findFragmentById(R.id.libraryContainer);
+        Fragment top = library.getChildFragmentManager().findFragmentById(R.id.sectionStackContainer);
         assertTrue(top instanceof LibraryHomeFragment);
         // The home's own stack has nothing under it: back has no work in the Library.
         assertEquals(0, library.getChildFragmentManager().getBackStackEntryCount());
@@ -317,7 +327,7 @@ public class MainActivityShellTest {
         library.showSeeAll();
         Shadows.shadowOf(Looper.getMainLooper()).idle();
 
-        Fragment top = library.getChildFragmentManager().findFragmentById(R.id.libraryContainer);
+        Fragment top = library.getChildFragmentManager().findFragmentById(R.id.sectionStackContainer);
         assertTrue(top instanceof SeeAllFragment);
         // A window with the rail has no arrow: B, or the Library's item again, goes back.
         assertEquals(View.GONE, top.requireView().findViewById(R.id.seeAllBack).getVisibility());
@@ -325,7 +335,7 @@ public class MainActivityShellTest {
         activity.getOnBackPressedDispatcher().onBackPressed();
         Shadows.shadowOf(Looper.getMainLooper()).idle();
 
-        top = library.getChildFragmentManager().findFragmentById(R.id.libraryContainer);
+        top = library.getChildFragmentManager().findFragmentById(R.id.sectionStackContainer);
         assertTrue(top instanceof LibraryHomeFragment);
         assertTrue(top.isVisible());
         assertFalse(activity.isFinishing());
@@ -340,7 +350,7 @@ public class MainActivityShellTest {
         library.showSeeAll();
         Shadows.shadowOf(Looper.getMainLooper()).idle();
 
-        Fragment top = library.getChildFragmentManager().findFragmentById(R.id.libraryContainer);
+        Fragment top = library.getChildFragmentManager().findFragmentById(R.id.sectionStackContainer);
         assertTrue(top instanceof SeeAllFragment);
         // Something to go back to now, so the arrow shows.
         assertEquals(View.VISIBLE, top.requireView().findViewById(R.id.seeAllBack).getVisibility());
@@ -349,7 +359,7 @@ public class MainActivityShellTest {
         assertFalse(bottom.getMenu().findItem(R.id.nav_search).isVisible());
         top.requireView().findViewById(R.id.seeAllSearch).performClick();
         Shadows.shadowOf(Looper.getMainLooper()).idle();
-        assertTrue(section(activity, Section.SEARCH) instanceof SearchFragment);
+        assertTrue(section(activity, Section.SEARCH) instanceof SearchSectionFragment);
         assertTrue(section(activity, Section.SEARCH).isVisible());
     }
 
@@ -365,7 +375,7 @@ public class MainActivityShellTest {
         rail.setSelectedItemId(R.id.nav_library);
         Shadows.shadowOf(Looper.getMainLooper()).idle();
 
-        Fragment top = library.getChildFragmentManager().findFragmentById(R.id.libraryContainer);
+        Fragment top = library.getChildFragmentManager().findFragmentById(R.id.sectionStackContainer);
         assertTrue(top instanceof LibraryHomeFragment);
         assertTrue(top.isVisible());
     }

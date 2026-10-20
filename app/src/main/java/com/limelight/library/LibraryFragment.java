@@ -1,32 +1,19 @@
 package com.limelight.library;
 
-import android.os.Bundle;
 import android.view.KeyEvent;
-import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentManager;
-import androidx.fragment.app.FragmentTransaction;
 
-import com.limelight.R;
 import com.limelight.grid.AppSortOrder;
 import com.limelight.main.MainHost;
-import com.limelight.main.SectionFocus;
-import com.limelight.main.SectionKeys;
+import com.limelight.main.StackedSectionFragment;
 
 /**
- * The Library section: a frame holding the Library's own stack of screens in its child
- * fragment manager.
- *
- * <p>The Library is the one section with depth: its home lists shelves, and "See all" opens the
- * whole grid over them. The stack lives here, in a child manager, so the main screen's
- * navigator still sees one fragment per section and only shows and hides it; back pops the stack
- * through {@code MainActivity}, which watches this manager's back stack to know whether back has
- * work to do here.
+ * The Library section: a {@link StackedSectionFragment} whose root is the home's shelves, with
+ * "See all" pushed over them to show the whole grid.
  *
  * <pre>
  *   [Home] ──"See all"──▶ [Home (hidden), See all] ──back, or Library again──▶ [Home]
@@ -38,38 +25,21 @@ import com.limelight.main.SectionKeys;
  *
  * <h3>Keys</h3>
  *
- * X is the Library's own: anywhere in it, on either screen, it raises the {@link HostSheet}.
- * Every other key, and focus, is the screen on top's business: this frame passes
- * {@link SectionKeys} and {@link SectionFocus} through to it. Main thread only.
+ * X is the Library's own while the home or See all is on top: on either, it raises the
+ * {@link HostSheet}. On any other screen pushed here X is that screen's, like every other key;
+ * the frame passes keys and focus through to the screen on top. Main thread only.
  */
-public class LibraryFragment extends Fragment implements SectionKeys, SectionFocus {
+public class LibraryFragment extends StackedSectionFragment {
 
-    private static final String TAG_HOME = "library:home";
     private static final String TAG_SEE_ALL = "library:seeAll";
 
     public LibraryFragment() {
     }
 
-    @Nullable
+    @NonNull
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
-                             @Nullable Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_library, container, false);
-    }
-
-    @Override
-    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-        super.onViewCreated(view, savedInstanceState);
-        FragmentManager children = getChildFragmentManager();
-        // A restore brings the stack back by itself; only a first creation adds the root.
-        if (children.findFragmentById(R.id.libraryContainer) == null) {
-            // Now, not later: the navigator posts the section's initial focus right after the
-            // section is shown, and the root has to be there to take it.
-            children.beginTransaction()
-                    .setReorderingAllowed(true)
-                    .add(R.id.libraryContainer, new LibraryHomeFragment(), TAG_HOME)
-                    .commitNow();
-        }
+    protected Fragment createRoot() {
+        return new LibraryHomeFragment();
     }
 
     /**
@@ -87,42 +57,7 @@ public class LibraryFragment extends Fragment implements SectionKeys, SectionFoc
      * @param order the order to open in; null for the library's
      */
     public void showSeeAll(@Nullable AppSortOrder order) {
-        if (!isAdded() || isStateSaved()) {
-            return;
-        }
-        FragmentManager children = getChildFragmentManager();
-        if (children.findFragmentByTag(TAG_SEE_ALL) != null) {
-            return;
-        }
-        Fragment home = children.findFragmentByTag(TAG_HOME);
-        FragmentTransaction tx = children.beginTransaction()
-                .setReorderingAllowed(true);
-        if (home != null) {
-            tx.hide(home);
-        }
-        tx.add(R.id.libraryContainer, SeeAllFragment.newInstance(order), TAG_SEE_ALL)
-                .addToBackStack(TAG_SEE_ALL)
-                .commit();
-        // Run now, so See all's view exists for the focus posted below.
-        children.executePendingTransactions();
-        View view = getView();
-        if (view != null) {
-            view.post(this::requestInitialFocus);
-        }
-    }
-
-    /**
-     * Goes back to the home: pops See all when it is up, and does nothing otherwise. The
-     * Library's navigation item chosen again, the touch way back where See all has no arrow.
-     */
-    public void showHome() {
-        if (!isAdded() || isStateSaved()) {
-            return;
-        }
-        FragmentManager children = getChildFragmentManager();
-        if (children.findFragmentByTag(TAG_SEE_ALL) != null) {
-            children.popBackStack(TAG_SEE_ALL, FragmentManager.POP_BACK_STACK_INCLUSIVE);
-        }
+        push(SeeAllFragment.newInstance(order), TAG_SEE_ALL);
     }
 
     /**
@@ -144,42 +79,17 @@ public class LibraryFragment extends Fragment implements SectionKeys, SectionFoc
         HostSheet.show(requireActivity(), (MainHost) requireActivity(), anchor);
     }
 
-    /** The screen on top of the Library's stack, or null before the first one is added. */
-    @Nullable
-    private Fragment top() {
-        if (!isAdded()) {
-            return null;
-        }
-        Fragment top = getChildFragmentManager().findFragmentById(R.id.libraryContainer);
-        return top != null && top.isAdded() && top.getView() != null ? top : null;
-    }
-
     @Override
     public boolean onSectionKey(KeyEvent event) {
-        if (event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_X) {
-            if (event.getRepeatCount() != 0 || top() == null) {
+        Fragment top = top();
+        if (event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_X
+                && (top instanceof LibraryHomeFragment || top instanceof SeeAllFragment)) {
+            if (event.getRepeatCount() == 0) {
                 // Held, X raises one sheet, not one per repeat.
-                return top() != null;
+                showHostSheet(null);
             }
-            showHostSheet(null);
             return true;
         }
-        Fragment top = top();
-        return top instanceof SectionKeys && ((SectionKeys) top).onSectionKey(event);
-    }
-
-    @Nullable
-    @Override
-    public View restoreFocusTarget() {
-        Fragment top = top();
-        return top instanceof SectionFocus ? ((SectionFocus) top).restoreFocusTarget() : null;
-    }
-
-    @Override
-    public void requestInitialFocus() {
-        Fragment top = top();
-        if (top instanceof SectionFocus) {
-            ((SectionFocus) top).requestInitialFocus();
-        }
+        return super.onSectionKey(event);
     }
 }

@@ -27,6 +27,7 @@ import com.limelight.computers.HostRepository;
 import com.limelight.main.MainHost;
 import com.limelight.main.SectionFocus;
 import com.limelight.main.SectionKeys;
+import com.limelight.main.StackedSectionFragment;
 import com.limelight.main.WindowClass;
 import com.limelight.nvstream.http.Achievement;
 import com.limelight.nvstream.http.AppStats;
@@ -71,7 +72,8 @@ import java.util.concurrent.RejectedExecutionException;
  *
  * Main thread only; every callback checks that the view still exists.
  */
-public class StatsFragment extends Fragment implements SectionKeys, SectionFocus {
+public class StatsFragment extends Fragment
+        implements SectionKeys, SectionFocus, StackedSectionFragment.SectionHiddenListener {
 
     private static final String[] RANGES = {
             AppStats.RANGE_WEEK, AppStats.RANGE_MONTH, AppStats.RANGE_YEAR};
@@ -258,7 +260,18 @@ public class StatsFragment extends Fragment implements SectionKeys, SectionFocus
     @Override
     public void onHiddenChanged(boolean hidden) {
         super.onHiddenChanged(hidden);
-        if (!hidden && isAdded() && getView() != null) {
+        onShownChanged(hidden);
+    }
+
+    @Override
+    public void onSectionHiddenChanged(boolean hidden) {
+        onShownChanged(hidden);
+    }
+
+    // Hidden or shown, on the section's stack or with the whole section.
+    private void onShownChanged(boolean hidden) {
+        if (!hidden && isAdded() && getView() != null
+                && !StackedSectionFragment.isHiddenInSection(this)) {
             // Back from another section: what was there is shown again at once, and asked for
             // anew, since a stream in between has likely changed it.
             present();
@@ -308,7 +321,8 @@ public class StatsFragment extends Fragment implements SectionKeys, SectionFocus
                 changed = true;
             }
         }
-        if (changed && !isHidden()) {
+        // The section's own hide counts too: this page is the root of the Stats stack.
+        if (changed && !StackedSectionFragment.isHiddenInSection(this)) {
             present();
         }
     }
