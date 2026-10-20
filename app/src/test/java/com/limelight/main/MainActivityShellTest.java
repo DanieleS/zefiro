@@ -19,6 +19,9 @@ import com.limelight.ProfilesActivity;
 import com.limelight.R;
 import com.limelight.TestLogSuppressor;
 import com.limelight.computers.ComputerManagerService;
+import com.limelight.library.LibraryIntents;
+import com.limelight.pcs.PcsFragment;
+import com.limelight.preferences.AddComputerManually;
 import com.limelight.preferences.StreamSettings;
 
 import org.junit.Before;
@@ -212,5 +215,40 @@ public class MainActivityShellTest {
         railItem.requestFocus();
 
         assertSame(second, root.focusSearch(railItem, View.FOCUS_RIGHT));
+    }
+
+    @Test
+    @Config(qualifiers = "w900dp-h500dp-land")
+    public void pcs_isTheRealSection_searchingUntilAHostIsKnown() {
+        MainActivity activity = launch().get();
+        NavigationRailView rail = activity.findViewById(R.id.navRail);
+
+        rail.findViewById(R.id.nav_pcs).performClick();
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
+
+        Fragment pcs = section(activity, Section.PCS);
+        assertTrue(pcs instanceof PcsFragment);
+        assertEquals(View.VISIBLE, pcs.requireView().findViewById(R.id.pcsEmpty).getVisibility());
+
+        pcs.requireView().findViewById(R.id.pcsAddButton).performClick();
+        Intent next = Shadows.shadowOf(activity).getNextStartedActivity();
+        assertNotNull("Add PC should open the add-PC screen", next);
+        assertEquals(AddComputerManually.class.getName(), next.getComponent().getClassName());
+    }
+
+    @Test
+    @Config(qualifiers = "w900dp-h500dp-land")
+    public void pairingLink_opensOnPcs() {
+        Intent intent = new Intent(ApplicationProvider.getApplicationContext(), MainActivity.class)
+                .putExtra(LibraryIntents.EXTRA_PAIR_HOSTNAME, "10.0.0.2")
+                .putExtra(LibraryIntents.EXTRA_PAIR_PORT, 47989)
+                .putExtra(LibraryIntents.EXTRA_PAIR_PIN, "1234")
+                .putExtra(LibraryIntents.EXTRA_PAIR_PASSPHRASE, "secret");
+        MainActivity activity = Robolectric.buildActivity(MainActivity.class, intent).setup().get();
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
+
+        NavigationRailView rail = activity.findViewById(R.id.navRail);
+        assertEquals(R.id.nav_pcs, rail.getSelectedItemId());
+        assertTrue(section(activity, Section.PCS).isVisible());
     }
 }

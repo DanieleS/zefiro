@@ -93,6 +93,16 @@ public class ServerHelper {
     public static Intent createStartIntent(Activity parent, NvApp app, ComputerDetails computer,
                                            ComputerManagerService.ComputerManagerBinder managerBinder,
                                            boolean withVDisplay) {
+        return createStartIntent(parent, app, computer, managerBinder.getUniqueId(), withVDisplay);
+    }
+
+    /**
+     * The same, for a caller that holds the client's unique id rather than the service's binder:
+     * the binder was only ever asked for that id. The new main screen reaches the service through
+     * {@code HostRepository}, which hands out the id but never the binder.
+     */
+    public static Intent createStartIntent(Activity parent, NvApp app, ComputerDetails computer,
+                                           String uniqueId, boolean withVDisplay) {
         Intent gameIntent = null;
         PreferenceConfiguration prefConfig = PreferenceConfiguration.readPreferences(parent);
         // Try to add secondary DisplayContext if supported and connected
@@ -109,7 +119,7 @@ public class ServerHelper {
         gameIntent.putExtra(Game.EXTRA_APP_UUID, app.getAppUUID());
         gameIntent.putExtra(Game.EXTRA_APP_ID, app.getAppId());
         gameIntent.putExtra(Game.EXTRA_APP_HDR, app.isHdrSupported());
-        gameIntent.putExtra(Game.EXTRA_UNIQUEID, managerBinder.getUniqueId());
+        gameIntent.putExtra(Game.EXTRA_UNIQUEID, uniqueId);
         gameIntent.putExtra(Game.EXTRA_PC_UUID, computer.uuid);
         gameIntent.putExtra(Game.EXTRA_PC_NAME, computer.name);
         gameIntent.putExtra(Game.EXTRA_VDISPLAY, withVDisplay);
@@ -145,6 +155,12 @@ public class ServerHelper {
             ComputerManagerService.ComputerManagerBinder managerBinder,
             boolean withVDisplay
     ) {
+        doStart(parent, app, computer, managerBinder.getUniqueId(), withVDisplay);
+    }
+
+    /** {@link #doStart(Activity, NvApp, ComputerDetails, ComputerManagerService.ComputerManagerBinder, boolean)} by unique id. */
+    public static void doStart(Activity parent, NvApp app, ComputerDetails computer, String uniqueId,
+                               boolean withVDisplay) {
         if (computer.state == ComputerDetails.State.OFFLINE || computer.activeAddress == null) {
             Toast.makeText(parent, parent.getString(R.string.pair_pc_offline), Toast.LENGTH_SHORT).show();
             return;
@@ -153,7 +169,7 @@ public class ServerHelper {
         // Note the launch before we leave, so the library can offer a "last played" order.
         AppLaunchHistory.recordLaunch(parent, computer, app);
 
-        Intent intent = createStartIntent(parent, app, computer, managerBinder, withVDisplay);
+        Intent intent = createStartIntent(parent, app, computer, uniqueId, withVDisplay);
         parent.startActivity(intent);
     }
 
@@ -252,11 +268,21 @@ public class ServerHelper {
                               final ComputerManagerService.ComputerManagerBinder managerBinder,
                               final Runnable onComplete
     ) {
+        doQuit(parent, computer, app, managerBinder.getUniqueId(), onComplete);
+    }
+
+    /** {@link #doQuit(Activity, ComputerDetails, NvApp, ComputerManagerService.ComputerManagerBinder, Runnable)} by unique id. */
+    public static void doQuit(final Activity parent,
+                              final ComputerDetails computer,
+                              final NvApp app,
+                              final String uniqueId,
+                              final Runnable onComplete
+    ) {
         try {
             NvHTTP httpConn = new NvHTTP(
                     ServerHelper.getCurrentAddressFromComputer(computer),
                     computer.httpsPort,
-                    managerBinder.getUniqueId(),
+                    uniqueId,
                     computer.serverCert,
                     PlatformBinding.getCryptoProvider(parent)
             );

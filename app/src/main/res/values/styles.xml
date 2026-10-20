@@ -183,7 +183,7 @@
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:minWidth">0dp</item>
-        <item name="android:minHeight">40dp</item>
+        <item name="android:minHeight">@dimen/action_size</item>
         <item name="android:paddingStart">16dp</item>
         <item name="android:paddingEnd">16dp</item>
         <item name="android:insetTop">0dp</item>
@@ -453,7 +453,7 @@
 
     <style name="StatsSegment">
         <item name="android:layout_width">0dp</item>
-        <item name="android:layout_height">40dp</item>
+        <item name="android:layout_height">@dimen/action_size</item>
         <item name="android:layout_weight">1</item>
         <item name="android:gravity">center</item>
         <item name="android:background">@drawable/stats_segment_item_bg</item>
@@ -558,6 +558,45 @@
     <style name="ShapeAppearance.Zefiro.NavBottomIndicator" parent="">
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">@dimen/nav_bottom_indicator_corner</item>
+    </style>
+
+    <!--
+        A section's header (see dimens: section_*). The title is the mocks' big bold word; the
+        chip is their dark pill, here a 48dp touch target around a 36dp pill, with the signal
+        ring on focus like every other control, since a chip has no other focus state to show.
+    -->
+    <style name="SectionTitle">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:textColor">@color/content_primary</item>
+        <item name="android:textSize">@dimen/section_title_size</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:ellipsize">end</item>
+    </style>
+
+    <style name="Widget.Zefiro.HeaderChip" parent="Widget.Material3.Button.UnelevatedButton">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:minHeight">@dimen/action_size</item>
+        <item name="android:insetTop">@dimen/header_chip_inset</item>
+        <item name="android:insetBottom">@dimen/header_chip_inset</item>
+        <item name="android:paddingStart">14dp</item>
+        <item name="android:paddingEnd">16dp</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:letterSpacing">0.02</item>
+        <item name="android:textColor">@color/content_primary</item>
+        <item name="backgroundTint">@color/surface_container</item>
+        <item name="cornerRadius">@dimen/header_chip_corner</item>
+        <item name="iconTint">@color/content_primary</item>
+        <item name="iconSize">@dimen/header_chip_icon</item>
+        <item name="iconPadding">6dp</item>
+        <item name="strokeColor">@color/action_stroke</item>
+        <item name="strokeWidth">@dimen/tile_focus_stroke</item>
+        <item name="rippleColor">@color/signal_wash</item>
     </style>
 
     <!--

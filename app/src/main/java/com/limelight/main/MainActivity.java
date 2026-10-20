@@ -3,6 +3,7 @@ package com.limelight.main;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.SparseLongArray;
@@ -11,6 +12,8 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.activity.OnBackPressedCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -27,7 +30,15 @@ import androidx.preference.PreferenceManager;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.navigationrail.NavigationRailView;
 import com.limelight.R;
+import com.limelight.computers.HostRepository;
+import com.limelight.computers.PairingRequest;
+import com.limelight.library.LibraryIntents;
+import com.limelight.nvstream.http.ComputerDetails;
+import com.limelight.nvstream.http.NvHTTP;
+import com.limelight.pcs.HostActions;
+import com.limelight.pcs.PcsFragment;
 import com.limelight.preferences.StreamSettings;
+import com.limelight.utils.Dialog;
 import com.limelight.utils.UiHelper;
 
 /**
@@ -37,8 +48,8 @@ import com.limelight.utils.UiHelper;
  * <p>It replaces the PcView/AppView pair, where the PC list sat under the library and each bound
  * the computer manager on its own. Here one {@link MainViewModel} owns the host state for every
  * section, and switching sections is a fragment show/hide, not an activity start. Until the
- * switch-over it is reached only from the debug "Zefiro (new UI)" icon, and the sections are
- * placeholders.
+ * switch-over it is reached only from the debug "Zefiro (new UI)" icon, and the sections other
+ * than PCs are placeholders.
  *
  * <h3>Window</h3>
  *
@@ -68,9 +79,23 @@ import com.limelight.utils.UiHelper;
  *
  * Key-downs go to the visible section first ({@link SectionKeys}), then to the focused view.
  * Directional focus between navigation and section is decided by {@link MainRootLayout}.
+ *
+ * <h3>Controllers</h3>
+ *
+ * What starts activities, shows dialogs or holds activity-result launchers lives here, not in a
+ * section: {@link HostActions} (pairing, wake, delete, export) outlives any section's views.
+ * Sections reach it, and the host state, through {@link MainHost}.
+ *
+ * <h3>Pairing from a link</h3>
+ *
+ * An {@code art://host:port?pin=&passphrase=} link reaches this screen through
+ * {@code AddComputerManually}, with the host's address and the PIN as extras. The PIN cannot be
+ * used until the new host has been polled, so the address is parked in the repository; when a
+ * poll finds the host there, the repository offers a {@link PairingRequest}, and this screen
+ * shows PCs and runs the pairing.
  */
 public class MainActivity extends AppCompatActivity
-        implements NavChrome.Callbacks, MainRootLayout.Gate {
+        implements NavChrome.Callbacks, MainRootLayout.Gate, MainHost, HostActions.Shell {
 
     private static final String STATE_SECTION = "section";
 
@@ -82,6 +107,7 @@ public class MainActivity extends AppCompatActivity
     private NavChrome navChrome;
     private SectionNavigator navigator;
     private RendererProbe rendererProbe;
+    private HostActions hostActions;
     private int railPaddingTop;
 
     // Key code to the down time of the press a section handled, so that press's key-up is
@@ -130,6 +156,17 @@ public class MainActivity extends AppCompatActivity
         PreferenceManager.setDefaultValues(this, R.xml.preferences, false);
         viewModel = new ViewModelProvider(this).get(MainViewModel.class);
 
+        // Registered before the activity starts, as the result API requires; their results go
+        // to the actions, which are made right below and only launch them later.
+        ActivityResultLauncher<Uri> pickRomsFolder = registerForActivityResult(
+                new ActivityResultContracts.OpenDocumentTree(),
+                uri -> hostActions.onRomsFolderPicked(uri));
+        ActivityResultLauncher<Uri> pickEsdeFolder = registerForActivityResult(
+                new ActivityResultContracts.OpenDocumentTree(),
+                uri -> hostActions.onEsdeFolderPicked(uri));
+        hostActions = new HostActions(this, viewModel.repository(), this,
+                pickRomsFolder, pickEsdeFolder);
+
         setContentView(R.layout.activity_main);
         UiHelper.notifyNewRootView(this);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -153,9 +190,12 @@ public class MainActivity extends AppCompatActivity
         Section initial = viewModel.section();
         if (savedInstanceState != null) {
             initial = Section.fromName(savedInstanceState.getString(STATE_SECTION), initial);
+        } else if (parkPairing(getIntent())) {
+            // Sent here to pair a PC just added: the pairing happens in PCs, so start there.
+            initial = Section.PCS;
         }
         navigator = new SectionNavigator(getSupportFragmentManager(), R.id.sectionContainer,
-                sectionContainer, PlaceholderSectionFragment::newInstance, initial);
+                sectionContainer, MainActivity::createSection, initial);
         root.setGate(this);
         getOnBackPressedDispatcher().addCallback(this, backCallback);
 
@@ -163,6 +203,18 @@ public class MainActivity extends AppCompatActivity
         rendererProbe.start();
 
         goTo(initial);
+
+        // Delivered only while started, so the PIN dialog never comes up behind another screen.
+        viewModel.repository().getPairingRequests().observe(this, this::onPairingRequest);
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        if (parkPairing(intent)) {
+            goTo(Section.PCS);
+        }
     }
 
     @Override
@@ -177,6 +229,9 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onStop() {
         viewModel.onStop();
+        // As PcView did: an informational dialog (a PIN, a host's details) is not left up behind
+        // a stream or another app. A pairing in progress carries on without its PIN dialog.
+        Dialog.closeDialogs();
         super.onStop();
     }
 
@@ -189,6 +244,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onDestroy() {
         rendererProbe.release();
+        hostActions.release();
         getSupportFragmentManager().unregisterFragmentLifecycleCallbacks(libraryStackWatcher);
         super.onDestroy();
     }
@@ -243,6 +299,75 @@ public class MainActivity extends AppCompatActivity
             }
         }
         return super.dispatchKeyEvent(event);
+    }
+
+    // --- Sections and controllers ---
+
+    private static Fragment createSection(@NonNull Section section) {
+        if (section == Section.PCS) {
+            return new PcsFragment();
+        }
+        return PlaceholderSectionFragment.newInstance(section);
+    }
+
+    @NonNull
+    @Override
+    public HostRepository hostRepository() {
+        return viewModel.repository();
+    }
+
+    @NonNull
+    @Override
+    public HostActions hostActions() {
+        return hostActions;
+    }
+
+    @Override
+    public void showSection(@NonNull Section section) {
+        goTo(section);
+    }
+
+    @Override
+    public void showLibrary(@NonNull String hostUuid, boolean showHidden) {
+        // showHidden has nowhere to go until the Library's See all exists (S6), which is where
+        // "View all apps" lands; until then it opens the Library like any paired host.
+        viewModel.repository().select(hostUuid);
+        goTo(Section.LIBRARY);
+    }
+
+    @Override
+    public void whenRendererReady(@NonNull Runnable start) {
+        rendererProbe.whenReady(start);
+    }
+
+    // --- Pairing from a link ---
+
+    /**
+     * Parks the pairing an intent asks for (see the class comment), if it asks for one.
+     *
+     * @return whether it did
+     */
+    private boolean parkPairing(Intent intent) {
+        String hostname = intent.getStringExtra(LibraryIntents.EXTRA_PAIR_HOSTNAME);
+        String pin = intent.getStringExtra(LibraryIntents.EXTRA_PAIR_PIN);
+        String passphrase = intent.getStringExtra(LibraryIntents.EXTRA_PAIR_PASSPHRASE);
+        if (hostname == null || pin == null || passphrase == null) {
+            return false;
+        }
+        int port = intent.getIntExtra(LibraryIntents.EXTRA_PAIR_PORT, NvHTTP.DEFAULT_HTTP_PORT);
+        viewModel.repository().setPendingPairing(
+                new ComputerDetails.AddressTuple(hostname, port), pin, passphrase);
+        return true;
+    }
+
+    private void onPairingRequest(@Nullable PairingRequest request) {
+        if (request == null) {
+            return;
+        }
+        // Taken first, so a re-delivery (a restart of this observer) never pairs twice.
+        viewModel.repository().pairingHandled();
+        goTo(Section.PCS);
+        hostActions.pair(request.host, request.pin, request.passphrase);
     }
 
     // --- Navigation ---

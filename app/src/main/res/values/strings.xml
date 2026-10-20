@@ -1083,6 +1083,8 @@
     <string name="nav_profile_a11y_none">Profiles, none active</string>
     <!-- The debug-only launcher icon that opens the new main screen before it ships. -->
     <string name="new_ui_preview_label">Zefiro (new UI)</string>
+    <!-- The PCs section -->
+    <string name="pcs_add_pc">Add PC</string>
     <!-- Stand-in section content, there only to exercise focus until the real sections land. -->
     <string name="placeholder_first_action">First action</string>
     <string name="placeholder_second_action">Second action</string>
