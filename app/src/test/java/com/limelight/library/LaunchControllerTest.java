@@ -12,6 +12,7 @@ import androidx.preference.PreferenceManager;
 import com.limelight.computers.HostEntry;
 import com.limelight.computers.HostLibrary;
 import com.limelight.computers.HostRepository;
+import com.limelight.computers.SnapshotFixtures;
 import com.limelight.library.LaunchController.TapAction;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.NvApp;
@@ -58,6 +59,8 @@ public class LaunchControllerTest {
         final List<String> starts = new ArrayList<>();
         Runnable quitDone;
         Runnable quitFailed;
+        /** The control a quit went through, when it disconnected a monitor session; or null. */
+        NvApp disconnected;
 
         @Override
         public void start(@NonNull Activity activity, @NonNull NvApp app,
@@ -70,6 +73,16 @@ public class LaunchControllerTest {
         public void quit(@NonNull Activity activity, @NonNull ComputerDetails computer,
                          @NonNull NvApp app, @NonNull String uniqueId, @NonNull Runnable onDone,
                          @NonNull Runnable onFailed) {
+            quitDone = onDone;
+            quitFailed = onFailed;
+        }
+
+        @Override
+        public void disconnectMonitor(@NonNull Activity activity, @NonNull ComputerDetails computer,
+                                      @NonNull NvApp disconnect, @NonNull NvApp shown,
+                                      @NonNull String uniqueId, @NonNull Runnable onDone,
+                                      @NonNull Runnable onFailed) {
+            disconnected = disconnect;
             quitDone = onDone;
             quitFailed = onFailed;
         }
@@ -277,6 +290,28 @@ public class LaunchControllerTest {
         order.verify(library).setSuspendUpdates(true);
         order.verify(library).setSuspendUpdates(false);
         order.verify(library).pollNow();
+    }
+
+    @Test
+    public void quit_ofAHeldMonitorSessionDisconnectsTheMonitor() {
+        // The host reports no game for the session; the library offers its Remote Monitor entry.
+        NvApp monitor = new NvApp("Remote Monitor", NvApp.REMOTE_MONITOR_UUID, 11, true);
+        NvApp disconnect = new NvApp("Disconnect Monitor", NvApp.DISCONNECT_MONITOR_UUID, 92, true);
+        LibraryModel.Specials specials = new LibraryModel.Specials(null, monitor, null,
+                new NvApp("Resume", NvApp.SESSION_RESUME_UUID, 91, true), disconnect);
+        when(library.getSnapshot()).thenReturn(SnapshotFixtures.ready(HOST,
+                new ArrayList<LibraryApp>(), monitor, specials));
+
+        controller().quit(monitor);
+        assertEquals(disconnect, server.disconnected);
+        server.quitDone.run();
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
+        verify(library).pollNow();
+
+        // A game is still quit the plain way.
+        server.disconnected = null;
+        controller().quit(game(GAME, true).app);
+        assertEquals(null, server.disconnected);
     }
 
     @Test

@@ -689,12 +689,18 @@ public class HostLibrary {
             return;
         }
         main.execute(() -> {
-            // The host may have answered first; its list is the newer one.
-            if (closed || lastRawApplist != null) {
+            if (closed) {
                 return;
             }
-            lastRawApplist = raw;
-            applyList(parsed, false);
+            if (lastRawApplist == null) {
+                lastRawApplist = raw;
+                applyList(parsed, false);
+            } else if (games.isEmpty() && specials.holdsMonitorSession()) {
+                // The host answered first, but only with its session catalogue, which keeps the
+                // games it finds (none yet): the cached games fill in under the held session.
+                applyCachedUnderSession(parsed);
+            }
+            // Otherwise the host answered first with its library, the newer list.
         });
     }
 
@@ -705,7 +711,8 @@ public class HostLibrary {
      *                 every game added since, only for the host's list to write them back.
      */
     private void applyList(List<NvApp> hostList, boolean fromHost) {
-        LibraryModel.Reduction reduction = LibraryModel.reduce(games, hostList);
+        // The specials too: a session catalogue keeps them, as it keeps the games.
+        LibraryModel.Reduction reduction = LibraryModel.reduce(games, specials, hostList);
         games = reduction.games;
         specials = reduction.specials;
         haveList = true;
@@ -715,6 +722,22 @@ public class HostLibrary {
             syncCocoonLibrary();
             prefetchPending = true;
         }
+        maybePrefetchArt();
+        maybeStartProbe();
+        publish();
+    }
+
+    // Main thread. The cached list's games and specials, the held session kept over them. Not
+    // synced to the frontend, as no cached list is (see applyList).
+    private void applyCachedUnderSession(List<NvApp> cachedList) {
+        LibraryModel.Reduction cached = LibraryModel.reduce(games, cachedList);
+        LibraryModel.Specials held = specials;
+        games = cached.games;
+        specials = new LibraryModel.Specials(cached.specials.virtualDisplay,
+                cached.specials.remoteMonitor, cached.specials.remoteInput,
+                held.monitorResume, held.monitorDisconnect);
+        haveList = true;
+        updateGameShortcuts(cached);
         maybePrefetchArt();
         maybeStartProbe();
         publish();

@@ -102,6 +102,74 @@ public class LibraryModelTest {
         assertFalse(r.specials.hasRemoteSession());
     }
 
+    // --- The host's session controls ---
+
+    private static NvApp control(String uuid, int id, String name) {
+        return new NvApp(name, uuid, id, true);
+    }
+
+    @Test
+    public void sessionControlsAreNeverGames() {
+        // A second client while another plays: the library, plus the host's controls.
+        LibraryModel.Reduction r = LibraryModel.reduce(Collections.<NvApp>emptyList(),
+                Arrays.asList(control(NvApp.RUNNING_GAME_COPY_UUID, 90, "     A"),
+                        control(NvApp.SESSION_RESUME_UUID, 91, "  Resume"),
+                        control(NvApp.TERMINATE_UUID.toLowerCase(), 92, " Terminate"),
+                        game("A", 1), game("B", 2)));
+
+        assertEquals(Arrays.asList(1, 2), ids(r.games));
+        assertFalse(r.specials.holdsMonitorSession());
+    }
+
+    @Test
+    public void aSessionCatalogueKeepsTheGamesAndSpecials() {
+        NvApp monitor = special(NvApp.REMOTE_MONITOR_UUID, 11);
+        LibraryModel.Reduction before = LibraryModel.reduce(Collections.<NvApp>emptyList(),
+                Arrays.asList(game("A", 1), game("B", 2), monitor));
+        NvApp resume = control(NvApp.SESSION_RESUME_UUID, 91, "Resume");
+        NvApp disconnect = control(NvApp.DISCONNECT_MONITOR_UUID, 92, "Disconnect Monitor");
+
+        List<NvApp> catalogue = Arrays.asList(resume, disconnect);
+        assertTrue(LibraryModel.isSessionCatalogue(catalogue));
+        LibraryModel.Reduction r = LibraryModel.reduce(before.games, before.specials, catalogue);
+
+        assertEquals(Arrays.asList(1, 2), ids(r.games));
+        assertFalse(r.changed());
+        assertSame(monitor, r.specials.remoteMonitor);
+        assertSame(resume, r.specials.monitorResume);
+        assertSame(disconnect, r.specials.monitorDisconnect);
+        // The session runs no game, yet it is what the hero offers: the Remote Monitor entry.
+        assertSame(monitor, LibraryModel.resolveRunning(r.games, r.specials, 0, null));
+
+        // The library comes back once the session ends, and the session with it is gone.
+        LibraryModel.Reduction after = LibraryModel.reduce(r.games, r.specials,
+                Arrays.asList(game("A", 1), game("B", 2), monitor));
+        assertFalse(after.specials.holdsMonitorSession());
+        assertNull(LibraryModel.resolveRunning(after.games, after.specials, 0, null));
+    }
+
+    @Test
+    public void aSessionWithNoMonitorEntryResumesThroughTheControl() {
+        NvApp resume = control(NvApp.SESSION_RESUME_UUID, 91, "Resume");
+        LibraryModel.Reduction r = LibraryModel.reduce(Collections.<NvApp>emptyList(),
+                LibraryModel.Specials.NONE,
+                Arrays.asList(resume, control(NvApp.DISCONNECT_MONITOR_UUID, 92, "Disconnect Monitor")));
+
+        assertTrue(r.games.isEmpty());
+        assertSame(resume, LibraryModel.resolveRunning(r.games, r.specials, 0, null));
+    }
+
+    @Test
+    public void onlyControlsWithDisconnectMonitorAreASessionCatalogue() {
+        assertFalse(LibraryModel.isSessionCatalogue(Collections.<NvApp>emptyList()));
+        assertFalse(LibraryModel.isSessionCatalogue(Arrays.asList(
+                control(NvApp.SESSION_RESUME_UUID, 91, "Resume"),
+                control(NvApp.DISCONNECT_MONITOR_UUID, 92, "Disconnect Monitor"),
+                game("A", 1))));
+        assertFalse(LibraryModel.isSessionCatalogue(Collections.singletonList(
+                control(NvApp.TERMINATE_UUID, 94, "Terminate"))));
+    }
+
     @Test
     public void nothingRunningResolvesToNull() {
         assertNull(LibraryModel.resolveRunning(Collections.singletonList(game("A", 1)),

@@ -97,6 +97,16 @@ public class LaunchController {
         /** Quits the host's game; exactly one of the two callbacks runs, on any thread. */
         void quit(@NonNull Activity activity, @NonNull ComputerDetails computer, @NonNull NvApp app,
                   @NonNull String uniqueId, @NonNull Runnable onDone, @NonNull Runnable onFailed);
+
+        /**
+         * Ends the Remote Monitor session this client holds, through the host's Disconnect
+         * Monitor control; {@code shown} is the entry the session was offered as. As quit, one
+         * of the two callbacks runs, on any thread.
+         */
+        void disconnectMonitor(@NonNull Activity activity, @NonNull ComputerDetails computer,
+                               @NonNull NvApp disconnect, @NonNull NvApp shown,
+                               @NonNull String uniqueId, @NonNull Runnable onDone,
+                               @NonNull Runnable onFailed);
     }
 
     /**
@@ -241,7 +251,12 @@ public class LaunchController {
         launch(app, false);
     }
 
-    /** Quits the host's game after a confirmation, then has the library ask the host afresh. */
+    /**
+     * Quits the host's game after a confirmation, then has the library ask the host afresh. A
+     * Remote Monitor session this client holds is offered as the running app too (see
+     * {@link LibraryModel#resolveRunning}), and quitting it disconnects the monitor: the host's
+     * cancel only ends games.
+     */
     public void quit(@NonNull NvApp app) {
         prompts.confirmQuit(() -> doQuit(app));
     }
@@ -457,9 +472,28 @@ public class LaunchController {
         }
         library.setSuspendUpdates(true);
         // Either outcome lets the library listen again; the success also asks the host now.
-        server.quit(activity, computer, app, uniqueId,
-                () -> main.post(() -> listenAgain(library, true)),
-                () -> main.post(() -> listenAgain(library, false)));
+        Runnable done = () -> main.post(() -> listenAgain(library, true));
+        Runnable failed = () -> main.post(() -> listenAgain(library, false));
+        NvApp disconnect = monitorDisconnectFor(library.getSnapshot(), app);
+        if (disconnect != null) {
+            server.disconnectMonitor(activity, computer, disconnect, app, uniqueId, done, failed);
+        } else {
+            server.quit(activity, computer, app, uniqueId, done, failed);
+        }
+    }
+
+    /**
+     * The host's Disconnect Monitor control when {@code app} is the held Remote Monitor session
+     * the snapshot offers as running; null for anything else, which a plain quit ends.
+     */
+    @Nullable
+    @VisibleForTesting
+    static NvApp monitorDisconnectFor(@Nullable HostLibrary.Snapshot snapshot, @NonNull NvApp app) {
+        if (snapshot == null || !snapshot.specials.holdsMonitorSession() || snapshot.running == null
+                || snapshot.running.getAppId() != app.getAppId()) {
+            return null;
+        }
+        return snapshot.specials.monitorDisconnect;
     }
 
     // Main thread. A library closed by a host switch meanwhile is left alone.
@@ -527,6 +561,15 @@ public class LaunchController {
                          @NonNull NvApp app, @NonNull String uniqueId, @NonNull Runnable onDone,
                          @NonNull Runnable onFailed) {
             ServerHelper.doQuit(activity, computer, app, uniqueId, onDone, onFailed);
+        }
+
+        @Override
+        public void disconnectMonitor(@NonNull Activity activity, @NonNull ComputerDetails computer,
+                                      @NonNull NvApp disconnect, @NonNull NvApp shown,
+                                      @NonNull String uniqueId, @NonNull Runnable onDone,
+                                      @NonNull Runnable onFailed) {
+            ServerHelper.doDisconnectMonitor(activity, computer, disconnect, shown.getAppName(),
+                    uniqueId, onDone, onFailed);
         }
     }
 

@@ -282,6 +282,51 @@ public class ServerHelper {
     }
 
     /**
+     * Ends a Remote Monitor session this client holds, through the host's Disconnect Monitor
+     * control ({@link NvHTTP#runSessionControl}): the session runs no game, so the host's cancel
+     * does not end it. Says so in the words a quit does, the session standing in for the game it
+     * is offered as; {@code name} is that name. Exactly one of the two callbacks runs, on a
+     * background thread, as with {@link #doQuit(Activity, ComputerDetails, NvApp, String, Runnable, Runnable)}.
+     */
+    public static void doDisconnectMonitor(final Activity parent,
+                                           final ComputerDetails computer,
+                                           final NvApp disconnect,
+                                           final String name,
+                                           final String uniqueId,
+                                           final Runnable onComplete,
+                                           final Runnable onFail) {
+        parent.runOnUiThread(() -> Toast.makeText(parent, parent.getString(R.string.applist_quit_app) + " " + name + "...", Toast.LENGTH_SHORT).show());
+        new Thread(() -> {
+            String message;
+            boolean failed = false;
+            try {
+                NvHTTP httpConn = new NvHTTP(getCurrentAddressFromComputer(computer),
+                        computer.httpsPort, uniqueId, computer.serverCert,
+                        PlatformBinding.getCryptoProvider(parent));
+                httpConn.runSessionControl(disconnect);
+                message = parent.getString(R.string.applist_quit_success) + " " + name;
+            } catch (UnknownHostException e) {
+                failed = true;
+                message = parent.getString(R.string.error_unknown_host);
+            } catch (FileNotFoundException e) {
+                failed = true;
+                message = parent.getString(R.string.error_404);
+            } catch (IOException | XmlPullParserException e) {
+                failed = true;
+                message = parent.getString(R.string.applist_quit_fail) + " " + name
+                        + (e.getMessage() != null ? ": " + e.getMessage() : "");
+            }
+            if (failed) {
+                onFail.run();
+            } else {
+                onComplete.run();
+            }
+            final String toastMessage = message;
+            parent.runOnUiThread(() -> Toast.makeText(parent, toastMessage, Toast.LENGTH_LONG).show());
+        }).start();
+    }
+
+    /**
      * The same, also told when the quit fails: the host refused or could not be reached, or no
      * request could even be made (no address). Exactly one of the two runs, on a background
      * thread, except that a failure to make the request runs {@code onFail} on the caller's.

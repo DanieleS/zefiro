@@ -16,6 +16,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import com.limelight.LimeLog;
 import com.limelight.binding.PlatformBinding;
 import com.limelight.discovery.DiscoveryService;
+import com.limelight.library.LibraryModel;
 import com.limelight.nvstream.NvConnection;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.NvApp;
@@ -947,13 +948,18 @@ public class ComputerManagerService extends Service {
                             }
                             if (!appList.isEmpty() &&
                                     (!list.isEmpty() || emptyAppListResponses >= EMPTY_LIST_THRESHOLD)) {
-                                // Open the cache file
-                                try (final OutputStream cacheOut = CacheHelper.openCacheFileForOutput(
-                                        getCacheDir(), "applist", computer.uuid)
-                                ) {
-                                    CacheHelper.writeStringToOutputStream(cacheOut, appList);
-                                } catch (IOException e) {
-                                    e.printStackTrace();
+                                // The cache keeps the host's library: the catalogue it lists
+                                // while a Remote Monitor session is held (Resume, Disconnect
+                                // Monitor) is not one, and would replace every game with two
+                                // controls for the next visit, shortcut and count.
+                                if (!LibraryModel.isSessionCatalogue(list)) {
+                                    try (final OutputStream cacheOut = CacheHelper.openCacheFileForOutput(
+                                            getCacheDir(), "applist", computer.uuid)
+                                    ) {
+                                        CacheHelper.writeStringToOutputStream(cacheOut, appList);
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    }
                                 }
 
                                 // Reset empty count if it wasn't empty this time

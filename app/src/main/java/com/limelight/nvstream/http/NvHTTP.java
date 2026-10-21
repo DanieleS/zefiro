@@ -1166,6 +1166,30 @@ public class NvHTTP {
         }
     }
     
+    /**
+     * Runs one of the host's session controls ({@link NvApp#isSessionControl}), such as
+     * Disconnect Monitor. The host takes them as a launch that starts no stream, so the request
+     * carries only what it checks before acting: the app and an unused input key. Vibepollo
+     * answers a control done with status 410, as Apollo does (so a stock Moonlight shows the
+     * message instead of waiting for a stream), which counts as success here.
+     *
+     * @throws HostHttpResponseException when the host refused the control
+     */
+    public void runSessionControl(NvApp control) throws IOException, XmlPullParserException {
+        String xmlStr = openHttpConnectionToString(httpClientLongConnectTimeout, getHttpsUrl(true), "launch",
+                "appid=" + control.getAppId() +
+                (control.getAppUUID() == null ? "" : ("&appuuid=" + control.getAppUUID())) +
+                "&rikey=" + bytesToHex(new byte[16]) +
+                "&rikeyid=0&localAudioPlayMode=0");
+        try {
+            getXmlString(xmlStr, "resume", false);
+        } catch (HostHttpResponseException e) {
+            if (e.getErrorCode() != 410) {
+                throw e;
+            }
+        }
+    }
+
     public boolean quitApp() throws IOException, XmlPullParserException {
         String xmlStr = openHttpConnectionToString(httpClientLongConnectNoReadTimeout, getHttpsUrl(true), "cancel");
         if (getXmlString(xmlStr, "cancel", true).equals("0")) {

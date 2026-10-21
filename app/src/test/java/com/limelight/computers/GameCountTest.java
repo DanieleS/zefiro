@@ -107,6 +107,23 @@ public class GameCountTest {
     }
 
     @Test
+    public void countFor_aSessionCatalogueKeepsTheLastCount() {
+        final List<NvApp> library = Arrays.asList(game(1), game(2), game(3));
+        final List<NvApp> session = Arrays.asList(
+                new NvApp("Resume", NvApp.SESSION_RESUME_UUID, 91, true),
+                new NvApp("Disconnect Monitor", NvApp.DISCONNECT_MONITOR_UUID, 92, true));
+        GameCount counts = new GameCount(raw -> raw.equals("library") ? library : session);
+
+        // Held before the library was ever counted, the count is not known yet.
+        assertEquals(HostEntry.UNKNOWN_GAME_COUNT, counts.countFor("b", "session", ids()));
+
+        assertEquals(3, counts.countFor("a", "library", ids()));
+        // A held Remote Monitor session lists two controls, not two games, nor none.
+        assertEquals(3, counts.countFor("a", "session", ids()));
+        assertEquals(3, counts.countFor("a", "library", ids()));
+    }
+
+    @Test
     public void countFor_keepsItsOwnCopyOfTheHiddenIds() {
         CountingParser parser = new CountingParser(Arrays.asList(game(1), game(2)));
         GameCount counts = new GameCount(parser);

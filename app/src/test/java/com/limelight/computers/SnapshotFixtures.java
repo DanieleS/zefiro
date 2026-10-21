@@ -27,6 +27,15 @@ public final class SnapshotFixtures {
                 Collections.<NoArtDetector.ArtFingerprint>emptySet(), 0, 0);
     }
 
+    /** The same, with the host's specials (a held Remote Monitor session among them). */
+    public static HostLibrary.Snapshot ready(String hostUuid, List<LibraryApp> apps, NvApp running,
+                                             LibraryModel.Specials specials) {
+        return new HostLibrary.Snapshot(hostUuid, HostLibrary.State.READY,
+                Collections.unmodifiableList(apps), running, specials,
+                Collections.<String, AppMetadata>emptyMap(), false, AppSortOrder.HOST,
+                Collections.<NoArtDetector.ArtFingerprint>emptySet(), 0, 0);
+    }
+
     /** A ready library with no games, whose host serves play statistics or not. */
     public static HostLibrary.Snapshot withStats(String hostUuid, boolean statsAvailable) {
         return new HostLibrary.Snapshot(hostUuid, HostLibrary.State.READY,

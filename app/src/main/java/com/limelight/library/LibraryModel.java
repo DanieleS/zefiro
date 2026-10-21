@@ -34,6 +34,10 @@ public final class LibraryModel {
      * The host's own entries that are not games: Virtual Display, Remote Monitor and Remote
      * Input. They are pulled out of the library and offered as host actions instead of covers.
      * Each is null when the host does not advertise it.
+     *
+     * <p>While this client holds a Remote Monitor session the host lists only its Resume and
+     * Disconnect Monitor controls (see {@link #isSessionCatalogue}); those two are kept here too,
+     * so the hero can offer the session as the running app and its Quit can end it.
      */
     public static final class Specials {
         public static final Specials NONE = new Specials(null, null, null);
@@ -41,11 +45,27 @@ public final class LibraryModel {
         public final NvApp virtualDisplay;
         public final NvApp remoteMonitor;
         public final NvApp remoteInput;
+        /** The host's Resume control while a Remote Monitor session is held; null otherwise. */
+        public final NvApp monitorResume;
+        /** The host's Disconnect Monitor control, likewise; non-null exactly while one is held. */
+        public final NvApp monitorDisconnect;
 
         public Specials(NvApp virtualDisplay, NvApp remoteMonitor, NvApp remoteInput) {
+            this(virtualDisplay, remoteMonitor, remoteInput, null, null);
+        }
+
+        public Specials(NvApp virtualDisplay, NvApp remoteMonitor, NvApp remoteInput,
+                        NvApp monitorResume, NvApp monitorDisconnect) {
             this.virtualDisplay = virtualDisplay;
             this.remoteMonitor = remoteMonitor;
             this.remoteInput = remoteInput;
+            this.monitorResume = monitorResume;
+            this.monitorDisconnect = monitorDisconnect;
+        }
+
+        /** Whether this client holds a Remote Monitor session on the host. */
+        public boolean holdsMonitorSession() {
+            return monitorDisconnect != null;
         }
 
         /** Whether there is a remote session entry to offer; either one is enough. */
@@ -105,15 +125,32 @@ public final class LibraryModel {
      * even under a new name. The games keep the host's order; the screen's sort order is applied
      * later, by {@link #toLibraryApps}, so a change of order never looks like a change of list.
      *
+     * <p>The host's session controls ({@link NvApp#isSessionControl}) are never games. A list
+     * of nothing but those is the host's session catalogue ({@link #isSessionCatalogue}): it says
+     * a Remote Monitor session is held, not that every game is gone, so the previous games and
+     * specials are kept, unchanged, with the session added to the specials.
+     *
      * @param previous the games of the last list, or empty for the first one (from the cache or
      *                 the host). Never null.
      * @param hostList everything the host listed, specials included.
      */
     public static Reduction reduce(List<NvApp> previous, List<NvApp> hostList) {
+        return reduce(previous, Specials.NONE, hostList);
+    }
+
+    /**
+     * The same, also given the specials of the last list, which a session catalogue keeps.
+     *
+     * @param previousSpecials the specials of the last list; {@link Specials#NONE} for none
+     */
+    public static Reduction reduce(List<NvApp> previous, Specials previousSpecials,
+                                   List<NvApp> hostList) {
         List<NvApp> games = new ArrayList<>();
         NvApp virtualDisplay = null;
         NvApp remoteMonitor = null;
         NvApp remoteInput = null;
+        NvApp monitorResume = null;
+        NvApp monitorDisconnect = null;
         for (NvApp app : hostList) {
             if (app.isVirtualDisplay()) {
                 virtualDisplay = app;
@@ -121,9 +158,24 @@ public final class LibraryModel {
                 remoteMonitor = app;
             } else if (app.isRemoteInput()) {
                 remoteInput = app;
+            } else if (app.isSessionControl()) {
+                // A control, never a cover. The two a held monitor session lists are kept.
+                if (app.isSessionResume()) {
+                    monitorResume = app;
+                } else if (app.isDisconnectMonitor()) {
+                    monitorDisconnect = app;
+                }
             } else {
                 games.add(app);
             }
+        }
+
+        if (isSessionCatalogue(hostList)) {
+            Specials held = previousSpecials != null ? previousSpecials : Specials.NONE;
+            return new Reduction(new ArrayList<>(previous),
+                    new Specials(held.virtualDisplay, held.remoteMonitor, held.remoteInput,
+                            monitorResume, monitorDisconnect),
+                    new ArrayList<NvApp>(), new ArrayList<NvApp>(), new ArrayList<NvApp>());
         }
 
         Map<Integer, NvApp> before = new HashMap<>();
@@ -160,6 +212,23 @@ public final class LibraryModel {
     }
 
     /**
+     * Whether a host list is the host's session catalogue: only session controls, Disconnect
+     * Monitor among them. The host answers so while this client holds a Remote Monitor session,
+     * and it is not the host's library: it is neither cached nor counted, and it never replaces
+     * the games already known.
+     */
+    public static boolean isSessionCatalogue(List<NvApp> hostList) {
+        boolean disconnect = false;
+        for (NvApp app : hostList) {
+            if (!app.isSessionControl()) {
+                return false;
+            }
+            disconnect |= app.isDisconnectMonitor();
+        }
+        return disconnect;
+    }
+
+    /**
      * The app the host is running, or null when it is idle.
      *
      * <p>Looked for among all games first, hidden ones included: hiding a game takes it off the
@@ -168,12 +237,19 @@ public final class LibraryModel {
      * back to too. Failing both (a list we have not seen yet, or a game the host does not list),
      * a stand-in with the id alone: resuming only needs the id.
      *
+     * <p>A Remote Monitor session held by this client is running too, though the host reports
+     * no game for it: the Remote Monitor entry (launching it again resumes the session), or the
+     * host's Resume control when that entry was never seen.
+     *
      * @param runningName the name the host or the cached list gave the game, used only for the
      *                    stand-in; null when there is none.
      */
     public static NvApp resolveRunning(List<NvApp> games, Specials specials, int runningId,
                                        String runningName) {
         if (runningId == 0) {
+            if (specials != null && specials.holdsMonitorSession()) {
+                return specials.remoteMonitor != null ? specials.remoteMonitor : specials.monitorResume;
+            }
             return null;
         }
         for (NvApp app : games) {

@@ -168,7 +168,16 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
         return isEnabled(context);
     }
 
-    /** Whether a panel is on screen right now. */
+    /**
+     * Whether a panel is on screen right now: the one answer to "is a companion screen showing",
+     * which every two-screen layout follows, and never the window's shape or size. A lower half
+     * (a game's achievements, the Stats remote, a PC's details, the stream's strip and controls
+     * sheet) goes on the panel exactly while this is true, and is laid out on the main screen
+     * otherwise: on a phone, on a Thor whose lower screen is off or hidden, or lent to a
+     * companion app. Not the same as {@link #isCompanionAvailable}, which also counts a display
+     * that could host a panel. Screens that must follow it as it changes observe
+     * {@link #panelShowing()}.
+     */
     public static boolean isShowing() {
         return instance != null && instance.presentation != null;
     }

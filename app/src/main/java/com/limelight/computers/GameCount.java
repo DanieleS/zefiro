@@ -107,7 +107,13 @@ public final class GameCount {
 
         int count;
         try {
-            count = count(parser.parse(rawAppList), hiddenIds);
+            List<NvApp> parsed = parser.parse(rawAppList);
+            if (LibraryModel.isSessionCatalogue(parsed)) {
+                // A held Remote Monitor session lists two controls, not the library: the count
+                // known before it stands, and the memo stays for the list that comes back.
+                return memo != null ? memo.count : HostEntry.UNKNOWN_GAME_COUNT;
+            }
+            count = count(parsed, hiddenIds);
         } catch (XmlPullParserException | IOException e) {
             // Remembered like a good answer, so a broken list is not parsed again every poll.
             LimeLog.warning("Unable to count a host's games: " + e.getMessage());

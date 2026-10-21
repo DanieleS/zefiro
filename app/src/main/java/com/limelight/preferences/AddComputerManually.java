@@ -301,8 +301,12 @@ public class AddComputerManually extends AppCompatActivity {
                     String appName = data.getQueryParameter("app_name");
                     String appID = data.getQueryParameter("app_id");
 
+                    // A new task only when the app has none: the stream goes on top of a library
+                    // already open, as a pinned shortcut's does, so ending it lands back there
+                    // (and the companion panel back on browsing) rather than on the launcher.
+                    // Clearing the task here used to finish the library under the stream.
                     Intent intent = new Intent(AddComputerManually.this, ShortcutTrampoline.class);
-                    intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     intent.putExtra(LibraryIntents.EXTRA_UUID, hostUUID);
                     intent.putExtra(LibraryIntents.EXTRA_NAME, hostName);
                     intent.putExtra(Game.EXTRA_APP_UUID, appUUID);

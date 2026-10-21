@@ -13,6 +13,16 @@ public class NvApp {
     // they are recognised by UUID and offered from the app bar instead of as covers.
     public static final String REMOTE_MONITOR_UUID = "9A1C5A25-58FE-40E0-B9AA-7D3F00000005";
     public static final String VIBEPOLLO_REMOTE_INPUT_UUID = "9A1C5A25-58FE-40E0-B9AA-7D3F00000006";
+    // The rest of that family are not apps at all but host controls, listed so a stock Moonlight
+    // can reach them from its grid: Resume (1), Disconnect Monitor (2), Disconnect Input (3),
+    // Terminate (4) and a resume-only copy of another client's running game (7). While this
+    // client holds a Remote Monitor session the host lists nothing else (Resume and Disconnect
+    // Monitor), so they must never be taken for games.
+    public static final String SESSION_RESUME_UUID = "9A1C5A25-58FE-40E0-B9AA-7D3F00000001";
+    public static final String DISCONNECT_MONITOR_UUID = "9A1C5A25-58FE-40E0-B9AA-7D3F00000002";
+    public static final String DISCONNECT_INPUT_UUID = "9A1C5A25-58FE-40E0-B9AA-7D3F00000003";
+    public static final String TERMINATE_UUID = "9A1C5A25-58FE-40E0-B9AA-7D3F00000004";
+    public static final String RUNNING_GAME_COPY_UUID = "9A1C5A25-58FE-40E0-B9AA-7D3F00000007";
     private String appName = "";
     private String appUUID = "";
     private int appId;
@@ -107,6 +117,23 @@ public class NvApp {
 
     public boolean isRemoteInput() {
         return isRemoteInputUuid(this.appUUID);
+    }
+
+    /** Whether this is one of the host's session controls (see the UUIDs above), not an app. */
+    public boolean isSessionControl() {
+        return SESSION_RESUME_UUID.equalsIgnoreCase(appUUID)
+                || DISCONNECT_MONITOR_UUID.equalsIgnoreCase(appUUID)
+                || DISCONNECT_INPUT_UUID.equalsIgnoreCase(appUUID)
+                || TERMINATE_UUID.equalsIgnoreCase(appUUID)
+                || RUNNING_GAME_COPY_UUID.equalsIgnoreCase(appUUID);
+    }
+
+    public boolean isSessionResume() {
+        return SESSION_RESUME_UUID.equalsIgnoreCase(appUUID);
+    }
+
+    public boolean isDisconnectMonitor() {
+        return DISCONNECT_MONITOR_UUID.equalsIgnoreCase(appUUID);
     }
 
     // Both Apollo's Remote Input entry and Vibepollo's synthetic one stream input only.
