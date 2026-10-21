@@ -1294,4 +1294,48 @@
     <string name="settings_row_pin">Pin to top</string>
     <string name="settings_row_unpin">Unpin</string>
     <string name="settings_pins_full">Up to %1$d settings can be pinned</string>
+
+    <!-- Screens T9: Settings on the Thor bottom screen, the choices. -->
+    <!-- The caption over a list setting's choices: "VIDEO · CHOICES" (drawn in caps). -->
+    <string name="settings_choices_choices">Choices</string>
+    <!-- The caption over a setting: its section, then "Choices" or its subgroup. -->
+    <string name="settings_choices_label">%1$s · %2$s</string>
+    <!-- After the description of the entry a reset would put back. -->
+    <string name="settings_choice_default_after">%1$s Default.</string>
+    <!-- The description of the default entry when it has no other. -->
+    <string name="settings_choice_default">Default</string>
+    <string name="settings_choices_default">Default: %1$s</string>
+    <!-- A slider's range: "0.5 Mbps to 800.0 Mbps". -->
+    <string name="settings_choices_range">%1$s to %2$s</string>
+    <!-- A disabled setting, with the title of the one it waits for. -->
+    <string name="settings_choices_needs">Needs %1$s</string>
+    <string name="settings_choices_opens">A opens it</string>
+    <string name="settings_choices_opens_browser">A opens it in the browser</string>
+    <string name="settings_choices_decrease">Decrease</string>
+    <string name="settings_choices_increase">Increase</string>
+    <!-- The panel's gamepad hints. -->
+    <string name="settings_choices_hint_change">Change on top</string>
+    <string name="settings_choices_hint_open">Open</string>
+    <string name="settings_choices_hint_menu">Reset or pin</string>
+    <string name="settings_choices_hint_search">Search</string>
+    <string name="settings_choices_hint_touch_list">or touch a choice</string>
+    <string name="settings_choices_hint_touch_switch">or touch the switch</string>
+    <string name="settings_choices_hint_touch_seek">or touch − or +</string>
+    <!-- The panel while focus is in the Settings header. -->
+    <string name="settings_pinned_page_title">Pinned settings</string>
+    <string name="settings_pinned_page_profile">Profile: %1$s</string>
+    <string name="settings_pinned_page_hint_touch">or touch one to go to it</string>
+    <!--
+        What each entry of a list setting does, shown under it on the companion panel. Named
+        settings_choices_<preference key>, one item per entry in the order of the XML's
+        android:entries (SettingsChoiceHints).
+    -->
+    <string-array name="settings_choices_frame_pacing">
+        <item>Newest experimental mode. Try it if a game judders.</item>
+        <item>The first experimental mode.</item>
+        <item>Shows each frame as soon as it arrives.</item>
+        <item>Waits for the screen refresh. Smoother, a little slower.</item>
+        <item>Balanced, and the PC caps its frame rate to match.</item>
+        <item>Never drops a frame. May add a lot of latency.</item>
+    </string-array>
 </resources>

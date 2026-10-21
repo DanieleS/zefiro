@@ -184,6 +184,16 @@ public class SeekBarPreference extends Preference
         return currentValue + minValue;
     }
 
+    /** The lowest value the slider reaches, as stored (before the divisor). */
+    public int getMinValue() {
+        return minValue;
+    }
+
+    /** The highest value the slider reaches, as stored (before the divisor). */
+    public int getMaxValue() {
+        return maxValue;
+    }
+
     /** The default from the XML's android:defaultValue, which this preference never stores. */
     public int getDefaultProgress() {
         return defaultValue;

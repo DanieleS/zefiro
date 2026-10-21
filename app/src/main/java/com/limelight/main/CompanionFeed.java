@@ -274,9 +274,9 @@ public final class CompanionFeed implements GameFocusListener,
     }
 
     /**
-     * The section on screen changed; its own focus reports follow and refine this. Settings has
-     * nothing of its own for the panel yet, so it shows the idle hosts surface, as Stats does
-     * before its page is published.
+     * The section on screen changed; its own focus reports follow and refine this. Stats and
+     * Settings start from the idle hosts surface, under the page each publishes of its own (the
+     * remote, the focused setting's choices) and back on it when that page is taken off.
      */
     public void onSection(@NonNull Section section) {
         if (section == Section.STATS || section == Section.SETTINGS) {

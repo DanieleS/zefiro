@@ -38,6 +38,8 @@ import androidx.recyclerview.widget.SimpleItemAnimator;
 import com.limelight.ProfilesActivity;
 import com.limelight.R;
 import com.limelight.companion.CompanionDisplayManager;
+import com.limelight.companion.CompanionPage;
+import com.limelight.main.CompanionPages;
 import com.limelight.main.MainHost;
 import com.limelight.main.SectionBack;
 import com.limelight.main.SectionFocus;
@@ -108,14 +110,24 @@ import java.util.Set;
  * resolution), and here also when the display's size changes, as the activity did; the row that
  * had focus has it again in the new list.
  *
- * <p>The companion panel shows the idle hosts surface while Settings is on screen
- * ({@code CompanionFeed.onSection}).
+ * <h3>The companion panel</h3>
+ *
+ * While the panel is up ({@link CompanionDisplayManager#panelShowing()}) and this section is on
+ * screen, the panel spells out the setting whose row has focus, in the list or among the results
+ * ({@link SettingsChoicesPage}): a list's choices, a switch, a slider's − and +. Focus up in the
+ * header shows the essentials instead ({@link SettingsPinnedPage}). The d-pad stays here, on the
+ * main screen; the panel is touch only, and every tap on it acts through the live preference and
+ * {@link SettingsEditor}, exactly as Left and Right on the row do. The page is built again from
+ * the preference after every stored change, so it follows a value changed from either screen,
+ * and a dependent enabled or disabled by it. Focus leaving the section (the rail) keeps the last
+ * page; the section hidden takes it off, and the panel's browsing surface comes back.
  *
  * Main thread only; every callback checks that the view still exists.
  */
 public class SettingsSectionFragment extends Fragment
         implements SectionKeys, SectionFocus, SectionBack, SettingsHost,
-        StreamPreferencesFragment.ListHeader, SettingsHeader.Listener, SettingsResultsAdapter.Host {
+        StreamPreferencesFragment.ListHeader, SettingsHeader.Listener, SettingsResultsAdapter.Host,
+        CompanionPages.PageOwner {
 
     /** The tag the settings list is added under. */
     public static final String TAG_LIST = "settings:list";
@@ -170,6 +182,18 @@ public class SettingsSectionFragment extends Fragment
 
     private int previousDisplayPixelCount;
 
+    // The companion panel: whether it is up, the setting it is to show (null for the pinned
+    // essentials), and the page last handed to it, null while none is.
+    private boolean panelUp;
+    @Nullable
+    private String pageKey;
+    @Nullable
+    private CompanionPage page;
+
+    // Posted, not run, after a stored change: the change listener runs inside the preference's
+    // own write, before it has redrawn and before its dependents have been enabled or disabled.
+    private final Runnable republish = this::publishPage;
+
     private final SharedPreferences.OnSharedPreferenceChangeListener storedChange =
             (sharedPreferences, key) -> onStoredChange(key);
 
@@ -177,7 +201,11 @@ public class SettingsSectionFragment extends Fragment
     private final ProfilesManager.ProfileChangeListener profilesChanged = () -> {
         View view = getView();
         if (view != null) {
-            view.post(this::refreshHeader);
+            view.post(() -> {
+                refreshHeader();
+                // The pinned page names the profile and shows the values it sets.
+                publishPage();
+            });
         }
     };
 
@@ -268,8 +296,12 @@ public class SettingsSectionFragment extends Fragment
         view.getViewTreeObserver().addOnGlobalFocusChangeListener(focusChange);
         // The panel shown or hidden from the host sheet while this list is up: the companion
         // row's title says what a click does, so it follows.
-        CompanionDisplayManager.panelShowing().observe(getViewLifecycleOwner(),
-                showing -> refreshCompanionRow());
+        // It also decides whether the focused setting is spelled out down there.
+        CompanionDisplayManager.panelShowing().observe(getViewLifecycleOwner(), showing -> {
+            refreshCompanionRow();
+            panelUp = Boolean.TRUE.equals(showing);
+            publishPage();
+        });
         previousDisplayPixelCount = displayPixelCount();
         refreshHeader();
     }
@@ -277,9 +309,13 @@ public class SettingsSectionFragment extends Fragment
     @Override
     public void onDestroyView() {
         View view = getView();
-        if (view != null && view.getViewTreeObserver().isAlive()) {
-            view.getViewTreeObserver().removeOnGlobalFocusChangeListener(focusChange);
+        if (view != null) {
+            view.removeCallbacks(republish);
+            if (view.getViewTreeObserver().isAlive()) {
+                view.getViewTreeObserver().removeOnGlobalFocusChangeListener(focusChange);
+            }
         }
+        clearPage();
         prefs.unregisterOnSharedPreferenceChangeListener(storedChange);
         ProfilesManager.getInstance().removeListener(profilesChanged);
         getChildFragmentManager().unregisterFragmentLifecycleCallbacks(listLifecycle);
@@ -303,6 +339,8 @@ public class SettingsSectionFragment extends Fragment
         if (hidden) {
             // A keyboard left up over another section would type into nothing there.
             hideKeyboard();
+            // The section shown now owns the panel; Settings' page must not linger over it.
+            clearPage();
         } else {
             // What the settings activity did on resume: the companion may have been switched on
             // or off, shown or hidden, while another section was up.
@@ -312,6 +350,11 @@ public class SettingsSectionFragment extends Fragment
                 header.setWide(wide, host.isDpadFirst());
             }
             refreshHeader();
+            View view = getView();
+            if (view != null) {
+                // Once the section is laid out and its focus restored.
+                view.post(republish);
+            }
         }
     }
 
@@ -397,6 +440,8 @@ public class SettingsSectionFragment extends Fragment
             adapter.setRowLongPressListener(this::showRowMenu);
         }
         refreshHeader();
+        // A reloaded list has new preferences: the panel's page is built from them again.
+        publishPage();
         if (searching) {
             runSearch();
         }
@@ -603,6 +648,12 @@ public class SettingsSectionFragment extends Fragment
         if (KEY_COMPANION_DISPLAY.equals(key) || KEY_FULL_EX_DISPLAY.equals(key)) {
             refreshCompanionRow();
         }
+        if (panelUp) {
+            // Any key: a resolution step rewrites the bitrate, a switch enables its dependents.
+            View view = getView();
+            view.removeCallbacks(republish);
+            view.post(republish);
+        }
     }
 
     private void refreshCompanionRow() {
@@ -729,6 +780,8 @@ public class SettingsSectionFragment extends Fragment
     // --- Focus ---
 
     private void onFocusChanged(@Nullable View focus) {
+        // Null when touch mode takes focus away (a tap, on this screen or on the panel): the
+        // panel keeps the setting it shows, which is what the finger is on.
         if (focus == null || !isOnScreen()) {
             return;
         }
@@ -737,6 +790,12 @@ public class SettingsSectionFragment extends Fragment
             lastFocusedKey = p.getKey();
             updateSticky(p);
         }
+        if (p != null) {
+            showOnPanel(p.getKey());
+        } else if (header != null && header.contains(focus)) {
+            showOnPanel(null);
+        }
+        // Anywhere else (the rail), the panel keeps the last setting.
     }
 
     @Nullable
@@ -746,7 +805,12 @@ public class SettingsSectionFragment extends Fragment
             return null;
         }
         if (searching) {
-            View row = firstResult();
+            // The result the panel shows first: a tap there leaves the main window in touch
+            // mode, and the d-pad coming back lands on the row the tap changed.
+            View row = resultRowFor(pageKey);
+            if (row == null) {
+                row = firstResult();
+            }
             return row != null ? row : header.field();
         }
         View row = rowViewFor(lastFocusedKey);
@@ -782,6 +846,17 @@ public class SettingsSectionFragment extends Fragment
                 }
             });
         }
+    }
+
+    @Nullable
+    private View resultRowFor(@Nullable String key) {
+        if (key == null || results == null || resultsAdapter == null) {
+            return null;
+        }
+        int position = resultsAdapter.positionOf(key);
+        RecyclerView.ViewHolder holder = position == RecyclerView.NO_POSITION ? null
+                : results.findViewHolderForAdapterPosition(position);
+        return holder != null && holder.itemView.isShown() ? holder.itemView : null;
     }
 
     @Nullable
@@ -1298,6 +1373,131 @@ public class SettingsSectionFragment extends Fragment
         } else {
             sheet.showBottom(requireContext());
         }
+    }
+
+    // --- The companion panel ---
+
+    /** What the panel is to show: a setting by key, or the pinned essentials for null. */
+    private void showOnPanel(@Nullable String key) {
+        pageKey = key;
+        publishPage();
+    }
+
+    /**
+     * Hands the panel the page for {@link #pageKey}, built from the live preference as it stands;
+     * takes it off when the panel is down or the section is not on screen. An unchanged page is
+     * dropped by the panel's state, so this may run on every focus move and stored change.
+     */
+    private void publishPage() {
+        if (!panelUp || !isOnScreen() || host == null) {
+            clearPage();
+            return;
+        }
+        CompanionPage next = null;
+        if (pageKey != null) {
+            Preference p = find(pageKey);
+            if (p != null && p.isVisible()) {
+                next = SettingsChoicesPage.of(p, defaults(), prefs);
+            }
+        }
+        if (next == null) {
+            // In the header, or the setting is gone from this list (a reload, a device removal).
+            next = pinnedPage();
+        }
+        if (next == null) {
+            // The list is not up yet; it publishes once wired.
+            return;
+        }
+        page = next;
+        host.companionPages().publish(this, next);
+    }
+
+    private void clearPage() {
+        if (page != null && host != null) {
+            page = null;
+            host.companionPages().clear(this);
+        }
+    }
+
+    /** The five essentials as the card shows them, for the panel; null before the list is up. */
+    @Nullable
+    private SettingsPinnedPage pinnedPage() {
+        PreferenceScreen screen = screen();
+        SettingsAdapter adapter = settingsAdapter();
+        if (screen == null || adapter == null) {
+            return null;
+        }
+        SettingsDefaults defaults = adapter.getDefaults();
+        SettingsProfile profile = ProfilesManager.getInstance().getActive();
+        Map<String, Object> overrides = profile != null ? profile.getOptions() : null;
+        List<SettingsPinnedPage.Row> rows = new ArrayList<>();
+        for (String key : PinnedSettings.ESSENTIALS) {
+            Preference p = screen.findPreference(key);
+            if (p == null || !p.isVisible()) {
+                continue;
+            }
+            SettingsHeader.Pin pin = pinFor(p, defaults.isChanged(p, prefs), overrides);
+            rows.add(new SettingsPinnedPage.Row(key, pin.label.toString(), pin.value.toString(),
+                    pin.changed, pin.fromProfile));
+        }
+        String name = ProfilesManager.getInstance().getActiveName().trim();
+        return new SettingsPinnedPage(name.isEmpty() ? null : name, rows);
+    }
+
+    /**
+     * A tap on the panel (CompanionPages.PageOwner): a choice, the switch, − or +, through
+     * {@link SettingsEditor} as Left and Right on the row go, so the change listeners run as
+     * from a dialog. A disabled setting, or a refused change, leaves the value; the page is built
+     * again from the preference either way. The feed hands the d-pad back to the main screen
+     * after this, on the row it was on.
+     */
+    @Override
+    public void onPageTap(int stopId) {
+        if (!isOnScreen()) {
+            return;
+        }
+        CompanionPage shown = page;
+        if (shown instanceof SettingsPinnedPage) {
+            SettingsPinnedPage.Row row = ((SettingsPinnedPage) shown).rowAt(stopId);
+            if (row != null) {
+                goToPinnedRow(row.key);
+            }
+            return;
+        }
+        if (!(shown instanceof SettingsChoicesPage)) {
+            return;
+        }
+        SettingsChoicesPage choices = (SettingsChoicesPage) shown;
+        Preference p = find(choices.key);
+        if (p == null || !p.isEnabled()) {
+            return;
+        }
+        if (p instanceof ListPreference) {
+            SettingsChoicesPage.Choice choice = choices.choiceAt(stopId);
+            if (choice != null) {
+                SettingsEditor.setChoice((ListPreference) p, choice.value);
+            }
+        } else if (p instanceof TwoStatePreference && stopId == SettingsChoicesPage.STOP_SWITCH) {
+            TwoStatePreference toggle = (TwoStatePreference) p;
+            SettingsEditor.set(toggle, !toggle.isChecked());
+        } else if (p instanceof SeekBarPreference && (stopId == SettingsChoicesPage.STOP_MINUS
+                || stopId == SettingsChoicesPage.STOP_PLUS)) {
+            SettingsEditor.step((SeekBarPreference) p,
+                    stopId == SettingsChoicesPage.STOP_PLUS ? 1 : -1);
+        }
+    }
+
+    /**
+     * An essential touched on the panel: its row in the list, as its pin on the card goes. The
+     * tap may have left the main window in touch mode, where the row cannot take focus; it is
+     * remembered, so the d-pad coming back lands there.
+     */
+    private void goToPinnedRow(@NonNull String key) {
+        if (searching) {
+            leaveSearch();
+        }
+        lastFocusedKey = key;
+        scrollToKey(key, true);
     }
 
     // --- Keyboard ---
