@@ -52,7 +52,6 @@ public class StreamHud extends LinearLayout {
     private boolean statsShown;
     private boolean suppressed;
     private boolean poorConnection;
-    private float targetFps;
     @Nullable
     private PerfStats stats;
     @Nullable
@@ -118,15 +117,6 @@ public class StreamHud extends LinearLayout {
         render();
     }
 
-    /**
-     * The frame rate the stream was asked for, against which the measured one is judged; 0 when
-     * unknown, which leaves the frame rate out of the judgement.
-     */
-    public void setTargetFps(float fps) {
-        targetFps = fps;
-        render();
-    }
-
     /** A new second of numbers. Kept even while hidden, so turning the HUD on shows them at once. */
     public void bind(@NonNull PerfStats stats) {
         this.stats = stats;
@@ -151,7 +141,7 @@ public class StreamHud extends LinearLayout {
             text.setText(getResources().getString(R.string.stream_hud_stats,
                     stats.totalFps, stats.networkLatencyMs,
                     Float.isNaN(stats.networkDropsPercent) ? 0f : stats.networkDropsPercent));
-            level = StreamHealth.classify(stats, targetFps, poorConnection);
+            level = StreamHealth.classify(stats, poorConnection);
         } else {
             text.setText(null);
             level = poorConnection ? StreamHealth.Level.WARN : StreamHealth.Level.GOOD;

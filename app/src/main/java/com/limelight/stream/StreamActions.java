@@ -141,6 +141,109 @@ public final class StreamActions {
                 .label(R.string.quick_menu_title).children(main).build();
     }
 
+    /**
+     * The tree as the Thor's bottom-screen sheet lays it out, after the approved Stream mock: two
+     * rows of four tiles, then Disconnect and Quit game, and no list at all, so the sheet stays
+     * short over a screen that has a game's panel to show.
+     *
+     * <pre>
+     *   Tiles    Keyboard · Screenshot (capture tool on) · Save 30 s (capture tool on) · Overlay
+     *            Bitrate▸ (live bitrate) · Clipboard▸ · Keys▸ · More▸
+     *   Danger   Disconnect · Quit game
+     *
+     *   Clipboard▸  upload · fetch
+     *   More▸       Gamepad (not on an external display) · Mouse▸ · More's other entries
+     * </pre>
+     *
+     * Rearranged from {@link #build}'s tree rather than built apart, so the two never offer
+     * different things: every entry is still there, only where it sits moves. Each page keeps its
+     * id, so an open page handed from one surface to the other is found again.
+     */
+    @NonNull
+    public static StreamAction compact(@NonNull StreamAction root) {
+        List<StreamAction> main = root.children != null ? root.children
+                : new ArrayList<StreamAction>();
+        StreamAction more = root.find(Id.MORE);
+        List<StreamAction> moreEntries = more != null && more.children != null ? more.children
+                : new ArrayList<StreamAction>();
+
+        List<StreamAction> page = new ArrayList<>();
+        addTile(page, find(main, Id.KEYBOARD), 0, 0);
+        addTile(page, find(main, Id.SCREENSHOT), R.string.stream_action_screenshot,
+                R.drawable.ic_stream_screenshot);
+        addTile(page, find(moreEntries, Id.SAVE_REPLAY), R.string.stream_action_save_replay,
+                R.drawable.ic_stream_replay);
+        addTile(page, find(main, Id.OVERLAY), 0, 0);
+        addTile(page, find(main, Id.BITRATE), R.string.stream_action_bitrate,
+                R.drawable.ic_stream_bitrate);
+
+        List<StreamAction> clipboard = new ArrayList<>();
+        List<StreamAction> rest = new ArrayList<>();
+        // The main page's tiles the sheet has no room for lead the More page, ahead of its own.
+        for (StreamAction entry : main) {
+            if (entry.id == Id.GAMEPAD || entry.id == Id.MOUSE) {
+                rest.add(StreamAction.copyOf(entry, Group.MORE).build());
+            }
+        }
+        for (StreamAction entry : moreEntries) {
+            switch (entry.id) {
+                case CLIPBOARD_UPLOAD:
+                case CLIPBOARD_FETCH:
+                    clipboard.add(entry);
+                    break;
+                case SAVE_REPLAY:
+                    // A tile now
+                    break;
+                default:
+                    rest.add(entry);
+                    break;
+            }
+        }
+        if (!clipboard.isEmpty()) {
+            page.add(StreamAction.of(Id.CLIPBOARD, Group.TILE)
+                    .label(R.string.stream_action_clipboard).icon(R.drawable.ic_stream_clipboard)
+                    .children(clipboard).build());
+        }
+        addTile(page, find(main, Id.SPECIAL_KEYS), R.string.stream_action_keys,
+                R.drawable.ic_stream_keys);
+        if (more != null) {
+            page.add(StreamAction.copyOf(more, Group.TILE).icon(R.drawable.ic_stream_more)
+                    .children(rest).build());
+        }
+
+        for (StreamAction entry : main) {
+            if (entry.group == Group.DANGER) {
+                page.add(entry);
+            }
+        }
+        return StreamAction.copyOf(root, root.group).children(page).build();
+    }
+
+    /** The entry as a tile, renamed and given an icon when the arguments say (0 keeps them). */
+    private static void addTile(List<StreamAction> page, StreamAction entry, int labelRes,
+                                int iconRes) {
+        if (entry == null) {
+            return;
+        }
+        StreamAction.Builder b = StreamAction.copyOf(entry, Group.TILE);
+        if (labelRes != 0) {
+            b.label(labelRes);
+        }
+        if (iconRes != 0) {
+            b.icon(iconRes);
+        }
+        page.add(b.build());
+    }
+
+    private static StreamAction find(List<StreamAction> page, Id id) {
+        for (StreamAction entry : page) {
+            if (entry.id == id) {
+                return entry;
+            }
+        }
+        return null;
+    }
+
     private static List<StreamAction> mousePage(StreamCapabilities caps) {
         List<StreamAction> page = new ArrayList<>();
         if (caps.allowChangeMouseMode) {

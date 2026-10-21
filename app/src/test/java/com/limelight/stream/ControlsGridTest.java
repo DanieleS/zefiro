@@ -130,4 +130,39 @@ public class ControlsGridTest {
         assertEquals(-1, empty.first());
         assertEquals(-1, empty.neighbour(-1, Nav.DOWN));
     }
+
+    // The Thor sheet: eight tiles in two rows of four, then the two ends.
+    //   0 Keyboard  1 Screenshot  2 Save 30 s  3 Overlay
+    //   4 Bitrate   5 Clipboard   6 Keys       7 More
+    //   8 Disconnect  9 Quit game
+    private final ControlsGrid sheet = ControlsGrid.of(Arrays.asList(
+            Group.TILE, Group.TILE, Group.TILE, Group.TILE,
+            Group.TILE, Group.TILE, Group.TILE, Group.TILE,
+            Group.DANGER, Group.DANGER), ControlsGrid.SHEET_TILES_PER_ROW);
+
+    @Test
+    public void theSheetsTilesWrapIntoRowsOfFour() {
+        assertEquals(3, sheet.neighbour(3, Nav.RIGHT));
+        assertEquals(4, sheet.neighbour(4, Nav.LEFT));
+        assertEquals(6, sheet.neighbour(2, Nav.DOWN));
+        assertEquals(1, sheet.neighbour(5, Nav.UP));
+    }
+
+    @Test
+    public void theSheetsSecondRowLeadsToTheEnds() {
+        assertEquals(8, sheet.neighbour(4, Nav.DOWN));
+        assertEquals(9, sheet.neighbour(7, Nav.DOWN));
+        assertEquals(7, sheet.neighbour(9, Nav.UP));
+    }
+
+    @Test
+    public void aShortLastTileRowStillWalks() {
+        ControlsGrid six = ControlsGrid.of(Arrays.asList(
+                Group.TILE, Group.TILE, Group.TILE, Group.TILE, Group.TILE, Group.TILE,
+                Group.DANGER), ControlsGrid.SHEET_TILES_PER_ROW);
+        assertEquals(5, six.neighbour(4, Nav.RIGHT));
+        assertEquals(5, six.neighbour(5, Nav.RIGHT));
+        assertEquals(4, six.neighbour(0, Nav.DOWN));
+        assertEquals(6, six.neighbour(5, Nav.DOWN));
+    }
 }

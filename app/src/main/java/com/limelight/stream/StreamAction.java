@@ -7,6 +7,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -56,7 +57,7 @@ public final class StreamAction {
         BITRATE, BITRATE_ADAPTIVE, BITRATE_CHOICE,
         SPECIAL_KEYS, SPECIAL_KEY,
         MORE,
-        CLIPBOARD_UPLOAD, CLIPBOARD_FETCH,
+        CLIPBOARD, CLIPBOARD_UPLOAD, CLIPBOARD_FETCH,
         SERVER_COMMANDS, SERVER_COMMAND,
         PAN_ZOOM, ROTATE,
         COMPANION_SCREEN, COMPANION_APP,
@@ -151,6 +152,30 @@ public final class StreamAction {
         return null;
     }
 
+    /**
+     * The entries from this one down to the first page with this id, both included; null when
+     * there is none. How a surface handed an open page over finds it again in a tree laid out
+     * another way (the Thor sheet moves Mouse under More).
+     */
+    @Nullable
+    public List<StreamAction> pathTo(@NonNull Id wanted) {
+        if (id == wanted && isPage()) {
+            List<StreamAction> path = new ArrayList<>();
+            path.add(this);
+            return path;
+        }
+        if (children != null) {
+            for (StreamAction child : children) {
+                List<StreamAction> below = child.pathTo(wanted);
+                if (below != null) {
+                    below.add(0, this);
+                    return below;
+                }
+            }
+        }
+        return null;
+    }
+
     @NonNull
     @Override
     public String toString() {
@@ -159,6 +184,21 @@ public final class StreamAction {
 
     static Builder of(@NonNull Id id, @NonNull Group group) {
         return new Builder(id, group);
+    }
+
+    /** The same entry, everything kept, to be placed in another group or renamed. */
+    static Builder copyOf(@NonNull StreamAction action, @NonNull Group group) {
+        Builder b = new Builder(action.id, group);
+        b.labelRes = action.labelRes;
+        b.labelArg = action.labelArg;
+        b.labelText = action.labelText;
+        b.iconRes = action.iconRes;
+        b.checked = action.checked;
+        b.withGameFocus = action.withGameFocus;
+        b.children = action.children;
+        b.arg = action.arg;
+        b.keys = action.keys;
+        return b;
     }
 
     static final class Builder {
@@ -181,6 +221,9 @@ public final class StreamAction {
 
         Builder label(@StringRes int res) {
             this.labelRes = res;
+            // A copy renamed drops the old name's argument and text with it
+            this.labelArg = null;
+            this.labelText = null;
             return this;
         }
 

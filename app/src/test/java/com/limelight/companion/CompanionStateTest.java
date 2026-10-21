@@ -83,7 +83,7 @@ public class CompanionStateTest {
         state.enterStreaming();
         state.setTelemetryView("<html>view</html>");
         state.setStreamSession(new CompanionState.StreamSession("Hades II", "Taverna", "HEVC",
-                1000L, 120f));
+                1000L));
         state.setStatsOverTelemetry(true);
         state.markTelemetryViewCrashed("<html>view</html>");
         assertTrue(state.isStatsOverTelemetry());
@@ -129,10 +129,10 @@ public class CompanionStateTest {
     @Test
     public void anUnchangedStreamSessionRedrawsNothing() {
         state.setStreamSession(new CompanionState.StreamSession("Hades II", "Taverna", null,
-                1000L, 60f));
+                1000L));
         int before = changes;
         state.setStreamSession(new CompanionState.StreamSession("Hades II", "Taverna", null,
-                1000L, 60f));
+                1000L));
         assertEquals(before, changes);
     }
 

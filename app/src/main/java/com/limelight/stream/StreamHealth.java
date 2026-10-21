@@ -5,16 +5,16 @@ import androidx.annotation.NonNull;
 import com.limelight.binding.video.PerfStats;
 
 /**
- * The colour of the HUD's dot: one glance at whether the stream is fine, without reading the
- * numbers beside it.
+ * The colour of the HUD's dot, and of the companion strip's: one glance at whether the connection
+ * is fine, without reading the numbers beside it. Green while it is, amber or red only when the
+ * stream is degraded.
  *
  * <h3>Why its own rule</h3>
  *
  * The numbers alone do not say what is bad: 30 ms is a great latency over the internet and a
- * worrying one on a home network, 59 FPS is fine on a 60 Hz stream and a disaster on a 120 Hz
- * one. The thresholds below are one fixed reading of them, tuned for a home stream, kept as named
- * constants so they can be argued about in one place. Pure, so {@code StreamHealthTest} pins them
- * without a device.
+ * worrying one on a home network. The thresholds below are one fixed reading of them, tuned for a
+ * home stream, kept as named constants so they can be argued about in one place. Pure, so
+ * {@code StreamHealthTest} pins them without a device.
  *
  * <h3>The rule</h3>
  *
@@ -24,12 +24,19 @@ import com.limelight.binding.video.PerfStats;
  *                 GOOD        WARN          BAD
  *   loss          &lt; 1 %       &gt;= 1 %       &gt;= 5 %
  *   latency       &lt; 30 ms     &gt;= 30 ms     &gt;= 60 ms
- *   fps / target  &gt;= 0.9      &lt; 0.9        &lt; 0.75
  *   poor link     -           always        -
  * </pre>
  *
  * The host's "poor connection" report never makes things worse than WARN on its own: it is the
  * host's opinion of the link, and the numbers are what says how bad it got.
+ *
+ * <h3>Why not the frame rate</h3>
+ *
+ * A host sends a frame only when the picture changes, so a still desktop or a paused game streams
+ * at a fraction of the rate asked for over a perfect link: judged against the target, the dot sat
+ * red on a healthy Remote Monitor session. From the client a quiet screen and a struggling
+ * encoder look the same, so the frame rate is left to the numbers beside the dot; frames the
+ * network did lose are the loss above, and a host short of bandwidth says so as a poor link.
  */
 public final class StreamHealth {
 
@@ -47,30 +54,21 @@ public final class StreamHealth {
     /** Network round trip, in ms, from which input is clearly late. */
     public static final int LATENCY_BAD_MS = 60;
 
-    /** Below this share of the target frame rate the stream is falling behind. */
-    public static final float FPS_WARN_RATIO = 0.9f;
-    /** Below this share it is visibly choppy. */
-    public static final float FPS_BAD_RATIO = 0.75f;
-
     private StreamHealth() {
     }
 
     /**
      * @param stats          one window of the decoder's measurements
-     * @param targetFps      the frame rate the stream was asked for; 0 or less skips the frame
-     *                       rate rule, for a stream whose target is not known
      * @param poorConnection whether the host last reported the connection as poor
      */
     @NonNull
-    public static Level classify(@NonNull PerfStats stats, float targetFps, boolean poorConnection) {
-        return classify(stats.networkDropsPercent, stats.networkLatencyMs, stats.totalFps,
-                targetFps, poorConnection);
+    public static Level classify(@NonNull PerfStats stats, boolean poorConnection) {
+        return classify(stats.networkDropsPercent, stats.networkLatencyMs, poorConnection);
     }
 
-    /** {@link #classify(PerfStats, float, boolean)} on the bare numbers. */
+    /** {@link #classify(PerfStats, boolean)} on the bare numbers. */
     @NonNull
-    public static Level classify(float lossPercent, int latencyMs, float fps, float targetFps,
-                                 boolean poorConnection) {
+    public static Level classify(float lossPercent, int latencyMs, boolean poorConnection) {
         Level level = poorConnection ? Level.WARN : Level.GOOD;
 
         // A window with no frames at all divides 0 by 0 for its loss; that says nothing about
@@ -89,15 +87,6 @@ public final class StreamHealth {
         }
         if (latencyMs >= LATENCY_WARN_MS) {
             level = Level.WARN;
-        }
-
-        if (targetFps > 0 && !Float.isNaN(fps)) {
-            if (fps < targetFps * FPS_BAD_RATIO) {
-                return Level.BAD;
-            }
-            if (fps < targetFps * FPS_WARN_RATIO) {
-                level = Level.WARN;
-            }
         }
 
         return level;

@@ -2,9 +2,12 @@ package com.limelight.companion;
 
 import android.annotation.TargetApi;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.SystemClock;
@@ -48,6 +51,7 @@ import com.limelight.stream.ControlsSurface;
 import com.limelight.stream.StreamAction;
 import com.limelight.stream.StreamControlsPanel;
 import com.limelight.stream.StreamHealth;
+import com.limelight.stream.StreamRate;
 import com.limelight.ui.MaxHeightScrollView;
 
 import org.json.JSONObject;
@@ -158,10 +162,20 @@ public class CompanionPresentation extends android.app.Presentation
             telemetryView.postDelayed(this, TELEMETRY_RESYNC_MS);
         }
     };
-    // The stats: what the stream is, then the nine tiles.
+    // The stats: what the stream is, then up to nine tiles.
     private View statsHeaderView;
     private TextView statsTitleView;
+    private TextView statsSubtitleView;
     private TextView statsCodecView;
+    private LinearLayout statsGridView;
+    /** Every tile, in reading order, whether shown or not. */
+    private View[] statTiles;
+    private View hostTile;
+    private View deviceTile;
+    /** Which tiles the grid was last cut for, a bit each, so a steady stream re-lays nothing. */
+    private int laidOutTiles = -1;
+    /** The stream whose host has reported its own latency at least once: its tile stays. */
+    private long hostLatencySeenFor = -1;
     private TextView resolutionView;
     private TextView fpsView;
     private TextView latencyView;
@@ -170,6 +184,7 @@ public class CompanionPresentation extends android.app.Presentation
     private TextView lossView;
     private TextView bandwidthView;
     private TextView droppedView;
+    private TextView deviceView;
 
     // The strip under the view or the stats.
     private View statButton;
@@ -184,8 +199,6 @@ public class CompanionPresentation extends android.app.Presentation
     private View menuOverlay;
     private TextView menuTitleView;
     private TextView menuStatsView;
-    /** The page's title, for the header when the stream's game has no name to give it. */
-    private String menuPageTitle;
     private LinearLayout menuItemsView;
     private LinearLayout menuDangerView;
     private MaxHeightScrollView menuScrollView;
@@ -286,7 +299,22 @@ public class CompanionPresentation extends android.app.Presentation
         telemetryContainer = findViewById(R.id.companionTelemetryContainer);
         statsHeaderView = findViewById(R.id.companionStatsHeader);
         statsTitleView = findViewById(R.id.companionStatsTitle);
+        statsSubtitleView = findViewById(R.id.companionStatsSubtitle);
         statsCodecView = findViewById(R.id.companionStatsCodec);
+        statsGridView = findViewById(R.id.companionStatsGrid);
+        hostTile = findViewById(R.id.companionStatHostTile);
+        deviceTile = findViewById(R.id.companionStatDeviceTile);
+        statTiles = new View[]{
+                findViewById(R.id.companionStatResolutionTile),
+                findViewById(R.id.companionStatFpsTile),
+                findViewById(R.id.companionStatLatencyTile),
+                findViewById(R.id.companionStatDecodeTile),
+                hostTile,
+                findViewById(R.id.companionStatLossTile),
+                findViewById(R.id.companionStatBitrateTile),
+                findViewById(R.id.companionStatDroppedTile),
+                deviceTile,
+        };
         resolutionView = findViewById(R.id.companionStatResolution);
         fpsView = findViewById(R.id.companionStatFps);
         latencyView = findViewById(R.id.companionStatLatency);
@@ -295,6 +323,7 @@ public class CompanionPresentation extends android.app.Presentation
         lossView = findViewById(R.id.companionStatLoss);
         bandwidthView = findViewById(R.id.companionStatBitrate);
         droppedView = findViewById(R.id.companionStatDropped);
+        deviceView = findViewById(R.id.companionStatDevice);
 
         statButton = findViewById(R.id.companionStatButton);
         statDot = findViewById(R.id.companionStatDot);
@@ -658,16 +687,45 @@ public class CompanionPresentation extends android.app.Presentation
         }
     }
 
-    /** The nine tiles, or a dash in each until the first second of numbers arrives. */
+    /**
+     * The header and the tiles, or a dash in each until the first second of numbers arrives.
+     * The header names the game, with the PC and the time played under it, as the controls do;
+     * the PC is never the title.
+     */
     private void bindStats(PerfStats stats, CompanionState.StreamSession session) {
         Context context = getContext();
-        String title = session != null ? joinNames(session.game, session.host) : null;
+        String title = session != null ? session.game : null;
+        String host = session != null ? session.host : null;
+        String played = session != null && session.startUptimeMs > 0
+                ? StreamControlsPanel.sessionLength(context.getResources(),
+                        SystemClock.uptimeMillis() - session.startUptimeMs)
+                : null;
+        String subtitle = host != null && played != null
+                ? context.getString(R.string.companion_stats_subtitle, host, played)
+                : host != null ? host : played;
         String codec = session != null ? session.codec : null;
         statsTitleView.setText(title);
+        statsTitleView.setVisibility(title != null ? View.VISIBLE : View.GONE);
+        statsSubtitleView.setText(subtitle);
+        statsSubtitleView.setVisibility(subtitle != null ? View.VISIBLE : View.GONE);
         statsCodecView.setText(codec);
-        statsHeaderView.setVisibility(title != null || codec != null ? View.VISIBLE : View.GONE);
+        statsHeaderView.setVisibility(title != null || subtitle != null || codec != null
+                ? View.VISIBLE : View.GONE);
 
         String none = context.getString(R.string.companion_value_unavailable);
+        float deviceC = deviceTemperatureC(context);
+        deviceView.setText(Float.isNaN(deviceC) ? none
+                : context.getString(R.string.companion_value_celsius, deviceC));
+        long streamStart = session != null ? session.startUptimeMs : 0;
+        if (stats != null && stats.hasHostProcessingLatency) {
+            hostLatencySeenFor = streamStart;
+        }
+        // Host only from a host that reports its own latency: most never do, and a tile reading
+        // a dash for a whole stream is a tile that is not there. Once seen it stays for the
+        // stream, a dash in a second that had no frame to time, so the grid does not jump.
+        // Device only where the device says (its battery's sensor, which needs no permission).
+        layoutStatTiles(hostLatencySeenFor == streamStart, !Float.isNaN(deviceC));
+
         if (stats == null) {
             for (TextView value : new TextView[]{resolutionView, fpsView, latencyView,
                     decodeTimeView, hostLatencyView, lossView, bandwidthView, droppedView}) {
@@ -679,17 +737,100 @@ public class CompanionPresentation extends android.app.Presentation
         fpsView.setText(context.getString(R.string.companion_value_fps, stats.totalFps));
         latencyView.setText(context.getString(R.string.companion_value_ms_whole, stats.networkLatencyMs));
         decodeTimeView.setText(context.getString(R.string.companion_value_ms, stats.decodeTimeMs));
-        // Not every host reports it; a dash says so without moving the other tiles.
         hostLatencyView.setText(stats.hasHostProcessingLatency
                 ? context.getString(R.string.companion_value_ms, stats.avgHostProcessingLatencyMs)
                 : none);
         // A window with no frames has 0/0 for its loss, which is no number at all.
         lossView.setText(Float.isNaN(stats.networkDropsPercent) ? none
                 : context.getString(R.string.companion_value_percent, stats.networkDropsPercent));
-        bandwidthView.setText(formatBandwidth(stats));
+        // In Mbps, as the controls' header and the Bitrate entry write it.
+        bandwidthView.setText(stats.hasBandwidth()
+                ? StreamRate.mbps(context.getResources(), stats) : none);
         // Frames that arrived in the last second but never reached the screen.
         droppedView.setText(String.valueOf(
                 Math.max(0, Math.round(stats.receivedFps - stats.renderedFps))));
+    }
+
+    /**
+     * Cut the shown tiles into full rows ({@link StatsGrid}). Re-parents the tiles only when which
+     * of them show has changed, which is at most twice a stream.
+     */
+    private void layoutStatTiles(boolean hostShown, boolean deviceShown) {
+        int shown = 0;
+        int count = 0;
+        for (int i = 0; i < statTiles.length; i++) {
+            View tile = statTiles[i];
+            boolean visible = (tile != hostTile || hostShown) && (tile != deviceTile || deviceShown);
+            if (visible) {
+                shown |= 1 << i;
+                count++;
+            }
+        }
+        if (shown == laidOutTiles) {
+            return;
+        }
+        laidOutTiles = shown;
+
+        for (View tile : statTiles) {
+            ViewGroup parent = (ViewGroup) tile.getParent();
+            if (parent != null) {
+                parent.removeView(tile);
+            }
+        }
+        statsGridView.removeAllViews();
+
+        int columns = StatsGrid.columns(count);
+        int gap = getContext().getResources().getDimensionPixelSize(R.dimen.companion_stat_gap);
+        LinearLayout row = null;
+        int inRow = 0;
+        for (int i = 0; i < statTiles.length; i++) {
+            if ((shown & (1 << i)) == 0) {
+                continue;
+            }
+            if (row == null || inRow == columns) {
+                row = new LinearLayout(getContext());
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                row.setBaselineAligned(false);
+                LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                rowLp.bottomMargin = gap;
+                statsGridView.addView(row, rowLp);
+                inRow = 0;
+            }
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0,
+                    ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            lp.setMarginStart(inRow > 0 ? gap : 0);
+            row.addView(statTiles[i], lp);
+            inRow++;
+        }
+        // A short last row keeps the columns' width rather than stretching its tiles.
+        while (row != null && inRow > 0 && inRow < columns) {
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, 0, 1f);
+            lp.setMarginStart(gap);
+            row.addView(new View(getContext()), lp);
+            inRow++;
+        }
+    }
+
+    /**
+     * The device's temperature in degrees Celsius, NaN where it does not say. Read from the
+     * battery's sensor: the one temperature an app may read without system permissions (the
+     * thermal zones are closed to it), and on a handheld it follows the SoC closely enough to see
+     * the device heat up over a session. A sticky broadcast, so no receiver is registered.
+     */
+    private static float deviceTemperatureC(Context context) {
+        try {
+            Intent battery = ContextCompat.registerReceiver(context.getApplicationContext(), null,
+                    new IntentFilter(Intent.ACTION_BATTERY_CHANGED),
+                    ContextCompat.RECEIVER_NOT_EXPORTED);
+            int tenths = battery != null
+                    ? battery.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, Integer.MIN_VALUE)
+                    : Integer.MIN_VALUE;
+            // 0 is what a device with no sensor commonly reports; no handheld runs at 0 °C.
+            return tenths == Integer.MIN_VALUE || tenths == 0 ? Float.NaN : tenths / 10f;
+        } catch (RuntimeException e) {
+            return Float.NaN;
+        }
     }
 
     /**
@@ -701,7 +842,7 @@ public class CompanionPresentation extends android.app.Presentation
                            CompanionState.StreamSession session) {
         Context context = getContext();
         ColorStateList health = ColorStateList.valueOf(
-                ContextCompat.getColor(context, healthColor(stats, session)));
+                ContextCompat.getColor(context, healthColor(stats)));
         statButton.setVisibility(hasView ? View.VISIBLE : View.GONE);
         sessionView.setVisibility(hasView ? View.GONE : View.VISIBLE);
         gameButton.setVisibility(statsOver ? View.VISIBLE : View.GONE);
@@ -728,13 +869,13 @@ public class CompanionPresentation extends android.app.Presentation
     }
 
     /** The HUD's health dot, judged the same way; faint until there is anything to judge. */
-    private static int healthColor(PerfStats stats, CompanionState.StreamSession session) {
+    private static int healthColor(PerfStats stats) {
         if (stats == null) {
             return R.color.content_faint;
         }
         // The host's "poor connection" reports reach the top screen's HUD only, so this dot reads
         // the numbers alone; they show the same trouble a moment later.
-        switch (StreamHealth.classify(stats, session != null ? session.targetFps : 0, false)) {
+        switch (StreamHealth.classify(stats, false)) {
             case BAD:
                 return R.color.health_bad;
             case WARN:
@@ -743,14 +884,6 @@ public class CompanionPresentation extends android.app.Presentation
             default:
                 return R.color.health_good;
         }
-    }
-
-    /** "Hades II · Taverna", or whichever of the two is known; null for neither. */
-    private String joinNames(String game, String host) {
-        if (game != null && host != null) {
-            return getContext().getString(R.string.companion_stats_title, game, host);
-        }
-        return game != null ? game : host;
     }
 
     /**
@@ -987,17 +1120,6 @@ public class CompanionPresentation extends android.app.Presentation
         return text.subSequence(start, end);
     }
 
-    private String formatBandwidth(PerfStats stats) {
-        Context context = getContext();
-        if (!stats.hasBandwidth()) {
-            return context.getString(R.string.companion_value_unavailable);
-        }
-        if (stats.bandwidthKbps >= 1000) {
-            return context.getString(R.string.companion_value_mbps, stats.bandwidthKbps / 1024f);
-        }
-        return context.getString(R.string.companion_value_kbps, stats.bandwidthKbps);
-    }
-
     // --- The in-game controls, drawn on this panel as a sheet ---
     //
     // The panel takes no input focus of its own: the window is not focusable, so the gamepad
@@ -1020,16 +1142,16 @@ public class CompanionPresentation extends android.app.Presentation
 
     /**
      * Draw one page of the controls as the sheet and select its first entry. Replaces any page
-     * already up. The entries come in the tree's order: the tiles become one row, each list entry
-     * a row of its own, and the danger entries the row under the scroll.
+     * already up. The entries come in the tree's order: the tiles in rows of four, each list
+     * entry a row of its own, and the danger entries the row under the scroll.
      *
-     * @param title the page's own name, for the header when the stream's game has none
+     * @param title the page's own name; unused, the header names the game (a page's name is on
+     *              its way-back row), and never the root's generic one
      */
     public void showMenu(String title, List<CompanionMenuItem> items) {
         if (menuItemsView == null) {
             return;
         }
-        menuPageTitle = title;
 
         menuItemsView.removeAllViews();
         menuDangerView.removeAllViews();
@@ -1044,6 +1166,9 @@ public class CompanionPresentation extends android.app.Presentation
             View cell;
             switch (item.group) {
                 case TILE:
+                    if (tileRow != null && tileRow.getChildCount() == ControlsGrid.SHEET_TILES_PER_ROW) {
+                        tileRow = null;
+                    }
                     if (tileRow == null) {
                         tileRow = new LinearLayout(getContext());
                         tileRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -1060,6 +1185,7 @@ public class CompanionPresentation extends android.app.Presentation
                     break;
                 default:
                     // The tiles after a row start a row of their own, as ControlsGrid counts them.
+                    padTileRow(tileRow);
                     tileRow = null;
                     // The mock's hairline between list rows, never after the last one.
                     if (afterRow) {
@@ -1077,8 +1203,9 @@ public class CompanionPresentation extends android.app.Presentation
             menuActions.add(item.action);
             groups.add(item.group);
         }
+        padTileRow(tileRow);
         menuDangerView.setVisibility(menuDangerView.getChildCount() > 0 ? View.VISIBLE : View.GONE);
-        menuGrid = ControlsGrid.of(groups);
+        menuGrid = ControlsGrid.of(groups, ControlsGrid.SHEET_TILES_PER_ROW);
 
         bindMenuHeader();
         menuOverlay.setVisibility(View.VISIBLE);
@@ -1090,16 +1217,35 @@ public class CompanionPresentation extends android.app.Presentation
         }
     }
 
-    /** The header: the game, and the stream's numbers as the side panel writes them. */
+    /**
+     * The header: the game, and the stream's numbers as the side panel writes them. Only the
+     * game: the root page's generic name ("Quick Menu") read as a title flipping between runs.
+     */
     private void bindMenuHeader() {
         CompanionState.StreamSession session = state.getStreamSession();
-        String title = session != null && session.game != null ? session.game : menuPageTitle;
+        String title = session != null ? session.game : null;
         menuTitleView.setText(title);
         menuTitleView.setVisibility(title == null || title.isEmpty() ? View.INVISIBLE : View.VISIBLE);
         PerfStats stats = state.getStats();
         menuStatsView.setText(stats != null
                 ? StreamControlsPanel.statsText(getContext().getResources(), stats) : null);
         menuStatsView.setVisibility(stats != null ? View.VISIBLE : View.GONE);
+    }
+
+    /**
+     * Fill a short tile row out to four with blanks, so its tiles keep the width of the full row
+     * above rather than stretching across it.
+     */
+    private void padTileRow(LinearLayout row) {
+        if (row == null || row.getChildCount() == 0) {
+            return;
+        }
+        int gap = getContext().getResources().getDimensionPixelSize(R.dimen.controls_tile_gap);
+        while (row.getChildCount() < ControlsGrid.SHEET_TILES_PER_ROW) {
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, 0, 1f);
+            lp.leftMargin = gap;
+            row.addView(new View(getContext()), lp);
+        }
     }
 
     private View addMenuTile(LayoutInflater inflater, LinearLayout row, CompanionMenuItem item) {

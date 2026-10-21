@@ -1,6 +1,7 @@
 package com.limelight.stream;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 /**
  * Somewhere the {@link StreamActions} tree is drawn and driven: the centred sheet, the phone's
@@ -41,6 +42,22 @@ public interface ControlsSurface {
 
     /** Show the tree's root page, replacing whatever the surface showed. */
     void open(@NonNull StreamAction tree);
+
+    /**
+     * Show the tree with the page of this id open, over the pages that lead to it, so Back walks
+     * the same way it would have; the root when the id is null or names no page of the tree. How
+     * the controls move from one surface to the other, the page the user was on kept, when the
+     * companion panel comes or goes while they are open.
+     */
+    void openAt(@NonNull StreamAction tree, @Nullable StreamAction.Id page);
+
+    /**
+     * The page on top of the surface's stack: the root on the first page, null while it shows
+     * none. Still answers after the surface's view went away underneath it (the companion panel
+     * powered off), until the surface is closed, so the page can be handed over.
+     */
+    @Nullable
+    StreamAction shownPage();
 
     /** One page back, or closed from the first page. */
     void back();

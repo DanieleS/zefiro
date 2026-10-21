@@ -358,4 +358,71 @@ public class StreamActionsTest {
 
         assertTrue(StreamCapabilities.parseCustomKeys("not json").invalid);
     }
+
+    // --- The Thor sheet's layout (StreamActions.compact) ---
+
+    @Test
+    public void theThorSheetIsEightTilesThenTheTwoEnds() {
+        StreamAction sheet = StreamActions.compact(StreamActions.build(everything().build()));
+        assertEquals(Arrays.asList(Id.KEYBOARD, Id.SCREENSHOT, Id.SAVE_REPLAY, Id.OVERLAY,
+                        Id.BITRATE, Id.CLIPBOARD, Id.SPECIAL_KEYS, Id.MORE),
+                idsOf(sheet.children, Group.TILE));
+        assertEquals(Collections.emptyList(), idsOf(sheet.children, Group.LIST));
+        assertEquals(Arrays.asList(Id.DISCONNECT, Id.QUIT), idsOf(sheet.children, Group.DANGER));
+        assertEquals(R.string.stream_action_keys, sheet.find(Id.SPECIAL_KEYS).labelRes);
+        // The bitrate's value is the row's; a tile is named by what it is
+        assertEquals(R.string.stream_action_bitrate, sheet.find(Id.BITRATE).labelRes);
+        assertNull(sheet.find(Id.BITRATE).labelArg);
+        for (StreamAction tile : sheet.children) {
+            if (tile.group == Group.TILE) {
+                assertTrue(tile + " has no icon", tile.iconRes != 0);
+            }
+        }
+    }
+
+    @Test
+    public void theThorSheetLosesNothing() {
+        StreamAction full = StreamActions.build(everything().build());
+        Set<Id> sheet = ids(StreamActions.compact(full));
+        Set<Id> missing = ids(full);
+        missing.removeAll(sheet);
+        assertEquals(EnumSet.noneOf(Id.class), missing);
+        // Gamepad and Mouse, which have no tile, lead More
+        List<StreamAction> more = page(StreamActions.compact(full), Id.MORE).children;
+        assertEquals(Id.GAMEPAD, more.get(0).id);
+        assertEquals(Id.MOUSE, more.get(1).id);
+        assertFalse(ids(page(StreamActions.compact(full), Id.MORE)).contains(Id.SAVE_REPLAY));
+        assertEquals(Arrays.asList(Id.CLIPBOARD_UPLOAD, Id.CLIPBOARD_FETCH),
+                idsOf(page(StreamActions.compact(full), Id.CLIPBOARD).children, Group.MORE));
+    }
+
+    @Test
+    public void theThorSheetLeavesOutWhatTheStreamCannotDo() {
+        StreamAction sheet = StreamActions.compact(StreamActions.build(nothing().build()));
+        // No capture tool, no live bitrate: the clipboard, the keys and More still have tiles
+        assertEquals(Arrays.asList(Id.KEYBOARD, Id.OVERLAY, Id.CLIPBOARD, Id.SPECIAL_KEYS, Id.MORE),
+                idsOf(sheet.children, Group.TILE));
+    }
+
+    @Test
+    public void aPageIsFoundByItsPathInEitherLayout() {
+        StreamAction full = StreamActions.build(everything().build());
+        List<StreamAction> path = full.pathTo(Id.MOUSE_MODE);
+        assertNotNull(path);
+        assertEquals(Arrays.asList(Id.ROOT, Id.MOUSE, Id.MOUSE_MODE), idsOf(path));
+        List<StreamAction> moved = StreamActions.compact(full).pathTo(Id.MOUSE_MODE);
+        assertNotNull(moved);
+        assertEquals(Arrays.asList(Id.ROOT, Id.MORE, Id.MOUSE, Id.MOUSE_MODE), idsOf(moved));
+        // Only pages: a leaf is not somewhere to reopen on
+        assertNull(full.pathTo(Id.KEYBOARD));
+        assertNull(full.pathTo(Id.CLIPBOARD));
+    }
+
+    private static List<Id> idsOf(List<StreamAction> actions) {
+        List<Id> out = new ArrayList<>();
+        for (StreamAction action : actions) {
+            out.add(action.id);
+        }
+        return out;
+    }
 }
