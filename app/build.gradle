@@ -16,6 +16,11 @@ def hasReleaseSigning = releaseKeystore != null && releaseKeystore.exists()
 // one can be tried next to the stable and dropped without a downgrade, which Android only allows
 // by uninstalling (losing the pairing and settings).
 def betaChannel = project.hasProperty('betaChannel')
+// Debug signing with a shared key, when CI provides one: an APK signed with another key can't update
+// an installed debug build, so the live test's emulator kept its first build. Named explicitly
+// rather than dropped into ~/.android, where the CI build did not pick it up.
+def sharedDebugKeystorePath = System.getenv("ZEFIRO_DEBUG_KEYSTORE_FILE")
+def sharedDebugKeystore = sharedDebugKeystorePath ? file(sharedDebugKeystorePath) : null
 
 android {
     ndkVersion "27.0.12077973"
@@ -46,6 +51,14 @@ android {
     }
 
     signingConfigs {
+        if (sharedDebugKeystore != null && sharedDebugKeystore.exists()) {
+            debug {
+                storeFile sharedDebugKeystore
+                storePassword "android"
+                keyAlias "androiddebugkey"
+                keyPassword "android"
+            }
+        }
         if (hasReleaseSigning) {
             release {
                 storeFile releaseKeystore
