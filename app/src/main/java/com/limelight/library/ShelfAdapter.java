@@ -58,7 +58,11 @@ import java.util.WeakHashMap;
  *
  * <h3>Shape</h3>
  *
- * The home decides each shelf's shape from the window ({@link #setShape}): a row, with its tiles'
+ * The count is said once: a grid (a phone in portrait), whose last cell is the "See all · N"
+ * tile, has a plain "See all" link over it, while a row, whose tile is scrolled to its end,
+ * keeps the count in its link.
+ *
+ * <p>The home decides each shelf's shape from the window ({@link #setShape}): a row, with its tiles'
  * height capped or not, or a grid of a few rows. A grid shows only as many games as fill its
  * cells, the "See all" tile taking the last; a row shows them all.
  *
@@ -199,6 +203,18 @@ final class ShelfAdapter extends RecyclerView.Adapter<ShelfAdapter.Holder> {
     private void applyShape(Holder holder) {
         holder.shelf.setGridColumns(gridColumns);
         holder.shelf.setMaxTileHeight(gridColumns > 0 ? 0 : maxTileHeightPx);
+        bindLink(holder);
+    }
+
+    // "See all · N", or "See all" alone over a grid whose last cell says the count.
+    private void bindLink(Holder holder) {
+        if (onSeeAll == null || !counted) {
+            return;
+        }
+        Context context = holder.itemView.getContext();
+        holder.link.setText(gridColumns > 0 && seeAllTile != null
+                ? context.getString(R.string.library_see_all)
+                : context.getString(R.string.library_see_all_count, seeAllCount));
     }
 
     // The games that fit the shape, then the "See all" tile once they are in: added in the same
@@ -323,9 +339,7 @@ final class ShelfAdapter extends RecyclerView.Adapter<ShelfAdapter.Holder> {
                 ? context.getString(R.string.library_shelf_label_detail,
                         context.getString(label), labelDetail)
                 : context.getString(label));
-        if (onSeeAll != null && counted) {
-            holder.link.setText(context.getString(R.string.library_see_all_count, seeAllCount));
-        }
+        // The link was bound with the shape, above.
     }
 
     @Override

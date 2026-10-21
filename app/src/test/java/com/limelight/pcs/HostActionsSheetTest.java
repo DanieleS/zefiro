@@ -166,4 +166,20 @@ public class HostActionsSheetTest {
 
         assertFalse(HostActionsSheet.build(context, entry, mock(HostActions.class)).isEmpty());
     }
+
+    @Test
+    public void withoutAPanel_theSheetRisesFromTheBottom_inAnyWindow() {
+        // A phone, and a Thor whose lower screen is off: the mock's bottom sheet.
+        assertEquals(HostActionsSheet.Placement.BOTTOM, HostActionsSheet.placement(true, false, true));
+        assertEquals(HostActionsSheet.Placement.BOTTOM, HostActionsSheet.placement(false, false, true));
+        assertEquals(HostActionsSheet.Placement.BOTTOM, HostActionsSheet.placement(false, false, false));
+    }
+
+    @Test
+    public void withAPanel_theSheetIsAMenu_fromTheButtonThatAskedForIt() {
+        assertEquals(HostActionsSheet.Placement.ANCHORED, HostActionsSheet.placement(false, true, true));
+        assertEquals(HostActionsSheet.Placement.CENTERED, HostActionsSheet.placement(false, true, false));
+        // A compact window with a panel still has the thumb at the bottom.
+        assertEquals(HostActionsSheet.Placement.BOTTOM, HostActionsSheet.placement(true, true, true));
+    }
 }

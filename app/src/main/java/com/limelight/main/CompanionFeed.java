@@ -50,13 +50,18 @@ import java.util.Objects;
  *
  * <pre>
  *   Library or Search, a game in focus     GAME        details, Play (or Resume / Quit game)
+ *   an actions sheet open                  GAME        the sheet's game, whatever has focus
  *   Library, the chip or no games in focus HOST        the selected PC's name and state
  *   PCs                                    HOST        the focused card's PC
  *   Stats                                  IDLE_HOSTS  the app name
  *                                          ── each over the hosts row
  * </pre>
  *
- * Sections report focus through {@link GameFocusListener}; the activity reports a section
+ * Resume and Quit game are offered for the game the d-pad is on (the hero's, or a running
+ * game's tile), never for a host: the hero already offers them on the main screen, and the
+ * panel follows focus rather than repeating it.
+ *
+ * <p>Sections report focus through {@link GameFocusListener}; the activity reports a section
  * switch the same way (a host for most, {@link #none()} for Stats), and the section's own first
  * focus then refines it.
  *
@@ -160,6 +165,13 @@ public final class CompanionFeed implements GameFocusListener,
     @Nullable
     private Focus pending;
     private boolean started;
+
+    // The game an actions sheet is open for, drawn over the focus while it is open (see
+    // holdGame), and the report standing under it, for when it closes.
+    @Nullable
+    private Focus held;
+    @Nullable
+    private Focus heldOver;
 
     // The page published last and the screen it belongs to; both null when there is none.
     @Nullable
@@ -286,7 +298,44 @@ public final class CompanionFeed implements GameFocusListener,
         }
     }
 
+    /**
+     * An actions sheet opened for this game, or closed (null). While it is open the panel shows
+     * the sheet's game, at once, whatever the d-pad is on: a long-press by touch opens a sheet
+     * without moving focus, and the panel must not name another game than the one the sheet
+     * acts on. Focus reports meanwhile are kept, and the last one is drawn when the sheet closes.
+     */
+    public void holdGame(@Nullable LibraryApp app) {
+        if (app == null) {
+            if (held == null) {
+                return;
+            }
+            Focus back = heldOver != null ? heldOver : current;
+            held = null;
+            heldOver = null;
+            report(back);
+            return;
+        }
+        HostLibrary.Snapshot snapshot = repository.getLibrary().getValue();
+        Focus next = new Focus(Browsing.Kind.GAME, snapshot != null ? snapshot.hostUuid : null,
+                app.appId());
+        if (held == null) {
+            heldOver = pending != null ? pending : current;
+        }
+        held = next;
+        main.removeCallbacks(settle);
+        pending = null;
+        if (!next.equals(current)) {
+            current = next;
+            refresh();
+        }
+    }
+
     private void report(Focus next) {
+        if (held != null) {
+            // Under the sheet's game: drawn once the sheet closes.
+            heldOver = next;
+            return;
+        }
         main.removeCallbacks(settle);
         if (next.equals(current)) {
             // Back where it was before the report in flight settled: nothing to redraw.
@@ -335,20 +384,26 @@ public final class CompanionFeed implements GameFocusListener,
         HostLibrary.Snapshot snapshot = repository.getLibrary().getValue();
         switch (focus.kind) {
             case GAME: {
-                LibraryApp app = snapshot != null && sameHost(snapshot.hostUuid, focus.hostUuid)
-                        ? find(snapshot.apps, focus.appId) : null;
+                boolean onHost = snapshot != null && sameHost(snapshot.hostUuid, focus.hostUuid);
+                LibraryApp app = onHost ? find(snapshot.apps, focus.appId) : null;
+                if (app == null && onHost && snapshot.running != null
+                        && snapshot.running.getAppId() == focus.appId) {
+                    // The hero's game, not on the shelves (hidden, a special, a monitor session):
+                    // still the game the d-pad is on, with its Resume and Quit game.
+                    app = new LibraryApp(snapshot.running, true, false);
+                }
                 if (app != null) {
                     return game(snapshot, app, focus);
                 }
                 // Gone from the list, or another host was selected meanwhile (a tap on the
                 // panel's hosts row): the selected host is what the Library now shows.
                 forgetBackdrop();
-                return host(repository.getSelectedHostUuid().getValue(), snapshot);
+                return host(repository.getSelectedHostUuid().getValue());
             }
             case HOST:
                 forgetBackdrop();
                 return host(focus.hostUuid != null
-                        ? focus.hostUuid : repository.getSelectedHostUuid().getValue(), snapshot);
+                        ? focus.hostUuid : repository.getSelectedHostUuid().getValue());
             case IDLE_HOSTS:
             default:
                 forgetBackdrop();
@@ -390,10 +445,12 @@ public final class CompanionFeed implements GameFocusListener,
     }
 
     /**
-     * A host's name and state, over the art of the game it is running. For the selected host
-     * that game is known, so the panel offers Resume and Quit game for it as the hero does.
+     * A host's name and state, over the art of the game it is running. No Resume or Quit game:
+     * the host is what the panel shows when no game has focus (the chip, a touch screen, another
+     * section), and the hero on the main screen already offers them; the panel shows them for
+     * the hero's game when the d-pad is on it.
      */
-    private Browsing host(@Nullable String hostUuid, @Nullable HostLibrary.Snapshot snapshot) {
+    private Browsing host(@Nullable String hostUuid) {
         HostEntry entry = repository.getHost(hostUuid);
         if (entry == null) {
             return Browsing.idleHosts();
@@ -405,11 +462,8 @@ public final class CompanionFeed implements GameFocusListener,
                 ? context.getString(R.string.pcview_status_running, entry.runningAppName)
                 : context.getString(HostTileBinder.statusLabel(details));
 
-        NvApp running = snapshot != null && sameHost(snapshot.hostUuid, details.uuid)
-                ? snapshot.running : null;
-        int appId = running != null ? running.getAppId() : Browsing.NO_APP;
-        return new Browsing(Browsing.Kind.HOST, details.uuid, appId, name, meta, null,
-                online ? entry.runningBackground : null, running != null);
+        return new Browsing(Browsing.Kind.HOST, details.uuid, Browsing.NO_APP, name, meta, null,
+                online ? entry.runningBackground : null, false);
     }
 
     /**

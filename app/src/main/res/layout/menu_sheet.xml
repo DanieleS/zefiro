@@ -44,10 +44,14 @@
         android:textSize="13sp"
         android:visibility="gone" />
 
+    <!-- Capped to the window (MenuSheet), it scrolls on a short one: a phone in landscape. The
+         faded edge is the cue that there are rows past it; it shows only while there are. -->
     <com.limelight.ui.MaxHeightScrollView
         android:id="@+id/menuSheetScroll"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:fadingEdgeLength="40dp"
+        android:requiresFadingEdge="vertical"
         android:scrollbars="none">
 
         <LinearLayout

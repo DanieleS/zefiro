@@ -5,7 +5,7 @@
       tileTitle         the title card: the game's name on a raised surface, for a tile with no
                         cover yet (dimmed) or none at all (full strength)
       tileArt           the cover, over the card, shown only once there is a real one
-      tileRunningBadge  RUNNING, pinned in the top corner, over whatever is showing
+      tileRunningBadge  RUNNING, pinned in the bottom corner, over whatever is showing
 
     The hidden-game dimming is tileContent's alpha, not the tile's: the tile carries the focus
     ring as its foreground, and dimming the tile would dim the ring with it, leaving a focused
@@ -57,21 +57,23 @@
             app:shapeAppearanceOverlay="@style/TileShape" />
 
         <!--
-            The See all mock's .badge: 5dp in from the corner, 2dp by 5dp of padding, a 4dp radius.
-            Its 8px text is not kept: on a TV across the room, and at the edge of legibility on a
-            phone, 8sp is unreadable, so the label is 10sp, the smallest that reads at a glance.
+            The See all mock's .badge: 5dp in from the corner, a 4dp radius, its padding trimmed
+            to 1dp by 4dp. Its 8px text is not kept: on a TV across the room, and at the edge of
+            legibility on a phone, 8sp is unreadable, so the label is 10sp, the smallest that reads
+            at a glance. In the bottom end corner, not the top start one the mock draws: a cover
+            puts the game's logo at its top, and the badge sat on it; the foot is mostly art.
         -->
         <TextView
             android:id="@+id/tileRunningBadge"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="top|start"
+            android:layout_gravity="bottom|end"
             android:layout_margin="@dimen/tile_badge_margin"
             android:background="@drawable/tile_running_badge"
-            android:paddingStart="5dp"
-            android:paddingEnd="5dp"
-            android:paddingTop="2dp"
-            android:paddingBottom="2dp"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
+            android:paddingTop="1dp"
+            android:paddingBottom="1dp"
             android:fontFamily="sans-serif"
             android:textStyle="bold"
             android:letterSpacing="0.04"

@@ -78,4 +78,21 @@ public class GameActionsSheetTest {
         assertTrue(items.contains(Item.COMPANION_APP));
         assertFalse(items.contains(Item.PIN_SHORTCUT));
     }
+
+    @Test
+    public void theSheet_leadsWithStart_onlyWhileTheHostIsIdle() {
+        List<Item> idle = GameActionsSheet.sheetItemsFor(game(1, "u1", false), state(0, false));
+        assertEquals(Item.START, idle.get(0));
+        assertEquals(GameActionsSheet.itemsFor(game(1, "u1", false), state(0, false)),
+                idle.subList(1, idle.size()));
+
+        // Running something: Resume, or Quit and start, lead instead.
+        assertFalse(GameActionsSheet.sheetItemsFor(game(1, "u1", false), state(1, false))
+                .contains(Item.START));
+        assertFalse(GameActionsSheet.sheetItemsFor(game(1, "u1", false), state(2, false))
+                .contains(Item.START));
+        // A game's page has its own Start button: its chips never carry the row.
+        assertFalse(GameActionsSheet.itemsFor(game(1, "u1", false), state(0, false))
+                .contains(Item.START));
+    }
 }

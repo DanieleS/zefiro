@@ -778,6 +778,7 @@ public class CompanionPresentation extends android.app.Presentation
         if (title == null || title.isEmpty()) {
             // Nothing to show: the app name alone, in the middle of the panel.
             idleColumnView.setGravity(Gravity.CENTER);
+            setColumnFills(true);
             idleTitleView.setText(R.string.app_label);
             idleMetaView.setVisibility(View.GONE);
             idleDescriptionScrollView.setVisibility(View.GONE);
@@ -811,8 +812,26 @@ public class CompanionPresentation extends android.app.Presentation
         // sitting at the foot of an empty column, which read as a panel still loading.
         boolean hasDescription = idleDescriptionView.getText().length() > 0;
         idleDescriptionScrollView.setVisibility(hasDescription ? View.VISIBLE : View.GONE);
+        // Nor does the hosts row stay at the panel's foot under an empty half: without a
+        // description the column is as tall as it holds, and the row follows Play straight on.
+        setColumnFills(hasDescription);
         if (spotlightChanged) {
             idleDescriptionScrollView.scrollTo(0, 0);
+        }
+    }
+
+    /**
+     * Whether the spotlight's column takes the panel's height, its description scrolling and the
+     * hosts row at the foot, or only its own, with the hosts row right under it.
+     */
+    private void setColumnFills(boolean fills) {
+        LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) idleColumnView.getLayoutParams();
+        int height = fills ? 0 : ViewGroup.LayoutParams.WRAP_CONTENT;
+        float weight = fills ? 1f : 0f;
+        if (lp.height != height || lp.weight != weight) {
+            lp.height = height;
+            lp.weight = weight;
+            idleColumnView.setLayoutParams(lp);
         }
     }
 

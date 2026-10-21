@@ -23,7 +23,8 @@ public class PcTileSpanRuleTest {
 
     @Test
     public void theThorGetsFour() {
-        // The top screen beside the rail: about 900dp.
+        // The top screen beside the rail: about 856dp at the Thor's density, 900 at a looser one.
+        assertEquals(4, PcTileSpanRule.spans(856));
         assertEquals(4, PcTileSpanRule.spans(900));
     }
 

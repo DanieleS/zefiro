@@ -14,8 +14,9 @@ import com.limelight.R;
  * The main screen's two navigation widgets, kept as one.
  *
  * <p>The rail (with the profile avatar under it) and the bottom bar are both inflated, and only
- * one is shown, chosen by {@link #apply}. A short window (a phone in landscape) leaves the avatar
- * out, as the landscape mock does: Profiles is in Settings there, as it is for the bottom bar. Since either can become the visible one on
+ * one is shown, chosen by {@link #apply}. A window too short for the whole rail leaves the avatar
+ * out ({@link WindowClass#railTooShortForAvatar}): Profiles is in Settings there, as it is for the
+ * bottom bar. A phone in landscape has the room, so it keeps the avatar the Thor has. Since either can become the visible one on
  * the next rotation, the hidden one is kept in step: the checked section and whether Stats is
  * offered are always written to both.
  *
@@ -107,8 +108,8 @@ final class NavChrome {
     }
 
     /**
-     * Shows the rail column or the bottom bar for this window, and the avatar unless it is a
-     * short one.
+     * Shows the rail column or the bottom bar for this window, and the avatar unless the rail
+     * has no room for it.
      */
     void apply(@NonNull WindowClass windowClass, boolean shortWindow) {
         this.windowClass = windowClass;

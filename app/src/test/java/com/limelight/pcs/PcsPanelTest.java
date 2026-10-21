@@ -1,8 +1,11 @@
 package com.limelight.pcs;
 
+import android.app.Dialog;
 import android.os.Looper;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.TextView;
 
 import androidx.lifecycle.MutableLiveData;
 import androidx.recyclerview.widget.RecyclerView;
@@ -284,5 +287,57 @@ public class PcsPanelTest {
         publish(activity, host("uuid-a", "Apollo"));
 
         assertSame(before, panelPage(activity));
+    }
+
+    // Whether the hints at the foot say this, in any of their labels.
+    private static boolean hintsSay(MainActivity activity, int label) {
+        View hints = pcs(activity).requireView().findViewById(R.id.pcsHints);
+        return says(hints, activity.getString(label));
+    }
+
+    private static boolean says(View view, String text) {
+        if (view instanceof TextView && text.contentEquals(((TextView) view).getText())) {
+            return true;
+        }
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                if (says(group.getChildAt(i), text)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    @Test
+    public void theLowerScreenTurnedOffAndOn_relaysOutAroundTheSameTile() throws Exception {
+        MainActivity activity = start();
+        publish(activity, host("uuid-a", "Apollo"), host("uuid-b", "Studio"));
+        focusTile(activity, 1);
+        View tile = tile(activity, 1);
+        assertEquals("uuid-b", pcPage(activity).uuid);
+        assertTrue(hintsSay(activity, R.string.pcs_hint_actions_below));
+
+        // Off: the page comes off with the panel, the tile keeps focus, Y is the sheet again.
+        setPanelShowing(false);
+        idle();
+        assertNull(panelPage(activity));
+        assertSame(tile, focus(activity));
+        assertFalse(hintsSay(activity, R.string.pcs_hint_actions_below));
+        assertTrue(hintsSay(activity, R.string.pcs_hint_actions));
+        press(activity, KeyEvent.KEYCODE_BUTTON_Y);
+        Dialog sheet = ShadowDialog.getLatestDialog();
+        assertNotNull("Y opens the actions on this screen", sheet);
+        assertTrue(sheet.isShowing());
+        sheet.dismiss();
+        idle();
+
+        // On again: the same tile's page goes back on it, and Y goes down to it.
+        setPanelShowing(true);
+        idle();
+        assertEquals("uuid-b", pcPage(activity).uuid);
+        assertSame(tile, focus(activity));
+        assertTrue(hintsSay(activity, R.string.pcs_hint_actions_below));
     }
 }

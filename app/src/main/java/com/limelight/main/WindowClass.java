@@ -22,9 +22,17 @@ public enum WindowClass {
     /**
      * Below this height a wide window is a short one: a phone in landscape (about 340dp once its
      * cutout is out), not the Thor (about 450dp). It has no room for a page title over the
-     * shelves, nor for the profile under the rail, and the landscape mocks draw neither.
+     * shelves, and the landscape mocks draw none.
      */
     public static final int SHORT_MAX_HEIGHT_DP = 400;
+
+    /**
+     * The rail column's height with every item in it: 12dp above the rail and the 8dp the rail
+     * keeps above its first item, its four destinations and the Settings button at 56dp each,
+     * and the 48dp profile avatar with its 12dp margin. A phone in landscape has it to spare, so the avatar is at the rail's foot
+     * there as on the Thor; only a window shorter than this leaves it to Settings.
+     */
+    public static final int RAIL_WITH_AVATAR_MIN_HEIGHT_DP = 360;
 
     /**
      * @param screenWidthDp {@code Configuration.screenWidthDp}; an undefined width (0) counts as
@@ -43,5 +51,15 @@ public enum WindowClass {
     public static boolean isShortWide(int screenWidthDp, int screenHeightDp) {
         return from(screenWidthDp) == WIDE && screenHeightDp > 0
                 && screenHeightDp < SHORT_MAX_HEIGHT_DP;
+    }
+
+    /**
+     * Whether the rail has no room for the profile avatar under Settings (see
+     * {@link #RAIL_WITH_AVATAR_MIN_HEIGHT_DP}).
+     *
+     * @param screenHeightDp {@code Configuration.screenHeightDp}; an undefined height (0) has room
+     */
+    public static boolean railTooShortForAvatar(int screenHeightDp) {
+        return screenHeightDp > 0 && screenHeightDp < RAIL_WITH_AVATAR_MIN_HEIGHT_DP;
     }
 }

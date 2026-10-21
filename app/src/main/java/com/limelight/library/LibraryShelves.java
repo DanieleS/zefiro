@@ -1,5 +1,7 @@
 package com.limelight.library;
 
+import androidx.annotation.Nullable;
+
 import com.limelight.grid.AppSortOrder;
 import com.limelight.nvstream.http.AppMetadata;
 import com.limelight.nvstream.http.NvApp;
@@ -79,6 +81,19 @@ public final class LibraryShelves {
     }
 
     /** How many games "See all" leads to: every visible one. */
+    /**
+     * The order See all opens in when nothing asked for one: what was played last, while the
+     * user has never picked an order and Recently played has something in it (the same history
+     * the shelf reads), so the grid starts with the games the user goes back to. Null otherwise,
+     * for the library's own order.
+     *
+     * @param recent {@link #recent} for the library as it stands
+     */
+    @Nullable
+    public static AppSortOrder seeAllDefault(boolean orderChosen, List<LibraryApp> recent) {
+        return !orderChosen && !recent.isEmpty() ? AppSortOrder.RECENT : null;
+    }
+
     public static int visibleCount(List<LibraryApp> apps) {
         int count = 0;
         for (LibraryApp app : apps) {

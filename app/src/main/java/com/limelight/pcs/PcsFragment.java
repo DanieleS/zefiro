@@ -57,10 +57,10 @@ import java.util.Objects;
  *                      otherwise (offline, checking) ──▶ the host's actions sheet
  *   X / the button     the tile's own action (Resume, Wake, Pair), when it has one
  *   Y / R2             with the companion panel, the d-pad goes down to the PC's page there;
- *                      without it, Y opens the host's actions sheet, centred (a bottom sheet in
- *                      a compact window)
+ *                      without it, Y opens the host's actions as a bottom sheet
  *   long-press         the host's actions sheet
- *   ⋮ (touch only)     the same sheet, dropped from the button in a wide window
+ *   ⋮ (touch only)     the same sheet: a bottom sheet without the panel, dropped from the
+ *                      button with it (HostActionsSheet.placement)
  * </pre>
  *
  * X exists because the action is a button inside the tile, and a d-pad cannot move onto a view

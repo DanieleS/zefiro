@@ -437,14 +437,29 @@ public class HostLibrary {
         return Collections.unmodifiableSet(new HashSet<>(hiddenIds));
     }
 
-    /** Changes the order for every host, as the preference is global, and re-sorts. */
+    /**
+     * Changes the order for every host, as the preference is global, and re-sorts. The order it
+     * already had is still recorded as chosen ({@link #isSortOrderChosen}).
+     */
     public void setSortOrder(AppSortOrder order) {
-        if (closed || order == null || order == sortOrder) {
+        if (closed || order == null) {
             return;
         }
+        boolean changed = order != sortOrder;
         sortOrder = order;
         sortPrefs.edit().putString(LibraryIntents.KEY_SORT, order.getKey()).apply();
-        publish();
+        if (changed) {
+            publish();
+        }
+    }
+
+    /**
+     * Whether the user has ever picked an order; until then the library is in host order, and
+     * See all opens on what was played last when there is a history (see
+     * {@code LibraryShelves.seeAllDefault}).
+     */
+    public boolean isSortOrderChosen() {
+        return sortPrefs.contains(LibraryIntents.KEY_SORT);
     }
 
     /**

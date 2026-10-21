@@ -65,7 +65,10 @@ import java.util.List;
  * The grid lists the games in the library's order, the one the sort sheet sets for every list of
  * the host. Opened from Recently played's "›" it lists them by when they were last played
  * instead, for as long as it is up ({@link #newInstance}), without touching the library's
- * order; picking an order in the sheet goes back to the library's.
+ * order; picking an order in the sheet goes back to the library's. Until the user has picked an
+ * order once, the grid also opens in recent order when there is a play history
+ * ({@link LibraryShelves#seeAllDefault}): host order is the host's, not a choice, and a grid led
+ * by the games played last is the one most often wanted.
  *
  * <h3>Focus</h3>
  *
@@ -124,6 +127,8 @@ public class SeeAllFragment extends Fragment
     // The order this grid was opened in, over the library's; null for the library's own.
     @Nullable
     private AppSortOrder orderOverride;
+    // Whether the order to open in, with none asked for, has been settled (see render).
+    private boolean defaultOrderSettled;
     private int drawnArtVersion;
     @Nullable
     private Object drawnStandIns;
@@ -345,6 +350,15 @@ public class SeeAllFragment extends Fragment
             submittedSnapshot = null;
         }
 
+        // Opened with no order asked for, on a library never sorted by hand: the games played
+        // last first, once there are games to tell. Settled once, so it never re-sorts under
+        // the d-pad; an order picked in the sheet replaces it like any opening order.
+        if (!defaultOrderSettled && orderOverride == null && s != null && library != null
+                && !s.apps.isEmpty()) {
+            defaultOrderSettled = true;
+            orderOverride = LibraryShelves.seeAllDefault(library.isSortOrderChosen(),
+                    LibraryShelves.recent(s.apps, s.metadata, library.getLaunchHistory()));
+        }
         List<LibraryApp> visible = visibleApps(s, showHidden);
         if (orderOverride != null && s != null && library != null) {
             final Comparator<NvApp> by =

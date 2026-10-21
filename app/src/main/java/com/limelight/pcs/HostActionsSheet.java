@@ -9,6 +9,7 @@ import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 
 import com.limelight.R;
+import com.limelight.companion.CompanionDisplayManager;
 import com.limelight.computers.HostEntry;
 import com.limelight.main.WindowClass;
 import com.limelight.nvstream.http.ComputerDetails;
@@ -182,10 +183,33 @@ public final class HostActionsSheet {
         return sheet;
     }
 
+    /** Where the sheet shows; see {@link #placement}. */
+    enum Placement {
+        BOTTOM,
+        ANCHORED,
+        CENTERED
+    }
+
     /**
-     * Builds and shows the sheet where the window wants it: risen from the bottom in a compact
-     * window, where the thumb is; dropped from {@code anchor} in a wide one, when a control asked
-     * for it; otherwise centred, for the d-pad.
+     * Where the sheet goes. Without a companion panel the PC's actions have no lower half to live
+     * in, so they rise as a bottom sheet in any window, the mock's phone frame: on a phone, and on
+     * a Thor whose lower screen is off. With the panel, the same rows are already on it, and the
+     * sheet is a menu: dropped from the overflow button that asked for it, else centred for the
+     * d-pad (a long-press).
+     *
+     * @param panelShowing {@link CompanionDisplayManager#isShowing()} when the sheet is opened:
+     *                     a sheet is opened, not laid out, so it is read then
+     */
+    @NonNull
+    static Placement placement(boolean compact, boolean panelShowing, boolean anchored) {
+        if (compact || !panelShowing) {
+            return Placement.BOTTOM;
+        }
+        return anchored ? Placement.ANCHORED : Placement.CENTERED;
+    }
+
+    /**
+     * Builds and shows the sheet where {@link #placement} puts it.
      *
      * @param anchor the control that opened the sheet (a tile's overflow button); null when a
      *               key or a long-press did
@@ -195,12 +219,18 @@ public final class HostActionsSheet {
         MenuSheet sheet = build(context, host, actions);
         boolean compact = WindowClass.from(context.getResources().getConfiguration().screenWidthDp)
                 == WindowClass.COMPACT;
-        if (compact) {
-            sheet.showBottom(context);
-        } else if (anchor != null && anchor.isShown()) {
-            sheet.showAnchored(anchor);
-        } else {
-            sheet.showCentered(context);
+        switch (placement(compact, CompanionDisplayManager.isShowing(),
+                anchor != null && anchor.isShown())) {
+            case BOTTOM:
+                sheet.showBottom(context);
+                break;
+            case ANCHORED:
+                sheet.showAnchored(anchor);
+                break;
+            case CENTERED:
+            default:
+                sheet.showCentered(context);
+                break;
         }
     }
 
