@@ -8,6 +8,12 @@ public class ScaledBitmap {
 
     public Bitmap bitmap;
 
+    /**
+     * The fingerprint of the cached file this was decoded from, kept with the bitmap so a cover
+     * served from memory can still be checked against the host's stand-in art; null when unknown.
+     */
+    public NoArtDetector.ArtFingerprint fingerprint;
+
     public ScaledBitmap() {}
 
     public ScaledBitmap(int originalWidth, int originalHeight, Bitmap bitmap) {

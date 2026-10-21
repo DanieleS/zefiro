@@ -8,12 +8,12 @@ import java.util.Collections;
 import java.util.Objects;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import com.limelight.AppView;
 import com.limelight.Game;
-import com.limelight.PcView;
 import com.limelight.ShortcutTrampoline;
 import com.limelight.computers.ComputerManagerService;
 import com.limelight.R;
+import com.limelight.library.LibraryIntents;
+import com.limelight.main.MainActivity;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.NvHTTP;
 import com.limelight.nvstream.jni.MoonBridge;
@@ -207,12 +207,14 @@ public class AddComputerManually extends AppCompatActivity {
                     String pin = uri.getQueryParameter("pin");
                     String passphrase = uri.getQueryParameter("passphrase");
                     if (pin != null && passphrase != null) {
-                        Intent intent = new Intent(AddComputerManually.this, PcView.class);
+                        // The main screen parks the PIN until its next poll finds the host just
+                        // added, then pairs it from the PCs section.
+                        Intent intent = new Intent(AddComputerManually.this, MainActivity.class);
                         intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
-                        intent.putExtra("hostname", uri.getHost());
-                        intent.putExtra("port", uri.getPort());
-                        intent.putExtra("pin", pin);
-                        intent.putExtra("passphrase", passphrase);
+                        intent.putExtra(LibraryIntents.EXTRA_PAIR_HOSTNAME, uri.getHost());
+                        intent.putExtra(LibraryIntents.EXTRA_PAIR_PORT, uri.getPort());
+                        intent.putExtra(LibraryIntents.EXTRA_PAIR_PIN, pin);
+                        intent.putExtra(LibraryIntents.EXTRA_PAIR_PASSPHRASE, passphrase);
 
                         startActivity(intent);
                     }
@@ -299,10 +301,14 @@ public class AddComputerManually extends AppCompatActivity {
                     String appName = data.getQueryParameter("app_name");
                     String appID = data.getQueryParameter("app_id");
 
+                    // A new task only when the app has none: the stream goes on top of a library
+                    // already open, as a pinned shortcut's does, so ending it lands back there
+                    // (and the companion panel back on browsing) rather than on the launcher.
+                    // Clearing the task here used to finish the library under the stream.
                     Intent intent = new Intent(AddComputerManually.this, ShortcutTrampoline.class);
-                    intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
-                    intent.putExtra(AppView.UUID_EXTRA, hostUUID);
-                    intent.putExtra(AppView.NAME_EXTRA, hostName);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    intent.putExtra(LibraryIntents.EXTRA_UUID, hostUUID);
+                    intent.putExtra(LibraryIntents.EXTRA_NAME, hostName);
                     intent.putExtra(Game.EXTRA_APP_UUID, appUUID);
                     intent.putExtra(Game.EXTRA_APP_NAME, appName);
                     intent.putExtra(Game.EXTRA_APP_ID, appID);

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A navigation item's icon and label: the signal for the section on screen, muted for the
+    rest. Focus is shown by the ring (@drawable/nav_item_focus_ring), not by the tint, so the
+    d-pad passing over an item never makes it look selected.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_checked="true" android:color="@color/signal" />
+    <item android:color="@color/content_muted" />
+</selector>

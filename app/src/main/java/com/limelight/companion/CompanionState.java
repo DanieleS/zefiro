@@ -6,6 +6,11 @@ import com.limelight.LimeLog;
 import com.limelight.binding.video.PerfStats;
 import com.limelight.nvstream.http.AppMetadata;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+
 /**
  * The companion screen's state, as two independent regions.
  *
@@ -27,6 +32,7 @@ import com.limelight.nvstream.http.AppMetadata;
  * ┌─ content ────────────────────────────────────────────────┐
  * │   IDLE ──enterBrowsing──▶ BROWSING ──leaveBrowsing──▶ IDLE│
  * │   IDLE ──enterStreaming─▶ STREAMING ─leaveStreaming─▶ IDLE│
+ * │                         or BROWSING, if one came meanwhile│
  * └──────────────────────────────────────────────────────────┘
  * ┌─ owner ──────────────────────────────────────────────────┐
  * │   PANEL ◀──▶ OFF            (the user's own show/hide)    │
@@ -36,6 +42,29 @@ import com.limelight.nvstream.http.AppMetadata;
  *
  * The panel is on screen exactly when {@code owner == PANEL}; what it draws depends only on
  * {@code content}. Nothing is inferred from the payloads.
+ *
+ * <h3>Browsing</h3>
+ *
+ * While the main screen is up, BROWSING carries a {@link Browsing}: what the d-pad is on up
+ * there, already resolved to the words and art the panel draws, plus the hosts row. Which of the
+ * three kinds it is follows the section on the main screen:
+ *
+ * <pre>
+ *   GAME        a game is focused (hero, shelf, See all, Search): details, Play or Resume/Quit
+ *   HOST        a host is (the Library's chip, a PC card, or no game at all): its state
+ *   IDLE_HOSTS  nothing the panel can describe (Stats): the app name
+ *               ── every kind draws the hosts row under it
+ * </pre>
+ *
+ * A page ({@link CompanionPage}), when one is set, replaces what the three kinds draw: the
+ * screen up there has a lower half of its own (a game's achievements, the Stats remote), and the
+ * panel is where it goes. It belongs to browsing, so leaving browsing drops it.
+ *
+ * The state holds values only, never callbacks: the panel's Play and host taps go back through
+ * {@link CompanionDisplayManager#setBrowsingActions}, to whichever screen registered them, and a
+ * page's taps through {@link CompanionDisplayManager#setPageActions}. A value can outlive the
+ * screen that pushed it (the panel is re-hosted on its own schedule); a callback held here would
+ * outlive it too, and could start a game from a screen that is gone.
  */
 public class CompanionState {
 
@@ -71,12 +100,12 @@ public class CompanionState {
     private Listener listener;
     private OwnerListener ownerListener;
 
-    /** The game currently under the spotlight while browsing the library, if any. */
-    private String browsingTitle;
-    /** Metadata for {@link #browsingTitle}, or null when the host provided none for it. */
-    private AppMetadata browsingMetadata;
-    /** Background/hero art for {@link #browsingTitle}; arrives after the metadata, async. */
-    private Bitmap browsingBackground;
+    /** What the main screen is on while browsing; null when nothing is being browsed. */
+    private Browsing browsing;
+    /** The hosts row under the browsing surface. Never null; empty when there is none to draw. */
+    private List<HostChip> hosts = Collections.emptyList();
+    /** The lower half of the screen up there, drawn instead of the browsing surface; or null. */
+    private CompanionPage page;
 
     private CompanionState() {
     }
@@ -109,8 +138,13 @@ public class CompanionState {
 
     /** The library went away. */
     public void leaveBrowsing() {
+        // The page is a part of browsing; one left behind would come back over the next screen.
+        boolean hadPage = page != null;
+        page = null;
         if (content == Content.BROWSING) {
             setContent(Content.IDLE);
+        } else if (hadPage) {
+            notifyChanged();
         }
     }
 
@@ -127,7 +161,18 @@ public class CompanionState {
             // view fed by a stream that has stopped — the last frame of a dead game, forever.
             telemetryView = null;
             telemetryStream = null;
-            setContent(Content.IDLE);
+            // The panel's choices for this stream end with it: the next game starts on its own
+            // view (if it has one), and a view that crashed this time is given another chance.
+            statsOverTelemetry = false;
+            crashedTelemetryView = null;
+            hostLatencySeen = false;
+            streamSession = null;
+            // The main screen starts again before the finished game's activity is destroyed, so
+            // its browsing (and page) usually arrived while this still said STREAMING: held, not
+            // drawn. Go back to it now rather than wait for a push that may not come. Set here,
+            // not through setContent(), which refuses BROWSING while this still says STREAMING.
+            content = browsing != null ? Content.BROWSING : Content.IDLE;
+            notifyChanged();
         }
     }
 
@@ -148,20 +193,21 @@ public class CompanionState {
 
     public void setStats(PerfStats stats) {
         this.stats = stats;
+        if (stats != null && stats.hasHostProcessingLatency) {
+            hostLatencySeen = true;
+        }
         notifyChanged();
     }
 
     /**
-     * Drop the numbers without leaving the stream: the user switched the stats off, so the panel
-     * falls back to a bare surface rather than sitting on a frozen snapshot. It must not fall back
-     * to the library spotlight — that game is not the one being played.
+     * Whether the host has reported its own latency at least once this stream, so the stats keep
+     * a Host tile for the rest of it. Held here, fed by every second of stats, rather than learnt
+     * by whichever panel is up: a panel built again mid-stream (the second screen gone and back)
+     * would otherwise start without it and cut the grid without Host until the host sent one
+     * more, which a host showing an idle screen may never do.
      */
-    public void clearStats() {
-        if (stats == null) {
-            return;
-        }
-        stats = null;
-        notifyChanged();
+    public boolean hasSeenHostLatency() {
+        return hostLatencySeen;
     }
 
     public PerfStats getStats() {
@@ -214,6 +260,78 @@ public class CompanionState {
         return telemetryStream;
     }
 
+    // --- The panel's own choices for the running stream ---
+    //
+    // Held here rather than on the panel because the panel is re-hosted on every activity change
+    // (a Settings round-trip mid-stream builds a new one), and a choice the user made must not be
+    // undone by that. Both last until leaveStreaming().
+
+    /**
+     * Whether the full stats are showing in place of the game's telemetry view: the strip under a
+     * view only fits frame rate and latency, so its stats button swaps the view for the full stats,
+     * and the same button (or "Game") swaps back.
+     */
+    private boolean statsOverTelemetry;
+
+    /** A view whose renderer died, so it is not loaded again this stream; null when none has. */
+    private String crashedTelemetryView;
+
+    /** See {@link #hasSeenHostLatency()}. */
+    private boolean hostLatencySeen;
+
+    public boolean isStatsOverTelemetry() {
+        return statsOverTelemetry;
+    }
+
+    public void setStatsOverTelemetry(boolean over) {
+        if (statsOverTelemetry == over) {
+            return;
+        }
+        statsOverTelemetry = over;
+        notifyChanged();
+    }
+
+    /**
+     * The view's renderer crashed or was killed. Whatever took it down would most likely do it
+     * again, so for the rest of this stream that view gives way to the stats.
+     */
+    public void markTelemetryViewCrashed(String html) {
+        if (html == null || html.equals(crashedTelemetryView)) {
+            return;
+        }
+        crashedTelemetryView = html;
+        notifyChanged();
+    }
+
+    /** The telemetry view to draw: the game's, unless it crashed this stream. Null for none. */
+    public String getUsableTelemetryView() {
+        return telemetryView != null && !telemetryView.equals(crashedTelemetryView)
+                ? telemetryView : null;
+    }
+
+    // --- What the stream is ---
+
+    /** Null until the stream has connected, and again once it ends. */
+    private StreamSession streamSession;
+
+    /** What the running stream is, for the stats header and the strip's session length. */
+    public void setStreamSession(StreamSession session) {
+        if (Objects.equals(streamSession, session)) {
+            return;
+        }
+        // Another stream (a new start, not just a codec learnt): its host has said nothing yet.
+        if (streamSession == null || session == null
+                || streamSession.startUptimeMs != session.startUptimeMs) {
+            hostLatencySeen = false;
+        }
+        streamSession = session;
+        notifyChanged();
+    }
+
+    public StreamSession getStreamSession() {
+        return streamSession;
+    }
+
     // --- The owner region ---
 
     public Owner getOwner() {
@@ -245,52 +363,330 @@ public class CompanionState {
     }
 
     /**
-     * Point the idle companion surface at the game currently centred in the library. Metadata may
-     * be null: the title alone is still worth showing.
+     * Point the browsing surface at what the main screen is on. Pushing the browsing that is
+     * already shown changes nothing: the main screen re-resolves on every poll, and an unchanged
+     * answer must not redraw the panel (or rewind its description) each time.
      */
-    public void setBrowsing(String title, AppMetadata metadata) {
-        this.browsingTitle = title;
-        this.browsingMetadata = metadata;
-        // The background belongs to the previous game; drop it until the new one's arrives.
-        this.browsingBackground = null;
-        // Spotlighting a game is what "browsing" means; no separate call to keep in step with it.
-        setContent(Content.BROWSING);
-        notifyChanged();
-    }
-
-    /** Attach the background art once it has loaded for the current spotlight. */
-    public void setBrowsingBackground(Bitmap background) {
-        this.browsingBackground = background;
-        notifyChanged();
-    }
-
-    /** Stop spotlighting a game, and leave the browsing surface with it. */
-    public void clearBrowsing() {
-        leaveBrowsing();
-        if (browsingTitle == null && browsingMetadata == null && browsingBackground == null) {
+    public void setBrowsing(Browsing next) {
+        if (next == null) {
+            clearBrowsing();
             return;
         }
-        browsingTitle = null;
-        browsingMetadata = null;
-        browsingBackground = null;
+        boolean same = next.equals(browsing);
+        browsing = next;
+        // Spotlighting something is what "browsing" means; no separate call to keep in step.
+        setContent(Content.BROWSING);
+        if (!same) {
+            notifyChanged();
+        }
+    }
+
+    /**
+     * The hosts row: every known PC, the selected one marked. Kept apart from {@link Browsing}
+     * because it changes on its own clock (each poll of each host), and a focus move must not
+     * have to rebuild it.
+     */
+    public void setHosts(List<HostChip> next) {
+        List<HostChip> copy = next == null || next.isEmpty()
+                ? Collections.<HostChip>emptyList()
+                : Collections.unmodifiableList(new ArrayList<>(next));
+        if (copy.equals(hosts)) {
+            return;
+        }
+        hosts = copy;
         notifyChanged();
     }
 
+    public List<HostChip> getHosts() {
+        return hosts;
+    }
+
+    public Browsing getBrowsing() {
+        return browsing;
+    }
+
+    /** Stop browsing, and leave the browsing surface with it, hosts row, page and all. */
+    public void clearBrowsing() {
+        leaveBrowsing();
+        if (browsing == null && hosts.isEmpty()) {
+            return;
+        }
+        browsing = null;
+        hosts = Collections.emptyList();
+        notifyChanged();
+    }
+
+    /**
+     * Draw a screen's lower half in place of the browsing surface, or null to go back to it. An
+     * equal page replaces the one held without a redraw, as {@link #setBrowsing} does, so a
+     * screen may publish on every bind.
+     *
+     * <p>Kept while the panel is off or yielded, and drawn when it comes back. Held, but not
+     * drawn, while a game streams: the panel is the stream's then. Held rather than refused
+     * because a finished game's activity is destroyed only after the main screen has started
+     * again, so the main screen re-publishes its page while the content still says STREAMING;
+     * a refused push would be lost, and the page would not come back after the stream. Leaving
+     * the stream draws it, with the browsing pushed alongside.
+     */
+    public void setPage(CompanionPage next) {
+        boolean same = next == null ? page == null : next.equals(page);
+        page = next;
+        if (!same && content != Content.STREAMING) {
+            notifyChanged();
+        }
+    }
+
+    /** The page to draw instead of the browsing surface; null for none, and while streaming. */
+    public CompanionPage getPage() {
+        return content == Content.STREAMING ? null : page;
+    }
+
+    /** The browsed title, or null when nothing is being browsed. */
     public String getBrowsingTitle() {
-        return browsingTitle;
-    }
-
-    public AppMetadata getBrowsingMetadata() {
-        return browsingMetadata;
-    }
-
-    public Bitmap getBrowsingBackground() {
-        return browsingBackground;
+        return browsing != null ? browsing.title : null;
     }
 
     private void notifyChanged() {
         if (listener != null) {
             listener.onCompanionStateChanged();
+        }
+    }
+
+    /**
+     * What the main screen is on, as the panel draws it: resolved up there, where the host's
+     * games and metadata are, so the panel needs nothing but this. Immutable.
+     *
+     * <p>Two are equal when they would draw the same; the backdrop by identity, since the cache
+     * hands out the same bitmap for the same game.
+     */
+    public static final class Browsing {
+
+        public enum Kind { GAME, HOST, IDLE_HOSTS }
+
+        /** {@link #appId} when there is no game to act on. */
+        public static final int NO_APP = 0;
+
+        public final Kind kind;
+        /** The host the game (or the host itself) is on; null for IDLE_HOSTS. */
+        public final String hostUuid;
+        /** The game Play, Resume and Quit act on, or {@link #NO_APP} for none. */
+        public final int appId;
+        /** The heading; null draws the app's own name. */
+        public final String title;
+        /** One line under it ("2020 · Action, RPG · 88%", "Online"); null or empty for none. */
+        public final String meta;
+        /** The host's description, as the HTML Playnite stores; null for none. */
+        public final String descriptionHtml;
+        /** The art behind it all; null until (or unless) there is some. */
+        public final Bitmap backdrop;
+        /** Whether {@link #appId} is the game the host is running: Resume and Quit, not Play. */
+        public final boolean running;
+        /** Where the game is in the list it was focused in, from 0; -1 when that is not told. */
+        public final int position;
+        /** How many games that list has; 0 when not told. */
+        public final int count;
+
+        public Browsing(Kind kind, String hostUuid, int appId, String title, String meta,
+                        String descriptionHtml, Bitmap backdrop, boolean running) {
+            this(kind, hostUuid, appId, title, meta, descriptionHtml, backdrop, running, -1, 0);
+        }
+
+        /** As the other, with the game's place in its list ("Focused · 4 of 12"). */
+        public Browsing(Kind kind, String hostUuid, int appId, String title, String meta,
+                        String descriptionHtml, Bitmap backdrop, boolean running, int position,
+                        int count) {
+            if (kind == null) {
+                throw new IllegalArgumentException("kind must not be null");
+            }
+            this.kind = kind;
+            this.hostUuid = hostUuid;
+            this.appId = appId;
+            this.title = title;
+            this.meta = meta;
+            this.descriptionHtml = descriptionHtml;
+            this.backdrop = backdrop;
+            this.running = running;
+            boolean placed = position >= 0 && position < count;
+            this.position = placed ? position : -1;
+            this.count = placed ? count : 0;
+        }
+
+        /** Whether the game's place in its list is known. */
+        public boolean hasPosition() {
+            return position >= 0;
+        }
+
+        /** Nothing in particular: the app's name over the hosts row. */
+        public static Browsing idleHosts() {
+            return new Browsing(Kind.IDLE_HOSTS, null, NO_APP, null, null, null, null, false);
+        }
+
+        public Browsing withBackdrop(Bitmap next) {
+            return next == backdrop ? this
+                    : new Browsing(kind, hostUuid, appId, title, meta, descriptionHtml, next, running,
+                            position, count);
+        }
+
+        /** Whether the panel has a game here to play, resume or quit. */
+        public boolean hasGame() {
+            return appId != NO_APP && hostUuid != null;
+        }
+
+        /**
+         * "2020 · Action, RPG · 88%": only the parts the host has. Empty for no metadata.
+         * Plain Java rather than TextUtils, so the state stays testable off the device.
+         */
+        public static String metaLine(AppMetadata meta) {
+            if (meta == null) {
+                return "";
+            }
+            List<String> parts = new ArrayList<>(3);
+            String year = meta.getReleaseYear();
+            if (year != null && !year.isEmpty()) {
+                parts.add(year);
+            }
+            List<String> genres = meta.getGenres();
+            if (genres != null && !genres.isEmpty()) {
+                parts.add(join(", ", genres.subList(0, Math.min(3, genres.size()))));
+            }
+            int score = meta.getCommunityScore();
+            if (score >= 0) {
+                parts.add(score + "%");
+            }
+            return join("  ·  ", parts);
+        }
+
+        private static String join(String separator, List<String> parts) {
+            StringBuilder out = new StringBuilder();
+            for (String part : parts) {
+                if (out.length() > 0) {
+                    out.append(separator);
+                }
+                out.append(part);
+            }
+            return out.toString();
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof Browsing)) {
+                return false;
+            }
+            Browsing that = (Browsing) o;
+            return kind == that.kind
+                    && appId == that.appId
+                    && running == that.running
+                    && position == that.position
+                    && count == that.count
+                    && backdrop == that.backdrop
+                    && Objects.equals(hostUuid, that.hostUuid)
+                    && Objects.equals(title, that.title)
+                    && Objects.equals(meta, that.meta)
+                    && Objects.equals(descriptionHtml, that.descriptionHtml);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(kind, hostUuid, appId, title, meta, descriptionHtml,
+                    System.identityHashCode(backdrop), running, position, count);
+        }
+
+        @Override
+        public String toString() {
+            return kind + " " + title + (running ? " [running]" : "");
+        }
+    }
+
+    /**
+     * The running stream as the panel names it: "Hades II · Taverna", "HEVC · HDR", and when it
+     * started. Values only, read off Game when the stream connects. Immutable.
+     */
+    public static final class StreamSession {
+        /** The game's name; null when the launch did not say. */
+        public final String game;
+        /** The PC's name; null when the launch did not say. */
+        public final String host;
+        /** The video codec as people name it ("HEVC · HDR"); null while unknown. */
+        public final String codec;
+        /** {@code SystemClock.uptimeMillis()} when the stream started; 0 while unknown. */
+        public final long startUptimeMs;
+
+        public StreamSession(String game, String host, String codec, long startUptimeMs) {
+            this.game = game;
+            this.host = host;
+            this.codec = codec;
+            this.startUptimeMs = startUptimeMs;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof StreamSession)) {
+                return false;
+            }
+            StreamSession that = (StreamSession) o;
+            return startUptimeMs == that.startUptimeMs
+                    && Objects.equals(game, that.game)
+                    && Objects.equals(host, that.host)
+                    && Objects.equals(codec, that.codec);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(game, host, codec, startUptimeMs);
+        }
+
+        @Override
+        public String toString() {
+            return game + " on " + host + " (" + codec + ")";
+        }
+    }
+
+    /** One PC on the hosts row: enough to draw its chip and to select it. Immutable. */
+    public static final class HostChip {
+        public final String uuid;
+        public final String name;
+        public final boolean online;
+        public final boolean selected;
+
+        public HostChip(String uuid, String name, boolean online, boolean selected) {
+            if (uuid == null) {
+                throw new IllegalArgumentException("uuid must not be null");
+            }
+            this.uuid = uuid;
+            this.name = name;
+            this.online = online;
+            this.selected = selected;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof HostChip)) {
+                return false;
+            }
+            HostChip that = (HostChip) o;
+            return online == that.online
+                    && selected == that.selected
+                    && uuid.equals(that.uuid)
+                    && Objects.equals(name, that.name);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(uuid, name, online, selected);
+        }
+
+        @Override
+        public String toString() {
+            return name + (selected ? " [selected]" : "") + (online ? "" : " [offline]");
         }
     }
 }

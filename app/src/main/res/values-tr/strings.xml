@@ -3,7 +3,6 @@
     <string name="summary_reset_osc">Tüm ekran kontrollerini varsayılan boyutu ve pozisyonuna sıfırlar</string>
     <string name="title_checkbox_touchscreen_trackpad">Dokunmatik ekranı trackpad olarak kullan</string>
     <string name="category_input_settings">Girdi Ayarları</string>
-    <string name="summary_language_list">Moonlight için kullanılacak olan dil</string>
     <string name="ip_hint">Ana bilgisayarın IP adresi</string>
     <string name="title_details">Detaylar</string>
     <string name="dialog_title_osc_opacity">Saydamlığı değiştir</string>
@@ -14,8 +13,6 @@
     <string name="title_checkbox_host_audio">Sesleri bilgisayarda oynat</string>
     <string name="suffix_seekbar_bitrate_mbps">Mbps</string>
     <string name="error_pc_offline">Bilgisayar çevrimdışı</string>
-    <string name="unpair_success">Eşleştirme başarıyla kaldırıldı</string>
-    <string name="unpairing">Eşleştirme kaldırılıyor…</string>
     <string name="pair_fail">Eşleştirme başarısız</string>
     <string name="pair_incorrect_pin">Yanlış PIN</string>
     <string name="pair_pairing_title">Eşleştiriliyor</string>
@@ -56,8 +53,6 @@
     <string name="wol_waking_pc">Bilgisayar uyandırılıyor…</string>
     <string name="wol_fail">Yerel Ağda Uyandırma paketleri gönderilemedi</string>
     <string name="wol_waking_msg">Bilgisayarınızın uyanması birkaç saniye sürebilir. Eğer uyanmazsa, Yerel Ağda Uyandırma için doğru şekilde yapılandırıldığından emin olun.</string>
-    <string name="unpair_fail">Eşleşme kaldırılamadı</string>
-    <string name="unpair_error">Cihaz eşleştirilmedi</string>
     <string name="nettest_text_success">Ağınız Moonlight\'ı engelliyor gibi görünmüyor. Bağlanmakta hala sorun yaşıyorsanız, bilgisayarınızın güvenlik duvarı ayarlarını kontrol edin.
 \n
 \nİnternet üzerinden yayın yapmaya çalışıyorsanız, Moonlight İnternet Barındırma Aracını bilgisayarınıza yükleyin ve bilgisayarınızın internet bağlantısını kontrol etmek için birlikte verilen İnternet Akış Test Cihazını çalıştırın.</string>
@@ -87,12 +82,8 @@
     <string name="conn_terminated_title">Bağlantı sonlandırıldı</string>
     <string name="conn_terminated_msg">Bağlantı sonlandırıldı.</string>
     <string name="yes">Evet</string>
-    <string name="lost_connection">Bilgisayar ile bağlantı kesildi</string>
     <string name="help">Yardım</string>
     <string name="delete_pc_msg">Bu bilgisayarı silmek istediğinizden emin misiniz\?</string>
-    <string name="slow_connection_msg">Bilgisayara yavaş bağlantı
-\nBit hızınızı düşürün</string>
-    <string name="poor_connection_msg">Bilgisayar ile zayıf bağlantı</string>
     <string name="perf_overlay_streamdetails">Video akışı: %1$s %2$.2f FPS</string>
     <string name="perf_overlay_decoder">Kod çözücü: %1$s</string>
     <string name="perf_overlay_incomingfps">Ağdan gelen kare hızı: %1$.2f FPS</string>
@@ -107,7 +98,6 @@
     <string name="applist_menu_scut">Kısayol Oluştur</string>
     <string name="applist_menu_tv_channel">Kanala Ekle</string>
     <string name="applist_menu_hide_app">Uygulamayı Gizle</string>
-    <string name="applist_refresh_title">Uygulama Listesi</string>
     <string name="applist_quit_success">Başarıyla çıkıldı</string>
     <string name="applist_refresh_error_msg">Uygulama listesi alınamadı</string>
     <string name="applist_quit_app">Çıkılıyor</string>
@@ -130,13 +120,11 @@
     <string name="conn_client_latency">Ortalama kare kod çözme gecikmesi:</string>
     <string name="conn_client_latency_hw">donanım kod çözücü gecikmesi:</string>
     <string name="pcview_menu_send_wol">Yerel ağdan uyandırma isteği gönder</string>
-    <string name="applist_refresh_msg">Uygulamalar yenileniyor…</string>
     <string name="applist_refresh_error_title">Hata</string>
     <string name="title_add_pc">Bilgisayarı manuel olarak Ekle</string>
     <string name="title_resolution_list">Video çözünürlüğü</string>
     <string name="summary_fps_list">Daha akıcı bir video akışı için artırın. Düşük uçlu cihazlarda daha iyi performans için azaltın.</string>
     <string name="resolution_prefix_native">Yerel</string>
-    <string name="resolution_prefix_native_fullscreen">Yerel tam ekran</string>
     <string name="category_audio_settings">Ses Ayarları</string>
     <string name="title_audio_config_list">Çevresel ses yapılandırması</string>
     <string name="summary_seekbar_deadzone">Not: Bazı oyunlar Moonlight\'ın kullanmak üzere yapılandırıldığından daha büyük bir ölü bölge uygulayabilir.</string>
@@ -173,7 +161,6 @@
     <string name="summary_checkbox_absolute_mouse_mode">Bu fare hızlandırmanın uzak masaüstü kullanımı için daha doğal davranmasını sağlayabilir, ancak birçok oyunla uyumsuzdur.</string>
     <string name="summary_checkbox_show_onscreen_controls">Dokunmatik ekranda sanal denetleyici katmanını göster</string>
     <string name="dialog_title_reset_osc">Düzeni Sıfırla</string>
-    <string name="title_language_list">Dil</string>
     <string name="category_host_settings">Ana Bilgisayar Ayarları</string>
     <string name="pair_pairing_help">Ana bilgisayarınız Sunshine çalıştırıyorsa PIN girmek için Sunshine web kullanıcı arayüzüne gidin.</string>
     <string name="frame_conversion_error">Ana bilgisayar önemli bir video kodlama hatası bildirdi.
@@ -209,8 +196,6 @@
     <string name="summary_checkbox_enable_sops">En iyi akış için GFE oyun ayarlarını değiştirmesine izin ver</string>
     <string name="category_advanced_settings">Gelişmiş Ayarlar</string>
     <string name="title_unlock_fps">Mümkün olan tüm kare hızlarının kilidini aç</string>
-    <string name="title_checkbox_small_icon_mode">Küçük kutu resmi kullan</string>
-    <string name="summary_checkbox_small_icon_mode">Uygulama kılavuzunda küçük kutu resimleri, ekranda daha fazla uygulamanın görünmesini sağlar</string>
     <string name="summary_unlock_fps">90 veya 120 FPS yayın yapmak ileri teknoloji cihazlarda gecikmeyi azaltabilir ancak bunu desteklemeyen cihazlarda gecikmeye veya kararsızlığa neden olabilir</string>
     <string name="title_checkbox_reduce_refresh_rate">Yenileme hızının azaltılmasına izin ver</string>
     <string name="summary_checkbox_reduce_refresh_rate">Daha düşük ekran yenileme hızları, bazı ek video gecikmeleri pahasına güç tasarrufu sağlayabilir</string>

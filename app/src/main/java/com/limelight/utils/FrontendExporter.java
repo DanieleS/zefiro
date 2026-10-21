@@ -7,8 +7,8 @@ import android.net.Uri;
 import android.provider.DocumentsContract;
 import android.provider.DocumentsContract.Document;
 
-import com.limelight.AppView;
 import com.limelight.LimeLog;
+import com.limelight.library.LibraryIntents;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.NvApp;
 import com.limelight.nvstream.http.NvHTTP;
@@ -57,7 +57,7 @@ public final class FrontendExporter {
             if (raw.isEmpty()) {
                 return apps;
             }
-            Set<String> hidden = context.getSharedPreferences(AppView.HIDDEN_APPS_PREF_FILENAME, Context.MODE_PRIVATE)
+            Set<String> hidden = context.getSharedPreferences(LibraryIntents.PREFS_HIDDEN_APPS, Context.MODE_PRIVATE)
                     .getStringSet(computer.uuid, new HashSet<String>());
             for (NvApp app : NvHTTP.getAppListByReader(new StringReader(raw))) {
                 if (app.isRemoteInput() || app.isRemoteMonitor() || app.isVirtualDisplay()) {

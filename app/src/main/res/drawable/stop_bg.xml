@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A stop: anything the d-pad can be on, on the main screen or on the companion panel. Real
+    focus (state_focused, inline) and the panel's virtual focus (state_activated: the panel's
+    window never takes focus, so its renderer marks the stop instead) wear the same 2dp signal
+    ring on a surface fill, so the ring reads the same on both screens. A press fills it with
+    the wash, as every other control does.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:exitFadeDuration="120">
+
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/stop_corner" />
+            <solid android:color="@color/signal_wash" />
+            <stroke
+                android:width="@dimen/tile_focus_stroke"
+                android:color="@color/signal" />
+        </shape>
+    </item>
+
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/stop_corner" />
+            <solid android:color="@color/surface" />
+            <stroke
+                android:width="@dimen/tile_focus_stroke"
+                android:color="@color/signal" />
+        </shape>
+    </item>
+
+    <item android:state_activated="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/stop_corner" />
+            <solid android:color="@color/surface" />
+            <stroke
+                android:width="@dimen/tile_focus_stroke"
+                android:color="@color/signal" />
+        </shape>
+    </item>
+
+    <item android:drawable="@android:color/transparent" />
+
+</selector>

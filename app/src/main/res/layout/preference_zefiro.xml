@@ -8,20 +8,32 @@
 
     The ids are the framework's (@android:id/title, summary, icon, widget_frame): androidx
     binds them by id, and the widget frame is where a switch or a seek bar is inflated.
+
+    The rest is bound by SettingsAdapter on the stream settings list, and stays gone anywhere
+    else this row is used: a dot before the title when the value is not its default, the value
+    itself on the right in mono, and an icon on a row that opens a web page. The row is a stop
+    (stop_bg), inset by the app's gutter so its focus ring lines up with the header's edges;
+    the inset plus the padding keeps the text on the settings gutter the category headers use.
+
+    Compact, as the mocks' rows: the description ends in an ellipsis at the lines SettingsAdapter
+    gives it (one in a wide window, two in a compact one), and the focused row, the companion
+    panel or the row's dialog shows the rest.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="?android:attr/selectableItemBackground"
+    android:layout_marginStart="@dimen/settings_row_inset"
+    android:layout_marginEnd="@dimen/settings_row_inset"
+    android:background="@drawable/stop_bg"
     android:baselineAligned="false"
     android:clipToPadding="false"
     android:gravity="center_vertical"
-    android:minHeight="64dp"
+    android:minHeight="@dimen/settings_row_min_height"
     android:orientation="horizontal"
-    android:paddingStart="@dimen/settings_gutter"
-    android:paddingEnd="@dimen/settings_gutter"
-    android:paddingTop="12dp"
-    android:paddingBottom="12dp">
+    android:paddingStart="@dimen/settings_row_padding"
+    android:paddingEnd="@dimen/settings_row_padding"
+    android:paddingTop="@dimen/settings_row_padding_vertical"
+    android:paddingBottom="@dimen/settings_row_padding_vertical">
 
     <LinearLayout
         android:id="@+id/icon_frame"
@@ -47,22 +59,73 @@
         android:layout_weight="1"
         android:orientation="vertical">
 
-        <TextView
-            android:id="@android:id/title"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:singleLine="true"
-            android:textAppearance="@style/TextAppearance.Zefiro.PreferenceTitle" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <View
+                android:id="@+id/settingChangedDot"
+                android:layout_width="6dp"
+                android:layout_height="6dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/settings_changed_dot"
+                android:contentDescription="@string/settings_changed"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@android:id/title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:singleLine="true"
+                android:textAppearance="@style/TextAppearance.Zefiro.PreferenceTitle" />
+
+        </LinearLayout>
 
         <TextView
             android:id="@android:id/summary"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="3dp"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
             android:textAppearance="@style/TextAppearance.Zefiro.PreferenceSummary" />
 
+        <!-- "A Choices" on the focused list row while no panel spells its choices out: A opens
+             them in a dialog. Gone otherwise, and anywhere but the Settings section's list. -->
+        <com.limelight.ui.GamepadHintsView
+            android:id="@+id/settingChoicesHint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp" />
+
     </LinearLayout>
+
+    <!-- What the row is set to; a switch row shows its switch instead. -->
+    <TextView
+        android:id="@+id/settingValue"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:ellipsize="end"
+        android:fontFamily="monospace"
+        android:maxWidth="@dimen/settings_value_max_width"
+        android:singleLine="true"
+        android:textColor="@color/settings_value"
+        android:textSize="13sp"
+        android:visibility="gone" />
+
+    <ImageView
+        android:id="@+id/settingExternal"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:layout_marginStart="12dp"
+        android:contentDescription="@string/settings_opens_in_browser"
+        android:src="@drawable/ic_open_in_new"
+        android:visibility="gone"
+        android:tint="@color/content_muted" />
 
     <!-- The switch, seek bar or other control. Nothing of ours goes here. -->
     <LinearLayout

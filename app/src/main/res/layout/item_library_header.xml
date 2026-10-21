@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The Library home's header (library/HeaderAdapter): "Library" and the host chip, after the
+    approved Shelves mock's phone frame. The chip names the selected PC behind its status dot,
+    with a chevron saying it opens something; it opens the host sheet, as X does anywhere in
+    the Library. It is the header's one focusable stop.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="@dimen/section_gutter"
+    android:paddingTop="@dimen/section_header_padding_top"
+    android:paddingEnd="@dimen/section_gutter"
+    android:paddingBottom="@dimen/section_header_padding_bottom">
+
+    <TextView
+        android:id="@+id/libraryHomeTitle"
+        style="@style/SectionTitle"
+        android:text="@string/library_title" />
+
+    <LinearLayout
+        android:id="@+id/libraryHostChip"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/pc_card_spacing"
+        android:background="@drawable/host_chip_bg"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:minHeight="@dimen/action_size"
+        android:orientation="horizontal"
+        android:paddingStart="14dp"
+        android:paddingEnd="12dp">
+
+        <View
+            android:id="@+id/libraryHostChipDot"
+            android:layout_width="@dimen/pc_status_dot"
+            android:layout_height="@dimen/pc_status_dot"
+            android:background="@drawable/pc_status_dot"
+            android:importantForAccessibility="no" />
+
+        <TextView
+            android:id="@+id/libraryHostChipName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/host_chip_dot_gap"
+            android:ellipsize="end"
+            android:importantForAccessibility="no"
+            android:letterSpacing="0.02"
+            android:maxWidth="220dp"
+            android:singleLine="true"
+            android:textColor="@color/content_primary"
+            android:textSize="14sp"
+            tools:text="Taverna" />
+
+        <ImageView
+            android:layout_width="@dimen/header_chip_icon"
+            android:layout_height="@dimen/header_chip_icon"
+            android:layout_marginStart="6dp"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_expand_more"
+            android:tint="@color/content_primary" />
+
+    </LinearLayout>
+
+</LinearLayout>

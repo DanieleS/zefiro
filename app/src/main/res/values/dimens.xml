@@ -7,43 +7,58 @@
     <dimen name="tv_channel_logo_height">80dp</dimen>
 
     <!--
-        Grid tiles. The cell is the art, exactly: the space between tiles is the grid's
-        spacing, not padding inside the cell. AbsListView positions the focus ring on the
-        bounds of the cell, so this is what puts the ring on the edge of the art.
+        Game tiles. The cell is the art, exactly: the space between tiles is the grid's
+        spacing, not padding inside the cell, so the focus ring drawn on the cell's bounds
+        sits on the edge of the art.
     -->
     <dimen name="tile_corner">10dp</dimen>
-    <dimen name="tile_spacing">20dp</dimen>
     <dimen name="tile_corner_small">6dp</dimen>
-    <dimen name="tile_spacing_small">10dp</dimen>
     <dimen name="tile_focus_stroke">2dp</dimen>
+
+    <!--
+        The game tile's own layers: the RUNNING badge pinned in a corner of the art, and the
+        title card's inset, which keeps a three-line title clear of the rounded corners.
+    -->
+    <dimen name="tile_badge_corner">4dp</dimen>
+    <dimen name="tile_badge_margin">5dp</dimen>
+    <dimen name="tile_title_padding">7dp</dimen>
 
     <!-- The PC cells are an icon over a label rather than art, and are ringed as a whole. -->
     <dimen name="pc_tile_corner">12dp</dimen>
 
     <!--
-        A PC is a card rather than a tile: it carries a name, a state, an address and, when
-        the host is in a game, that game's art. The cards stack in one column and stop
-        widening at pc_card_max_width, so a PC on a TV is a card and not a banner.
+        A PC is a small tile (item_pc_tile): an icon box, a name, a status line and one action,
+        four across on the Thor and two on a phone. A tile is as tall as what it holds, and the
+        grid's rows take their tallest tile's height: a row with an action button is taller than
+        one without. The minimum only keeps Add PC, alone or beside a PC with no action, a tile
+        rather than a strip; it is below what any PC tile holds.
     -->
-    <dimen name="pc_card_corner">14dp</dimen>
-    <dimen name="pc_card_max_width">560dp</dimen>
-    <dimen name="pc_card_min_height">120dp</dimen>
+    <dimen name="pc_tile_min_height">112dp</dimen>
+    <dimen name="pc_tile_padding">12dp</dimen>
+    <!-- Half the gap between tiles: each tile's margin, so two neighbours make one gap. -->
+    <dimen name="pc_tile_half_gap">6dp</dimen>
+    <!-- The grid's side padding: the section gutter, less the outer tiles' own half gap. -->
+    <dimen name="pc_grid_inset">10dp</dimen>
+    <dimen name="pc_tile_icon_box">48dp</dimen>
+    <dimen name="pc_tile_icon_corner">12dp</dimen>
+    <dimen name="pc_tile_glyph">26dp</dimen>
+    <!-- The status badge on the icon box's corner, ringed in the tile's own colour. -->
+    <dimen name="pc_tile_badge">12dp</dimen>
+    <dimen name="pc_tile_badge_ring">2dp</dimen>
+    <dimen name="pc_tile_badge_offset">-4dp</dimen>
+    <!-- The overflow button: a 48dp target around a 20dp glyph. -->
+    <dimen name="pc_tile_more_inset">14dp</dimen>
+    <!-- The action pill: 48dp to touch, drawn 36dp tall. -->
+    <dimen name="pc_tile_action_inset">6dp</dimen>
+    <!-- Kept from the old PC cards: See all and the Library header space their chips by it. -->
     <dimen name="pc_card_spacing">12dp</dimen>
-    <dimen name="pc_card_padding">16dp</dimen>
-    <!-- The leading slot holds either the host glyph or the running game's cover, and is the
-         width of the cover so the text starts in the same place either way. -->
-    <dimen name="pc_card_leading_width">66dp</dimen>
-    <dimen name="pc_card_leading_height">88dp</dimen>
-    <dimen name="pc_card_glyph">44dp</dimen>
     <dimen name="pc_status_dot">8dp</dimen>
 
     <!--
-        The actions along the top. The icons are drawn fitCenter inside this padding rather
-        than stretched to fill it: the vectors declare themselves 256dp wide, and fitXY on a
-        70x65 button is what squashed them.
+        A round icon action. The icon is drawn fitCenter inside this padding rather than
+        stretched to fill it: the vectors declare themselves 256dp wide, and fitXY on a 70x65
+        button is what squashed them.
     -->
-    <dimen name="top_bar_height">64dp</dimen>
-    <dimen name="top_bar_padding">12dp</dimen>
     <dimen name="action_size">48dp</dimen>
     <dimen name="action_icon_inset">12dp</dimen>
 
@@ -55,7 +70,7 @@
     <dimen name="menu_sheet_max_width">360dp</dimen>
     <dimen name="menu_sheet_padding">10dp</dimen>
     <dimen name="menu_row_corner">10dp</dimen>
-    <dimen name="menu_row_min_height">44dp</dimen>
+    <dimen name="menu_row_min_height">48dp</dimen>
     <dimen name="menu_row_icon">22dp</dimen>
 
     <!-- The companion picker's grid of installed apps. The column is the icon plus room for a
@@ -78,18 +93,229 @@
     <dimen name="dialog_corner">24dp</dimen>
 
     <!--
-        The settings screen. A top app bar over a scrolling column of preferences, laid on
-        the ground with the same 16dp gutter the rest of the app keeps.
+        The settings list's text column: a row's text sits inside its focus ring, so the column
+        is the 16dp gutter the rest of the app keeps plus the row's padding, and the category
+        and section headers line up with it.
     -->
-    <dimen name="settings_bar_height">56dp</dimen>
-    <dimen name="settings_gutter">16dp</dimen>
+    <dimen name="settings_gutter">24dp</dimen>
     <dimen name="settings_category_top">20dp</dimen>
+    <!-- A row is a stop: inset by the app's gutter, so its focus ring lines up with the search
+         field and the card above instead of reaching past them, and padded so its text keeps
+         the column (inset + padding = settings_gutter). -->
+    <dimen name="settings_row_inset">16dp</dimen>
+    <dimen name="settings_row_padding">8dp</dimen>
+    <!-- The widest a row's value grows before it ellipsizes, so the title keeps its room. -->
+    <dimen name="settings_value_max_width">160dp</dimen>
+    <!-- A compact row, as the mocks' (title over a one- or two-line description). -->
+    <dimen name="settings_row_min_height">52dp</dimen>
+    <dimen name="settings_row_padding_vertical">8dp</dimen>
+    <!-- The slim sticky label over the list's top ("VIDEO 34"), and the panel's choice rows. -->
+    <dimen name="settings_sticky_padding_vertical">8dp</dimen>
+    <dimen name="settings_choice_min_height">44dp</dimen>
+    <!-- A list setting's dialog (SettingsListDialog): the choices' side margin, so a choice's
+         radio lines up with the title over them, and the gap between two columns of them. -->
+    <dimen name="settings_dialog_gutter">12dp</dimen>
+    <dimen name="settings_dialog_column_gap">4dp</dimen>
 
-    <!-- Statistics: the cards, the widest the screen grows to on a big display, and the sheets. -->
+    <!-- Statistics: the cards, and the widest the screen grows to on a big display. -->
     <dimen name="stats_card_corner">14dp</dimen>
     <dimen name="stats_max_width">1100dp</dimen>
-    <dimen name="stats_sheet_max_width">560dp</dimen>
-    <dimen name="stats_list_max_width">640dp</dimen>
     <dimen name="stats_gutter">24dp</dimen>
+    <!-- Week / Month / Year on the header line, in a wide window without the panel. -->
+    <dimen name="stats_header_ranges_width">216dp</dimen>
+    <!-- The chart: its height inline, and the bounds it moves within to fit the window (see
+         StatsFormat.chartHeight). -->
+    <dimen name="stats_chart_height">200dp</dimen>
+    <dimen name="stats_chart_min_height">112dp</dimen>
+    <dimen name="stats_chart_max_height">380dp</dimen>
+
+    <!--
+        The main screen's navigation. The rail is narrow and icon-only, as in the mocks: on the
+        Thor it costs width, which a landscape screen has to spare, rather than height. Its
+        items stay at least 56dp tall, so each one is a full touch target around a 40dp
+        indicator. The bottom bar's pill is the mocks' 52 by 28.
+
+        The Thor mock draws the rail at 56 and only the phone at 72. One width is kept on
+        purpose: the window size cannot tell a Thor from a landscape phone (their dp sizes
+        overlap), and of the two only 72 suits both: it is Material's own rail width, and the
+        focus ring keeps clear space around the 40dp indicator. The Thor gives up 16dp of
+        width for it.
+    -->
+    <dimen name="nav_rail_width">72dp</dimen>
+    <dimen name="nav_rail_item_min_height">56dp</dimen>
+    <!-- Brings ic_settings to 24dp inside a 56dp rail cell, the size of the rail's own icons. -->
+    <dimen name="nav_rail_settings_icon_padding">16dp</dimen>
+    <dimen name="nav_rail_padding_top">12dp</dimen>
+    <dimen name="nav_rail_indicator_size">40dp</dimen>
+    <dimen name="nav_rail_indicator_corner">12dp</dimen>
+    <dimen name="nav_bottom_indicator_width">52dp</dimen>
+    <dimen name="nav_bottom_indicator_height">28dp</dimen>
+    <dimen name="nav_bottom_indicator_corner">14dp</dimen>
+    <dimen name="nav_item_focus_inset">6dp</dimen>
+    <dimen name="nav_item_focus_inset_vertical">2dp</dimen>
+    <dimen name="nav_item_focus_corner">14dp</dimen>
+
+    <!-- The profile avatar under the rail: a 48dp target holding a 40dp disc. -->
+    <dimen name="nav_avatar_size">48dp</dimen>
+    <dimen name="nav_avatar_inset">4dp</dimen>
+    <dimen name="nav_avatar_icon_size">20dp</dimen>
+    <dimen name="nav_avatar_margin_bottom">12dp</dimen>
+
+    <!--
+        A section's header: its title on the left, its actions as chips on the right, as the
+        mocks draw "Library" over the shelves. The gutter is the narrowest the column gets; a
+        wider window centres the column instead (see PcsFragment).
+    -->
+    <dimen name="section_gutter">16dp</dimen>
+    <dimen name="section_header_padding_top">16dp</dimen>
+    <dimen name="section_header_padding_bottom">12dp</dimen>
+    <dimen name="section_title_size">26sp</dimen>
+    <!-- A 48dp touch target that draws a 36dp pill: the insets are the difference. -->
+    <dimen name="header_chip_inset">6dp</dimen>
+    <dimen name="header_chip_corner">18dp</dimen>
+    <dimen name="header_chip_icon">18dp</dimen>
+
+    <!--
+        The Library's See all, after the approved mock: tiles 8dp apart (the grid pads by the
+        gutter less half that gap, see fragment_see_all), a title smaller than a section's since
+        it sits under the Library's own, and a back arrow pulled out by its icon inset so the
+        glyph, not its touch target, lines up with the gutter.
+    -->
+    <dimen name="see_all_tile_gap">8dp</dimen>
+    <dimen name="see_all_grid_padding">12dp</dimen>
+    <dimen name="see_all_title_size">20sp</dimen>
+    <dimen name="see_all_back_offset">-12dp</dimen>
+
+    <!--
+        The Search section's field: a full touch target tall, rounded like the mocks' cards
+        (between the tiles' 10dp and the panels' 16dp), with the glyph inset as the chips' are.
+    -->
+    <dimen name="search_field_corner">12dp</dimen>
+    <dimen name="search_field_padding">14dp</dimen>
+
+    <!-- The Library's host state panel (offline, not paired, …): a readable column, centred. -->
+    <dimen name="host_state_panel_max_width">420dp</dimen>
+    <dimen name="primary_button_corner">18dp</dimen>
+
+    <!--
+        The Library's home, after the approved Shelves mock. The hero is a 12dp card holding the
+        running game's cover (box art, 3:4) beside its title and the two buttons; the shelves
+        are rows of tiles 8dp apart under an 11sp-ish label, here a step larger for a TV's
+        reading distance. The host chip's dot is the PC card's dot.
+    -->
+    <dimen name="hero_corner">12dp</dimen>
+    <dimen name="hero_padding">12dp</dimen>
+    <dimen name="hero_cover_width">104dp</dimen>
+    <dimen name="hero_title_size">24sp</dimen>
+    <dimen name="hero_gap">14dp</dimen>
+    <dimen name="shelf_label_size">15sp</dimen>
+    <dimen name="shelf_link_size">13sp</dimen>
+    <dimen name="shelf_spacing">18dp</dimen>
+    <dimen name="host_chip_dot_gap">8dp</dimen>
+    <!-- The companion panel's hosts row: a chip is its own 48dp touch target, so it is drawn
+         full height, rounded like the mocks' cards rather than as the 36dp header pill. -->
+    <dimen name="companion_host_corner">16dp</dimen>
+    <!-- The browsing surface's margin on the companion panel, and its Play pill's height. -->
+    <dimen name="companion_padding">32dp</dimen>
+    <dimen name="companion_play_height">60dp</dimen>
+    <!-- The streaming surface: the stats grid's margin and gaps, the strip under it (taller than
+         its 48dp controls so their pills have air), and the controls sheet's margin. -->
+    <dimen name="companion_stats_padding">12dp</dimen>
+    <dimen name="companion_stat_gap">8dp</dimen>
+    <dimen name="companion_stat_corner">10dp</dimen>
+    <dimen name="companion_strip_height">56dp</dimen>
+    <dimen name="companion_strip_pill_inset">6dp</dimen>
+    <dimen name="companion_sheet_padding">14dp</dimen>
+    <dimen name="companion_sheet_corner">16dp</dimen>
+    <!-- Air above and below the state panel when it stands in for the home's shelves. -->
+    <dimen name="home_state_panel_padding_vertical">48dp</dimen>
+    <!-- A menu that drops from a chip sits this far under it and this far off the window's edge. -->
+    <dimen name="menu_sheet_anchor_gap">4dp</dimen>
+    <dimen name="menu_sheet_window_margin">12dp</dimen>
+
+    <!--
+        The in-stream side panel, after the approved Stream mock: at most 360dp wide (less on a
+        narrow window, see StreamControlsPanel), tiles 56dp tall so each is a comfortable touch
+        target, 6dp apart, rounded between the rows' 10dp and the panels' 16dp. The panel
+        itself is square, as in the mock.
+    -->
+    <dimen name="controls_panel_max_width">360dp</dimen>
+    <dimen name="controls_panel_padding">14dp</dimen>
+    <dimen name="controls_tile_height">56dp</dimen>
+    <dimen name="controls_tile_corner">12dp</dimen>
+    <dimen name="controls_tile_gap">6dp</dimen>
+    <!-- The list rows and the two ends as tight as the mock draws them (as tall as each other),
+         so a landscape phone fits the whole first page; the rows scroll where it still does not.
+         The header's box art at the mock's 22 x 29. -->
+    <dimen name="controls_panel_row_height">40dp</dimen>
+    <dimen name="controls_panel_cover_width">22dp</dimen>
+    <dimen name="controls_panel_cover_height">29dp</dimen>
+
+    <!--
+        The stop ring, chips, pills, segmented controls and gamepad hints shared by the Stats,
+        game and Settings screens.
+    -->
+    <!-- A stop's ring (@drawable/stop_bg): rows and cards the d-pad stops on. -->
+    <dimen name="stop_corner">8dp</dimen>
+    <!-- A chip is drawn 36dp tall inside its 48dp target, as the header chip is. -->
+    <dimen name="chip_inset">6dp</dimen>
+    <dimen name="chip_corner">18dp</dimen>
+    <dimen name="pill_corner">100dp</dimen>
+    <!-- A segmented control: a 48dp row whose segments are drawn 40dp tall in the track. -->
+    <dimen name="segment_track_corner">12dp</dimen>
+    <dimen name="segment_track_padding">3dp</dimen>
+    <dimen name="segment_item_inset">4dp</dimen>
+    <dimen name="segment_item_corner">9dp</dimen>
+    <!-- A gamepad hint: key glyphs, then the label, hints spaced apart. -->
+    <dimen name="key_glyph_height">20dp</dimen>
+    <dimen name="key_glyph_min_width">22dp</dimen>
+    <dimen name="key_glyph_corner">4dp</dimen>
+    <dimen name="key_glyph_gap">3dp</dimen>
+    <dimen name="hint_label_gap">6dp</dimen>
+    <dimen name="hint_gap">14dp</dimen>
+    <!-- Screens T3: the game page. The cover beside the title, wide and compact. -->
+    <dimen name="game_page_cover_width">132dp</dimen>
+    <dimen name="game_page_cover_height">176dp</dimen>
+    <dimen name="game_page_cover_width_compact">84dp</dimen>
+    <dimen name="game_page_cover_height_compact">112dp</dimen>
+    <dimen name="game_page_column_gap">20dp</dimen>
+    <dimen name="game_page_title_size">26sp</dimen>
+    <dimen name="game_page_title_size_compact">22sp</dimen>
+    <dimen name="game_page_figure_size">18sp</dimen>
+    <dimen name="game_page_card_corner">12dp</dimen>
+    <dimen name="game_page_bars_height">52dp</dimen>
+    <!-- Wide, where the page has the height: a taller twelve weeks, no empty band under the chips. -->
+    <dimen name="game_page_bars_height_wide">84dp</dimen>
+    <!-- The chips' icons, before their words. -->
+    <dimen name="game_page_chip_icon">16dp</dimen>
+    <dimen name="game_page_block_gap">20dp</dimen>
+    <dimen name="achievement_icon_size">40dp</dimen>
+    <!-- Screens T4: a game's actions as rows on the companion panel, the mock's big rows. -->
+    <dimen name="companion_action_row_height">56dp</dimen>
+
+    <!-- Screens T8: the Settings section. -->
+    <!-- The rail's 40dp indicator inside the Settings button's 72 by 56dp rail cell. -->
+    <dimen name="nav_rail_settings_indicator_inset">16dp</dimen>
+    <dimen name="nav_rail_settings_indicator_inset_vertical">8dp</dimen>
+    <!-- The pinned card: the essentials and the user's pins, each a stop of at least 48dp. -->
+    <dimen name="settings_card_corner">12dp</dimen>
+    <dimen name="settings_pin_min_width">88dp</dimen>
+    <dimen name="settings_pill_min_width">64dp</dimen>
+    <dimen name="settings_pin_height">56dp</dimen>
+    <dimen name="settings_profile_icon_size">36dp</dimen>
+    <dimen name="settings_profile_icon_size_small">28dp</dimen>
+    <dimen name="settings_header_gap">10dp</dimen>
+    <!-- A search result: a 56dp row at least, as the list's rows are 48dp at least. -->
+    <dimen name="settings_result_min_height">56dp</dimen>
+
+    <!-- Screens P3: the focused PC on the companion panel (companion_pc_details). -->
+    <dimen name="pc_details_card_corner">12dp</dimen>
+    <!-- The running game's cover, a portrait box art. -->
+    <dimen name="pc_details_cover_width">40dp</dimen>
+    <dimen name="pc_details_cover_height">54dp</dimen>
+    <!-- Resume and Quit on the running card: 48dp to touch, and the gap a focus ring needs. -->
+    <dimen name="pc_details_button_height">48dp</dimen>
+    <dimen name="pc_details_ring_gap">3dp</dimen>
+    <dimen name="pc_details_gap">8dp</dimen>
 
 </resources>

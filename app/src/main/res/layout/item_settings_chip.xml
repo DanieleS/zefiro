@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A Settings chip: a jump to a section at rest ("Video"), a filter while searching ("All 8").
+    The mocks' chip, a 48dp stop around a 36dp pill (@drawable/chip_bg); the "on" chip, the
+    section in view or the filter in force, is drawn selected.
+-->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="wrap_content"
+    android:layout_height="@dimen/action_size"
+    android:layout_marginEnd="6dp"
+    android:background="@drawable/chip_bg"
+    android:clickable="true"
+    android:focusable="true"
+    android:fontFamily="sans-serif-medium"
+    android:gravity="center"
+    android:paddingStart="14dp"
+    android:paddingEnd="14dp"
+    android:singleLine="true"
+    android:textColor="@color/chip_text"
+    android:textSize="13sp"
+    tools:text="Video" />

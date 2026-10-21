@@ -69,10 +69,6 @@
     <string name="wol_fail">Không thể gửi các gói Wake-On-LAN</string>
 
     <!-- Unpair messages -->
-    <string name="unpairing">Đang hủy ghép nối…</string>
-    <string name="unpair_success">Hủy ghép nối thành công</string>
-    <string name="unpair_fail">Hủy ghép nối thất bại</string>
-    <string name="unpair_error">Thiết bị chưa được ghép nối</string>
 
     <!-- Errors -->
     <string name="error_pc_offline">Máy tính đang ngoại tuyến</string>
@@ -114,12 +110,9 @@
         Đảm bảo Sunshine đang chạy trên PC máy chủ của bạn hoặc GameStream được bật trong cài đặt SHIELD của GeForce Experience.</string>
     <string name="yes">Có</string>
     <string name="no">Không</string>
-    <string name="lost_connection">Mất kết nối với PC</string>
     <string name="title_details">Chi tiết</string>
     <string name="help">Trợ giúp</string>
     <string name="delete_pc_msg">Bạn có chắc chắn muốn xóa PC này không?</string>
-    <string name="slow_connection_msg">Kết nối chậm với PC\nGiảm tốc độ bit của bạn</string>
-    <string name="poor_connection_msg">Kết nối kém với PC</string>
     <string name="perf_overlay_streamdetails">Luồng video: %1$s %2$.2f FPS</string>
     <string name="perf_overlay_decoder">Bộ giải mã: %1$s</string>
     <string name="perf_overlay_incomingfps">Tốc độ khung hình đến từ mạng: %1$.2f FPS</string>
@@ -143,8 +136,6 @@
     <string name="applist_menu_scut">Tạo phím tắt</string>
     <string name="applist_menu_tv_channel">Thêm vào Kênh</string>
     <string name="applist_menu_hide_app">Ẩn ứng dụng</string>
-    <string name="applist_refresh_title">Danh sách ứng dụng</string>
-    <string name="applist_refresh_msg">Đang làm mới ứng dụng…</string>
     <string name="applist_refresh_error_title">Lỗi</string>
     <string name="applist_refresh_error_msg">Không thể lấy danh sách ứng dụng</string>
     <string name="applist_quit_app">Đang thoát</string>
@@ -179,7 +170,6 @@
     <string name="title_resolution_scale_factor">Hệ số tỷ lệ độ phân giải</string>
     <string name="summary_resolution_scale_factor">Độ phân giải màn hình ảo được yêu cầu phía máy chủ sẽ được nhân với hệ số này. Độ phân giải phát trực tuyến không bị ảnh hưởng.\nVí dụ: 120% sẽ làm cho 2000x1000 trở thành 2400x1200.\nĐặt hệ số tỷ lệ cao hơn sẽ cải thiện chất lượng hình ảnh cho một số trò chơi.\nYêu cầu Apollo để có hiệu lực.</string>
     <string name="resolution_prefix_native">Gốc</string>
-    <string name="resolution_prefix_native_fullscreen">Gốc Toàn màn hình</string>
     <string name="resolution_prefix_native_landscape">(Ngang)</string>
     <string name="resolution_prefix_native_portrait">(Dọc)</string>
     <string name="resolution_prefix_custom">Tùy chỉnh</string>
@@ -259,10 +249,6 @@
     <string name="category_ui_settings">Cài đặt giao diện người dùng</string>
     <string name="title_checkbox_enable_pip">Bật chế độ Picture-in-Picture</string>
     <string name="summary_checkbox_enable_pip">Cho phép xem luồng trong khi thực hiện đa nhiệm</string>
-    <string name="title_language_list">Ngôn ngữ</string>
-    <string name="summary_language_list">Ngôn ngữ sử dụng cho Artemis</string>
-    <string name="title_checkbox_small_icon_mode">Chế độ biểu tượng nhỏ</string>
-    <string name="summary_checkbox_small_icon_mode">Hiển thị biểu tượng nhỏ hơn trong lưới ứng dụng để hiển thị nhiều ứng dụng hơn</string>
 
     <string name="category_host_settings">Cài đặt máy chủ</string>
     <string name="title_checkbox_enable_sops">Tối ưu hóa cài đặt trò chơi</string>
@@ -340,14 +326,11 @@
 
 
     <!-- In Game menu -->
-    <string name="game_menu_toggle_keyboard">Hiển thị bàn phím mềm</string>
-    <string name="game_menu_toggle_hud">Hiển thị lớp phủ hiệu suất</string>
     <string name="game_menu_select_mouse_mode">Chọn chế độ chuột</string>
     <string name="game_menu_enable_zoom_mode">Bật Pan/Zoom</string>
     <string name="game_menu_disable_zoom_mode">Tắt Pan/Zoom</string>
     <string name="game_menu_rotate_screen">Xoay màn hình</string>
     <string name="game_menu_toggle_keyboard_model">Hiển thị phím đặc biệt</string>s
-    <string name="game_menu_toggle_virtual_model">Hiển thị gamepad</string>
     <string name="game_menu_toggle_virtual_keyboard_model">Hiển thị bàn phím đầy đủ</string>
     <string name="game_menu_switch_touch_sensitivity_model">Thay đổi độ nhạy cảm ứng</string>
 
@@ -355,9 +338,7 @@
     <string name="game_menu_toggle_mouse_on">Bật mô phỏng chuột bằng bộ điều khiển</string>
     <string name="game_menu_toggle_mouse_off">Tắt mô phỏng chuột bằng bộ điều khiển</string>
     <string name="game_menu_disconnect">Ngắt kết nối</string>
-    <string name="game_menu_cancel">Hủy</string>
     <string name="game_menu_task_manager">Mở Trình quản lý tác vụ</string>
-    <string name="game_menu_send_keys">Gửi phím đặc biệt</string>
     <string name="game_menu_send_keys_esc">ESC</string>
     <string name="game_menu_send_keys_f11">F11</string>
     <string name="game_menu_send_keys_alt_f4">Alt + F4</string>
@@ -381,12 +362,6 @@
     <string name="analogscroll_left">Cần điều khiển bên trái</string>
 
 
-    <string name="perf_overlay_lite_net">%1$dms</string>
-    <string name="perf_overlay_lite_dectime">%1$.2fms</string>
-    <string name="perf_overlay_lite_netdrops">%1$.2f%%</string>
-    <string name="perf_overlay_lite_streamdetails">%1$s</string>
-    <string name="perf_overlay_lite_fps">%1$.2f</string>
-    <string name="perf_overlay_lite_decoder">Bộ giải mã: %1$s</string>
     <string name="title_import_keyboard_layout">Nhập bố cục bàn phím</string>
     <string name="title_export_keyboard_layout">Xuất bố cục bàn phím</string>
     <string name="summary_import_keyboard_layout">Thao tác này sẽ ghi đè bố cục hiện tại.</string>
@@ -411,11 +386,7 @@
     <string name="title_checkbox_onscreen_style_official">Giao diện tay cầm ảo chính thức</string>
     <string name="summary_checkbox_onscreen_style_official">Nếu bạn vẫn thích kiểu giao diện tay cầm ảo cũ, bạn có thể chọn tùy chọn này.\nNút có thể là hình vuông nếu bạn chọn nút ảo phía dưới [Nút bình thường là nút vuông]</string>
 
-    <string name="title_checkbox_enable_perf_overlay_lite">Bật chế độ đơn giản</string>
-    <string name="summary_checkbox_enable_perf_overlay_lite">Hiển thị thông tin hiệu suất đơn giản: Tốc độ mạng / Độ trễ / Giải mã / Tỷ lệ mất gói / FPS</string>
 
-    <string name="title_checkbox_enable_perf_overlay_lite_dialog">Nhấp chế độ đơn giản để hiển thị tùy chọn nhanh</string>
-    <string name="summary_checkbox_enable_perf_overlay_lite_dialog">Thay đổi chức năng nút quay lại, hiển thị menu nhanh trong game.</string>
 
     <string name="title_virtual_trackpad_settings">Cài đặt bàn di chuột ảo</string>
 
@@ -525,8 +496,6 @@
     <string name="summary_hide_clipboard_content">Đánh dấu clipboard từ xa là thông tin nhạy cảm</string>
     <string name="title_settings_misc">KHÁC</string>
     <string name="perf_overlay_lite_bandwidth">Băng thông</string>
-    <string name="perf_overlay_lite_network_decoding_delay">Độ trễ mạng/Giải mã</string>
-    <string name="perf_overlay_lite_packet_loss">Tỷ lệ mất gói</string>
     <string name="quick_menu_title">Menu nhanh</string>
     <string name="wrong_import_format">Định dạng nhập sai, vui lòng kiểm tra lại!</string>
     <string name="title_checkbox_gamepad_enable_battery_report">Bật báo cáo pin tay cầm</string>
@@ -589,11 +558,9 @@
     <string name="pref_import_success">Nhập thành công!</string>
     <string name="pref_error_occurred">Đã xảy ra lỗi: </string>
     <string name="pref_save_keyboard_profile">Lưu cấu hình bàn phím</string>
-    <string name="game_menu_advanced">Tùy chọn nâng cao</string>
     <string name="game_dialog_title_quit_confirm">Bạn có chắc muốn thoát không?</string>
     <string name="game_dialog_message_quit_confirm">Hãy chắc rằng bạn đã lưu tiến trình. Thoát khỏi phiên sẽ đóng ứng dụng đang chạy.</string>
 
-        <string name="game_menu_quit_session">Thoát phiên</string>
     <string name="game_menu_server_cmd">Lệnh máy chủ</string>
     <string name="game_menu_fetch_clipboard">Lấy nội dung clipboard</string>
     <string name="game_menu_upload_clipboard">Gửi nội dung clipboard</string>
@@ -622,12 +589,6 @@
     <string name="permission_launch_app">Khởi chạy ứng dụng</string>
     <string name="permission_sync_clipboard">Đồng bộ bảng tạm</string>
 
-    <string name="searchpreference_search">Tìm kiếm…</string>
-    <string name="searchpreference_clear">Xóa</string>
-    <string name="searchpreference_history_entry">Mục lịch sử</string>
-    <string name="searchpreference_more">Thêm</string>
-    <string name="searchpreference_clear_history">Xóa lịch sử</string>
-    <string name="searchpreference_no_results">Không có kết quả</string>
 
     <!-- Compliance -->
     <string name="category_basic_settings">Cài đặt cơ bản</string>

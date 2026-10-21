@@ -1,5 +1,7 @@
 package com.limelight.nvstream.http;
 
+import com.limelight.LimeLog;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -8,8 +10,10 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.TimeZone;
 
 /**
@@ -46,6 +50,38 @@ public class AppMetadata {
         this.lastPlayed = lastPlayed;
         this.playtimeMinutes = playtimeMinutes;
         this.hasBackground = hasBackground;
+    }
+
+    /**
+     * Every app's metadata in an {@code /appmetadata} answer, keyed by upper-cased app UUID:
+     * empty for null (no answer) and for an answer that does not parse. Public, so a copy of the
+     * answer kept on disk reads back the same way the host's own does.
+     */
+    public static Map<String, AppMetadata> parseAll(String raw) {
+        Map<String, AppMetadata> metadata = new HashMap<>();
+        if (raw == null) {
+            return metadata;
+        }
+        try {
+            JSONArray apps = new JSONObject(raw).optJSONArray("apps");
+            if (apps == null) {
+                return metadata;
+            }
+            for (int i = 0; i < apps.length(); i++) {
+                JSONObject app = apps.optJSONObject(i);
+                if (app == null) {
+                    continue;
+                }
+                String uuid = app.optString("uuid", "");
+                if (uuid.isEmpty()) {
+                    continue;
+                }
+                metadata.put(uuid.toUpperCase(), fromJson(app));
+            }
+        } catch (Exception e) {
+            LimeLog.warning("Malformed app metadata: " + e.getMessage());
+        }
+        return metadata;
     }
 
     static AppMetadata fromJson(JSONObject obj) {
@@ -122,9 +158,9 @@ public class AppMetadata {
 
     /**
      * {@link #getLastPlayed()} as milliseconds since the epoch, or 0 when there is nothing to
-     * parse. Only the calendar-second portion is read: the offset and any fractional seconds are
-     * ignored, which is enough to order a library and sidesteps the ISO8601 dialects Playnite can
-     * emit (trailing {@code Z}, numeric offsets, seven-digit fractions).
+     * parse. Read to the second, in the zone the stamp names: UTC for a trailing {@code Z}, its
+     * offset for a numeric one (Playnite's local times carry theirs, "+02:00"), and this device's
+     * own zone for none, which the host means as its local time. Any fraction is ignored.
      */
     public long getLastPlayedEpochMillis() {
         return parseIso8601Millis(lastPlayed);
@@ -135,20 +171,48 @@ public class AppMetadata {
         return playtimeMinutes;
     }
 
-    private static long parseIso8601Millis(String iso) {
+    static long parseIso8601Millis(String iso) {
         if (iso == null || iso.length() < 10) {
             return 0;
         }
         String pattern = iso.length() >= 19 ? "yyyy-MM-dd'T'HH:mm:ss" : "yyyy-MM-dd";
         String head = iso.substring(0, pattern.length() == 10 ? 10 : 19);
         SimpleDateFormat format = new SimpleDateFormat(pattern, Locale.US);
-        format.setTimeZone(TimeZone.getTimeZone("UTC"));
+        // Read as UTC, a local time with its offset was put that far in the future: "Last
+        // played in 1 hour" for a game just played in Italy.
+        format.setTimeZone(zoneOf(iso.substring(head.length())));
         try {
             Date date = format.parse(head);
             return date == null ? 0 : date.getTime();
         } catch (ParseException e) {
             return 0;
         }
+    }
+
+    /**
+     * The zone named by what follows a stamp's seconds (any fraction skipped): UTC for "Z", the
+     * offset for "+02:00" or "+0200", and this device's own for none or one that does not read.
+     */
+    private static TimeZone zoneOf(String tail) {
+        int i = 0;
+        if (i < tail.length() && (tail.charAt(i) == '.' || tail.charAt(i) == ',')) {
+            i++;
+            while (i < tail.length() && Character.isDigit(tail.charAt(i))) {
+                i++;
+            }
+        }
+        String offset = tail.substring(i);
+        if (offset.equalsIgnoreCase("Z")) {
+            return TimeZone.getTimeZone("UTC");
+        }
+        if (offset.length() > 1 && (offset.charAt(0) == '+' || offset.charAt(0) == '-')) {
+            String digits = offset.substring(1).replace(":", "");
+            if (digits.matches("[0-9]{4}")) {
+                return TimeZone.getTimeZone("GMT" + offset.charAt(0) + digits.substring(0, 2)
+                        + ":" + digits.substring(2));
+            }
+        }
+        return TimeZone.getDefault();
     }
 
     /** True when the host can serve a background/hero image for this game via /appbackground. */

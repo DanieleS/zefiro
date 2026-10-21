@@ -17,6 +17,8 @@ public class AbsoluteTouchContext implements TouchContext {
     private int lastTouchLocationX = 0;
     private int lastTouchLocationY = 0;
     private boolean cancelled;
+    // A finger of this gesture is still down, so a cancel has buttons of its to raise
+    private boolean touching;
     private boolean confirmedLongPress;
     private boolean confirmedTap;
     
@@ -54,9 +56,12 @@ public class AbsoluteTouchContext implements TouchContext {
     private final Runnable leftButtonUpRunnable = new Runnable() {
         @Override
         public void run() {
+            leftButtonUpPending = false;
             conn.sendMouseButtonUp(buttonPrimary);
         }
     };
+    // A tap's delayed release has not run yet
+    private boolean leftButtonUpPending;
 
     private static final int SCROLL_SPEED_FACTOR = 3;
 
@@ -104,6 +109,7 @@ public class AbsoluteTouchContext implements TouchContext {
         lastTouchLocationY = lastTouchDownY = eventY;
         lastTouchDownTime = eventTime;
         cancelled = confirmedTap = confirmedLongPress = false;
+        touching = true;
 
         if (actionIndex == 0) {
             // Start the timers
@@ -135,6 +141,7 @@ public class AbsoluteTouchContext implements TouchContext {
         if (cancelled) {
             return;
         }
+        touching = false;
 
         if (actionIndex == 0) {
             // Cancel the timers
@@ -158,6 +165,7 @@ public class AbsoluteTouchContext implements TouchContext {
                 // to detect mouse button presses.
                 handler.removeCallbacks(leftButtonUpRunnable);
                 handler.postDelayed(leftButtonUpRunnable, 100);
+                leftButtonUpPending = true;
             }
         }
 
@@ -238,12 +246,26 @@ public class AbsoluteTouchContext implements TouchContext {
         cancelLongPressTimer();
         cancelTapDownTimer();
 
-        // Raise the mouse buttons
-        if (confirmedLongPress) {
-            conn.sendMouseButtonUp(buttonSecondary);
+        // Raise the mouse buttons, unless the gesture already did as it ended
+        boolean primaryRaised = false;
+        if (touching) {
+            if (confirmedLongPress) {
+                conn.sendMouseButtonUp(buttonSecondary);
+            }
+            else if (confirmedTap) {
+                conn.sendMouseButtonUp(buttonPrimary);
+                primaryRaised = true;
+            }
         }
-        else if (confirmedTap) {
-            conn.sendMouseButtonUp(buttonPrimary);
+        touching = false;
+
+        // A tap's release still waiting goes out now rather than after the cancel
+        if (leftButtonUpPending) {
+            handler.removeCallbacks(leftButtonUpRunnable);
+            leftButtonUpPending = false;
+            if (!primaryRaised) {
+                conn.sendMouseButtonUp(buttonPrimary);
+            }
         }
     }
 

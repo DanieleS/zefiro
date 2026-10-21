@@ -25,16 +25,16 @@
     <string name="pcview_menu_header_online">Online</string>
     <string name="pcview_menu_header_offline">Offline</string>
     <string name="pcview_menu_header_unknown">Refreshing</string>
-    <string name="pcview_menu_app_list">View All Apps</string>
-    <string name="pcview_menu_pair_pc">Legacy Pair</string>
-    <string name="pcview_menu_pair_pc_otp">OTP Pair</string>
+    <string name="pcview_menu_app_list">View all apps</string>
+    <string name="pcview_menu_pair_pc">Legacy pair</string>
+    <string name="pcview_menu_pair_pc_otp">OTP pair</string>
     <string name="pcview_menu_unpair_pc">Unpair</string>
-    <string name="pcview_menu_send_wol">Send Wake-On-LAN request</string>
+    <string name="pcview_menu_send_wol">Send Wake-on-LAN request</string>
     <string name="pcview_menu_delete_pc">Delete PC</string>
-    <string name="pcview_menu_test_network">Test Network Connection</string>
-    <string name="pcview_menu_details">View Details</string>
+    <string name="pcview_menu_test_network">Test network connection</string>
+    <string name="pcview_menu_details">View details</string>
     <string name="pcview_menu_eol">NVIDIA GameStream End-of-Service</string>
-    <string name="pcview_menu_open_management_page">Go to Server Config</string>
+    <string name="pcview_menu_open_management_page">Go to server config</string>
     <string name="pcview_error_no_management_url">Cannot open server config page, cannot find server address.</string>
 
     <!-- What a PC card says about its host, and the one action it offers. -->
@@ -47,10 +47,6 @@
     <string name="pcview_action_resume">Resume</string>
     <string name="pcview_action_pair">Pair</string>
     <string name="pcview_action_wake">Wake</string>
-
-    <string name="action_change_pc">Change PC</string>
-    <string name="title_checkbox_auto_enter_last_pc">Go straight to the last PC</string>
-    <string name="summary_checkbox_auto_enter_last_pc">On launch, open the library of the PC you used last, if it is online and paired. Press back to return to the PC list.</string>
 
     <!-- Network test strings -->
     <string name="nettest_title_waiting">Testing Network Connection</string>
@@ -87,12 +83,6 @@
 	    If it doesn\'t, make sure it\'s configured properly for Wake-On-LAN.
     </string>
     <string name="wol_fail">Failed to send Wake-On-LAN packets</string>
-
-    <!-- Unpair messages -->
-    <string name="unpairing">Unpairing…</string>
-    <string name="unpair_success">Unpaired successfully</string>
-    <string name="unpair_fail">Failed to unpair</string>
-    <string name="unpair_error">Device was not paired</string>
 
     <!-- Errors -->
     <string name="error_pc_offline">Computer is offline</string>
@@ -148,17 +138,15 @@
         Ensure Apollo is running on your host PC.</string>
     <string name="yes">Yes</string>
     <string name="no">No</string>
-    <string name="lost_connection">Lost connection to PC</string>
     <string name="title_details">Details</string>
     <string name="help">Help</string>
     <string name="delete_pc_msg">Are you sure you want to delete this PC?</string>
-    <string name="slow_connection_msg">Slow connection to PC\nReduce your bitrate</string>
-    <string name="poor_connection_msg">Poor connection to PC</string>
     <string name="reconnect_waiting_msg">Network lost, waiting for the PC… %1$d s</string>
     <string name="reconnect_reconnecting_msg">Connection lost, reconnecting… %1$d s</string>
     <string name="reconnect_failed_msg">The connection could not be restored within %1$d seconds.</string>
     <string name="reconnect_failed_no_session_msg">The game is no longer running on the PC, so there was nothing to reconnect to.</string>
     <string name="reconnect_failed_refused_msg">The PC refused to resume the session (error %1$d).</string>
+    <string name="stream_hud_stats">%1$.1f FPS · %2$d ms · %3$.1f%%</string>
     <string name="perf_overlay_streamdetails">Video stream: %1$s %2$.2f FPS</string>
     <string name="perf_overlay_decoder">Decoder: %1$s</string>
     <string name="perf_overlay_incomingfps">Incoming frame rate from network: %1$.2f FPS</string>
@@ -184,21 +172,19 @@
 
     <!-- AppList activity -->
     <string name="applist_connect_msg">Connecting to PC…</string>
-    <string name="applist_menu_resume">Resume Session</string>
-    <string name="applist_menu_start_vdisplay">Start in Virtual Display</string>
-    <string name="applist_menu_start_primarydisplay">Start in Primary Display</string>
-    <string name="applist_menu_quit">Quit Session</string>
-    <string name="applist_menu_quit_and_start">Quit Current Game and Start</string>
-    <string name="applist_menu_quit_and_start_vdisplay">Quit Current Game and Start in Virtual Display</string>
-    <string name="applist_menu_quit_and_start_primarydisplay">Quit Current Game and Start in Primary Display</string>
+    <string name="applist_menu_resume">Resume session</string>
+    <string name="applist_menu_start_vdisplay">Start in virtual display</string>
+    <string name="applist_menu_start_primarydisplay">Start in primary display</string>
+    <string name="applist_menu_quit">Quit session</string>
+    <string name="applist_menu_quit_and_start">Quit current game and start</string>
+    <string name="applist_menu_quit_and_start_vdisplay">Quit current game and start in virtual display</string>
+    <string name="applist_menu_quit_and_start_primarydisplay">Quit current game and start in primary display</string>
     <string name="applist_menu_cancel">Cancel</string>
-    <string name="applist_menu_details">View Details</string>
-    <string name="applist_menu_scut">Create Shortcut</string>
-    <string name="applist_menu_export_launcher">Export Launcher File</string>
+    <string name="applist_menu_details">View details</string>
+    <string name="applist_menu_scut">Create shortcut</string>
+    <string name="applist_menu_export_launcher">Export launcher file</string>
     <string name="applist_menu_tv_channel">Add to Channel</string>
-    <string name="applist_menu_hide_app">Hide App</string>
-    <string name="applist_refresh_title">App List</string>
-    <string name="applist_refresh_msg">Refreshing apps…</string>
+    <string name="applist_menu_hide_app">Hide app</string>
     <string name="applist_refresh_error_title">Error</string>
     <string name="applist_refresh_error_msg">Failed to get app list</string>
     <string name="applist_quit_app">Quitting</string>
@@ -217,8 +203,6 @@
     <string name="addpc_wrong_sitelocal">That address doesn\'t look right. You must use your router\'s public IP address for streaming over the Internet.</string>
 
     <!-- Preferences -->
-    <string name="title_stream_settings">Streaming Settings</string>
-    <string name="settings_back">Back</string>
     <string name="category_general_settings">General Settings</string>
     <string name="category_video_settings">Video Settings</string>
     <string name="title_resolution_list">Video resolution</string>
@@ -243,7 +227,7 @@
     <string name="title_resolution_scale_factor">Resolution Scale Factor</string>
     <string name="summary_resolution_scale_factor">Server side requested virtual screen resolution will be multiplied by this factor. Streaming resolution are not affected.\ne.g. 120% will make 2000x1000 become 2400x1200.\nSetting a higher scale factor will improve image quality for some games.\nRequires Apollo to take effect.</string>
     <string name="resolution_prefix_native">Native</string>
-    <string name="resolution_prefix_native_fullscreen">Native Full-Screen</string>
+    <string name="resolution_prefix_native_cutout">Native, clear of the cutout</string>
     <string name="resolution_prefix_native_landscape">(Landscape)</string>
     <string name="resolution_prefix_native_portrait">(Portrait)</string>
     <string name="resolution_prefix_custom">Custom</string>
@@ -326,10 +310,6 @@
     <string name="category_ui_settings">UI Settings</string>
     <string name="title_checkbox_enable_pip">Enable Picture-in-Picture observer mode</string>
     <string name="summary_checkbox_enable_pip">Allows the stream to be viewed (but not controlled) while multitasking</string>
-    <string name="title_language_list">Language</string>
-    <string name="summary_language_list">Language to use for Artemis</string>
-    <string name="title_checkbox_small_icon_mode">Use small box art</string>
-    <string name="summary_checkbox_small_icon_mode">Smaller box art in the app grid allows more apps to be visible on screen</string>
 
     <string name="category_host_settings">Host Settings</string>
     <string name="title_checkbox_enable_sops">Optimize game settings</string>
@@ -429,16 +409,12 @@
 
 
     <!-- In Game menu -->
-    <string name="game_menu_toggle_keyboard">Show soft keyboard</string>
-    <string name="game_menu_toggle_hud">Toggle Performance Overlay</string>
-    <string name="game_menu_toggle_floating_button">Toggle Floating Button</string>
     <string name="game_menu_select_mouse_mode">Select Mouse mode</string>
     <string name="game_menu_select_steam_mode">Select Stream mode</string>
     <string name="game_menu_enable_zoom_mode">Enable Pan/Zoom</string>
     <string name="game_menu_disable_zoom_mode">Disable Pan/Zoom</string>
     <string name="game_menu_rotate_screen">Rotate Screen</string>
     <string name="game_menu_toggle_keyboard_model">Toggle Special keys</string>s
-    <string name="game_menu_toggle_virtual_model">Toggle On-screen controller</string>
     <string name="game_menu_toggle_virtual_keyboard_model">Toggle On-screen full keyboard</string>
     <string name="game_menu_switch_touch_sensitivity_model">Switch touch sensitivity</string>
 
@@ -446,9 +422,7 @@
     <string name="game_menu_toggle_mouse_on">Enable Controller Mouse Emulation</string>
     <string name="game_menu_toggle_mouse_off">Disable Controller Mouse Emulation</string>
     <string name="game_menu_disconnect">Disconnect</string>
-    <string name="game_menu_cancel">Cancel</string>
     <string name="game_menu_task_manager">Open Task Manager</string>
-    <string name="game_menu_send_keys">Send special keys</string>
     <string name="game_menu_send_keys_esc">ESC</string>
     <string name="game_menu_send_keys_f11">F11</string>
     <string name="game_menu_send_keys_alt_f4">Alt + F4</string>
@@ -475,15 +449,9 @@
     <string name="analogscroll_right">Right analog stick</string>
     <string name="analogscroll_left">Left analog stick</string>
 
-    <string name="perf_overlay_lite_net">%1$dms</string>
-    <string name="perf_overlay_lite_dectime">%1$.2fms</string>
-    <string name="perf_overlay_lite_netdrops">%1$.2f%%</string>
-    <string name="perf_overlay_lite_streamdetails">%1$s</string>
-    <string name="perf_overlay_lite_fps">%1$.2f</string>
     <string name="perf_overlay_drawn_fps">GpuFPS:</string>
     <string name="perf_overlay_ai_fps">3DFPS:</string>
     <string name="perf_overlay_ai_delegate">Delegate:</string>
-    <string name="perf_overlay_lite_decoder">Decoder: %1$s</string>
     <string name="title_import_keyboard_layout">Import keyboard layout</string>
     <string name="title_export_keyboard_layout">Export keyboard layout</string>
     <string name="summary_import_keyboard_layout">This will overwrite the current layout.</string>
@@ -507,29 +475,23 @@
     <string name="title_checkbox_mouse_local_cursor">Use local mouse cursor</string>
     <string name="summary_checkbox_mouse_local_cursor">Default external physical mouse cursor will be captured, this option can display Android system cursor</string>
     <string name="title_checkbox_multi_touch_gestures">Enable multi-touch gestures</string>
-    <string name="summary_checkbox_multi_touch_gestures">Enable 3 finger tap for keyboard, 4 finger tap for full keyboard, 5 finger tap for quick menu when using multi-touch mode.</string>
+    <string name="summary_checkbox_multi_touch_gestures">Enable 3 finger tap for keyboard, 4 finger tap for full keyboard, 5 finger tap for the stream controls when using multi-touch mode.</string>
     <string name="title_checkbox_onscreen_style_official">Official Virtual Gamepad Skin</string>
     <string name="summary_checkbox_onscreen_style_official">If you still like the old style of official virtual gamepad buttons, you can select this option.\nButton shapes can be square if you selected the bottom virtual button [Normal buttons are square buttons]</string>
-    <string name="title_checkbox_enable_perf_overlay_lite">Enable Lite mode</string>
-    <string name="summary_checkbox_enable_perf_overlay_lite">Display simplified performance information: Network Speed / Latency / Decode / Packet Loss Rate / FPS</string>
     <string name="title_checkbox_enable_perf_logging">Enable Performance Logging</string>
     <string name="summary_checkbox_enable_perf_logging">"Stores performance data per configuration. (Offline only) "</string>
-    <string name="title_checkbox_enable_perf_overlay_lite_dialog">Lite mode click to pop up quick options</string>
-    <string name="summary_checkbox_enable_perf_overlay_lite_dialog">Replace the back button logic, pop up the game quick menu.</string>
     <string name="title_show_overlay_zoom_toggle_button">Show overlay zoom toggle button</string>
     <string name="summary_show_overlay_zoom_toggle_button">Displays a draggable button at the top of the screen to toggle pan/zoom mode.</string>
     <string name="title_virtual_trackpad_settings">Virtual Trackpad Settings</string>
-    <string name="title_quit_dialog">Back Menu</string>
-    <string name="summary_quit_dialog">When enabled, clicking the physical back button on the streaming interface will show related options!\nSoft keyboard, performance information, touch mode switching, send special keys</string>
-    <string name="title_floating_button">Floating Button</string>
-    <string name="summary_floating_button">Enable floating button</string>
+    <string name="title_quit_dialog">Stream controls on Back</string>
+    <string name="summary_quit_dialog">Back, a five-finger tap or a controller\'s Start tapped then held opens the stream controls: the side panel on the right edge of the stream, or the companion screen when it is showing.</string>
     <string name="dialog_custom_resolution">Set the resolution and exit the settings page to take effect!</string>
     <string name="summary_custom_resolution">Add a custom resolution, separated by x, strange resolutions may not work.\nFor example: 1920x1080\nIf it is a non-native resolution, it may not fill the notch area by default. If the aspect ratio is the same, you can manually set to stretch the screen to fill the full screen</string>
     <string name="title_custom_resolution">Custom Resolution</string>
     <string name="title_auto_orientation">Auto Orientation</string>
     <string name="summary_auto_orientation">The streaming screen will be displayed according to the device\'s orientation when the stream begins.</string>
     <string name="title_import_special_button">Import Custom Keys</string>
-    <string name="summary_import_special_button">Available in Back Menu and special keys.\nNote: Importing will overwrite current configuration, please backup accordingly.</string>
+    <string name="summary_import_special_button">Available on the Special keys page of the stream controls.\nNote: Importing will overwrite current configuration, please backup accordingly.</string>
     <string name="summary_share_performance_logs">Share your performance with friends or the community</string>
     <string name="title_share_performance_logs_button">Share Performance Logs</string>
     <string name="title_software_update">Software Update</string>
@@ -586,7 +548,7 @@
     <string name="title_device_rumble">Force vibration on device</string>
     <string name="summary_device_rumble">If you are not satisfied with the vibration of the connected gamepad, you can enable this option.\nInvalid for forced use of Artemis\'s built-in USB driver</string>
     <string name="title_clear_default_special_button">Disable default Special Keys</string>
-    <string name="summary_clear_default_special_button">If you feel the built-in commands in the Back Menu are useless, you can disable them and use your imported ones.</string>
+    <string name="summary_clear_default_special_button">Hide the built-in combos from the Special keys page of the stream controls, leaving only your imported ones.</string>
     <string name="title_trackpad_sensitivity_x">Trackpad Sensitivity X</string>
     <string name="summary_trackpad_sensitivity_x">X axis Sensitivity of the trackpad, negative to invert direction</string>
     <string name="title_trackpad_sensitivity_y">Trackpad Sensitivity Y</string>
@@ -624,8 +586,6 @@
     <string name="summary_cocoon_sync_host">Only one PC is exported: the frontend shows every game in one list, so a second PC would only add titles you could not tell apart</string>
     <string name="summary_cocoon_sync_no_pcs">No PCs paired yet</string>
     <string name="perf_overlay_lite_bandwidth">Bandwidth</string>
-    <string name="perf_overlay_lite_network_decoding_delay">Network/Decoding delay</string>
-    <string name="perf_overlay_lite_packet_loss">Packet loss</string>
     <string name="wrong_import_format">Wrong import format, please check!</string>
     <string name="title_checkbox_gamepad_enable_battery_report">Enable battery status report for gamepad</string>
     <string name="summary_checkbox_gamepad_enable_battery_report">Report gamepad battery status when possible.\nDisable this option might help if you experience stutter with touch screen/touch pad/stylus/mouse input occasionally.</string>
@@ -693,10 +653,8 @@
     <string name="pref_import_success">Import success!</string>
     <string name="pref_error_occurred">An error occurred: </string>
     <string name="pref_save_keyboard_profile">Save OSK profile</string>
-    <string name="game_menu_advanced">Advanced Menu</string>
     <string name="game_dialog_title_quit_confirm">Really want to quit?</string>
     <string name="game_dialog_message_quit_confirm">Please make sure you have no unsaved progress. Quitting the session will terminate your current running application.</string>
-    <string name="game_menu_quit_session">Quit Session</string>
     <string name="game_menu_server_cmd">Server Commands</string>
     <string name="game_menu_fetch_clipboard">Fetch Clipboard</string>
     <string name="game_menu_upload_clipboard">Upload Clipboard</string>
@@ -724,12 +682,6 @@
     <string name="permission_launch_app">Launch Apps</string>
     <string name="permission_sync_clipboard">Sync Clipboard</string>
 
-    <string name="searchpreference_search">Search…</string>
-    <string name="searchpreference_clear">Clear</string>
-    <string name="searchpreference_history_entry">History entry</string>
-    <string name="searchpreference_more">More</string>
-    <string name="searchpreference_clear_history">Clear history</string>
-    <string name="searchpreference_no_results">No results</string>
 
     <!-- Keyboard -->
     <string name="keyboard_clear_all">Clear All</string>
@@ -759,7 +711,7 @@
     <string name="error_writing_file">Error writing file: %s</string>
     <string name="unexpected_error_during_file_export">An unexpected error occurred during file export.</string>
 
-    <!-- AppView Toast Messages -->
+    <!-- Library toast messages -->
     <string name="file_export_cancelled">File export cancelled.</string>
     <string name="app_removed_from_pc">App removed from PC</string>
     <string name="title_export_sunshine_launcher_file">Export Launcher File for Sunshine</string>
@@ -771,8 +723,6 @@
     <string name="summary_text_focus_keyboard">Open a keyboard by itself when you select a text field on the PC: on the second screen when the companion panel or the external display controls are there, otherwise over the stream. Needs a Scirocco host with text field focus hints on; other hosts are unaffected.</string>
     <string name="title_checkbox_remember_zoom_pan">Remember Zoom&amp;Pan</string>
     <string name="summary_checkbox_remember_zoom_pan">Save changes to zoom and pan position between sessions</string>
-    <string name="title_checkbox_enable_perf_overlay_bottom">Move overlay to bottom</string>
-    <string name="summary_checkbox_enable_perf_overlay_bottom">Useful when Display in Top Center and Lite mode are enabled during non-native resolution streaming.</string>
     <string name="title_edit_profile">Edit Profile</string>
     <string name="profile_manager_new_profile">New Profile</string>
     <string name="profile_manager_profile_not_found">Profile not found</string>
@@ -786,7 +736,6 @@
     <string name="profile_manager_no_profiles_yet">No profiles yet</string>
     <string name="profile_manager_profiles_description">Profiles allow you to create and save different streaming configurations. Each profile stores its own settings which can be quickly switched between.</string>
     <string name="profile_manager_tap_create_profile">Tap + to create your first profile</string>s
-    <string name="profile_manager_choose_profile">Choose Profile</string>
     <string name="profile_manager_deactivated_profile">Deactivated profile</string>
     <string name="profile_manager_activated_profile">Activated profile \'%s\'</string>
     <string name="profile_manager_delete_profile">Delete Profile</string>
@@ -817,50 +766,60 @@
     <string name="title_checkbox_full_screen">Enable Full Screen</string>
     <string name="summary_checkbox_full_screen">Hide system bars with immersive mode</string>
 
-    <!-- The actions along the top of the library screens. -->
-    <string name="action_settings">Settings</string>
-    <string name="action_help">Help</string>
-    <string name="action_add_pc">Add PC manually</string>
+    <!-- The See all grid's title. -->
     <string name="action_all_games">All games</string>
-    <string name="action_carousel">Carousel</string>
-    <string name="coverflow_count">%1$d / %2$d</string>
 
     <!-- The order the library lists games in. -->
-    <string name="action_sort">Sort</string>
     <string name="title_sort_order">Sort by</string>
     <string name="sort_order_host">Host order</string>
     <string name="sort_order_name">Name</string>
     <string name="sort_order_recent">Recently played</string>
     <string name="sort_order_release">Release date</string>
     <string name="sort_order_score">Rating</string>
-    <!-- The gamepad button that switches between the carousel and the grid. -->
-    <string name="hint_button_y" translatable="false">Y</string>
-    <string name="hint_button_rb" translatable="false">RB</string>
 
     <string name="title_enable_companion_display">Companion Screen (Beta)</string>
     <string name="summary_enable_companion_display">Show a companion surface on the secondary screen while the app is open. Ignored when Fully External Display Mode is enabled.</string>
-    <string name="title_enable_companion_stats">Performance Stats on Companion Screen</string>
-    <string name="summary_enable_companion_stats">Show the streaming stats on the companion screen instead of on top of the game. Overrides the performance overlay setting while streaming.</string>
-    <string name="companion_label_stream">Stream</string>
-    <string name="companion_label_fps">fps</string>
+    <!-- The companion panel's stats while streaming: the game over "Taverna · 12 min", with
+         "HEVC · HDR" (or "· SDR") beside, then up to nine tiles, each a number over its name. -->
+    <string name="companion_stats_subtitle">%1$s · %2$s</string>
+    <string name="companion_codec_hdr">%1$s · HDR</string>
+    <string name="companion_codec_sdr">%1$s · SDR</string>
+    <string name="companion_stat_resolution">Resolution</string>
+    <string name="companion_stat_fps">FPS</string>
     <string name="companion_label_latency">Latency</string>
     <string name="companion_label_decode">Decode</string>
+    <string name="companion_stat_host">Host</string>
     <string name="companion_label_loss">Loss</string>
-    <string name="companion_label_bandwidth">Bandwidth</string>
-    <string name="companion_label_frames">Received / rendered</string>
-    <string name="companion_label_host">Host latency</string>
-    <string name="companion_label_decoder">Decoder</string>
+    <string name="companion_stat_bitrate">Bitrate</string>
+    <string name="companion_stat_dropped">Dropped</string>
+    <string name="companion_stat_device">Device</string>
     <string name="companion_resolution">%1$d × %2$d</string>
-    <string name="companion_value_latency">%1$d ms ± %2$d</string>
+    <string name="companion_value_fps">%1$.1f</string>
+    <string name="companion_value_ms_whole">%1$d ms</string>
     <string name="companion_value_ms">%1$.1f ms</string>
     <string name="companion_value_percent">%1$.2f%%</string>
-    <string name="companion_value_mbps">%1$.1f M/s</string>
-    <string name="companion_value_kbps">%1$.0f K/s</string>
-    <string name="companion_value_frames">%1$.0f / %2$.0f fps</string>
-    <string name="companion_value_host_latency">%1$.1f / %2$.1f / %3$.1f ms</string>
+    <string name="companion_value_celsius">%1$.0f °C</string>
     <string name="companion_value_unavailable">—</string>
-    <!-- The quiet line under a game's telemetry view: frame rate and network latency. -->
-    <string name="companion_telemetry_strip">%1$d fps · %2$d ms  ›</string>
+    <!-- The strip under the panel's view or stats: its stats button ("120 FPS · 8 ms"), as a
+         screen reader says it by what a tap will do, and the button back to the game's view. -->
+    <string name="companion_strip_stats">%1$d FPS · %2$d ms</string>
+    <string name="companion_strip_show_stats">Show the stream stats</string>
+    <string name="companion_strip_show_view">Show the game\'s panel</string>
+    <string name="companion_strip_game">Game</string>
+    <!-- The companion panel while browsing: the focused game's start button, and a PC chip on
+         the hosts row as a screen reader says it ("Taverna, Online"). -->
+    <string name="companion_play">Play</string>
+    <string name="companion_play_on">Start on %1$s</string>
+    <string name="companion_focused">Focused</string>
+    <!-- The same over a See all tile: its place in the grid, "Focused · 4 of 12". -->
+    <string name="companion_focused_position">Focused · %1$d of %2$d</string>
+    <!-- Under a game's name when the host has no metadata for it: when this device last played it. -->
+    <string name="companion_last_played">Last played %1$s</string>
+    <!-- The hosts row's last chip, which adds a PC; spoken as pcs_add_pc. -->
+    <string name="companion_add_host_glyph" translatable="false">+</string>
+    <string name="companion_hosts">Hosts</string>
+    <string name="companion_host_a11y">%1$s, %2$s</string>
+    <string name="companion_host_selected_a11y">%1$s, %2$s, selected</string>
     <string name="action_companion_show">Show companion screen</string>
     <string name="action_companion_hide">Hide companion screen</string>
     <string name="game_menu_companion_show">Show Companion Screen</string>
@@ -875,16 +834,12 @@
     <string name="companion_app_no_display">No secondary screen to open the companion app on</string>
     <string name="companion_app_launch_failed">Couldn\'t open the companion app</string>
     <string name="game_menu_companion_app">Companion App</string>
-    <string name="action_virtual_display">Start virtual display</string>
     <string name="action_remote_session">Remote session</string>
     <string name="remote_session_monitor">Remote Monitor</string>
     <string name="remote_session_input">Remote Input</string>
 
     <!-- Statistics, from Scirocco's /appstats: CouchPilot's play statistics, with the sessions
          GameActivity records and the achievements SuccessStory keeps. -->
-    <string name="action_stats">Statistics</string>
-    <string name="stats_title">Statistics</string>
-    <string name="stats_back">Back</string>
     <string name="stats_range_week">Week</string>
     <string name="stats_range_month">Month</string>
     <string name="stats_range_year">Year</string>
@@ -898,7 +853,6 @@
     <string name="stats_untracked_since">Sessions are recorded from %1$s, so there are none for this period. The totals are below.</string>
     <!-- The host found no data from the GameActivity Playnite extension, the one source of sessions. -->
     <string name="stats_no_activity">Install GameActivity in Playnite to see when you play. The totals are below.</string>
-    <string name="stats_played">Played</string>
     <!-- Compared with the period before: "+2h 10m vs last week at this point". -->
     <string name="stats_than_week_running">last week at this point</string>
     <string name="stats_than_week_done">the week before</string>
@@ -913,14 +867,7 @@
         <item quantity="other">%d sessions</item>
     </plurals>
     <string name="stats_average">average %1$s</string>
-    <string name="stats_top">Most played</string>
     <string name="stats_achievements">Achievements</string>
-    <plurals name="stats_unlocked">
-        <item quantity="one">unlocked</item>
-        <item quantity="other">unlocked</item>
-    </plurals>
-    <string name="stats_no_achievements">Nothing in this period.</string>
-    <string name="stats_library">Library</string>
     <string name="stats_hours_total">%1$s h</string>
     <string name="stats_played_total">played in total</string>
     <string name="stats_games">games, %1$s installed</string>
@@ -931,10 +878,7 @@
     <string name="stats_resume_detail">%1$s · %2$s</string>
     <string name="stats_achievement_detail">%1$s · %2$s</string>
     <string name="stats_bar_caption">%1$s · %2$s</string>
-    <string name="stats_hint_period">Period</string>
     <string name="stats_hint_range">Range</string>
-    <string name="hint_button_lb" translatable="false">LB</string>
-    <string name="hint_button_x" translatable="false">X</string>
     <!-- Bars run Monday to Sunday, as the PC sends them; a year's are its months. -->
     <string-array name="stats_weekdays">
         <item>M</item>
@@ -966,7 +910,6 @@
     <string name="stats_today_at">Today at %1$s</string>
     <string name="stats_yesterday_at">Yesterday at %1$s</string>
     <string name="stats_bars_label">Playtime</string>
-    <string name="stats_bars_hint">Pick a bar for details</string>
     <!-- A game's statistics and achievements, from the library's game menu. -->
     <string name="applist_menu_stats">Stats &amp; achievements</string>
     <string name="game_stats_loading">Loading…</string>
@@ -981,7 +924,6 @@
     <string name="game_stats_per_session">per session</string>
     <string name="game_stats_per_launch">per launch</string>
     <string name="game_stats_last_12_weeks">Last 12 weeks</string>
-    <string name="game_stats_this_week">%1$s this week</string>
     <string name="game_stats_last_played">Last played %1$s</string>
     <string name="game_stats_last_played_for">Last played %1$s, for %2$s</string>
     <string name="game_stats_today">today</string>
@@ -990,18 +932,8 @@
         <item quantity="one">%d day ago</item>
         <item quantity="other">%d days ago</item>
     </plurals>
-    <string name="game_stats_achievements_count">Achievements · %1$d/%2$d</string>
-    <string name="game_stats_see_all">See all</string>
-    <string name="game_stats_latest">latest: %1$s</string>
-    <string name="game_stats_none_yet">none yet</string>
-    <string name="achievements_title">%1$s achievements</string>
-    <string name="achievements_count">%1$d of %2$d achievements</string>
-    <string name="achievements_count_score">%1$d of %2$d achievements · %3$d / %4$d G</string>
     <string name="achievements_percent">%1$d%%</string>
-    <string name="achievements_percent_all">%1$d%% · all of them!</string>
-    <string name="achievements_filter_all">All</string>
     <string name="achievements_filter_unlocked">Unlocked %1$d</string>
-    <string name="achievements_filter_locked">To do %1$d</string>
     <string name="achievements_all_done">Nothing left: you have them all.</string>
     <string name="achievements_none_yet">None yet: the next session is the one.</string>
     <string name="achievements_hidden">Hidden achievement</string>
@@ -1040,6 +972,32 @@
     <string name="game_menu_bitrate_choice_current">%1$s Mbps (now)</string>
     <string name="game_menu_bitrate_adaptive_on">Adaptive bitrate: on</string>
     <string name="game_menu_bitrate_adaptive_off">Adaptive bitrate: off</string>
+    <!-- The stream controls' own entries (stream/StreamActions): short, since the tiles they
+         name are narrow. -->
+    <string name="stream_action_keyboard">Keyboard</string>
+    <string name="stream_action_gamepad">Gamepad</string>
+    <string name="stream_action_mouse">Mouse</string>
+    <string name="stream_action_overlay">Overlay</string>
+    <string name="stream_action_special_keys">Special keys</string>
+    <string name="stream_action_more">More</string>
+    <!-- The Thor controls sheet's tiles for what the side panel lists as rows. -->
+    <string name="stream_action_screenshot">Screenshot</string>
+    <string name="stream_action_save_replay">Save 30 s</string>
+    <string name="stream_action_bitrate">Bitrate</string>
+    <string name="stream_action_clipboard">Clipboard</string>
+    <string name="stream_action_keys">Keys</string>
+    <!-- The in-stream side panel's header and its edge handle. -->
+    <string name="stream_controls_open">Open stream controls</string>
+    <string name="stream_controls_back">Back</string>
+    <string name="stream_controls_subtitle">%1$s · %2$s</string>
+    <string name="stream_controls_resolution_lines">%1$dp</string>
+    <!-- The stream mode: a line count runs into the rate ("1080p60"), a name is spaced ("4K 120"). -->
+    <string name="stream_controls_mode_lines">%1$s%2$d</string>
+    <string name="stream_controls_mode_named">%1$s %2$d</string>
+    <string name="stream_controls_stats">%1$s · %2$d ms · %3$s</string>
+    <!-- The measured bitrate, everywhere it shows (stream/StreamRate). -->
+    <string name="stream_value_mbps">%1$s Mbps</string>
+    <string name="stream_controls_stats_no_bandwidth">%1$s · %2$d ms</string>
     <string name="toast_bitrate_set">Bitrate set to %1$s Mbps</string>
     <string name="toast_bitrate_failed">Couldn\'t change the bitrate to %1$s Mbps</string>
     <string name="toast_adaptive_bitrate_stopped">Adaptive bitrate turned off: the host stopped taking changes. Back to the chosen bitrate.</string>
@@ -1065,4 +1023,390 @@
     <string name="perf_overlay_upscaling">Upscaling: %1$s · added %2$s</string>
     <string name="upscaling_timing_estimate">Estimate includes texture handoff, GPU completion and swap wait (1 ms polling). Display presentation timing is unavailable.</string>
     <string name="upscaling_last_timing">Last GPU path estimate: %1$s</string>
+
+    <!-- Game tile -->
+    <string name="tile_running">RUNNING</string>
+    <!-- Spoken after the game's name by TalkBack; the badge and the dimming are only drawn. -->
+    <string name="tile_a11y_running">running</string>
+    <string name="tile_a11y_hidden">hidden</string>
+
+    <!-- Main screen navigation -->
+    <string name="nav_library">Library</string>
+    <string name="nav_pcs">PCs</string>
+    <string name="nav_stats">Stats</string>
+    <string name="nav_search">Search</string>
+    <string name="nav_settings">Settings</string>
+    <!-- Spoken for the rail's profile avatar, which only draws an initial or an icon. -->
+    <string name="nav_profile_a11y">Profiles, active: %1$s</string>
+    <string name="nav_profile_a11y_none">Profiles, none active</string>
+    <!-- Settings entries that were buttons on the old PC list's top bar. The companion entry
+         is titled with action_companion_show or action_companion_hide, by what it will do. -->
+    <string name="title_pref_profiles">Profiles</string>
+    <string name="summary_pref_profiles">Switch between saved sets of streaming settings</string>
+    <string name="summary_pref_companion_screen">The panel on the second screen</string>
+    <string name="title_pref_help">Help</string>
+    <string name="summary_pref_help">The setup guide: pairing a PC and starting a first stream</string>
+    <!-- The PCs section -->
+    <string name="pcs_add_pc">Add PC</string>
+    <!-- The Search section: the field's hint, naming the host once one is chosen. -->
+    <string name="search_hint">Search games</string>
+    <string name="search_hint_host">Search games on %1$s</string>
+    <!-- In the results' place when nothing matched what was typed. -->
+    <string name="search_no_match">No games match “%1$s”</string>
+    <!-- The Library: See all -->
+    <string name="library_see_all">See all</string>
+    <!-- Next to "All games": the host, and how many games the grid shows. -->
+    <plurals name="library_see_all_subtitle">
+        <item quantity="one">%1$s · %2$d game</item>
+        <item quantity="other">%1$s · %2$d games</item>
+    </plurals>
+    <!-- The same on a phone in portrait, on a line of its own under the toolbar: and the order. -->
+    <plurals name="library_see_all_subtitle_order">
+        <item quantity="one">%1$s · %2$d game · %3$s</item>
+        <item quantity="other">%1$s · %2$d games · %3$s</item>
+    </plurals>
+    <!-- Spoken for the sort chip, which shows only the current order. -->
+    <string name="library_sort_a11y">Sort by, now %1$s</string>
+    <string name="library_show_hidden">Show hidden games</string>
+    <string name="library_back">Back</string>
+    <!-- Stands in for a host's name before the host has answered once. -->
+    <string name="library_this_pc">This PC</string>
+    <!-- The Library's host state panel, where the games would be. -->
+    <string name="library_host_offline_title">%1$s is offline</string>
+    <string name="library_host_offline_message">Wake it, or choose another PC to play from.</string>
+    <string name="library_wake">Wake</string>
+    <string name="library_choose_another_pc">Choose another PC</string>
+    <string name="library_host_unpaired_title">%1$s is not paired</string>
+    <string name="library_host_unpaired_message">Pair this device with it to see its games.</string>
+    <string name="library_pair">Pair</string>
+    <string name="library_host_loading">Connecting to %1$s…</string>
+    <string name="library_no_host_title">No PC selected</string>
+    <string name="library_no_host_message">Choose a PC to see its games.</string>
+    <string name="library_choose_pc">Choose a PC</string>
+    <string name="library_empty_title">No games on %1$s</string>
+    <string name="library_empty_hidden_message">Its games are all hidden. Show them from the sort menu.</string>
+    <!-- The Library: home -->
+    <string name="library_title">Library</string>
+    <!-- Spoken for the host chip, which shows only the host's name and a status dot. -->
+    <string name="library_host_chip_a11y">PC: %1$s, %2$s. Switch PC</string>
+    <!-- The hero over the shelves: the game the host is running, to go back to. -->
+    <string name="library_continue">Continue</string>
+    <string name="library_resume">Resume</string>
+    <string name="library_quit_game">Quit game</string>
+    <string name="library_recently_played">Recently played</string>
+    <string name="library_all_games">All games</string>
+    <!-- The All games shelf's way to the grid: its header link and its trailing tile. -->
+    <string name="library_see_all_count">See all · %d</string>
+    <!-- A shelf's label with a detail after it, on a wide window: "All games · Taverna". -->
+    <string name="library_shelf_label_detail">%1$s · %2$s</string>
+    <!-- The host sheet (X anywhere in the Library, or the host chip). -->
+    <string name="library_host_sheet_title">PCs</string>
+    <!-- Spoken for a host row: the name, then what its status dot shows. -->
+    <string name="library_host_row_a11y">%1$s, %2$s</string>
+    <!-- The same for the chosen PC's row, whose check is only drawn. -->
+    <string name="library_host_row_selected_a11y">%1$s, %2$s, selected</string>
+    <string name="library_host_sheet_virtual_display">Virtual display</string>
+    <string name="library_host_sheet_remote_session">Remote session</string>
+    <string name="library_host_sheet_wake">Wake %1$s</string>
+    <string name="library_host_sheet_manage">Manage PCs</string>
+    <!-- Screens T3: the game page, pushed over Stats, the Library or Search. -->
+    <!-- The crumb beside the back arrow, opened from Stats: "Stats · This month". -->
+    <string name="game_page_origin_stats">Stats · %1$s</string>
+    <!-- Over the title while the game runs on this PC; drawn upper case. -->
+    <string name="game_page_running_on">Running on %1$s</string>
+    <!-- The cover's badge, and the line over the title on a phone, while the game runs. -->
+    <string name="game_page_running">Running</string>
+    <!-- Two parts of one line: the PC and its state, the metadata and the last played. -->
+    <string name="game_page_joined">%1$s · %2$s</string>
+    <string name="game_page_play">Play</string>
+    <!-- The last-played line while the game runs: the session recorded last is the one before. -->
+    <string name="game_page_session_before">Session before this: %1$s, %2$s</string>
+    <!-- Under this week's figure, beside the twelve weeks' bars. -->
+    <string name="game_page_this_week">this week</string>
+    <!-- The failed row: A or a tap asks the PC again. -->
+    <string name="game_page_retry">Press A or tap to try again.</string>
+    <!-- The failed row when the PC answered but could not read the game's statistics (often
+         while a session runs on it), rather than game_stats_failed's unreachable PC. -->
+    <string name="game_page_stats_unreadable">Couldn\'t read the statistics.</string>
+    <!-- The achievements' header: unlocked of all, and gamerscore got of all. -->
+    <string name="game_page_achievements_count">%1$d / %2$d</string>
+    <string name="game_page_gamerscore">%1$d / %2$d G</string>
+    <string name="game_page_filter_all">All %1$d</string>
+    <string name="game_page_filter_locked">Locked %1$d</string>
+    <!-- Marks an unlock from the last twelve hours; drawn upper case. -->
+    <string name="game_page_new">New</string>
+    <!-- An achievement's share of players, beside its row: "8.7%". -->
+    <string name="game_page_percent">%1$s%%</string>
+    <string name="game_page_no_achievements">No achievements tracked for this game</string>
+    <string name="game_page_no_achievements_detail">SuccessStory doesn\'t follow %1$s.</string>
+    <!-- A game page's actions, chips on top and rows on the companion panel, in the mock's
+         words; the actions sheet keeps the applist_menu_* ones. -->
+    <string name="game_page_action_start_vdisplay">Start in virtual display</string>
+    <string name="game_page_action_start_primary">Start in primary display</string>
+    <string name="game_page_action_hide">Hide from the library</string>
+    <string name="game_page_action_details">View details</string>
+    <string name="game_page_action_shortcut">Create shortcut</string>
+    <string name="game_page_action_export">Export launcher file</string>
+
+    <!-- Screens T4: the game page's lower half on the companion panel. -->
+    <!-- The gamepad hint for R2 while the d-pad is up top, for a game with no achievements:
+         R2 goes down to its actions, on the companion panel. -->
+    <string name="game_page_hint_actions">Actions</string>
+    <!-- The gamepad hint while the d-pad is on the companion panel; %1$s is the button L2 goes
+         back to: "Resume" or "Play". -->
+    <string name="game_page_hint_below">Focus is on the lower screen; L2 brings it back to %1$s</string>
+    <!-- As game_page_hint_below, for a game with neither Resume nor Play (not in the library). -->
+    <string name="game_page_hint_below_up">Focus is on the lower screen; L2 brings it back up</string>
+
+    <!-- Screens T5: Stats, chart first. -->
+    <!-- The period inside a sentence, after "Played", "Most played" or an unlock count:
+         "in 2026", "in October", "this week". -->
+    <string name="stats_phrase_in">in %1$s</string>
+    <string name="stats_phrase_this_week">this week</string>
+    <string name="stats_phrase_last_week">last week</string>
+    <!-- %1$s is the week's first day: "in the week of 28 Sep". -->
+    <string name="stats_phrase_week_of">in the week of %1$s</string>
+    <!-- Over the period's total, drawn upper case: "Played in 2026". -->
+    <string name="stats_played_period">Played %1$s</string>
+    <!-- Between the parts of the summary line: "318 sessions · average 1h 21m · 64 unlocked". -->
+    <string name="stats_separator">" · "</string>
+    <string name="stats_unlocked_count">%1$s unlocked</string>
+    <!-- The header's crumb on a year: "Year 2026 › pick a month". -->
+    <string name="stats_crumb_pick">pick a month</string>
+    <!-- The tooltip's action over a year's month: after the A glyph with a pad, before a
+         chevron by touch. -->
+    <string name="stats_tooltip_open">Open</string>
+    <!-- Under a chart whose first bars predate GameActivity's first session: "No session data
+         before October" on a year, "No session data before 9 October" on a week or a month. -->
+    <string name="stats_no_data_before">No session data before %1$s</string>
+    <!-- The climb chip before a month's name, back to its year; spoken. -->
+    <string name="stats_climb_a11y">Back to %1$s</string>
+    <!-- The strip under the chart: "Most played in 2026". -->
+    <string name="stats_most_played">Most played %1$s</string>
+    <!-- Beside it, on one line: "Top 5 of 27 · share of the year". -->
+    <string name="stats_strip_top_of">Top %1$d of %2$d · %3$s</string>
+    <string name="stats_strip_share_week">share of the week</string>
+    <string name="stats_strip_share_month">share of the month</string>
+    <string name="stats_strip_share_year">share of the year</string>
+    <!-- A game's share of the period, under its hours: "22%". -->
+    <string name="stats_share_percent">%1$d%%</string>
+    <!-- In place of the strip, for a tracked period without play: "Nothing played in October". -->
+    <string name="stats_nothing_played">Nothing played %1$s</string>
+    <string name="stats_latest_unlocks">Latest unlocks</string>
+    <!-- Beside it: "9 in October". -->
+    <string name="stats_unlocks_in">%1$s %2$s</string>
+    <!-- Gamepad hints: "A Open October", "B Up". -->
+    <string name="stats_hint_open">Open %1$s</string>
+    <string name="stats_hint_up">Up</string>
+
+    <!-- Screens T6: Stats on the Thor bottom screen. -->
+    <!-- The remote's next-period button on this week. -->
+    <string name="stats_next_week">Next week</string>
+    <!-- The bottom screen's tabs: "Unlocks 64" and "Pick up again 4" (stats_resume); the count
+         follows in mono. -->
+    <string name="stats_tab_unlocks">Unlocks</string>
+    <!-- Under the totals on the bottom screen when there are neither unlocks nor games to pick
+         up again. -->
+    <string name="stats_remote_nothing">Nothing to pick up again</string>
+
+    <!-- Screens T7: Settings regrouped into one list of sections. -->
+    <!-- The sections, in screen order, drawn upper case over their rows with a count. -->
+    <string name="settings_section_video">Video</string>
+    <string name="settings_section_audio">Audio</string>
+    <string name="settings_section_controllers">Controllers</string>
+    <string name="settings_section_touch">Touch &amp; keyboard</string>
+    <string name="settings_section_screens">Screens &amp; overlay</string>
+    <string name="settings_section_connection">Connection</string>
+    <string name="settings_section_help">Help &amp; about</string>
+    <!-- A trailing section for a setting the catalogue does not place; never expected to show. -->
+    <string name="settings_section_other">Other</string>
+    <!-- The short names the jump chips use where a section's own name is too long. -->
+    <string name="settings_chip_touch">Touch</string>
+    <string name="settings_chip_screens">Screens</string>
+    <string name="settings_chip_help">Help</string>
+    <!-- The subgroups within each section: where a setting lives, "Controllers › Rumble". -->
+    <string name="settings_group_resolution_fps">Resolution and frame rate</string>
+    <string name="settings_group_bitrate">Bitrate</string>
+    <string name="settings_group_error_correction">Error correction</string>
+    <string name="settings_group_frame_pacing">Frame pacing</string>
+    <string name="settings_group_display">Display</string>
+    <string name="settings_group_scaling">Scaling</string>
+    <string name="settings_group_custom_values">Custom values</string>
+    <string name="settings_group_3d">3D</string>
+    <string name="settings_group_hdr_codec">HDR and codec</string>
+    <string name="settings_group_refresh_rate">Refresh rate</string>
+    <string name="settings_group_audio">Audio</string>
+    <string name="settings_group_gamepad">Gamepad</string>
+    <string name="settings_group_mouse_emulation">Mouse emulation</string>
+    <string name="settings_group_buttons">Buttons</string>
+    <string name="settings_group_motion">Motion</string>
+    <string name="settings_group_extras">Extras</string>
+    <string name="settings_group_rumble">Rumble</string>
+    <string name="settings_group_touch_mode">Touch mode</string>
+    <string name="settings_group_trackpad">Trackpad</string>
+    <string name="settings_group_keyboard">Keyboard</string>
+    <string name="settings_group_onscreen_keyboard">On-screen keyboard</string>
+    <string name="settings_group_onscreen_controls">On-screen controls</string>
+    <string name="settings_group_special_keys">Special keys</string>
+    <string name="settings_group_touch_sensitivity">Touch sensitivity</string>
+    <string name="settings_group_companion">Companion screen</string>
+    <string name="settings_group_library">Library</string>
+    <string name="settings_group_stream">Stream</string>
+    <string name="settings_group_perf_overlay">Performance overlay</string>
+    <string name="settings_group_host">Host</string>
+    <string name="settings_group_network">Network</string>
+    <string name="settings_group_clipboard">Clipboard</string>
+    <string name="settings_group_cocoon_sync">Cocoon sync</string>
+    <string name="settings_group_general">General</string>
+    <string name="settings_group_help">Help</string>
+    <string name="settings_group_diagnostics">Diagnostics</string>
+    <string name="settings_group_updates">Updates</string>
+    <!-- A text setting's value on the right of its row while it is empty. -->
+    <string name="settings_value_not_set">Not set</string>
+    <!-- Spoken for the icon on a row that opens a web page. -->
+    <string name="settings_opens_in_browser">Opens in the browser</string>
+    <!-- Spoken for the dot on a row whose value differs from its default. -->
+    <string name="settings_changed">Changed from the default</string>
+
+    <!-- Screens T8: the Settings section, header, pinned card, chips and search. -->
+    <!-- The search field at rest; the count is of the settings this device shows. -->
+    <string name="settings_search_hint">Search %1$d settings and help</string>
+    <string name="settings_search_hint_wide">Search %1$d settings and help, try “rumble” or “HDR”</string>
+    <string name="settings_search_field_hint">Search settings</string>
+    <string name="settings_search_back">Leave search</string>
+    <string name="settings_search_clear">Clear</string>
+    <!-- The pinned card. The profile is a settings profile, a named set of overrides. -->
+    <string name="settings_pin_profile">Profile</string>
+    <string name="settings_profile_none">No profile</string>
+    <string name="settings_profile_subtitle">Settings profile · %1$d changed</string>
+    <string name="settings_profile_switch">Switch</string>
+    <string name="settings_profile_manage">Manage profiles…</string>
+    <string name="settings_pin_resolution">Resolution</string>
+    <string name="settings_pin_resolution_short">Res</string>
+    <string name="settings_pin_fps">FPS</string>
+    <string name="settings_pin_bitrate">Bitrate</string>
+    <string name="settings_pin_bitrate_short">Mbps</string>
+    <string name="settings_pin_codec">Codec</string>
+    <string name="settings_pin_hdr">HDR</string>
+    <!-- Beside a pinned value the active profile sets in place of the stored one. -->
+    <string name="settings_pin_profile_tag">profile</string>
+    <!-- A switch's state where the switch is not drawn (the pinned card, a reset's default). -->
+    <string name="settings_value_on">On</string>
+    <string name="settings_value_off">Off</string>
+    <!-- The chips: the card's own, the changed count, and the filters while searching. -->
+    <string name="settings_chip_pinned">Pinned</string>
+    <string name="settings_changed_count">%1$d changed</string>
+    <string name="settings_filter_all">All</string>
+    <string name="settings_filter_changed">Changed</string>
+    <string name="settings_filter_count">%1$s %2$d</string>
+    <!-- The sticky label: where the row in focus is in its section, "FRAME PACING · 8 OF 34"
+         beside "VIDEO" (upper-cased by the label). -->
+    <string name="settings_sticky_place">%1$s · %2$d of %3$d</string>
+    <string name="settings_sticky_place_plain">%1$d of %2$d</string>
+    <!-- Search results. -->
+    <string name="settings_also_matches">Also showing matches for %1$s</string>
+    <string name="settings_breadcrumb">%1$s › %2$s</string>
+    <string name="settings_result_needs">%1$s · Needs %2$s</string>
+    <string name="settings_no_match">No settings match “%1$s”</string>
+    <string name="settings_search_help">Search help instead</string>
+    <string name="settings_nothing_changed">Everything is at its default</string>
+    <!-- X or a long-press on a row. No single press resets a value. -->
+    <string name="settings_row_reset">Reset to default (%1$s)</string>
+    <string name="settings_row_pin">Pin to top</string>
+    <string name="settings_row_unpin">Unpin</string>
+    <string name="settings_pins_full">Up to %1$d settings can be pinned</string>
+    <!-- A typed value with its unit ("20 Mbps"), and the units typed settings are entered in. -->
+    <string name="settings_value_with_unit">%1$s %2$s</string>
+    <string name="settings_unit_hz">Hz</string>
+    <!-- The metered bitrate at 0, which streams at a quarter of the video bitrate. -->
+    <string name="settings_metered_bitrate_auto">¼ of video bitrate</string>
+    <!-- The codec as the pinned card names it, short. -->
+    <string name="settings_codec_auto">Auto</string>
+    <string name="settings_codec_av1">AV1</string>
+    <string name="settings_codec_hevc">HEVC</string>
+    <string name="settings_codec_h264">H.264</string>
+
+    <!-- Screens T9: Settings on the Thor bottom screen, the choices. -->
+    <!-- The caption over a list setting's choices: "VIDEO · CHOICES" (drawn in caps). -->
+    <string name="settings_choices_choices">Choices</string>
+    <!-- The caption over a setting: its section, then "Choices" or its subgroup. -->
+    <string name="settings_choices_label">%1$s · %2$s</string>
+    <!-- After the description of the entry a reset would put back. -->
+    <string name="settings_choice_default_after">%1$s Default.</string>
+    <!-- The description of the default entry when it has no other. -->
+    <string name="settings_choice_default">Default</string>
+    <string name="settings_choices_default">Default: %1$s</string>
+    <!-- A slider's range: "0.5 Mbps to 800.0 Mbps". -->
+    <string name="settings_choices_range">%1$s to %2$s</string>
+    <!-- A disabled setting, with the title of the one it waits for. -->
+    <string name="settings_choices_needs">Needs %1$s</string>
+    <string name="settings_choices_opens">A opens it</string>
+    <string name="settings_choices_opens_browser">A opens it in the browser</string>
+    <string name="settings_choices_decrease">Decrease</string>
+    <string name="settings_choices_increase">Increase</string>
+    <!-- The panel's gamepad hints. -->
+    <string name="settings_choices_hint_change">Change on top</string>
+    <string name="settings_choices_hint_open">Open</string>
+    <string name="settings_choices_hint_menu">Reset or pin</string>
+    <string name="settings_choices_hint_search">Search</string>
+    <string name="settings_choices_hint_touch_list">or touch a choice</string>
+    <string name="settings_choices_hint_touch_switch">or touch the switch</string>
+    <string name="settings_choices_hint_touch_seek">or touch − or +</string>
+    <!-- The panel while focus is in the Settings header. -->
+    <string name="settings_pinned_page_title">Pinned settings</string>
+    <string name="settings_pinned_page_profile">Profile: %1$s</string>
+    <string name="settings_pinned_page_hint_touch">or touch one to go to it</string>
+    <!--
+        What each entry of a list setting does, shown under it on the companion panel. Named
+        settings_choices_<preference key>, one item per entry in the order of the XML's
+        android:entries (SettingsChoiceHints).
+    -->
+    <string-array name="settings_choices_frame_pacing">
+        <item>Newest experimental mode. Try it if a game judders.</item>
+        <item>The first experimental mode.</item>
+        <item>Shows each frame as soon as it arrives.</item>
+        <item>Waits for the screen refresh. Smoother, a little slower.</item>
+        <item>Balanced, and the PC caps its frame rate to match.</item>
+        <item>Never drops a frame. May add a lot of latency.</item>
+    </string-array>
+
+    <!-- Screens P1: host facts and the PC actions sheet -->
+    <!-- Which of a PC's addresses answered: the "Connection" fact. -->
+    <string name="pcs_connection_local">Local</string>
+    <string name="pcs_connection_manual">Manual</string>
+    <string name="pcs_connection_ipv6">IPv6</string>
+    <string name="pcs_connection_remote">Remote</string>
+    <!-- The games the Library lists for a PC, in the actions sheet's header. -->
+    <plurals name="pcs_game_count">
+        <item quantity="one">%d game</item>
+        <item quantity="other">%d games</item>
+    </plurals>
+
+    <!-- Screens P2: the PCs grid -->
+    <!-- Beside the PCs title: how many PCs are saved, and how many of them are online and paired. -->
+    <string name="pcs_subtitle">%1$d saved · %2$d online</string>
+    <!-- Under the PCs grid, while the network is searched for more. -->
+    <string name="pcs_looking">Looking for PCs on this network…</string>
+    <!-- A PC tile's overflow button, spoken. -->
+    <string name="pcs_more_for">More for %1$s</string>
+    <!-- The PCs grid's gamepad hints: what A and Y do on the focused tile. -->
+    <string name="pcs_hint_library">Library</string>
+    <string name="pcs_hint_actions">Actions</string>
+
+    <!-- Screens P3: the focused PC on the Thor bottom screen -->
+    <!-- The facts grid's labels, under each value. -->
+    <string name="pcs_fact_address">Address</string>
+    <string name="pcs_fact_connection">Connection</string>
+    <string name="pcs_fact_games">Games</string>
+    <!-- The running card's second button: quits the game the PC is in. -->
+    <string name="pcs_running_quit">Quit</string>
+    <!-- The PCs grid's gamepad hints with the bottom screen on: Y takes the d-pad down there;
+         then A and B, while it is there. -->
+    <string name="pcs_hint_actions_below">Actions below</string>
+    <string name="pcs_hint_select">Select</string>
+    <string name="pcs_hint_back">Back</string>
+
+    <!-- UI-C r1: Library and PCs -->
+    <!-- The Library hero's tag, over the running game's title: the PC it runs on. -->
+    <string name="library_running_on">Running on %1$s</string>
 </resources>

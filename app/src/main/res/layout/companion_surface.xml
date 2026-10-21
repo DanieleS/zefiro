@@ -1,15 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    The companion surface. Exactly one of the two children is visible: the app name while idle,
-    the stats dashboard while streaming.
+    The companion surface. Exactly one of its surfaces is visible at a time: the browsing
+    surface (or, with nothing to browse, the app name), or, while streaming, a game's telemetry
+    view or the stats, over the panel's strip.
+
+    The window never takes key focus (see CompanionPresentation), so every control drawn here
+    is a touch target, at 48dp, and none of them is focusable.
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/surface_deep">
 
-    <!-- The spotlighted game's background/hero art, when the host has one. Behind everything;
-         a scrim keeps the text on top of it legible. Both are toggled from code. -->
+    <!-- The browsed game's background/hero art, or the art of the game a browsed host is
+         running. Behind everything; a scrim keeps the text on top of it legible. Both are
+         toggled from code. -->
     <ImageView
         android:id="@+id/companionBackdrop"
         android:layout_width="match_parent"
@@ -22,384 +27,575 @@
         android:id="@+id/companionBackdropScrim"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@drawable/coverflow_scrim"
+        android:background="@drawable/backdrop_scrim"
         android:visibility="gone" />
 
     <!--
-        Idle surface. Shows the game currently spotlighted in the library: its name, a meta line
-        (year · genres · score) and a description. With no game selected it falls back to the app
-        name, so it is never empty.
+        Browsing surface, after the approved Shelves and See all mocks' bottom screen: what the
+        main screen is on, read from the top left. For a game, a "Focused" label, its name, a
+        meta line (year · genres · score, or when it was last played without metadata) and its
+        description, then Play (or Resume and Quit game while it runs) at the foot, or under the
+        meta line when there is no description; for a host, its name and state. With nothing to show it
+        falls back to the app name, centred, so it is never empty. The hosts row sits at the
+        bottom of it all while browsing, or right under Play when there is no description
+        (CompanionPresentation sizes the column to what it holds then).
     -->
     <LinearLayout
         android:id="@+id/companionIdle"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:padding="28dp">
+        android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/companionIdleTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+        <!-- Its gravity is set from code: top-start over a game or host, centred when idle. -->
+        <LinearLayout
+            android:id="@+id/companionIdleColumn"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="vertical"
             android:gravity="center"
-            android:maxWidth="720dp"
-            android:maxLines="2"
-            android:ellipsize="end"
-            android:text="@string/app_label"
-            android:textColor="@color/content_primary"
-            android:textSize="30sp"
-            android:letterSpacing="0.04"
-            android:fontFamily="sans-serif-light" />
+            android:paddingStart="@dimen/companion_padding"
+            android:paddingTop="@dimen/companion_padding"
+            android:paddingEnd="@dimen/companion_padding"
+            android:paddingBottom="16dp">
 
-        <TextView
-            android:id="@+id/companionIdleMeta"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:gravity="center"
-            android:maxWidth="720dp"
-            android:maxLines="2"
-            android:ellipsize="end"
-            android:textColor="@color/content_muted"
-            android:textSize="13sp"
-            android:letterSpacing="0.12"
-            android:textAllCaps="true"
-            android:visibility="gone" />
+            <TextView
+                android:id="@+id/companionIdleLabel"
+                style="@style/CompanionSectionLabel"
+                android:layout_marginBottom="10dp"
+                android:text="@string/companion_focused"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/companionIdleTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:maxLines="2"
+                android:ellipsize="end"
+                android:text="@string/app_label"
+                android:textColor="@color/content_primary"
+                android:textSize="32sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/companionIdleMeta"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:maxLines="2"
+                android:ellipsize="end"
+                android:textColor="@color/content_secondary"
+                android:textSize="17sp"
+                android:visibility="gone" />
+
+            <!--
+                The description is as long as the host makes it, so it scrolls rather than
+                truncating. It takes the space the title, meta line and actions leave it, and
+                scrolls beyond that; without one, the actions follow the meta line straight on.
+                The fading edge is what tells the reader there is more below.
+            -->
+            <ScrollView
+                android:id="@+id/companionIdleDescriptionScroll"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:layout_marginTop="16dp"
+                android:scrollbars="vertical"
+                android:scrollbarThumbVertical="@color/divider"
+                android:requiresFadingEdge="vertical"
+                android:fadingEdgeLength="28dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/companionIdleDescription"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:lineSpacingMultiplier="1.3"
+                    android:textColor="@color/content_muted"
+                    android:textSize="16sp" />
+
+            </ScrollView>
+
+            <!--
+                The browsed game's actions: Play, across the column, or Resume and Quit game for
+                the one the host is running. Pills after the hero's (item_continue_hero), drawn
+                without MaterialButton because this panel is hosted on every activity, including
+                ones whose theme is not a Material one.
+            -->
+            <LinearLayout
+                android:id="@+id/companionActions"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:id="@+id/companionPlay"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:minHeight="@dimen/companion_play_height"
+                    android:background="@drawable/companion_primary_bg"
+                    android:clickable="true"
+                    android:focusable="false"
+                    android:gravity="center"
+                    android:orientation="horizontal"
+                    android:paddingStart="22dp"
+                    android:paddingEnd="26dp">
+
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_resume"
+                        android:tint="@color/on_signal" />
+
+                    <TextView
+                        android:id="@+id/companionPlayLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:ellipsize="end"
+                        android:singleLine="true"
+                        android:text="@string/companion_play"
+                        android:textColor="@color/on_signal"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.02" />
+
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/companionQuit"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:minHeight="@dimen/companion_play_height"
+                    android:background="@drawable/companion_ghost_bg"
+                    android:clickable="true"
+                    android:focusable="false"
+                    android:gravity="center"
+                    android:paddingStart="24dp"
+                    android:paddingEnd="24dp"
+                    android:singleLine="true"
+                    android:text="@string/library_quit_game"
+                    android:textColor="@color/content_primary"
+                    android:textSize="17sp"
+                    android:letterSpacing="0.02"
+                    android:visibility="gone" />
+
+            </LinearLayout>
+
+        </LinearLayout>
 
         <!--
-            The description is as long as the host makes it, so it scrolls rather than truncating.
-            Sized wrap_content inside a match_parent column, it grows only as far as the space the
-            title and meta line leave it, and scrolls beyond that. The fading edge is what tells
-            the reader there is more below.
+            The hosts row: every known PC as a compact chip (item_companion_host), the selected
+            one in the signal, then a "+" that adds a PC, under a "Hosts" label. A tap selects
+            that PC on the main screen.
+            It scrolls sideways when there are more PCs than fit, and is gone when not browsing.
         -->
-        <ScrollView
-            android:id="@+id/companionIdleDescriptionScroll"
+        <LinearLayout
+            android:id="@+id/companionHosts"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:fillViewport="true"
-            android:scrollbars="vertical"
-            android:scrollbarThumbVertical="@color/divider"
-            android:requiresFadingEdge="vertical"
-            android:fadingEdgeLength="28dp"
+            android:orientation="vertical"
+            android:paddingBottom="@dimen/companion_padding"
             android:visibility="gone">
 
             <TextView
-                android:id="@+id/companionIdleDescription"
+                style="@style/CompanionSectionLabel"
+                android:layout_marginStart="@dimen/companion_padding"
+                android:layout_marginBottom="10dp"
+                android:text="@string/companion_hosts" />
+
+            <HorizontalScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="center"
-                android:maxWidth="720dp"
-                android:lineSpacingMultiplier="1.2"
-                android:textColor="@color/content_secondary"
-                android:textSize="14sp" />
+                android:clipToPadding="false"
+                android:fillViewport="false"
+                android:paddingStart="@dimen/companion_padding"
+                android:paddingEnd="12dp"
+                android:scrollbars="none">
 
-        </ScrollView>
-
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/companionStats"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:visibility="gone"
-        android:padding="20dp">
-
-        <!-- Hero: what is being streamed, and how fast. -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:baselineAligned="false"
-            android:gravity="center_vertical">
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
+                <LinearLayout
+                    android:id="@+id/companionHostItems"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/companion_label_stream"
-                    android:textColor="@color/content_muted"
-                    android:textSize="10sp"
-                    android:letterSpacing="0.16"
-                    android:textAllCaps="true" />
+                    android:orientation="horizontal" />
 
-                <TextView
-                    android:id="@+id/companionResolution"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:textColor="@color/content_primary"
-                    android:textSize="20sp"
-                    android:fontFamily="sans-serif-medium" />
-            </LinearLayout>
+            </HorizontalScrollView>
 
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="bottom">
-
-                <TextView
-                    android:id="@+id/companionFps"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/signal"
-                    android:textSize="44sp"
-                    android:fontFamily="sans-serif-light"
-                    android:includeFontPadding="false" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:layout_marginBottom="4dp"
-                    android:text="@string/companion_label_fps"
-                    android:textColor="@color/content_muted"
-                    android:textSize="11sp"
-                    android:letterSpacing="0.16"
-                    android:textAllCaps="true"
-                    android:includeFontPadding="false" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginTop="16dp"
-            android:layout_marginBottom="16dp"
-            android:background="@color/divider" />
-
-        <!-- The four numbers worth watching mid-game. -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:baselineAligned="false">
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    style="@style/CompanionTileLabel"
-                    android:text="@string/companion_label_latency" />
-
-                <TextView
-                    android:id="@+id/companionLatency"
-                    style="@style/CompanionTileValue" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    style="@style/CompanionTileLabel"
-                    android:text="@string/companion_label_decode" />
-
-                <TextView
-                    android:id="@+id/companionDecodeTime"
-                    style="@style/CompanionTileValue" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:orientation="horizontal"
-            android:baselineAligned="false">
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    style="@style/CompanionTileLabel"
-                    android:text="@string/companion_label_loss" />
-
-                <TextView
-                    android:id="@+id/companionLoss"
-                    style="@style/CompanionTileValue" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    style="@style/CompanionTileLabel"
-                    android:text="@string/companion_label_bandwidth" />
-
-                <TextView
-                    android:id="@+id/companionBandwidth"
-                    style="@style/CompanionTileValue" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginTop="16dp"
-            android:layout_marginBottom="14dp"
-            android:background="@color/divider" />
-
-        <!-- Detail, for when something above looks wrong. -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <TextView
-                style="@style/CompanionDetailLabel"
-                android:text="@string/companion_label_frames" />
-
-            <TextView
-                android:id="@+id/companionFrames"
-                style="@style/CompanionDetailValue" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/companionHostRow"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:orientation="horizontal">
-
-            <TextView
-                style="@style/CompanionDetailLabel"
-                android:text="@string/companion_label_host" />
-
-            <TextView
-                android:id="@+id/companionHostLatency"
-                style="@style/CompanionDetailValue" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:orientation="horizontal">
-
-            <TextView
-                style="@style/CompanionDetailLabel"
-                android:text="@string/companion_label_decoder" />
-
-            <TextView
-                android:id="@+id/companionDecoder"
-                style="@style/CompanionDetailValue"
-                android:ellipsize="end"
-                android:maxLines="1" />
         </LinearLayout>
 
     </LinearLayout>
 
     <!--
-        A game's telemetry view, and beneath it a strip the panel keeps for itself. Sits above the
-        stats because when a game has a view, that view is what the panel is for; the stats are
-        what it falls back to. Shown only while a view is on screen.
+        The streaming surface, after the approved StreamTelemetry mock: the game's telemetry view
+        or the stats above, and under them a strip the panel keeps for itself. The top screen
+        shows only the game and its HUD; everything else about the stream lives down here.
 
-        The strip is what keeps the menu button off the view. A view may be interactive, and it is
+        The strip is what keeps the controls off the view. A view may be interactive, and it is
         written without knowing where the panel puts its controls, so the only placement that holds
-        for every view is one the view never covers: the WebView gets the space above the strip and
-        nothing else. The strip carries a quiet line of stream stats so it is not dead space.
+        for every view is one the view never covers: the view gets the space above the strip and
+        nothing else. A game without a view gets the same strip under its stats, so Menu is in the
+        same place for every game.
     -->
     <LinearLayout
-        android:id="@+id/companionTelemetry"
+        android:id="@+id/companionStream"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
         android:visibility="gone">
 
-        <!-- Empty unless a view is on screen: the WebView is created only when one is, since most
-             surfaces never need it. Its content is a file installed on this device, rendered with
-             no origin, no file access and no network - see CompanionPresentation. -->
         <FrameLayout
-            android:id="@+id/companionTelemetryContainer"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1" />
+            android:layout_weight="1">
 
+            <!-- Empty unless a view is on screen: the WebView is created only when one is, since
+                 most surfaces never need it. Its content is a file installed on this device,
+                 rendered with no origin, no file access and no network - see
+                 CompanionPresentation. -->
+            <FrameLayout
+                android:id="@+id/companionTelemetryContainer"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="gone" />
+
+            <!--
+                The stats: the game over "PC · play time", the codec and its HDR state beside,
+                then the tiles. Hung from the top of the room above the strip, as the mock draws
+                it, so the grid starts where the eye does. The tiles are listed flat here and laid
+                out in rows in code (CompanionPresentation#layoutStatTiles): Host and Device
+                show only while something measures them, and the rows are re-cut so the grid is
+                full, three or four across, never a gap where a tile went.
+            -->
+            <LinearLayout
+                android:id="@+id/companionStats"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="top"
+                android:orientation="vertical"
+                android:paddingStart="@dimen/companion_stats_padding"
+                android:paddingTop="@dimen/companion_stats_padding"
+                android:paddingEnd="@dimen/companion_stats_padding"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:id="@+id/companionStatsHeader"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="10dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/companionStatsTitle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="end"
+                            android:singleLine="true"
+                            android:textColor="@color/content_primary"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/companionStatsSubtitle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:ellipsize="end"
+                            android:singleLine="true"
+                            android:textColor="@color/content_muted"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/companionStatsCodec"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:fontFamily="monospace"
+                        android:singleLine="true"
+                        android:textColor="@color/content_muted"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/companionStatsGrid"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:id="@+id/companionStatResolutionTile"
+                        style="@style/CompanionStatTile">
+                        <TextView
+                            android:id="@+id/companionStatResolution"
+                            style="@style/CompanionStatValue" />
+                        <TextView
+                            style="@style/CompanionStatLabel"
+                            android:text="@string/companion_stat_resolution" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/companionStatFpsTile"
+                        style="@style/CompanionStatTile">
+                        <TextView
+                            android:id="@+id/companionStatFps"
+                            style="@style/CompanionStatValue" />
+                        <TextView
+                            style="@style/CompanionStatLabel"
+                            android:text="@string/companion_stat_fps" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/companionStatLatencyTile"
+                        style="@style/CompanionStatTile">
+                        <TextView
+                            android:id="@+id/companionStatLatency"
+                            style="@style/CompanionStatValue" />
+                        <TextView
+                            style="@style/CompanionStatLabel"
+                            android:text="@string/companion_label_latency" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/companionStatDecodeTile"
+                        style="@style/CompanionStatTile">
+                        <TextView
+                            android:id="@+id/companionStatDecode"
+                            style="@style/CompanionStatValue" />
+                        <TextView
+                            style="@style/CompanionStatLabel"
+                            android:text="@string/companion_label_decode" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/companionStatHostTile"
+                        style="@style/CompanionStatTile">
+                        <TextView
+                            android:id="@+id/companionStatHost"
+                            style="@style/CompanionStatValue" />
+                        <TextView
+                            style="@style/CompanionStatLabel"
+                            android:text="@string/companion_stat_host" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/companionStatLossTile"
+                        style="@style/CompanionStatTile">
+                        <TextView
+                            android:id="@+id/companionStatLoss"
+                            style="@style/CompanionStatValue" />
+                        <TextView
+                            style="@style/CompanionStatLabel"
+                            android:text="@string/companion_label_loss" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/companionStatBitrateTile"
+                        style="@style/CompanionStatTile">
+                        <TextView
+                            android:id="@+id/companionStatBitrate"
+                            style="@style/CompanionStatValue" />
+                        <TextView
+                            style="@style/CompanionStatLabel"
+                            android:text="@string/companion_stat_bitrate" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/companionStatDroppedTile"
+                        style="@style/CompanionStatTile">
+                        <TextView
+                            android:id="@+id/companionStatDropped"
+                            style="@style/CompanionStatValue" />
+                        <TextView
+                            style="@style/CompanionStatLabel"
+                            android:text="@string/companion_stat_dropped" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/companionStatDeviceTile"
+                        style="@style/CompanionStatTile">
+                        <TextView
+                            android:id="@+id/companionStatDevice"
+                            style="@style/CompanionStatValue" />
+                        <TextView
+                            style="@style/CompanionStatLabel"
+                            android:text="@string/companion_stat_device" />
+                    </LinearLayout>
+
+                </LinearLayout>
+            </LinearLayout>
+
+        </FrameLayout>
+
+        <!--
+            The strip. Under a view: the stats button (health dot, "120 FPS · 8 ms"), lit while
+            the stats are showing in the view's place, then "Game" to go back to the view while
+            they are; under the stats of a game with no view: the dot and the session's length,
+            since there is nothing to swap. Menu at the end either way. Every control is a 48dp
+            touch target drawn as a smaller pill (@drawable/companion_strip_button_bg).
+        -->
         <LinearLayout
+            android:id="@+id/companionStrip"
             android:layout_width="match_parent"
-            android:layout_height="44dp"
+            android:layout_height="@dimen/companion_strip_height"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingStart="20dp"
-            android:paddingEnd="10dp">
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp">
+
+            <LinearLayout
+                android:id="@+id/companionStatButton"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/action_size"
+                android:background="@drawable/companion_strip_button_bg"
+                android:clickable="true"
+                android:focusable="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp">
+
+                <View
+                    android:id="@+id/companionStatDot"
+                    android:layout_width="@dimen/pc_status_dot"
+                    android:layout_height="@dimen/pc_status_dot"
+                    android:background="@drawable/pc_status_dot"
+                    android:importantForAccessibility="no" />
+
+                <TextView
+                    android:id="@+id/companionStatText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:duplicateParentState="true"
+                    android:fontFamily="monospace"
+                    android:singleLine="true"
+                    android:textColor="@color/controls_tile_content"
+                    android:textSize="13sp" />
+
+                <ImageView
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:layout_marginStart="8dp"
+                    android:duplicateParentState="true"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_stream_overlay"
+                    android:tint="@color/controls_tile_content" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/companionSession"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/action_size"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:visibility="gone">
+
+                <View
+                    android:id="@+id/companionSessionDot"
+                    android:layout_width="@dimen/pc_status_dot"
+                    android:layout_height="@dimen/pc_status_dot"
+                    android:background="@drawable/pc_status_dot"
+                    android:importantForAccessibility="no" />
+
+                <TextView
+                    android:id="@+id/companionSessionText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:fontFamily="monospace"
+                    android:singleLine="true"
+                    android:textColor="@color/content_secondary"
+                    android:textSize="13sp" />
+            </LinearLayout>
 
             <TextView
-                android:id="@+id/companionTelemetryStats"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:background="?android:attr/selectableItemBackground"
-                android:gravity="center_vertical"
-                android:layout_weight="1"
-                android:ellipsize="end"
-                android:fontFamily="monospace"
-                android:includeFontPadding="false"
-                android:maxLines="1"
-                android:textColor="@color/content_faint"
-                android:textSize="12sp" />
+                android:id="@+id/companionGameButton"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/action_size"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/companion_strip_button_bg"
+                android:clickable="true"
+                android:focusable="false"
+                android:gravity="center"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:singleLine="true"
+                android:text="@string/companion_strip_game"
+                android:textColor="@color/content_secondary"
+                android:textSize="13sp"
+                android:visibility="gone" />
 
-            <!-- Just the glyph, in the stats' own grey: a floating disc belongs over content, and
-                 here there is none to float over. The touch target stays 40dp; with the 10dp
-                 end padding the glyph ends 20dp from the edge, mirroring the stats' start. -->
-            <ImageButton
-                android:id="@+id/companionTelemetryMenuButton"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <LinearLayout
+                android:id="@+id/companionMenuButton"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/action_size"
+                android:background="@drawable/companion_strip_button_bg"
+                android:clickable="true"
                 android:contentDescription="@string/menu_button"
-                android:padding="10dp"
-                android:scaleType="fitCenter"
-                android:src="@drawable/ic_menu"
-                android:tint="@color/content_faint" />
+                android:focusable="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="14dp"
+                android:paddingEnd="16dp">
+
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_expand_less"
+                    android:tint="@color/content_secondary" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:importantForAccessibility="no"
+                    android:singleLine="true"
+                    android:text="@string/menu_button"
+                    android:textColor="@color/content_secondary"
+                    android:textSize="13sp" />
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Opens the in-game menu here on the panel. Only out while a game is streaming; the
-         idle library surface has no menu to raise. Kept at the bottom so it clears the stats
-         header, whose FPS readout owns the top-right corner. -->
-    <ImageButton
-        android:id="@+id/companionMenuButton"
-        android:layout_width="44dp"
-        android:layout_height="44dp"
-        android:layout_gravity="bottom|end"
-        android:layout_margin="20dp"
-        android:background="@drawable/floating_menu_button"
-        android:contentDescription="@string/menu_button"
-        android:padding="9dp"
-        android:scaleType="fitCenter"
-        android:src="@drawable/ic_menu"
-        android:visibility="gone" />
-
     <!-- The keyboard raised when the host reports a focused text field. Above the panel's
-         content, below the menu so the menu still opens over it. Empty until it is needed. -->
+         content, strip included, and below the controls sheet so the sheet still opens over it
+         (the gamepad's menu combo reaches it while the keyboard covers Menu). Empty until it is
+         needed. -->
     <FrameLayout
         android:id="@+id/companionKeyboard"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
     <!--
-        The in-game menu, drawn here so the game on the main screen stays whole while it is
-        open. The rows are navigated by the gamepad, routed over from the Game activity, and
-        the selected one is marked activated since this window holds no input focus of its own.
+        The controls sheet, after the approved StreamTelemetry mock: it rises from the bottom over
+        whatever is under it, view or stats, behind a scrim whose tap closes it, and gives the
+        surface back when closed. Drawn here so the game on the main screen stays whole.
+
+        The rows are walked by the gamepad, routed over from the Game activity: this window holds
+        no input focus of its own, so the entry the pad is on is marked selected rather than
+        focused, and wears the same ring (@drawable/companion_sheet_tile_bg and its siblings).
+        Built in code for each page: the tile rows and any list rows in the scroll, the session's
+        two ends under it, always in sight.
     -->
     <FrameLayout
         android:id="@+id/companionMenu"
@@ -412,34 +608,57 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:layout_marginStart="32dp"
-            android:layout_marginEnd="32dp"
-            android:background="@drawable/menu_sheet_bg"
+            android:layout_gravity="bottom"
+            android:background="@drawable/companion_sheet_bg"
+            android:clickable="true"
             android:orientation="vertical"
-            android:paddingStart="@dimen/menu_sheet_padding"
-            android:paddingEnd="@dimen/menu_sheet_padding"
-            android:paddingTop="16dp"
-            android:paddingBottom="@dimen/menu_sheet_padding">
+            android:paddingStart="@dimen/companion_sheet_padding"
+            android:paddingTop="8dp"
+            android:paddingEnd="@dimen/companion_sheet_padding"
+            android:paddingBottom="@dimen/companion_sheet_padding">
 
-            <TextView
-                android:id="@+id/companionMenuTitle"
+            <View
+                android:layout_width="32dp"
+                android:layout_height="4dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginBottom="10dp"
+                android:background="@drawable/companion_sheet_grip"
+                android:importantForAccessibility="no" />
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:layout_marginEnd="16dp"
-                android:layout_marginBottom="12dp"
-                android:ellipsize="end"
-                android:letterSpacing="0.16"
-                android:singleLine="true"
-                android:textAllCaps="true"
-                android:textColor="@color/content_muted"
-                android:textSize="13sp" />
+                android:layout_marginBottom="10dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/companionMenuTitle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:singleLine="true"
+                    android:textColor="@color/content_primary"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/companionMenuStats"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:fontFamily="monospace"
+                    android:singleLine="true"
+                    android:textColor="@color/content_secondary"
+                    android:textSize="12sp" />
+            </LinearLayout>
 
             <com.limelight.ui.MaxHeightScrollView
                 android:id="@+id/companionMenuScroll"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:overScrollMode="never"
                 android:scrollbars="none">
 
                 <LinearLayout
@@ -450,8 +669,25 @@
 
             </com.limelight.ui.MaxHeightScrollView>
 
+            <LinearLayout
+                android:id="@+id/companionMenuDanger"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:orientation="horizontal"
+                android:visibility="gone" />
+
         </LinearLayout>
 
     </FrameLayout>
+
+    <!-- A screen's lower half (a game's achievements, the Stats remote), drawn over all of the
+         browsing surface while the main screen publishes one. Last, so it covers the rest. -->
+    <FrameLayout
+        android:id="@+id/companionPage"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/surface_deep"
+        android:visibility="gone" />
 
 </FrameLayout>

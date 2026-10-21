@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The hero (library/HeroAdapter): the game the host is running, to go back to. After the
+    approved Shelves mock: a 12dp card with the game's cover on the left, then a "Running on
+    <PC>" tag in the signal, the title, the game's meta line when the host has metadata, and two
+    pills at the foot, Resume filled and Quit game quiet.
+
+    The card is as tall as its cover, which HeroAdapter sizes to a third of the window's height
+    at most, so a shelf always shows under it. Its ground is the game's background art when the
+    host has one, its cover when it has not, and the plain card when there is neither; the
+    backdrop fills the card without sizing it (BackdropImageView), and the scrim keeps the text
+    readable on whichever it is. The card is not focusable: the two buttons are the stops, at
+    48dp each.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingStart="@dimen/section_gutter"
+    android:paddingEnd="@dimen/section_gutter"
+    android:paddingBottom="@dimen/shelf_spacing">
+
+    <FrameLayout
+        android:id="@+id/heroCard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/hero_card_bg">
+
+        <com.limelight.ui.BackdropImageView
+            android:id="@+id/heroBackdrop"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:importantForAccessibility="no"
+            android:scaleType="centerCrop"
+            android:visibility="gone" />
+
+        <View
+            android:id="@+id/heroScrim"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/hero_scrim"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="@dimen/hero_padding">
+
+            <com.limelight.ui.GameTileView
+                android:id="@+id/heroCover"
+                android:layout_width="@dimen/hero_cover_width"
+                android:layout_height="wrap_content"
+                android:clickable="false"
+                android:focusable="false"
+                android:importantForAccessibility="no" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_marginStart="@dimen/hero_gap"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/heroTag"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:letterSpacing="0.12"
+                    android:singleLine="true"
+                    android:text="@string/library_continue"
+                    android:textAllCaps="true"
+                    android:textColor="@color/signal"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/heroTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:ellipsize="end"
+                    android:maxLines="2"
+                    android:textColor="@color/content_primary"
+                    android:textSize="@dimen/hero_title_size"
+                    android:textStyle="bold"
+                    tools:text="Hades II" />
+
+                <!-- "2025 · Roguelike · 88%": gone unless the host has metadata for the game. -->
+                <TextView
+                    android:id="@+id/heroMeta"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:singleLine="true"
+                    android:textColor="@color/content_secondary"
+                    android:textSize="13sp"
+                    android:visibility="gone"
+                    tools:text="2025 · Roguelike · 88%" />
+
+                <Space
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:minHeight="8dp" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/heroResume"
+                        style="@style/Widget.Zefiro.PrimaryButton"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:paddingStart="18dp"
+                        android:paddingEnd="20dp"
+                        android:text="@string/library_resume"
+                        app:icon="@drawable/ic_resume"
+                        app:iconPadding="6dp"
+                        app:iconSize="16dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/heroQuit"
+                        style="@style/Widget.Zefiro.GhostButton"
+                        android:layout_marginStart="8dp"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:text="@string/library_quit_game" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </FrameLayout>
+
+</FrameLayout>

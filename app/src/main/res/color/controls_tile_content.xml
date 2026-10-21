@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A stream-controls tile's icon and label: the signal while the toggle is on (the tile is
+    then activated, on the signal's container), the quiet secondary otherwise, as on the
+    approved Stream mock.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:color="@color/signal" android:state_activated="true" />
+    <item android:color="@color/content_secondary" />
+</selector>

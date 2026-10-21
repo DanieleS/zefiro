@@ -183,8 +183,9 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     private PerfOverlayListener perfListener;
 
     /**
-     * Whether anyone is displaying the stats. Seeded from the perf overlay preference, but the
-     * companion surface asks for them on its own account, and the in-game menu toggles them.
+     * Whether anyone is displaying the stats. Seeded from the perf overlay preference, but Game
+     * settles it right after construction: the companion panel wants them on its own account,
+     * and the in-game menu toggles the HUD.
      */
     private boolean perfStatsRequested;
     /** Fed each second's loss, round trip and decode time while the bitrate adapts; null otherwise. */
@@ -233,6 +234,9 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     private String minDecodeTimeFullLog = "";
 
     private long lastNetDataNum;
+    // When lastNetDataNum was read, so the traffic is divided by the time it took: a window
+    // flips on a frame's arrival, and a still screen sends few, stretching one over seconds.
+    private long lastNetDataUptimeMs;
     private final LinkedBlockingQueue<Integer> outputBufferQueue = new LinkedBlockingQueue<>();
     private static final int OUTPUT_BUFFER_QUEUE_LIMIT = 2;
     private long lastRenderedFrameTimeNanos;
@@ -485,7 +489,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         }
     }
 
-    // The overlay's upscaling lines, or an empty string when the setting is off
+    // The perf log's upscaling lines, or an empty string when the setting is off
     private String upscalingStats() {
         UpscalingPolicy policy = upscalingPolicy;
         if (prefs.upscalingMode == UpscalingPolicy.Mode.OFF || policy == null) return "";
@@ -1930,97 +1934,25 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     }
 
     /**
-     * Formats one stats window for the perf overlay and hands it to the listener, and keeps the
-     * best window for the perf log. Shared by the MediaCodec path and the PyroWave one, which
-     * measure the same things in different places.
+     * Hands one stats window to the listener, and keeps the best window for the perf log. Shared
+     * by the MediaCodec path and the PyroWave one, which measure the same things in different
+     * places.
+     *
+     * The listener gets the numbers alone: every surface that shows them (the stream HUD, the
+     * companion panel) lays them out itself. Only the perf log still wants them as prose, so the
+     * text is built only while that setting is on.
      */
     private void publishPerfStats(String decoder, float totalFps, float receivedFps, float renderedFps,
                                   float netDropsPercent, float decodeTimeMs, boolean hasHostLatency,
                                   float minHostLatencyMs, float maxHostLatencyMs, float avgHostLatencyMs) {
-                long rttInfo = MoonBridge.getEstimatedRttInfo();
+        long rttInfo = MoonBridge.getEstimatedRttInfo();
 
-        // Sampled once per window regardless of which overlay is active: reading it twice
-        // would advance lastNetDataNum and halve the reported rate.
+        // Sampled once per window whoever reads it: reading it twice would advance
+        // lastNetDataNum and halve the reported rate.
         float bandwidthKbps = sampleBandwidthKbps();
 
-        StringBuilder sb = new StringBuilder();
-        if(prefs.enablePerfOverlayLite){
-            if(bandwidthKbps != PerfStats.BANDWIDTH_UNAVAILABLE){
-                sb.append(context.getString(R.string.perf_overlay_lite_bandwidth) + ": ");
-                if(bandwidthKbps>=1000){
-                    sb.append(String.format("%.2f", bandwidthKbps/1024f) +"M/s\t ");
-                }else{
-                    sb.append(String.format("%.2f", bandwidthKbps) +"K/s\t ");
-                }
-            }
-//                    sb.append("分辨率：");
-//                    sb.append(initialWidth + "x" + initialHeight);
-            sb.append(context.getString(R.string.perf_overlay_lite_network_decoding_delay) + ": ");
-            sb.append(context.getString(R.string.perf_overlay_lite_net,(int)(rttInfo >> 32)));
-            sb.append(" / ");
-            sb.append(context.getString(R.string.perf_overlay_lite_dectime,decodeTimeMs));
-            sb.append("\t");
-            sb.append(context.getString(R.string.perf_overlay_lite_packet_loss) + ": ");
-            sb.append(context.getString(R.string.perf_overlay_lite_netdrops,netDropsPercent));
-            sb.append("\t FPS：");
-            sb.append(context.getString(R.string.perf_overlay_lite_fps, totalFps));
-            if(Stereo3DRenderer.isActive) {
-                sb.append(" ");
-                sb.append(context.getString(R.string.perf_overlay_ai_fps));
-                sb.append(" ");
-                sb.append(Stereo3DRenderer.threeDFps);
-                sb.append(" ");
-                sb.append(context.getString(R.string.perf_overlay_ai_delegate));
-                sb.append(" ");
-                sb.append(Stereo3DRenderer.renderer);
-                sb.append(" ");
-                sb.append(context.getString(R.string.perf_overlay_drawdelay, Stereo3DRenderer.drawDelay));
-            }
-        }else{
-            if(Stereo3DRenderer.isActive) {
-                sb.append(context.getString(R.string.perf_overlay_streamdetails, initialWidth + "x" + initialHeight, totalFps));
-                sb.append('\n');
-                sb.append(" ");
-                sb.append(context.getString(R.string.perf_overlay_ai_fps));
-                sb.append(" ");
-                sb.append(Stereo3DRenderer.threeDFps);
-                sb.append(" ");
-                sb.append(context.getString(R.string.perf_overlay_ai_delegate));
-                sb.append(" ");
-                sb.append(Stereo3DRenderer.renderer);
-                sb.append(" ");
-                sb.append(context.getString(R.string.perf_overlay_drawdelay, Stereo3DRenderer.drawDelay));
-            } else {
-                // If GPU renders the frames, the render FPS is the actual drawn and visible fps for the user
-                sb.append(context.getString(R.string.perf_overlay_streamdetails, initialWidth + "x" + initialHeight, totalFps));
-            }
-            sb.append('\n');
-            sb.append(context.getString(R.string.perf_overlay_decoder, decoder)).append('\n');
-            sb.append(context.getString(R.string.perf_overlay_incomingfps, receivedFps)).append('\n');
-            sb.append(context.getString(R.string.perf_overlay_renderingfps, renderedFps)).append('\n');
-            sb.append(context.getString(R.string.perf_overlay_netdrops,
-                    netDropsPercent)).append('\n');
-            if(bandwidthKbps != PerfStats.BANDWIDTH_UNAVAILABLE){
-                sb.append(context.getString(R.string.perf_overlay_lite_bandwidth) + ": ");
-                if(bandwidthKbps>=1000){
-                    sb.append(String.format("%.2f", bandwidthKbps/1024f) +"M/s\n");
-                }else{
-                    sb.append(String.format("%.2f", bandwidthKbps) +"K/s\n");
-                }
-            }
-            sb.append(context.getString(R.string.perf_overlay_netlatency,
-                    (int)(rttInfo >> 32), (int)rttInfo)).append('\n');
-            if (hasHostLatency) {
-                sb.append(context.getString(R.string.perf_overlay_hostprocessinglatency,
-                        minHostLatencyMs, maxHostLatencyMs, avgHostLatencyMs)).append('\n');
-            }
-            sb.append(context.getString(R.string.perf_overlay_dectime, decodeTimeMs));
-            String upscaling = upscalingStats();
-            if (!upscaling.isEmpty()) sb.append('\n').append(upscaling);
-        }
-        String fullLog = sb.toString();
-        if(perfStatsRequested) {
-            perfListener.onPerfUpdate(fullLog, new PerfStats(
+        if (perfStatsRequested) {
+            perfListener.onPerfUpdate(new PerfStats(
                     initialWidth, initialHeight, decoder,
                     totalFps, receivedFps, renderedFps,
                     netDropsPercent,
@@ -2028,12 +1960,64 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                     (int)(rttInfo >> 32), (int)rttInfo, decodeTimeMs,
                     hasHostLatency, minHostLatencyMs, maxHostLatencyMs, avgHostLatencyMs));
         }
-        // Best latency is only met at requested highest fps, rest can be ignored
-        Boolean targetFpsMatched = ((int) totalFps == (int) prefs.fps);
-        if(minDecodeTime > decodeTimeMs && targetFpsMatched) {
-            minDecodeTime = decodeTimeMs;
-            minDecodeTimeFullLog = fullLog;
+
+        if (!prefs.enablePerfLogging) {
+            return;
         }
+        // Best latency is only met at requested highest fps, rest can be ignored
+        boolean targetFpsMatched = ((int) totalFps == (int) prefs.fps);
+        if (minDecodeTime > decodeTimeMs && targetFpsMatched) {
+            minDecodeTime = decodeTimeMs;
+            minDecodeTimeFullLog = formatPerfLog(decoder, totalFps, receivedFps, renderedFps,
+                    netDropsPercent, decodeTimeMs, bandwidthKbps, rttInfo, hasHostLatency,
+                    minHostLatencyMs, maxHostLatencyMs, avgHostLatencyMs);
+        }
+    }
+
+    /** One stats window as the prose the perf log stores alongside its best decode time. */
+    private String formatPerfLog(String decoder, float totalFps, float receivedFps, float renderedFps,
+                                 float netDropsPercent, float decodeTimeMs, float bandwidthKbps,
+                                 long rttInfo, boolean hasHostLatency,
+                                 float minHostLatencyMs, float maxHostLatencyMs, float avgHostLatencyMs) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(context.getString(R.string.perf_overlay_streamdetails, initialWidth + "x" + initialHeight, totalFps));
+        if (Stereo3DRenderer.isActive) {
+            sb.append('\n');
+            sb.append(" ");
+            sb.append(context.getString(R.string.perf_overlay_ai_fps));
+            sb.append(" ");
+            sb.append(Stereo3DRenderer.threeDFps);
+            sb.append(" ");
+            sb.append(context.getString(R.string.perf_overlay_ai_delegate));
+            sb.append(" ");
+            sb.append(Stereo3DRenderer.renderer);
+            sb.append(" ");
+            sb.append(context.getString(R.string.perf_overlay_drawdelay, Stereo3DRenderer.drawDelay));
+        }
+        sb.append('\n');
+        sb.append(context.getString(R.string.perf_overlay_decoder, decoder)).append('\n');
+        sb.append(context.getString(R.string.perf_overlay_incomingfps, receivedFps)).append('\n');
+        sb.append(context.getString(R.string.perf_overlay_renderingfps, renderedFps)).append('\n');
+        sb.append(context.getString(R.string.perf_overlay_netdrops,
+                netDropsPercent)).append('\n');
+        if (bandwidthKbps != PerfStats.BANDWIDTH_UNAVAILABLE) {
+            sb.append(context.getString(R.string.perf_overlay_lite_bandwidth) + ": ");
+            if (bandwidthKbps >= 1000) {
+                sb.append(String.format("%.2f", bandwidthKbps / 1024f) + "M/s\n");
+            } else {
+                sb.append(String.format("%.2f", bandwidthKbps) + "K/s\n");
+            }
+        }
+        sb.append(context.getString(R.string.perf_overlay_netlatency,
+                (int)(rttInfo >> 32), (int)rttInfo)).append('\n');
+        if (hasHostLatency) {
+            sb.append(context.getString(R.string.perf_overlay_hostprocessinglatency,
+                    minHostLatencyMs, maxHostLatencyMs, avgHostLatencyMs)).append('\n');
+        }
+        sb.append(context.getString(R.string.perf_overlay_dectime, decodeTimeMs));
+        String upscaling = upscalingStats();
+        if (!upscaling.isEmpty()) sb.append('\n').append(upscaling);
+        return sb.toString();
     }
 
     /**
@@ -2119,12 +2103,15 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         long netData = TrafficStatsHelper.getPackageRxBytes(Process.myUid())
                 + TrafficStatsHelper.getPackageTxBytes(Process.myUid());
         long previous = lastNetDataNum;
+        long previousUptimeMs = lastNetDataUptimeMs;
+        long nowMs = SystemClock.uptimeMillis();
         lastNetDataNum = netData;
+        lastNetDataUptimeMs = nowMs;
 
-        if (previous == 0) {
+        if (previous == 0 || nowMs <= previousUptimeMs) {
             return PerfStats.BANDWIDTH_UNAVAILABLE;
         }
-        return (netData - previous) / 1024f;
+        return (netData - previous) / 1024f / ((nowMs - previousUptimeMs) / 1000f);
     }
 
     @SuppressWarnings("deprecation")

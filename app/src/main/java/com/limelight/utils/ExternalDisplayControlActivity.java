@@ -249,6 +249,11 @@ public class ExternalDisplayControlActivity extends AppCompatActivity implements
 
     @Override
     protected void onDestroy() {
+        // A sheet still up goes with this activity without the menu hearing of it, and the game
+        // would keep its input from the host as if the controls were still open
+        if (gameMenu != null) {
+            gameMenu.hideMenu();
+        }
         super.onDestroy();
         instance = null;
     }

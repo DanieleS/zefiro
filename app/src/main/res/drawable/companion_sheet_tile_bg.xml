@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A tile (and Disconnect) on the companion panel's controls sheet: @drawable/controls_tile_bg,
+    with the ring on state_selected instead of state_focused. The panel's window never has focus,
+    so the entry the gamepad is on is marked selected by hand; "on" stays state_activated, so a
+    toggle that is on and under the pad shows both.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:exitFadeDuration="120">
+
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/controls_tile_corner" />
+            <solid android:color="@color/signal_wash" />
+            <stroke
+                android:width="@dimen/tile_focus_stroke"
+                android:color="@color/signal" />
+        </shape>
+    </item>
+
+    <item android:state_selected="true" android:state_activated="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/controls_tile_corner" />
+            <solid android:color="@color/signal_container" />
+            <stroke
+                android:width="@dimen/tile_focus_stroke"
+                android:color="@color/signal" />
+        </shape>
+    </item>
+
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/controls_tile_corner" />
+            <solid android:color="@color/surface" />
+            <stroke
+                android:width="@dimen/tile_focus_stroke"
+                android:color="@color/signal" />
+        </shape>
+    </item>
+
+    <item android:state_activated="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/controls_tile_corner" />
+            <solid android:color="@color/signal_container" />
+        </shape>
+    </item>
+
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/controls_tile_corner" />
+            <solid android:color="@color/surface" />
+        </shape>
+    </item>
+
+</selector>

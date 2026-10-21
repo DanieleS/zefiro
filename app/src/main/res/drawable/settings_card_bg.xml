@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Settings section's pinned card: one block of the signal's family, after the mock. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="@dimen/settings_card_corner" />
+    <solid android:color="@color/settings_card" />
+</shape>

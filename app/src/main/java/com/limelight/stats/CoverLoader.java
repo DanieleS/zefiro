@@ -12,6 +12,7 @@ import com.limelight.LimeLog;
 import com.limelight.R;
 import com.limelight.nvstream.http.NvApp;
 import com.limelight.nvstream.http.NvHTTP;
+import com.limelight.ui.TitleCardDrawable;
 import com.limelight.utils.CacheHelper;
 
 import java.io.ByteArrayOutputStream;
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 
 /**
  * Box art for the games the statistics name, by app UUID.
@@ -30,7 +32,8 @@ import java.util.concurrent.Executors;
  * <p>The statistics speak in UUIDs while the library's covers are cached by app id, so the UUIDs
  * are looked up in the app list the library cached on its last visit. The cover comes from the
  * library's own cache when it is there, and from the host otherwise — not written back, so the
- * library stays the only thing that manages that cache.
+ * library stays the only thing that manages that cache. A game without one shows its title card,
+ * as it would in the Library.
  */
 public class CoverLoader {
     private static final int MAX_WIDTH_PX = 300;
@@ -49,8 +52,16 @@ public class CoverLoader {
         this.pcUuid = pcUuid;
     }
 
-    /** Show the game's cover in {@code view}, or leave the placeholder when there is none. */
-    public void load(ImageView view, String appUuid) {
+    /**
+     * Shows the game's cover in {@code view}, or its title card when there is none.
+     *
+     * <p>The card is up, dimmed, while the cover is looked for, so a row is never blank, and it
+     * stays at full strength when the library has no such game or the host no art for it: the
+     * same {@code LOADING} then {@code NO_ART} as a Library tile. Main thread only.
+     *
+     * @param title the game's name, for the card; null leaves the card blank
+     */
+    public void load(ImageView view, String title, String appUuid) {
         final String key = appUuid == null ? "" : appUuid.toUpperCase();
         view.setTag(R.id.coverAppUuid, key);
         Bitmap cached = cache.get(key);
@@ -58,22 +69,30 @@ public class CoverLoader {
             view.setImageBitmap(cached);
             return;
         }
-        view.setImageResource(R.drawable.connection_cover_placeholder);
         if (key.isEmpty() || pcUuid == null) {
+            view.setImageDrawable(new TitleCardDrawable(context, title, false));
             return;
         }
-        executor.execute(() -> {
-            Bitmap bitmap = fetch(key);
-            if (bitmap == null) {
-                return;
-            }
-            main.post(() -> {
-                cache.put(key, bitmap);
-                if (key.equals(view.getTag(R.id.coverAppUuid))) {
+        view.setImageDrawable(new TitleCardDrawable(context, title, true));
+        try {
+            executor.execute(() -> {
+                final Bitmap bitmap = fetch(key);
+                main.post(() -> {
+                    // A view rebound to another game meanwhile shows that one, whatever this was.
+                    if (!key.equals(view.getTag(R.id.coverAppUuid))) {
+                        return;
+                    }
+                    if (bitmap == null) {
+                        view.setImageDrawable(new TitleCardDrawable(context, title, false));
+                        return;
+                    }
+                    cache.put(key, bitmap);
                     view.setImageBitmap(bitmap);
-                }
+                });
             });
-        });
+        } catch (RejectedExecutionException e) {
+            // Shut down with its screen; the card stays.
+        }
     }
 
     /** The app the library knows by this UUID, from its cached list; null when it has none. */

@@ -21,7 +21,6 @@ import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
@@ -830,36 +829,20 @@ public class NvHTTP {
      * hosts that don't serve it (or when anything goes wrong) rather than throwing.
      */
     public Map<String, AppMetadata> getAppMetadata() {
-        Map<String, AppMetadata> metadata = new HashMap<>();
-        String raw;
+        return AppMetadata.parseAll(getAppMetadataRaw());
+    }
+
+    /**
+     * The host's {@code /appmetadata} answer as it came, for a caller that keeps a copy (see
+     * {@link AppMetadata#parseAll}); null when the host does not serve it or could not be asked.
+     */
+    public String getAppMetadataRaw() {
         try {
-            raw = openHttpConnectionToString(httpClientLongConnectTimeout, getHttpsUrl(true), "appmetadata");
+            return openHttpConnectionToString(httpClientLongConnectTimeout, getHttpsUrl(true), "appmetadata");
         } catch (Exception e) {
             // Older/stock hosts don't have the endpoint; treat that as "no metadata".
-            return metadata;
+            return null;
         }
-
-        try {
-            JSONArray apps = new JSONObject(raw).optJSONArray("apps");
-            if (apps == null) {
-                return metadata;
-            }
-            for (int i = 0; i < apps.length(); i++) {
-                JSONObject app = apps.optJSONObject(i);
-                if (app == null) {
-                    continue;
-                }
-                String uuid = app.optString("uuid", "");
-                if (uuid.isEmpty()) {
-                    continue;
-                }
-                metadata.put(uuid.toUpperCase(), AppMetadata.fromJson(app));
-            }
-        } catch (Exception e) {
-            LimeLog.warning("Malformed app metadata: " + e.getMessage());
-        }
-
-        return metadata;
     }
 
     /**
@@ -1166,6 +1149,30 @@ public class NvHTTP {
         }
     }
     
+    /**
+     * Runs one of the host's session controls ({@link NvApp#isSessionControl}), such as
+     * Disconnect Monitor. The host takes them as a launch that starts no stream, so the request
+     * carries only what it checks before acting: the app and an unused input key. Vibepollo
+     * answers a control done with status 410, as Apollo does (so a stock Moonlight shows the
+     * message instead of waiting for a stream), which counts as success here.
+     *
+     * @throws HostHttpResponseException when the host refused the control
+     */
+    public void runSessionControl(NvApp control) throws IOException, XmlPullParserException {
+        String xmlStr = openHttpConnectionToString(httpClientLongConnectTimeout, getHttpsUrl(true), "launch",
+                "appid=" + control.getAppId() +
+                (control.getAppUUID() == null ? "" : ("&appuuid=" + control.getAppUUID())) +
+                "&rikey=" + bytesToHex(new byte[16]) +
+                "&rikeyid=0&localAudioPlayMode=0");
+        try {
+            getXmlString(xmlStr, "resume", false);
+        } catch (HostHttpResponseException e) {
+            if (e.getErrorCode() != 410) {
+                throw e;
+            }
+        }
+    }
+
     public boolean quitApp() throws IOException, XmlPullParserException {
         String xmlStr = openHttpConnectionToString(httpClientLongConnectNoReadTimeout, getHttpsUrl(true), "cancel");
         if (getXmlString(xmlStr, "cancel", true).equals("0")) {

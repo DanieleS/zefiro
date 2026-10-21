@@ -23,10 +23,6 @@
     </string>
     <string name="wol_fail">Fallo al enviar paquetes Wake-On-LAN</string>
     <!-- Unpair messages -->
-    <string name="unpairing">Desemparejando…</string>
-    <string name="unpair_success">Desemparejado con éxito</string>
-    <string name="unpair_fail">Error al desemparejar</string>
-    <string name="unpair_error">El dispositivo no estaba emparejado</string>
     <!-- Errors -->
     <string name="error_pc_offline">El ordenador está apagado</string>
     <string name="error_manager_not_running">El servicio "ComputerManager" no está en ejecución. Por favor, espera unos segundos o reinicia la aplicación.</string>
@@ -53,14 +49,11 @@
 \n Asegúrate de que Sunshine se está ejecutando en el PC anfitrión o de que GameStream está activado en los ajustes de GeForce Experience SHIELD.</string>
     <string name="yes">Si</string>
     <string name="no">No</string>
-    <string name="lost_connection">Conexión perdida</string>
     <!-- AppList activity -->
     <string name="applist_menu_resume">Reanudar sesión</string>
     <string name="applist_menu_quit">Cerrar sesión</string>
     <string name="applist_menu_quit_and_start">Cerrar juego actual e iniciar</string>
     <string name="applist_menu_cancel">Cancelar</string>
-    <string name="applist_refresh_title">Lista de aplicaciones</string>
-    <string name="applist_refresh_msg">Actualizando lista de aplicaciones…</string>
     <string name="applist_refresh_error_title">Error</string>
     <string name="applist_refresh_error_msg">Error al cargar lista de aplicaciones</string>
     <string name="applist_quit_app">Cerrando</string>
@@ -96,10 +89,6 @@
     <string name="title_only_l3r3">Solo muestra L3 y R3</string>
     <string name="summary_only_l3r3">Ocultar todo excepto L3 y R3</string>
     <string name="category_ui_settings">Configuración de la interfaz</string>
-    <string name="title_language_list">Idioma</string>
-    <string name="summary_language_list">Idioma a usar por Moonlight</string>
-    <string name="title_checkbox_small_icon_mode">Usar iconos pequeños</string>
-    <string name="summary_checkbox_small_icon_mode">Usar iconos pequeños en las entradas de cuadrículas para permitir más entradas en la pantalla</string>
     <string name="category_host_settings">Configuración de servidor</string>
     <string name="title_checkbox_enable_sops">Optimizar configuración del juego</string>
     <string name="summary_checkbox_enable_sops">Permitir que GFE modifique la configuración del juego para una transmisión óptima</string>
@@ -139,7 +128,6 @@
 \nSi estas intentado transmitir mediante Internet, instala en tu pc la Moonlight Internet Hosting Tool y ejecuta el Internet Streaming Tester incluido para comprobar la conexión de tu PC a internet.</string>
     <string name="nettest_text_blocked">La conexión de red actual de tu dispositivo esta bloqueando Moonlight. La Transmisión mediante Internet puede no funcionar mientras estés conectado a esta red.</string>
     <string name="pair_already_in_progress">Emparejamiento ya en progreso</string>
-    <string name="resolution_prefix_native_fullscreen">Pantalla Completa Nativa</string>
     <string name="title_audio_config_list">Configuración de Sonido Envolvente</string>
     <string name="title_decoding_reset">Reiniciar Opciones de Video</string>
     <string name="no_video_received_error">No se recibe video desde el equipo anfitrión.</string>
@@ -185,7 +173,6 @@
 \n
 \nAsegúrate de que no tienes ningún contenido protegido por DRM abierto en tu ordenador. También puedes probar a reiniciar el ordenador.</string>
     <string name="title_details">Detalles</string>
-    <string name="poor_connection_msg">Conexión pobre al PC</string>
     <string name="applist_menu_details">Ver Detalles</string>
     <string name="applist_menu_scut">Crear Acceso Directo</string>
     <string name="applist_menu_tv_channel">Agregar al Canal</string>
@@ -212,8 +199,6 @@
     <string name="summary_enable_post_stream_toast">Mostrar un mensaje sobre la información de latencia cuando la transmisión termine</string>
     <string name="help">Ayuda</string>
     <string name="delete_pc_msg">¿Estás seguro de eliminar este PC\?</string>
-    <string name="slow_connection_msg">Conexión lenta al PC
-\nReduce la tasa de bits</string>
     <string name="addpc_wrong_sitelocal">La dirección no luce correcta. Debes usar la dirección IP Pública de tu Rúter para la transmisión por Internet.</string>
     <string name="title_native_res_dialog">Advertencia Resolución Nativa</string>
     <string name="suffix_seekbar_bitrate_mbps">Mbps</string>

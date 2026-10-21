@@ -6,13 +6,11 @@
     <string name="title_seekbar_bitrate">Video-bitrate</string>
     <string name="title_fps_list">Videobilderammetakt</string>
     <string name="applist_quit_confirmation">Er du sikker på at du vil avslutte det kjørende programmet\? All ulagret data vil gå tapt.</string>
-    <string name="applist_refresh_msg">Gjenoppfrisker programmer …</string>
     <string name="perf_overlay_decoder">Dekoder: %1$s</string>
     <string name="perf_overlay_incomingfps">Innkommende bilderammetakt fra nettverket: %1$.2f BPS</string>
     <string name="perf_overlay_renderingfps">Opptegningsbilderammetakt: %1$.2f BPS</string>
     <string name="perf_overlay_netdrops">Bilderammer droppet av din nettverkstilknytning: %1$.2f%%</string>
     <string name="perf_overlay_dectime">Gjennomsnittlig dekodingstid: %1$.2f ms</string>
-    <string name="lost_connection">Mistet tilknytning til PC</string>
     <string name="searching_pc">Søker etter PC-er med GameStream kjørende …
 \n
 \nForsikre deg om at GameStream er påslått i GeForce Experience SHEILD-innstillingene.</string>
@@ -31,10 +29,6 @@
     <string name="unable_to_pin_shortcut">Din nåværende oppstarter tillater ikke opprettelse av festede snarveier.</string>
     <string name="title_decoding_error">Videodekoderen krasjet</string>
     <string name="error_unknown_host">Klarte ikke å utlede vertsadresse</string>
-    <string name="unpair_error">Enheten ble ikke parret</string>
-    <string name="unpair_fail">Klarte ikke å oppheve parring</string>
-    <string name="unpair_success">Parring opphevet</string>
-    <string name="unpairing">Opphever parring …</string>
     <string name="wol_fail">Klarte ikke å sende Wake-On-LAN-pakker</string>
     <string name="wol_waking_msg">Det kan ta et par sekunder før PC-en din våkner. Hvis den ikke gjør det må du sjekke at den er satt opp riktig for Wake-On-LAN.</string>
     <string name="wol_no_mac">Kunne ikke vekke opp PC fordi GFE ikke sendte en MAC-adresse</string>
@@ -55,8 +49,6 @@
     <string name="title_checkbox_host_audio">Spill lyd på PC</string>
     <string name="title_checkbox_enable_sops">Optimaliser spillinnstillinger</string>
     <string name="category_host_settings">Vertsinnstillinger</string>
-    <string name="summary_language_list">Språk brukt i Moonlight</string>
-    <string name="title_language_list">Språk</string>
     <string name="category_ui_settings">Grensesnittsinnstillinger</string>
     <string name="suffix_osc_opacity">%</string>
     <string name="dialog_title_osc_opacity">Endre dekkevne</string>
@@ -81,7 +73,6 @@
     <string name="applist_quit_app">Avslutter …</string>
     <string name="applist_refresh_error_msg">Klarte ikke å hente programliste</string>
     <string name="applist_refresh_error_title">Feil</string>
-    <string name="applist_refresh_title">Programliste</string>
     <string name="applist_menu_hide_app">Skjul prgram</string>
     <string name="applist_menu_tv_channel">Legg til i kanal</string>
     <string name="applist_menu_scut">Opprett snarvei</string>
@@ -91,9 +82,6 @@
     <string name="applist_menu_quit">Avslutt økt</string>
     <string name="applist_menu_resume">Fortsett økt</string>
     <string name="applist_connect_msg">Kobler til PC …</string>
-    <string name="poor_connection_msg">Dårlig tilknytning til PC</string>
-    <string name="slow_connection_msg">Vis tilkobling til PC
-\nReduser bitraten din</string>
     <string name="delete_pc_msg">Er du sikker på at du vil slette denne PC-en\?</string>
     <string name="help">Hjelp</string>
     <string name="title_details">Detaljer</string>
@@ -173,8 +161,6 @@
     <string name="summary_unlock_fps">Strømming i 90 eller 120 BPS kan redusere latens på flaggskipsenheter, men kan forårsake forsinkelser eller ustabilitet på enheter som ikke klarer det.</string>
     <string name="summary_checkbox_host_audio">Spill lyd fra datamaskinen og denne enheten</string>
     <string name="summary_checkbox_enable_sops">Tillat GFE å endre spill-innstillinger for optimal strømming</string>
-    <string name="summary_checkbox_small_icon_mode">Mindre bilder for omslagskunst i programrutenettet lar deg se flere programmer på skjermen</string>
-    <string name="title_checkbox_small_icon_mode">Bruk liten omslagskunst</string>
     <string name="summary_osc_opacity">Gjør innstillingskontroller som vises på skjermen mer/mindre gjennomsiktige</string>
     <string name="title_osc_opacity">Endre dekkevne for innstillingskontroller som vises på skjermen</string>
     <string name="toast_reset_osc_success">Innstillingskontroller som vises på skjermen tilbakestilt til forvalg</string>
@@ -204,7 +190,6 @@
     <string name="resolution_prefix_native">Innebygd</string>
     <string name="title_native_res_dialog">Advarsel om innebygd oppløsning</string>
     <string name="title_checkbox_flip_face_buttons">Veksle diamantknapper</string>
-    <string name="resolution_prefix_native_fullscreen">Systemspesifikk fullskjerm</string>
     <string name="perf_overlay_netlatency">Gjennomsnittlig nettverksforsinkelse: %1$d ms (variasjon: %2$d ms)</string>
     <string name="perf_overlay_streamdetails">Videostrøm: %1$s %2$.2f BPS</string>
     <string name="title_enable_commit_text">Aktiver commit-tekst-input (sveip/stemme)</string>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The profile avatar at the foot of the rail: a disc in the signal's container colour, as in
+    the mocks, with the signal ring when the d-pad is on it. The view is a full 48dp touch
+    target; the inset leaves the disc at 40dp inside it.
+-->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:inset="@dimen/nav_avatar_inset">
+    <selector android:exitFadeDuration="120">
+        <item android:state_pressed="true">
+            <shape android:shape="oval">
+                <solid android:color="@color/signal_wash" />
+                <stroke
+                    android:width="@dimen/tile_focus_stroke"
+                    android:color="@color/signal" />
+            </shape>
+        </item>
+        <item android:state_focused="true">
+            <shape android:shape="oval">
+                <solid android:color="@color/signal_container" />
+                <stroke
+                    android:width="@dimen/tile_focus_stroke"
+                    android:color="@color/signal" />
+            </shape>
+        </item>
+        <item>
+            <shape android:shape="oval">
+                <solid android:color="@color/signal_container" />
+            </shape>
+        </item>
+    </selector>
+</inset>

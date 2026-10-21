@@ -38,14 +38,12 @@
 \n</string>
     <string name="perf_overlay_netlatency">Μέσος λανθάνων χρόνος δικτύου: %1$d MS (διακύμανση: %2$d ms)</string>
     <string name="applist_menu_hide_app">Απόκρυψη εφαρμογής</string>
-    <string name="applist_refresh_title">Λίστα εφαρμογών</string>
     <string name="applist_refresh_error_title">Σφάλμα</string>
     <string name="applist_refresh_error_msg">Απέτυχε η λήψη λίστας εφαρμογών</string>
     <string name="applist_quit_fail">Αποτυχία διακοπής</string>
     <string name="applist_quit_confirmation">Είστε σίγουροι ότι θέλετε να τερματίσετε την τρέχουσα εφαρμογή; Όλα τα μη αποθηκευμένα δεδομένα θα χαθούν.</string>
     <string name="dialog_text_reset_osc">Είστε βέβαιοι ότι θέλετε να διαγράψετε την αποθηκευμένη διάταξη στοιχείων ελέγχου στην οθόνη;</string>
     <string name="title_enable_perf_overlay">Εμφάνιση στατιστικών στοιχείων απόδοσης κατά τη ροή</string>
-    <string name="unpair_error">Η συσκευή δεν είχε συζευξηθεί</string>
     <string name="error_pc_offline">Ο υπολογιστής είναι εκτός σύνδεσης</string>
     <string name="error_unknown_host">Αποτυχία επίλυσης ονόματος κεντρικού υπολογιστή</string>
     <string name="title_decoding_error">Ο αποκωδικοποιητής βίντεο κατέρρευσε</string>
@@ -70,7 +68,6 @@
     <string name="perf_overlay_incomingfps">Ρυθμός εισερχόμενων καρέ από το δίκτυο: %1$.2f FPS</string>
     <string name="applist_menu_cancel">Ακύρωση</string>
     <string name="applist_menu_tv_channel">Προσθήκη στο κανάλι</string>
-    <string name="applist_refresh_msg">Ανανέωση εφαρμογών…</string>
     <string name="addpc_success">Ο υπολογιστής προστέθηκε με επιτυχία</string>
     <string name="addpc_unknown_host">Αδυναμία επίλυσης διεύθυνσης υπολογιστή. Βεβαιωθείτε ότι δεν κάνατε τυπογραφικό λάθος στη διεύθυνση.</string>
     <string name="title_fps_list">Ρυθμός καρέ βίντεο</string>
@@ -79,7 +76,6 @@
     <string name="summary_seekbar_bitrate">Αυξήστε για καλύτερη ποιότητα εικόνας. Μείωση για τη βελτίωση των επιδόσεων σε πιο αργές συνδέσεις.</string>
     <string name="suffix_seekbar_bitrate_mbps">Mbps</string>
     <string name="resolution_prefix_native">Εγγενής</string>
-    <string name="resolution_prefix_native_fullscreen">Εγγενής πλήρης οθόνη</string>
     <string name="category_audio_settings">Ρυθμίσεις ήχου</string>
     <string name="title_audio_config_list">Ρύθμιση παραμέτρων ήχου surround</string>
     <string name="summary_checkbox_vibrate_fallback">Δονεί τη συσκευή σας για να μιμηθεί το rumble αν το gamepad σας δεν το υποστηρίζει</string>
@@ -105,9 +101,6 @@
     <string name="category_ui_settings">Ρυθμίσεις διεπαφής χρήστη</string>
     <string name="title_checkbox_enable_pip">Ενεργοποίηση της λειτουργίας παρατηρητή εικόνας μέσα σε εικόνα</string>
     <string name="summary_checkbox_enable_pip">Επιτρέπει την προβολή της ροής (αλλά όχι τον έλεγχο) κατά την εκτέλεση πολλαπλών εργασιών</string>
-    <string name="title_language_list">Γλώσσα</string>
-    <string name="summary_language_list">Γλώσσα που χρησιμοποιείται για το Moonlight</string>
-    <string name="title_checkbox_small_icon_mode">Χρησιμοποιήστε μικρά κουτιά</string>
     <string name="scut_not_paired">Ο υπολογιστής δεν έχει συζευχθεί</string>
     <string name="pcview_menu_header_offline">Εκτός σύνδεσης</string>
     <string name="pcview_menu_test_network">Δοκιμή σύνδεσης δικτύου</string>
@@ -118,10 +111,6 @@
     <string name="pair_fail">Η σύζευξη απέτυχε</string>
     <string name="wol_no_mac">Δεν είναι δυνατή η αφύπνιση του υπολογιστή επειδή το GFE δεν έστειλε διεύθυνση MAC</string>
     <string name="wol_fail">Απέτυχε η αποστολή πακέτων Wake-On-LAN</string>
-    <string name="unpairing">Κατάργηση σύζευξης…</string>
-    <string name="unpair_success">Καταργήθηκε η σύζευξη με επιτυχία</string>
-    <string name="unpair_fail">Αποτυχία κατάργησης σύζευξης</string>
-    <string name="summary_checkbox_small_icon_mode">Το μικρότερο box art στο πλέγμα εφαρμογών επιτρέπει σε περισσότερες εφαρμογές να είναι ορατές στην οθόνη</string>
     <string name="category_host_settings">Ρυθμίσεις κεντρικού υπολογιστή</string>
     <string name="title_checkbox_host_audio">Αναπαραγωγή ήχου στον υπολογιστή</string>
     <string name="summary_checkbox_host_audio">Αναπαραγωγή ήχου από τον υπολογιστή και αυτή τη συσκευή</string>
@@ -148,7 +137,6 @@
     <string name="video_decoder_init_failed">Απέτυχε η προετοιμασία του αποκωδικοποιητή βίντεο. Η συσκευή σας ενδέχεται να μην υποστηρίζει την επιλεγμένη ανάλυση ή ρυθμό καρέ.</string>
     <string name="perf_overlay_dectime">Μέσος χρόνος αποκωδικοποίησης: %1$.2f ms</string>
     <string name="title_add_pc">Προσθήκη υπολογιστή χειροκίνητα</string>
-    <string name="lost_connection">Χάθηκε η σύνδεση με τον υπολογιστή</string>
     <string name="title_details">Λεπτομέρειες</string>
     <string name="applist_menu_resume">Συνέχιση περιόδου λειτουργίας</string>
     <string name="applist_menu_quit">Έξοδος από τη συνεδρία</string>
@@ -160,9 +148,6 @@
 \n Βεβαιωθείτε ότι το GameStream είναι ενεργοποιημένο στις ρυθμίσεις GeForce Experience SHIELD.</string>
     <string name="no">Οχι</string>
     <string name="delete_pc_msg">Είστε βέβαιοι ότι θέλετε να διαγράψετε αυτόν τον υπολογιστή;</string>
-    <string name="slow_connection_msg">Αργή σύνδεση με υπολογιστή
-\nΜειώστε το bitrate σας</string>
-    <string name="poor_connection_msg">Κακή σύνδεση με τον υπολογιστή</string>
     <string name="applist_connect_msg">Σύνδεση σε υπολογιστή…</string>
     <string name="applist_menu_quit_and_start">Τερματισμός τρέχοντος παιχνιδιού και έναρξη</string>
     <string name="summary_checkbox_touchscreen_trackpad">Εάν είναι ενεργοποιημένη, η οθόνη αφής λειτουργεί σαν trackpad. Εάν είναι απενεργοποιημένη, η οθόνη αφής ελέγχει απευθείας τον κέρσορα του ποντικιού.</string>

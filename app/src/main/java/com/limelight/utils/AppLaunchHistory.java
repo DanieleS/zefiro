@@ -30,6 +30,33 @@ public class AppLaunchHistory {
         return prefs.getLong(keyFor(computerUuid, app), 0);
     }
 
+    /**
+     * Calls {@code onChange} on the main thread whenever a launch on this computer is recorded,
+     * by whoever records it. Launches are recorded by a static call from the launch path, which
+     * knows nothing about the screens that sort by this history, so they listen here instead of
+     * being told. Preferences hold their listeners weakly: keep the returned handle for as long
+     * as you watch, and pass it to {@link #unwatch} when done.
+     */
+    public SharedPreferences.OnSharedPreferenceChangeListener watch(final Runnable onChange) {
+        final String prefix = computerUuid + "|";
+        SharedPreferences.OnSharedPreferenceChangeListener listener = (changed, key) -> {
+            // A null key is the whole file cleared (API 30+). The prefix is matched ignoring case
+            // because UUIDs reach here from more than one source, not all upper-cased alike.
+            if (key == null || key.regionMatches(true, 0, prefix, 0, prefix.length())) {
+                onChange.run();
+            }
+        };
+        prefs.registerOnSharedPreferenceChangeListener(listener);
+        return listener;
+    }
+
+    /** Stops a {@link #watch}; null is a no-op. */
+    public void unwatch(SharedPreferences.OnSharedPreferenceChangeListener listener) {
+        if (listener != null) {
+            prefs.unregisterOnSharedPreferenceChangeListener(listener);
+        }
+    }
+
     /** Notes that a game is being launched now. */
     public static void recordLaunch(Context context, ComputerDetails computer, NvApp app) {
         if (computer == null || app == null) {

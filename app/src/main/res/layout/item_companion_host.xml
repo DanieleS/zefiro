@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    One PC on the companion panel's hosts row (CompanionPresentation): a compact item_pc_tile,
+    just its status dot and name, as a 48dp chip. Selected, it wears the signal container.
+    Touch only, like everything on the panel: it is never focusable.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="8dp"
+    android:minHeight="@dimen/action_size"
+    android:background="@drawable/companion_host_bg"
+    android:clickable="true"
+    android:focusable="false"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="16dp"
+    android:paddingEnd="18dp">
+
+    <View
+        android:id="@+id/companionHostDot"
+        android:layout_width="@dimen/pc_status_dot"
+        android:layout_height="@dimen/pc_status_dot"
+        android:background="@drawable/pc_status_dot"
+        android:importantForAccessibility="no" />
+
+    <TextView
+        android:id="@+id/companionHostName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/host_chip_dot_gap"
+        android:duplicateParentState="true"
+        android:ellipsize="end"
+        android:importantForAccessibility="no"
+        android:letterSpacing="0.02"
+        android:maxWidth="220dp"
+        android:singleLine="true"
+        android:textColor="@color/companion_host_text"
+        android:textSize="15sp"
+        tools:text="Taverna" />
+
+</LinearLayout>

@@ -24,7 +24,15 @@ public final class StatsFormat {
 
     /** A length of time to the nearest minute: minutes under an hour, hours and minutes above. */
     public static String duration(long seconds, Words words) {
-        long minutes = Math.round(Math.max(0, seconds) / 60.0);
+        return durationMinutes(Math.round(Math.max(0, seconds) / 60.0), words);
+    }
+
+    /**
+     * As {@link #duration}, for a length already counted in whole minutes: a running clock (the
+     * stream's session length), which has to tick over on the minute rather than round to it.
+     */
+    public static String durationMinutes(long minutes, Words words) {
+        minutes = Math.max(0, minutes);
         if (minutes < 60) {
             return words.minutes(minutes);
         }
@@ -130,11 +138,61 @@ public final class StatsFormat {
         return Math.max(minOffset, Math.min(0, offset + step));
     }
 
-    /** 0..1 of the longest, for the meters beside the top games; never a division by zero. */
-    public static float share(long value, long max) {
-        if (max <= 0) {
-            return 0f;
+    /**
+     * A game's share of the period's play, as the strip prints it: a whole percent, rounded
+     * half up, 0 when nothing was played, never above 100 (the host's per-game seconds and its
+     * total are counted separately, and a session across midnight can tip one over the other).
+     */
+    public static int sharePercent(long seconds, long totalSeconds) {
+        if (totalSeconds <= 0 || seconds <= 0) {
+            return 0;
         }
-        return Math.max(0f, Math.min(1f, value / (float) max));
+        long percent = Math.round(seconds * 100.0 / totalSeconds);
+        return (int) Math.min(100, percent);
+    }
+
+    /**
+     * Whether a game's time in a period is worth a place among its most played: at least the
+     * "1 min" {@link #duration} would print, never a "0 min" card.
+     */
+    public static boolean countsAsPlayed(long seconds) {
+        return Math.round(Math.max(0, seconds) / 60.0) > 0;
+    }
+
+    /**
+     * The chart's height for the room the window leaves it, in pixels.
+     *
+     * <p>With the companion panel showing, the top screen holds only the summary, the chart and
+     * the strip, so the chart takes whatever height the strip leaves, up to {@code max}. Inline,
+     * the lower half follows on the same scroll, so the chart keeps its {@code standard} height
+     * and only gives way in a short window, so the strip still shows under it. Never below
+     * {@code min}, where the bars would stop reading, nor below two fifths of the viewport (up
+     * to its usual height), so a short window keeps a chart worth the name; the page scrolls
+     * from there.
+     *
+     * @param room the scroll's visible height, less everything from its top to the end of the
+     *             strip other than the chart
+     * @param viewport the scroll's visible height
+     * @param split whether the companion panel is showing
+     */
+    public static int chartHeight(int room, int viewport, boolean split, int min, int standard,
+                                  int max) {
+        int upper = split ? max : standard;
+        int floor = Math.max(min, Math.min(upper, viewport * 2 / 5));
+        return Math.max(floor, Math.min(upper, room));
+    }
+
+    /**
+     * Above a year's bars: whole hours ("42h" as {@code hours}), or the short form below half
+     * an hour, so a month with a little play is not labelled "0h".
+     *
+     * @return the label, or the empty string for a month without play
+     */
+    public static String yearBarValue(long seconds, Words words) {
+        long hours = roundHours(seconds);
+        if (hours == 0) {
+            return shortDuration(seconds);
+        }
+        return words.hours(hours, 0);
     }
 }

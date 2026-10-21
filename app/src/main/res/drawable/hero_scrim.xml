@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Over the hero's backdrop: dark where the text and the buttons are, lighter to the right, so
+    the title holds on any art and the art still reads as the game's.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="0"
+        android:endColor="@color/hero_scrim_end"
+        android:startColor="@color/hero_scrim_start" />
+</shape>

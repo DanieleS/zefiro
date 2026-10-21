@@ -42,16 +42,14 @@ public class PreferenceConfiguration {
     private static final String LEGACY_STRETCH_PREF_STRING = "checkbox_stretch_video";
     private static final String LEGACY_ENFORCE_REFRESH_RATE_STRING = "checkbox_enforce_refresh_rate";
 
-    static final String RESOLUTION_PREF_STRING = "list_resolution";
-    static final String FPS_PREF_STRING = "list_fps";
-    static final String BITRATE_PREF_STRING = "seekbar_bitrate_kbps";
+    public static final String RESOLUTION_PREF_STRING = "list_resolution";
+    public static final String FPS_PREF_STRING = "list_fps";
+    public static final String BITRATE_PREF_STRING = "seekbar_bitrate_kbps";
     private static final String BITRATE_PREF_OLD_STRING = "seekbar_bitrate";
     private static final String METERED_BITRATE_PREF_STRING = "seekbar_metered_bitrate_kbps";
     private static final String ENABLE_ULTRA_LOW_LATENCY_PREF_STRING = "checkbox_ultra_low_latency";
     private static final String ENFORCE_DISPLAY_MODE_PREF_STRING = "checkbox_enforce_display_mode";
-    private static final String AUTO_ENTER_LAST_PC_PREF_STRING = "checkbox_auto_enter_last_pc";
     private static final String ENABLE_COMPANION_DISPLAY_PREF_STRING = "checkbox_enable_companion_display";
-    private static final String ENABLE_COMPANION_STATS_PREF_STRING = "checkbox_enable_companion_stats";
     private static final String ENABLE_COMPANION_APP_PREF_STRING = "checkbox_enable_companion_app";
     private static final String USE_VIRTUAL_DISPLAY_PREF_STRING = "checkbox_use_virtual_display";
     private static final String AUTO_INVERT_VIDEO_RESOLUTION_PREF_STRING = "checkbox_auto_invert_video_resolution";
@@ -68,8 +66,9 @@ public class PreferenceConfiguration {
     private static final String ADAPTIVE_BITRATE_MODE_PREF_STRING = "list_adaptive_bitrate_mode";
     private static final String DEADZONE_PREF_STRING = "seekbar_deadzone";
     private static final String OSC_OPACITY_PREF_STRING = "seekbar_osc_opacity";
-    private static final String LANGUAGE_PREF_STRING = "list_languages";
-    private static final String SMALL_ICONS_PREF_STRING = "checkbox_small_icon_mode";
+    // The in-app language picker is gone (the UI is English-only and follows the system or
+    // per-app locale); the key is only kept so readPreferences can drop a value saved before.
+    private static final String LEGACY_LANGUAGE_PREF_STRING = "list_languages";
     private static final String MULTI_CONTROLLER_PREF_STRING = "checkbox_multi_controller";
     static final String AUDIO_CONFIG_PREF_STRING = "list_audio_config";
     private static final String USB_DRIVER_PREF_SRING = "checkbox_usb_driver";
@@ -135,7 +134,6 @@ public class PreferenceConfiguration {
 
     private static final String CHECKBOX_ENABLE_QUIT_DIALOG = "checkbox_enable_quit_dialog";
 
-    private static final String CHECKBOX_ENABLE_FLOATING_BUTTON = "checkbox_enable_floating_button";
 
     private static final String CHECKBOX_SHOW_OVERLAY_ZOOM_TOGGLE_BUTTON = "checkbox_show_overlay_zoom_toggle_button";
 
@@ -161,22 +159,16 @@ public class PreferenceConfiguration {
     private static final String CHECKBOX_ENABLE_COMMIT_TEXT = "checkbox_enable_commit_text";
     private static final String CHECKBOX_TEXT_FOCUS_KEYBOARD = "checkbox_text_focus_keyboard";
 
-    static final String DEFAULT_RESOLUTION = "1280x720";
-    static final String DEFAULT_FPS = "60";
+    public static final String DEFAULT_RESOLUTION = "1280x720";
+    public static final String DEFAULT_FPS = "60";
     private static final boolean DEFAULT_ENABLE_ULTRA_LOW_LATENCY = false;
     private static final boolean DEFAULT_ENFORCE_DISPLAY_MODE = false;
-    // The PC list is a gate, not a destination: someone who has picked a PC once should not have
-    // to pick it again every launch. Back from the library still lands on it.
-    private static final boolean DEFAULT_AUTO_ENTER_LAST_PC = true;
     private static final boolean DEFAULT_ENABLE_COMPANION_DISPLAY = false;
-    // A companion panel with nothing on it is worth less than one showing the stats, so this is
-    // on by default. It only takes effect once the companion display itself is switched on.
-    private static final boolean DEFAULT_ENABLE_COMPANION_STATS = true;
     // Independent of the companion panel: it only needs a secondary screen to open the app on,
     // so it stays available even with the panel switched off. Harmless until a game is assigned
     // one, and invisible on single-screen devices, so it is on by default.
     private static final boolean DEFAULT_ENABLE_COMPANION_APP = true;
-    private static final boolean DEFAULT_USE_VIRTUAL_DISPLAY = false;
+    private static final boolean DEFAULT_USE_VIRTUAL_DISPLAY = true;
     private static final String DEFAULT_VIDEO_SCALE_MODE = "fit";
     private static final boolean DEFAULT_AUTO_INVERT_VIDEO_RESOLUTION = true;
     private static final int DEFAULT_RESOLUTION_SCALE_FACTOR = 100;
@@ -186,7 +178,6 @@ public class PreferenceConfiguration {
     private static final boolean DEFAULT_HOST_AUDIO = false;
     private static final int DEFAULT_DEADZONE = 5;
     private static final int DEFAULT_OPACITY = 90;
-    public static final String DEFAULT_LANGUAGE = "default";
     private static final boolean DEFAULT_MULTI_CONTROLLER = true;
     private static final boolean DEFAULT_USB_DRIVER = true;
     private static final String DEFAULT_VIDEO_FORMAT = "auto";
@@ -199,7 +190,6 @@ public class PreferenceConfiguration {
     private static final boolean DEFAULT_ENABLE_PYROWAVE = false;
     private static final boolean DEFAULT_ENABLE_PIP = false;
     private static final boolean DEFAULT_ENABLE_PERF_OVERLAY = false;
-    private static final boolean DEFAULT_PERF_OVERLAY_BOTTOM = false;
     private static final boolean DEFAULT_ENABLE_PERF_LOGGING = false;
     private static final boolean DEFAULT_BIND_ALL_USB = false;
     private static final boolean DEFAULT_MOUSE_EMULATION = true;
@@ -238,7 +228,6 @@ public class PreferenceConfiguration {
     private static final boolean DEFAULT_SEND_META_ON_PHYSICAL_BACK = false;
     private static final boolean DEFAULT_RIGHT_ALT_AS_META = false;
     private static final boolean DEFAULT_IGNORE_SYNTH_EVENTS = false;
-    private static final boolean DEFAULT_ENABLE_FLOATING_BUTTON = false;
     private static final boolean DEFAULT_BACK_AS_GUIDE = false;
     private static final boolean DEFAULT_SMART_CLIPBOARD_SYNC = false;
     private static final boolean DEFAULT_SMART_CLIPBOARD_SYNC_TOAST = true;
@@ -297,9 +286,8 @@ public class PreferenceConfiguration {
     public ScaleMode videoScaleMode;
     public UpscalingPolicy.Mode upscalingMode = UpscalingPolicy.Mode.OFF;
     public int upscalingSharpness = 50;
-    public String language;
     public int renderMode;
-    public boolean smallIconMode, multiController, usbDriver, flipFaceButtons;
+    public boolean multiController, usbDriver, flipFaceButtons;
     public boolean onscreenController;
     public boolean hideOSCWhenHasGamepad;
     public boolean enableBatteryReport;
@@ -326,17 +314,9 @@ public class PreferenceConfiguration {
     public float balance_shift;
     public boolean enablePerfOverlay;
     public boolean enablePerfLogging;
-    //简化版性能信息
-    public boolean enablePerfOverlayLite;
-
-    public boolean enablePerfOverlayLiteDialog;
-
-    public boolean enablePerfOverlayBottom;
-
     public boolean enableLatencyToast;
     public boolean vsyncTargetPresent;
     public boolean enableBackMenu;
-    public boolean enableFloatingButton;
     public boolean showOverlayZoomToggleButton;
 
     //Invert video width/height
@@ -357,11 +337,7 @@ public class PreferenceConfiguration {
 
     public boolean enableCompanionApp;
 
-    public boolean autoEnterLastPc;
-
     public boolean enableCompanionDisplay;
-
-    public boolean enableCompanionStats;
 
     //串流画面顶部居中显示
     public boolean alignDisplayTopCenter;
@@ -631,26 +607,6 @@ public class PreferenceConfiguration {
         return (int)Math.round(resolutionFactor * frameRateFactor) * 1000;
     }
 
-    public static boolean getDefaultSmallMode(Context context) {
-        PackageManager manager = context.getPackageManager();
-        if (manager != null) {
-            // TVs shouldn't use small mode by default
-            if (manager.hasSystemFeature(PackageManager.FEATURE_TELEVISION)) {
-                return false;
-            }
-
-            // API 21 uses LEANBACK instead of TELEVISION
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
-                if (manager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)) {
-                    return false;
-                }
-            }
-        }
-
-        // Use small mode on anything smaller than a 7" tablet
-        return context.getResources().getConfiguration().smallestScreenWidthDp < 500;
-    }
-
     public static boolean isPyroWaveEnabled(Context context) {
         SharedPreferences prefs = ProfilesManager.getInstance().getOverlayingSharedPreferences(context);
         return prefs.getBoolean(ENABLE_PYROWAVE_PREF_STRING, DEFAULT_ENABLE_PYROWAVE);
@@ -800,12 +756,6 @@ private static int getFramePacingValue(Context context) {
                 .apply();
     }
 
-//    public static void completeLanguagePreferenceMigration(Context context) {
-//        // Put our language option back to default which tells us that we've already migrated it
-//        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-//        prefs.edit().putString(LANGUAGE_PREF_STRING, DEFAULT_LANGUAGE).apply();
-//    }
-
     public static boolean isShieldAtvFirmwareWithBrokenHdr() {
         // This particular Shield TV firmware crashes when using HDR
         // https://www.nvidia.com/en-us/geforce/forums/notifications/comment/155192/
@@ -919,10 +869,10 @@ private static int getFramePacingValue(Context context) {
                     .apply();
         }
 
-        if (!prefs.contains(SMALL_ICONS_PREF_STRING)) {
-            // We need to write small icon mode's default to disk for the settings page to display
-            // the current state of the option properly
-            prefs.edit().putBoolean(SMALL_ICONS_PREF_STRING, getDefaultSmallMode(context)).apply();
+        if (prefs.contains(LEGACY_LANGUAGE_PREF_STRING)) {
+            // Settings no longer offers a language row, so a locale picked before the upgrade
+            // could never be changed or reset again; drop it so every screen follows the system.
+            prefs.edit().remove(LEGACY_LANGUAGE_PREF_STRING).apply();
         }
 
         if (!prefs.contains(GAMEPAD_MOTION_SENSORS_PREF_STRING) && Build.VERSION.SDK_INT == Build.VERSION_CODES.S) {
@@ -980,8 +930,6 @@ private static int getFramePacingValue(Context context) {
 
         config.oscOpacity = prefs.getInt(OSC_OPACITY_PREF_STRING, DEFAULT_OPACITY);
 
-        config.language = prefs.getString(LANGUAGE_PREF_STRING, DEFAULT_LANGUAGE);
-
         // Checkbox preferences
         config.disableWarnings = prefs.getBoolean(DISABLE_TOASTS_PREF_STRING, DEFAULT_DISABLE_TOASTS);
         config.enforceDisplayMode = prefs.getBoolean(ENFORCE_DISPLAY_MODE_PREF_STRING, DEFAULT_ENFORCE_DISPLAY_MODE);
@@ -995,7 +943,6 @@ private static int getFramePacingValue(Context context) {
         config.adaptiveBitrateMode = AdaptiveBitrateController.Mode.fromPreference(
                 prefs.getString(ADAPTIVE_BITRATE_MODE_PREF_STRING,
                         AdaptiveBitrateController.Mode.BALANCED.getPreferenceValue()));
-        config.smallIconMode = prefs.getBoolean(SMALL_ICONS_PREF_STRING, getDefaultSmallMode(context));
         config.multiController = prefs.getBoolean(MULTI_CONTROLLER_PREF_STRING, DEFAULT_MULTI_CONTROLLER);
         config.usbDriver = prefs.getBoolean(USB_DRIVER_PREF_SRING, DEFAULT_USB_DRIVER);
         config.fullScreen = prefs.getBoolean(FULL_SCREEN_PREF_STRING, DEFAULT_FULL_SCREEN);
@@ -1040,8 +987,6 @@ private static int getFramePacingValue(Context context) {
         config.enablePip = prefs.getBoolean(ENABLE_PIP_PREF_STRING, DEFAULT_ENABLE_PIP);
         config.enablePerfOverlay = prefs.getBoolean(ENABLE_PERF_OVERLAY_STRING, DEFAULT_ENABLE_PERF_OVERLAY);
         config.enablePerfLogging = prefs.getBoolean(ENABLE_PERF_LOGGING, DEFAULT_ENABLE_PERF_LOGGING);
-        config.enablePerfOverlayLite = prefs.getBoolean("checkbox_enable_perf_overlay_lite",DEFAULT_ENABLE_PERF_OVERLAY);
-        config.enablePerfOverlayBottom = prefs.getBoolean("checkbox_enable_perf_overlay_bottom",DEFAULT_PERF_OVERLAY_BOTTOM);
         config.bindAllUsb = prefs.getBoolean(BIND_ALL_USB_STRING, DEFAULT_BIND_ALL_USB);
         config.mouseEmulation = prefs.getBoolean(MOUSE_EMULATION_STRING, DEFAULT_MOUSE_EMULATION);
         config.mouseNavButtons = prefs.getBoolean(MOUSE_NAV_BUTTONS_STRING, DEFAULT_MOUSE_NAV_BUTTONS);
@@ -1055,7 +1000,6 @@ private static int getFramePacingValue(Context context) {
         config.enableLatencyToast = prefs.getBoolean(LATENCY_TOAST_PREF_STRING, DEFAULT_LATENCY_TOAST);
         config.vsyncTargetPresent = prefs.getBoolean(VSYNC_TARGET_PREF_STRING, DEFAULT_VSYNC_TARGET);
         config.enableBackMenu = prefs.getBoolean(CHECKBOX_ENABLE_QUIT_DIALOG,true);
-        config.enableFloatingButton = prefs.getBoolean(CHECKBOX_ENABLE_FLOATING_BUTTON,DEFAULT_ENABLE_FLOATING_BUTTON);
         config.showOverlayZoomToggleButton = prefs.getBoolean(CHECKBOX_SHOW_OVERLAY_ZOOM_TOGGLE_BUTTON, DEFAULT_SHOW_OVERLAY_TOGGLE_BUTTON);
         config.autoOrientation = prefs.getBoolean(CHECKBOX_AUTO_ORIENTATION,false);
         config.autoInvertVideoResolution = prefs.getBoolean(AUTO_INVERT_VIDEO_RESOLUTION_PREF_STRING, DEFAULT_AUTO_INVERT_VIDEO_RESOLUTION);
@@ -1084,11 +1028,7 @@ private static int getFramePacingValue(Context context) {
 
         config.enableFullExDisplay=prefs.getBoolean("checkbox_enable_fullexdisplay",false);
 
-        config.autoEnterLastPc = prefs.getBoolean(AUTO_ENTER_LAST_PC_PREF_STRING, DEFAULT_AUTO_ENTER_LAST_PC);
-
         config.enableCompanionDisplay = prefs.getBoolean(ENABLE_COMPANION_DISPLAY_PREF_STRING, DEFAULT_ENABLE_COMPANION_DISPLAY);
-
-        config.enableCompanionStats = prefs.getBoolean(ENABLE_COMPANION_STATS_PREF_STRING, DEFAULT_ENABLE_COMPANION_STATS);
 
         config.enableCompanionApp = prefs.getBoolean(ENABLE_COMPANION_APP_PREF_STRING, DEFAULT_ENABLE_COMPANION_APP);
 
@@ -1108,8 +1048,6 @@ private static int getFramePacingValue(Context context) {
 
         config.enableMultiTouchGestures = prefs.getBoolean("checkbox_multi_touch_gestures", false);
 
-
-        config.enablePerfOverlayLiteDialog=prefs.getBoolean("checkbox_enable_perf_overlay_lite_dialog",false);
 
         config.disableDefaultExtraKeys =prefs.getBoolean("checkbox_enable_clear_default_special_button", false);
 

@@ -97,9 +97,74 @@ public class StatsFormatTest {
     }
 
     @Test
-    public void sharesNeverDivideByZero() {
-        assertEquals(0f, StatsFormat.share(10, 0), 0f);
-        assertEquals(0.5f, StatsFormat.share(5, 10), 0.0001f);
-        assertEquals(1f, StatsFormat.share(15, 10), 0f);
+    public void sharePercentsRoundToTheWholePercent() {
+        assertEquals(0, StatsFormat.sharePercent(10, 0));
+        assertEquals(0, StatsFormat.sharePercent(0, 100));
+        assertEquals(22, StatsFormat.sharePercent(22, 100));
+        // Half a percent rounds up, just under it rounds down.
+        assertEquals(23, StatsFormat.sharePercent(225, 1000));
+        assertEquals(22, StatsFormat.sharePercent(2249, 10000));
+        assertEquals(33, StatsFormat.sharePercent(1, 3));
+        assertEquals(1, StatsFormat.sharePercent(1, 200));
+        assertEquals(100, StatsFormat.sharePercent(150, 100));
+    }
+
+    @Test
+    public void yearBarsSayWholeHours() {
+        assertEquals("42h", StatsFormat.yearBarValue(42 * 3600 + 20 * 60, EN));
+        assertEquals("36h", StatsFormat.yearBarValue(35 * 3600 + 50 * 60, EN));
+        assertEquals("25′", StatsFormat.yearBarValue(25 * 60, EN));
+        assertEquals("", StatsFormat.yearBarValue(0, EN));
+    }
+
+    @Test
+    public void aGameUnderHalfAMinuteIsNotAmongTheMostPlayed() {
+        assertFalse(StatsFormat.countsAsPlayed(0));
+        assertFalse(StatsFormat.countsAsPlayed(29));
+        // What prints "1 min" counts.
+        assertTrue(StatsFormat.countsAsPlayed(30));
+        assertTrue(StatsFormat.countsAsPlayed(3600));
+    }
+
+    @Test
+    public void splitTheChartGrowsIntoTheRoomLeft() {
+        // The panel has the lower half: the chart takes what the strip leaves, up to the max.
+        assertEquals(300, StatsFormat.chartHeight(300, 0, true, 112, 200, 380));
+        assertEquals(380, StatsFormat.chartHeight(900, 0, true, 112, 200, 380));
+    }
+
+    @Test
+    public void inlineTheChartOnlyGivesWayInAShortWindow() {
+        // The lower half follows on the scroll: no growing, only shrinking for the strip.
+        assertEquals(200, StatsFormat.chartHeight(900, 0, false, 112, 200, 380));
+        assertEquals(150, StatsFormat.chartHeight(150, 0, false, 112, 200, 380));
+    }
+
+    @Test
+    public void switchingThePanelReFitsTheSameRoom() {
+        // The panel turned off and on with the page up: the same room, laid out for each.
+        int room = 320;
+        int split = StatsFormat.chartHeight(room, 0, true, 112, 200, 380);
+        int inline = StatsFormat.chartHeight(room, 0, false, 112, 200, 380);
+        assertEquals(320, split);
+        assertEquals(200, inline);
+        assertEquals(split, StatsFormat.chartHeight(room, 0, true, 112, 200, 380));
+    }
+
+    @Test
+    public void aShortWindowKeepsTwoFifthsOfItsViewportForTheChart() {
+        // A phone on its side: little room left, but the chart keeps 40% of the 400 shown and
+        // the strip scrolls in under it.
+        assertEquals(160, StatsFormat.chartHeight(120, 400, false, 112, 200, 380));
+        // Never past its usual height for that, in a tall window.
+        assertEquals(200, StatsFormat.chartHeight(150, 900, false, 112, 200, 380));
+        // Room enough: the floor does not matter.
+        assertEquals(200, StatsFormat.chartHeight(300, 400, false, 112, 200, 380));
+    }
+
+    @Test
+    public void theChartNeverShrinksPastReading() {
+        assertEquals(112, StatsFormat.chartHeight(40, 0, true, 112, 200, 380));
+        assertEquals(112, StatsFormat.chartHeight(-50, 0, false, 112, 200, 380));
     }
 }

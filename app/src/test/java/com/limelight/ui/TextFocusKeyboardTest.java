@@ -192,4 +192,74 @@ public class TextFocusKeyboardTest {
         assertEquals(InputType.TYPE_CLASS_TEXT, TextFocusKeyboard.inputTypeFor(TextFocusKeyboard.FOCUS_NONE));
         assertEquals(InputType.TYPE_CLASS_TEXT, TextFocusKeyboard.inputTypeFor((byte) 42));
     }
+
+    // The in-stream controls opening and closing over a focused host field
+
+    @Test
+    public void controlsOpening_takeDownOurKeyboard_andTheCloseBringsItBack() {
+        keyboard.onFocus(TextFocusKeyboard.FOCUS_NUMERIC);
+        keyboard.suspend();
+        assertFalse(keyboards.isUp(TextFocusKeyboard.Target.MAIN));
+        assertNull(keyboard.getRaisedOn());
+
+        // The host's field never lost the focus, so it reports nothing more
+        keyboard.resume();
+        assertTrue(keyboards.isUp(TextFocusKeyboard.Target.MAIN));
+        assertEquals(TextFocusKeyboard.Target.MAIN, keyboard.getRaisedOn());
+    }
+
+    @Test
+    public void whileTheControlsAreOpen_aFocusedFieldWaitsForTheClose() {
+        keyboard.suspend();
+        keyboard.onFocus(TextFocusKeyboard.FOCUS_TEXT);
+        assertTrue(keyboards.calls.isEmpty());
+
+        keyboard.resume();
+        assertTrue(keyboards.isUp(TextFocusKeyboard.Target.MAIN));
+    }
+
+    @Test
+    public void aFieldThatLostTheFocusWhileOpen_raisesNothingOnTheClose() {
+        keyboard.onFocus(TextFocusKeyboard.FOCUS_TEXT);
+        keyboard.suspend();
+        keyboard.onFocus(TextFocusKeyboard.FOCUS_NONE);
+
+        keyboard.resume();
+        assertFalse(keyboards.isUp(TextFocusKeyboard.Target.MAIN));
+        assertNull(keyboard.getRaisedOn());
+    }
+
+    @Test
+    public void aKeyboardNotOursAtTheOpen_isNotRaisedOnTheClose() {
+        keyboard.onFocus(TextFocusKeyboard.FOCUS_TEXT);
+        // The user put it away by hand: from here on the host's field does not raise it
+        keyboards.up[TextFocusKeyboard.Target.MAIN.ordinal()] = false;
+        keyboard.onManualKeyboardUse();
+        keyboards.calls.clear();
+
+        keyboard.suspend();
+        keyboard.resume();
+        assertTrue(keyboards.calls.isEmpty());
+    }
+
+    @Test
+    public void reopeningInPlace_keepsTheFocusForTheLastClose() {
+        keyboard.onFocus(TextFocusKeyboard.FOCUS_TEXT);
+        keyboard.suspend();
+        // A menu reopened in place: the second open finds the keyboard already put away
+        keyboard.suspend();
+
+        keyboard.resume();
+        assertTrue(keyboards.isUp(TextFocusKeyboard.Target.MAIN));
+    }
+
+    @Test
+    public void theStreamEndingWhileOpen_raisesNothingOnTheClose() {
+        keyboard.onFocus(TextFocusKeyboard.FOCUS_TEXT);
+        keyboard.suspend();
+        keyboard.dismiss();
+
+        keyboard.resume();
+        assertFalse(keyboards.isUp(TextFocusKeyboard.Target.MAIN));
+    }
 }

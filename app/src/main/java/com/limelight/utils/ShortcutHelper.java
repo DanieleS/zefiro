@@ -1,8 +1,7 @@
 package com.limelight.utils;
 
 import android.annotation.TargetApi;
-import android.app.Activity;
-import android.content.Intent;
+import android.content.Context;
 import android.content.pm.ShortcutInfo;
 import android.content.pm.ShortcutManager;
 import android.graphics.Bitmap;
@@ -22,14 +21,19 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
+/**
+ * Launcher shortcuts and Android TV channel entries for hosts and games.
+ *
+ * <p>It works from any {@link Context}, so host shortcuts can be published by state that outlives
+ * a screen (the host repository holds one on the application context). Asking the TV launcher
+ * to show a channel needs a screen, and only happens when this helper was made with an Activity.
+ * A launcher file is written here, but asked for through the caller's own document request.
+ */
 public class ShortcutHelper {
 
     private final ShortcutManager sm;
-    private final Activity context;
+    private final Context context;
     private final TvChannelHelper tvChannelHelper;
-
-    public static final int REQUEST_CODE_EXPORT_ART_FILE = 778; // Unique request code
-    public static String artFileContentToExport;
 
     public static final String KEY_HOST_UUID = "host_uuid";
     public static final String KEY_HOST_NAME = "host_name";
@@ -38,7 +42,7 @@ public class ShortcutHelper {
     public static final String KEY_APP_ID = "app_id";
     public static final String KEY_GENERATED_BY = "generated_by";
 
-    public ShortcutHelper(Activity context) {
+    public ShortcutHelper(Context context) {
         this.context = context;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
             sm = context.getSystemService(ShortcutManager.class);
@@ -108,7 +112,12 @@ public class ShortcutHelper {
         tvChannelHelper.addGameToChannel(computer, app);
     }
 
-    public void createAppViewShortcut(ComputerDetails computer, boolean forceAdd, boolean newlyPaired) {
+    /**
+     * Publishes or refreshes a host's launcher shortcut, which opens its library. With
+     * {@code forceAdd} it pushes the least-used dynamic shortcut out to make room; with
+     * {@code newlyPaired} it also gives the host its TV channel and asks for it on the home screen.
+     */
+    public void createHostShortcut(ComputerDetails computer, boolean forceAdd, boolean newlyPaired) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
             ShortcutInfo sinfo = new ShortcutInfo.Builder(context, computer.uuid)
                     .setIntent(ServerHelper.createPcShortcutIntent(context, computer))
@@ -153,8 +162,24 @@ public class ShortcutHelper {
         }
     }
 
-    public void createAppViewShortcutForOnlineHost(ComputerDetails details) {
-        createAppViewShortcut(details, false, false);
+    /**
+     * Publishes or refreshes a polled host's shortcut, without pushing another one out for it,
+     * and says whether it took.
+     *
+     * <p>The check costs two more ShortcutManager IPCs, which is why it is not folded into
+     * {@link #createHostShortcut}: the publisher calls this once per host and needs the answer,
+     * where the other callers do not.
+     *
+     * @return whether the host has a shortcut afterwards. False when every dynamic slot was
+     *         taken, so a caller that publishes once can try again later. Always true below
+     *         Android 7.1, which has no launcher shortcuts to wait for.
+     */
+    public boolean publishHostShortcut(ComputerDetails details) {
+        createHostShortcut(details, false, false);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
+            return getInfoForId(details.uuid) != null;
+        }
+        return true;
     }
 
     private String getShortcutIdForGame(ComputerDetails computer, NvApp app) {
@@ -260,75 +285,73 @@ public class ShortcutHelper {
         return sb.toString();
     }
 
-    public void exportLauncherFile(ComputerDetails computer, NvApp app) {
+    /**
+     * The body of the {@code .art} file for a game, or null when the host or the game lacks what
+     * the file needs (the host's UUID and name, the game's name and UUID). On null the user has
+     * already been told why, with a toast.
+     *
+     * <p>Nothing is parked here: the caller keeps the content with the document request it
+     * makes, so two exports in flight can never write each other's file.
+     */
+    public String buildArtFileContent(ComputerDetails computer, NvApp app) {
         if (computer == null || computer.uuid == null || computer.uuid.isEmpty() ||
             computer.name == null || computer.name.isEmpty()) {
             Toast.makeText(context, R.string.export_launcher_computer_details_incomplete, Toast.LENGTH_LONG).show();
-            LimeLog.warning("exportLauncherFile: Computer details incomplete.");
-            return;
+            LimeLog.warning("buildArtFileContent: Computer details incomplete.");
+            return null;
         }
 
         if (app == null || app.getAppName() == null || app.getAppName().isEmpty() || app.getAppUUID() == null || app.getAppUUID().isEmpty()) {
             Toast.makeText(context, R.string.export_launcher_app_details_incomplete, Toast.LENGTH_LONG).show();
-            LimeLog.warning("exportLauncherFile: App details incomplete.");
-            return;
+            LimeLog.warning("buildArtFileContent: App details incomplete.");
+            return null;
         }
 
-        artFileContentToExport = buildLauncherFileContent(computer, app, null);
-
-        String fileName = app.getAppName().trim() + ".art";
-
-        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
-        // Using "application/octet-stream" for generic binary data
-        // Since .art is a custom format, octet-stream is safer, or a custom MIME type could be defined.
-        intent.setType("application/octet-stream");
-        intent.putExtra(Intent.EXTRA_TITLE, fileName);
-
-        try {
-            context.startActivityForResult(intent, REQUEST_CODE_EXPORT_ART_FILE);
-        } catch (Exception e) {
-            LimeLog.severe("Failed to start activity for file export: " + e.getMessage());
-            Toast.makeText(context, context.getString(R.string.failed_to_initiate_file_export, e.getMessage()), Toast.LENGTH_LONG).show();
-            artFileContentToExport = null; // Clear content if we can't even start the activity
-        }
+        return buildLauncherFileContent(computer, app, null);
     }
 
-    public static void writeArtFileToUri(Activity activityContext, Uri uri) {
+    /** The name a game's {@code .art} file is offered under in the save dialog. */
+    public static String artFileName(NvApp app) {
+        return app.getAppName().trim() + ".art";
+    }
+
+    /**
+     * Writes a launcher file's content to the document the user picked, and toasts the outcome.
+     * A null {@code uri} is a pick that came back empty; a null or empty {@code content} means
+     * the content was lost on the way (a process death between the request and the pick).
+     * Main thread: the file is a few hundred bytes.
+     */
+    public void writeArtFile(Uri uri, String content) {
         if (uri == null) {
-            LimeLog.warning("writeArtFileToUri: URI is null.");
-            Toast.makeText(activityContext, R.string.file_export_failed_no_location_selected, Toast.LENGTH_LONG).show();
-            artFileContentToExport = null; // Clear if URI is null
+            LimeLog.warning("writeArtFile: URI is null.");
+            Toast.makeText(context, R.string.file_export_failed_no_location_selected, Toast.LENGTH_LONG).show();
             return;
         }
 
-        if (artFileContentToExport == null || artFileContentToExport.isEmpty()) {
-            LimeLog.warning("writeArtFileToUri: No content to export.");
+        if (content == null || content.isEmpty()) {
+            LimeLog.warning("writeArtFile: No content to export.");
             // Potentially the content was cleared due to an earlier error or state loss.
             // Or this method was called inappropriately.
-            Toast.makeText(activityContext, R.string.file_export_failed_no_content_to_write, Toast.LENGTH_LONG).show();
+            Toast.makeText(context, R.string.file_export_failed_no_content_to_write, Toast.LENGTH_LONG).show();
             return;
         }
 
-        try (OutputStream outputStream = activityContext.getContentResolver().openOutputStream(uri)) {
+        try (OutputStream outputStream = context.getContentResolver().openOutputStream(uri)) {
             if (outputStream != null) {
-                outputStream.write(artFileContentToExport.getBytes());
+                outputStream.write(content.getBytes());
                 outputStream.flush(); // Ensure all data is written
                 LimeLog.info("Successfully wrote .art file to: " + uri.toString());
-                Toast.makeText(activityContext, R.string.file_exported_successfully, Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, R.string.file_exported_successfully, Toast.LENGTH_SHORT).show();
             } else {
                 LimeLog.severe("Failed to open output stream for URI: " + uri.toString());
-                Toast.makeText(activityContext, R.string.failed_to_open_file_for_writing, Toast.LENGTH_LONG).show();
+                Toast.makeText(context, R.string.failed_to_open_file_for_writing, Toast.LENGTH_LONG).show();
             }
         } catch (IOException e) {
             LimeLog.severe("Error writing .art file to URI: " + uri.toString() + " - " + e.getMessage());
-            Toast.makeText(activityContext, activityContext.getString(R.string.error_writing_file, e.getMessage()), Toast.LENGTH_LONG).show();
+            Toast.makeText(context, context.getString(R.string.error_writing_file, e.getMessage()), Toast.LENGTH_LONG).show();
         } catch (Exception e) {
             LimeLog.severe("Unexpected error writing .art file to URI: " + uri.toString() + " - " + e.getMessage());
-            Toast.makeText(activityContext, R.string.unexpected_error_during_file_export, Toast.LENGTH_LONG).show();
-        }
-        finally {
-            artFileContentToExport = null; // Clear content after attempt
+            Toast.makeText(context, R.string.unexpected_error_during_file_export, Toast.LENGTH_LONG).show();
         }
     }
 }

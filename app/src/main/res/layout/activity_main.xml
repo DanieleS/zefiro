@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The main screen's shell. Both navigation widgets are always inflated and NavChrome shows one
+    of them from the window's width: the rail column in wide windows, the bottom bar in compact
+    ones. The activity handles rotation and resizing itself, so a layout qualifier would never
+    be re-applied; one layout with a visibility switch is what lets a rotation swap them.
+
+    MainRootLayout is also the focus gate between the navigation and the section content.
+    Sections are added into sectionContainer in code, never named here, so this layout
+    inflates outside a FragmentActivity too.
+-->
+<com.limelight.main.MainRootLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/mainRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface_deep"
+    android:orientation="horizontal">
+
+    <LinearLayout
+        android:id="@+id/navRailColumn"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:background="@color/surface_deep"
+        android:orientation="vertical"
+        android:paddingTop="@dimen/nav_rail_padding_top">
+
+        <com.google.android.material.navigationrail.NavigationRailView
+            xmlns:app="http://schemas.android.com/apk/res-auto"
+            android:id="@+id/navRail"
+            android:layout_width="wrap_content"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            app:menu="@menu/main_nav" />
+
+        <!--
+            Settings at the rail's foot, apart from the destinations, as in the mocks. The rail
+            itself cannot place one item at its bottom, so NavChrome hides its Settings item and
+            this button stands in; the rail's weight above is the spacer that pushes it down.
+            Sized like a rail cell (rail width by item height) so the focus ring matches the
+            items above it; the padding brings the icon to the rail's 24dp. While Settings is the
+            section on screen NavChrome sets it activated, and it wears the rail's selected look:
+            the signal's container behind a signal icon.
+        -->
+        <ImageButton
+            android:id="@+id/navRailSettings"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/nav_rail_item_min_height"
+            android:background="@drawable/nav_rail_settings_bg"
+            android:contentDescription="@string/nav_settings"
+            android:padding="@dimen/nav_rail_settings_icon_padding"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_settings"
+            android:tint="@color/nav_rail_settings_tint" />
+
+        <com.limelight.main.ProfileAvatarView
+            android:id="@+id/navAvatar"
+            android:layout_width="@dimen/nav_avatar_size"
+            android:layout_height="@dimen/nav_avatar_size"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="@dimen/nav_avatar_margin_bottom" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/contentColumn"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <FrameLayout
+            android:id="@+id/sectionContainer"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <com.google.android.material.bottomnavigation.BottomNavigationView
+            xmlns:app="http://schemas.android.com/apk/res-auto"
+            android:id="@+id/navBottom"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            app:menu="@menu/main_nav" />
+
+    </LinearLayout>
+
+</com.limelight.main.MainRootLayout>

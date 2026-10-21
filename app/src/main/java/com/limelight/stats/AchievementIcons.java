@@ -106,6 +106,17 @@ public final class AchievementIcons {
         });
     }
 
+    /**
+     * A lock in place of a hidden achievement's icon, until the user reveals it. Forgets the
+     * view's pending load, so an icon still on its way for the view's earlier row is dropped.
+     */
+    public static void showMasked(ImageView view) {
+        view.setTag(R.id.achievementIconUrl, null);
+        view.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        view.setImageResource(R.drawable.ic_achievement_masked);
+        view.setColorFilter(null);
+    }
+
     private static void showPlaceholder(ImageView view) {
         view.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
         view.setImageResource(R.drawable.ic_trophy);

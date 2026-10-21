@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    One of the focused PC's actions on the companion panel (pcs/PcDetailsRenderer), the mock's
+    .tile: a 56dp cell on a card fill, its icon then its label on up to two lines (the sheet's
+    labels are long: "Send Wake-On-LAN request"). Delete PC is drawn in the danger tone by the
+    renderer. Not focusable: the panel's d-pad place is drawn activated.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_weight="1"
+    android:background="@drawable/companion_action_row_bg"
+    android:clickable="true"
+    android:focusable="false"
+    android:gravity="center_vertical"
+    android:minHeight="@dimen/companion_action_row_height"
+    android:orientation="horizontal"
+    android:paddingStart="14dp"
+    android:paddingTop="6dp"
+    android:paddingEnd="12dp"
+    android:paddingBottom="6dp">
+
+    <ImageView
+        android:id="@+id/pcActionIcon"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:importantForAccessibility="no"
+        android:tint="@color/content_muted" />
+
+    <TextView
+        android:id="@+id/pcActionLabel"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:maxLines="2"
+        android:textColor="@color/content_primary"
+        android:textSize="14sp"
+        tools:text="Send Wake-On-LAN request" />
+
+</LinearLayout>

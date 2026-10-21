@@ -70,10 +70,6 @@
     <string name="wol_waking_msg">唤醒电脑需要一些时间。如果电脑没有唤醒，请确保 Wake-On-LAN 设置无误。</string>
     <string name="wol_fail"> 无法发送Wake-On-LAN数据包 </string>
     <!-- Unpair messages -->
-    <string name="unpairing"> 取消配对中…… </string>
-    <string name="unpair_success"> 成功取消配对 </string>
-    <string name="unpair_fail"> 无法配对 </string>
-    <string name="unpair_error"> 设备没有配对过 </string>
     <!-- Errors -->
     <string name="error_pc_offline"> 电脑离线中 </string>
     <string name="error_manager_not_running">ComputerManager 服务未运行。请稍等几秒或重启App。</string>
@@ -104,12 +100,9 @@
 \n 请确保 Apollo 正在主机上运行。</string>
     <string name="yes"> 确定 </string>
     <string name="no"> 取消 </string>
-    <string name="lost_connection"> 与电脑失去连接 </string>
     <string name="title_details"> 详情 </string>
     <string name="help"> 帮助 </string>
     <string name="delete_pc_msg"> 你确定要删除这台电脑？ </string>
-    <string name="slow_connection_msg"> 与电脑连接过慢 \n 请降低码率 </string>
-    <string name="poor_connection_msg"> 与电脑连接不佳 </string>
     <string name="perf_overlay_decoder">解码器： %1$s</string>
     <string name="perf_overlay_incomingfps">网络接收帧数： %1$.2f FPS</string>
     <string name="perf_overlay_renderingfps">渲染帧数： %1$.2f FPS</string>
@@ -130,8 +123,6 @@
     <string name="applist_menu_scut"> 创建快捷方式 </string>
     <string name="applist_menu_export_launcher"> 导出启动文件 </string>
     <string name="applist_menu_tv_channel"> 添加到频道 </string>
-    <string name="applist_refresh_title"> 游戏列表 </string>
-    <string name="applist_refresh_msg"> 刷新中…… </string>
     <string name="applist_refresh_error_title"> 错误 </string>
     <string name="applist_refresh_error_msg"> 获取列表失败 </string>
     <string name="applist_quit_app"> 退出中 </string>
@@ -207,10 +198,6 @@
     <string name="dialog_text_reset_osc"> 你确定要删除所保存的屏幕按钮布局吗？ </string>
     <string name="toast_reset_osc_success"> 屏幕按钮布局已经重置 </string>
     <string name="category_ui_settings"> 界面设置 </string>
-    <string name="title_language_list"> 语言 </string>
-    <string name="summary_language_list"> 选择 Artemis 显示的语言 </string>
-    <string name="title_checkbox_small_icon_mode"> 使用小图标 </string>
-    <string name="summary_checkbox_small_icon_mode"> 使用小图标以在屏幕上显示更多项目 </string>
     <string name="category_host_settings"> 主机设置 </string>
     <string name="title_checkbox_enable_sops"> 优化游戏设置 </string>
     <string name="summary_checkbox_enable_sops"> 允许GFE为最佳串流效果自动更改游戏设置 </string>
@@ -269,7 +256,6 @@
     <string name="nettest_text_blocked">您设备当前的网络连接拦截了 Artemis 。连接到该网络时可能无法通过互联网串流。</string>
     <string name="perf_overlay_netlatency">平均网络延迟： %1$d ms (抖动： %2$d ms)</string>
     <string name="perf_overlay_streamdetails">视频流： %1$s %2$.2f FPS</string>
-    <string name="resolution_prefix_native_fullscreen">原生全屏</string>
     <string name="resolution_prefix_custom">自定义</string>
     <!-- Array strings -->
     <string name="audioconf_stereo">立体声</string>
@@ -353,22 +339,16 @@
     <string name="suffix_seekbar_vibrate_fallback_strength">％</string>
     <string name="keyboard_service_label"> Artemis 物理键盘</string>
     <string name="accessibility_description_text">此功能仅用于外接实体键盘时，某些系统存在特定的键盘快捷键，此情况会影响串流过程中，无法将相关按键指令传输给目标PC。            Artemis 不会观察您输入的文本，也不会收集您的密码、信用卡号或任何其他信息。</string>
-    <string name="game_menu_toggle_keyboard">弹出软键盘</string>
-    <string name="game_menu_toggle_hud">(显示/隐藏)性能信息</string>
-    <string name="game_menu_toggle_floating_button">(显示/隐藏)悬浮按钮</string>
     <string name="game_menu_select_mouse_mode">选择鼠标模式</string>
     <string name="game_menu_enable_zoom_mode">启用平移/缩放</string>
     <string name="game_menu_disable_zoom_mode">禁用平移/缩放</string>
     <string name="game_menu_rotate_screen">旋转屏幕</string>
     <string name="game_menu_toggle_keyboard_model">(显示/隐藏)特殊按键</string>
-    <string name="game_menu_toggle_virtual_model">(显示/隐藏)虚拟手柄</string>
     <string name="game_menu_toggle_virtual_keyboard_model">(显示/隐藏)虚拟全键盘</string>
     <string name="game_menu_switch_touch_sensitivity_model">触控灵敏度切换</string>
     <string name="game_menu_toggle_mouse_off">禁用手柄鼠标模拟</string>
     <string name="game_menu_disconnect">断开连接</string>
-    <string name="game_menu_cancel">取消</string>
     <string name="game_menu_task_manager">打开任务管理器</string>
-    <string name="game_menu_send_keys">发送特殊按键</string>
     <string name="game_menu_send_keys_ctrl_v">Ctrl + V (粘贴剪切板)</string>
     <string name="game_menu_send_keys_win">Win</string>
     <string name="game_menu_send_keys_win_d">Win + D (返回桌面)</string>
@@ -390,7 +370,6 @@
     <string name="summary_analog_scrolling">在鼠标模式下选择用哪个摇杆控制鼠标移动</string>
     <string name="summary_seekbar_vibrate_fallback_strength">增强或减弱设备的震动强度</string>
     <string name="analogscroll_none">默认 (两个摇杆都控制鼠标)</string>
-    <string name="perf_overlay_lite_decoder">解码器： %1$s</string>
     <string name="title_import_keyboard_layout">导入键盘布局</string>
     <string name="title_export_keyboard_layout">导出键盘布局</string>
     <string name="summary_import_keyboard_layout">导入键盘布局配置。会覆盖当前配置。</string>
@@ -409,17 +388,11 @@
     <string name="summary_checkbox_multi_touch_gestures">开启后，可在多点触控时使用三指唤出键盘、四指唤出全键盘、五指唤出快捷菜单。</string>
     <string name="title_checkbox_onscreen_style_official">官方虚拟手柄皮肤</string>
     <string name="summary_checkbox_onscreen_style_official">如果你还是喜欢官方旧版虚拟手柄按键风格可以勾选此选项。\n按键形状可以为方形，如果你勾选了底部虚拟按键【普通按钮为方形按钮】</string>
-    <string name="title_checkbox_enable_perf_overlay_lite">开启Lite精简模式</string>
-    <string name="summary_checkbox_enable_perf_overlay_lite">展示简化版性能信息：网速/延迟/解码/丢包率/FPS</string>
     <string name="title_checkbox_enable_perf_logging">启用性能数据统计</string>
     <string name="summary_checkbox_enable_perf_logging">存储性能记录（仅本地）</string>
-    <string name="title_checkbox_enable_perf_overlay_lite_dialog">Lite精简模式点击弹出快捷选项</string>
-    <string name="summary_checkbox_enable_perf_overlay_lite_dialog">代替返回键逻辑，弹出游戏快捷菜单。</string>
     <string name="title_virtual_trackpad_settings">虚拟触摸板设置</string>
     <string name="title_quit_dialog">返回菜单</string>
     <string name="summary_quit_dialog">启用返回菜单</string>
-    <string name="title_floating_button">悬浮按钮</string>
-    <string name="summary_floating_button">启用悬浮按钮</string>
     <string name="dialog_custom_resolution">设置完分辨率后，退出设置页面 重新打开生效！</string>
     <string name="summary_custom_resolution">添加一个自定义分辨率,x号分割,比较奇怪的分辨率可能无法生效。
             \n例如：1920x1080
@@ -513,8 +486,6 @@
     <string name="game_menu_send_keys_alt_enter">Alt + Enter</string>
     <string name="game_menu_send_keys_ctrl_alt_shift_f12">Ctrl+Alt+Shift+F12 (切换显示器)</string>
     <string name="perf_overlay_lite_bandwidth">带宽</string>
-    <string name="perf_overlay_lite_network_decoding_delay">网络/解码延迟</string>
-    <string name="perf_overlay_lite_packet_loss">丢包率</string>
     <string name="menu_button">菜单</string>
     <string name="quick_menu_title">快捷菜单</string>
     <string name="wrong_import_format">自定义导入格式错误，请检查！</string>
@@ -579,10 +550,8 @@
     <string name="pref_import_success">导入成功！</string>
     <string name="pref_error_occurred">出错啦~</string>
     <string name="pref_save_keyboard_profile">保存屏幕键盘配置</string>
-    <string name="game_menu_advanced">高级菜单</string>
     <string name="game_dialog_title_quit_confirm">确定要退出吗？</string>
     <string name="game_dialog_message_quit_confirm">请确保当前没有未保存的进度。终止会话会导致当前运行的程序被强行停止。</string>
-    <string name="game_menu_quit_session">终止会话</string>
     <string name="game_menu_server_cmd">服务端命令</string>
     <string name="game_menu_fetch_clipboard">获取剪贴板</string>
     <string name="game_menu_upload_clipboard">上传剪贴板</string>
@@ -607,12 +576,6 @@
     <string name="permission_launch_app">启动APP</string>
     <string name="permission_sync_clipboard">同步剪贴板</string>
 
-    <string name="searchpreference_search">搜索…</string>
-    <string name="searchpreference_clear">清除</string>
-    <string name="searchpreference_history_entry">历史条目</string>
-    <string name="searchpreference_more">更多</string>
-    <string name="searchpreference_clear_history">清除历史</string>
-    <string name="searchpreference_no_results">无结果</string>
     <string name="game_menu_toggle_mouse_on">启用手柄鼠标模拟</string>
     <string name="summary_performance_link">查看其他设备的性能数据</string>
     <string name="email_chooser_title">发送性能统计...</string>
@@ -645,7 +608,6 @@
     <string name="error_writing_file">写入文件时出错：%s</string>
     <string name="unexpected_error_during_file_export">文件导出期间发生意外错误。</string>
 
-    <!-- AppView Toast Messages -->
     <string name="file_export_cancelled">文件导出已取消。</string>
     <string name="app_removed_from_pc">应用已从电脑上移除</string>
 
@@ -657,8 +619,6 @@
     <string name="summary_show_overlay_zoom_toggle_button">在屏幕上显示一个悬浮按钮以切换拖拽/缩放模式</string>
     <string name="title_checkbox_remember_zoom_pan">记住缩放及位置</string>
     <string name="summary_checkbox_remember_zoom_pan">在不同会话间记住缩放及位置</string>
-    <string name="title_checkbox_enable_perf_overlay_bottom">移动性能信息至底部</string>
-    <string name="summary_checkbox_enable_perf_overlay_bottom">当串流分辨率非本地原生且启用了画面顶部居中显示时有用。</string>
     <string name="profile_manager_new_profile">新配置</string>
     <string name="profile_manager_profile_not_found">配置未找到</string>
     <string name="profile_manager_edit_profile">编辑配置：</string>
@@ -671,7 +631,6 @@
     <string name="profile_manager_no_profiles_yet">尚无配置</string>
     <string name="profile_manager_profiles_description">配置文件允许您创建并保存不同的串流配置。每个配置文件都存储各自的设置，可以快速切换。</string>
     <string name="profile_manager_tap_create_profile">点击 + 以创建您的第一个配置文件</string>
-    <string name="profile_manager_choose_profile">选择配置</string>
     <string name="profile_manager_deactivated_profile">配置已停用</string>
     <string name="profile_manager_activated_profile">已激活配置 %s</string>
     <string name="profile_manager_delete_profile">删除配置</string>

@@ -226,6 +226,14 @@ android {
 
     testOptions {
         unitTests.includeAndroidResources = true
+        // Robolectric runs every test in one JVM, and a main screen a test leaves running stays
+        // reachable after it: from Mockito's inline mocks (the stub binder records the host
+        // repository that holds the app), RecyclerView's per-thread GapWorker, the transitions
+        // still pending and ProfilesManager's listeners. Gradle's default 512 MB ran out once
+        // the screens grew, failing a random late test or wedging the worker with no result.
+        unitTests.all {
+            maxHeapSize = "2g"
+        }
     }
 }
 
@@ -240,10 +248,16 @@ dependencies {
     implementation 'androidx.annotation:annotation:1.9.1'
     implementation 'androidx.appcompat:appcompat:1.7.1'
     implementation 'androidx.documentfile:documentfile:1.1.0'
+    // Declared rather than left to arrive through appcompat and material: the main screen hosts its
+    // sections as fragments backed by ViewModel and LiveData, so these are direct dependencies, and
+    // their versions should not hinge on whatever another library happens to require.
+    implementation 'androidx.fragment:fragment:1.8.5'
+    implementation 'androidx.activity:activity:1.9.3'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel:2.8.7'
+    implementation 'androidx.lifecycle:lifecycle-livedata:2.8.7'
     implementation 'androidx.preference:preference:1.2.1'
     implementation 'androidx.recyclerview:recyclerview:1.4.0'
     implementation 'com.google.android.material:material:1.13.0'
-    implementation 'com.github.ByteHamster:SearchPreference:v2.5.1'
     implementation 'com.github.PhilJay:MPAndroidChart:v3.1.0'
     implementation 'com.google.ai.edge.litert:litert:1.4.0'
     implementation 'com.google.ai.edge.litert:litert-gpu:1.4.0'

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The item background of the rail and the bottom bar. Material shows focus on a navigation
+    item only as a faint tint on the indicator, which is lost on the OLED black from across a
+    room; this gives the item the same signal ring the game tiles wear. Inset so the ring
+    hugs the indicator instead of the whole cell.
+
+    It is a ripple, not a bare selector, because it also carries the press feedback: once an
+    item background is set, Material skips its own item ripple (itemRippleColor is read only
+    when itemBackground is unset), so without this a tap would show nothing. The mask keeps the
+    wash to the same rounded shape as the ring.
+-->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="@color/signal_wash">
+
+    <item>
+        <selector android:exitFadeDuration="120">
+
+            <item android:state_focused="true">
+                <inset
+                    android:insetLeft="@dimen/nav_item_focus_inset"
+                    android:insetRight="@dimen/nav_item_focus_inset"
+                    android:insetTop="@dimen/nav_item_focus_inset_vertical"
+                    android:insetBottom="@dimen/nav_item_focus_inset_vertical">
+                    <shape android:shape="rectangle">
+                        <corners android:radius="@dimen/nav_item_focus_corner" />
+                        <solid android:color="@android:color/transparent" />
+                        <stroke
+                            android:width="@dimen/tile_focus_stroke"
+                            android:color="@color/signal" />
+                    </shape>
+                </inset>
+            </item>
+
+            <item android:drawable="@android:color/transparent" />
+
+        </selector>
+    </item>
+
+    <item android:id="@android:id/mask">
+        <inset
+            android:insetLeft="@dimen/nav_item_focus_inset"
+            android:insetRight="@dimen/nav_item_focus_inset"
+            android:insetTop="@dimen/nav_item_focus_inset_vertical"
+            android:insetBottom="@dimen/nav_item_focus_inset_vertical">
+            <shape android:shape="rectangle">
+                <corners android:radius="@dimen/nav_item_focus_corner" />
+                <solid android:color="@android:color/white" />
+            </shape>
+        </inset>
+    </item>
+
+</ripple>

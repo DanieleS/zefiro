@@ -2,16 +2,23 @@ package com.limelight.companion;
 
 import android.annotation.TargetApi;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.text.Html;
 import android.text.Spanned;
 import android.text.SpannableStringBuilder;
 import android.text.TextUtils;
 import android.util.DisplayMetrics;
+import android.util.TypedValue;
 import android.view.Display;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -23,21 +30,28 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
-import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+
+import androidx.core.content.ContextCompat;
+import androidx.core.view.ViewCompat;
 
 import com.limelight.LimeLog;
 import com.limelight.R;
 import com.limelight.binding.input.virtual_controller.keyboard.KeyBoardLayoutController;
 import com.limelight.binding.video.PerfStats;
 import com.limelight.nvstream.http.Achievement;
-import com.limelight.nvstream.http.AppMetadata;
 import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.stats.AchievementToast;
 import com.limelight.stats.HostSession;
+import com.limelight.stream.ControlsGrid;
+import com.limelight.stream.ControlsSurface;
+import com.limelight.stream.StreamAction;
+import com.limelight.stream.StreamControlsPanel;
+import com.limelight.stream.StreamHealth;
+import com.limelight.stream.StreamRate;
 import com.limelight.ui.MaxHeightScrollView;
 
 import org.json.JSONObject;
@@ -50,8 +64,18 @@ import java.util.List;
  * The companion surface rendered on the secondary panel.
  *
  * While a stream is running it draws the game's own telemetry view when one is installed, and the
- * performance stats — which would otherwise sit on top of the game — when there is none. The rest
- * of the time it shows nothing but the app name.
+ * stream's stats when there is none (or when the user swaps them in), over a strip of its own that
+ * carries the stats button and Menu; Menu raises the in-game controls as a sheet here, so the top
+ * screen shows only the game and its HUD (see the approved StreamTelemetry mock). While the
+ * main screen is browsing it draws what the d-pad is on up there ({@link CompanionState.Browsing}):
+ * a game's details with Play, or Resume and Quit game for the one running, or a host's state,
+ * over a row of the known PCs. The rest of the time it shows nothing but the app name. A screen
+ * with a lower half of its own puts it here as a {@link CompanionPage}, drawn by
+ * {@link CompanionPageHost} over all of the browsing surface.
+ *
+ * <p>Those browsing controls are touch only. The window is never focusable (see
+ * {@link #onCreate}), so the d-pad stays on the main screen, which offers the same actions; a tap
+ * goes back to it through {@link CompanionDisplayManager#setBrowsingActions}.
  *
  * It never polls: {@link CompanionState} pushes, roughly once a second, and only while it is on
  * screen. Telemetry frames are the exception, and deliberately bypass that path: they arrive up to
@@ -61,12 +85,14 @@ import java.util.List;
 public class CompanionPresentation extends android.app.Presentation
         implements CompanionState.Listener, TelemetryStream.Listener {
 
-    /** Matches the padding on the idle surface in @layout/companion_surface. */
-    private static final int IDLE_PADDING_DP = 28;
+    /** Matches the side padding on the idle surface in @layout/companion_surface. */
+    private static final int IDLE_PADDING_DP = 32;
 
     private final CompanionState state;
 
     private View idleView;
+    private LinearLayout idleColumnView;
+    private TextView idleLabelView;
     private TextView idleTitleView;
     private TextView idleMetaView;
     private TextView idleDescriptionView;
@@ -76,21 +102,26 @@ public class CompanionPresentation extends android.app.Presentation
     /** The description HTML we last parsed, for the same reason. */
     private String renderedDescriptionHtml;
     private DescriptionImages descriptionImages;
+    /** Play, or Resume and Quit game; under the meta line while a game is browsed. */
+    private View actionsView;
+    private TextView playLabelView;
+    private View quitView;
+    /** The hosts row, and the chips in it. */
+    private View hostsView;
+    private LinearLayout hostItemsView;
+    /** The hosts the row was last built for, so a poll that changed nothing rebuilds nothing. */
+    private List<CompanionState.HostChip> renderedHosts;
+    /** What the browsing controls were last drawn for: the one a tap acts on. */
+    private CompanionState.Browsing shownBrowsing;
+    // A screen's lower half, drawn over the browsing surface when the state has one.
+    private CompanionPageHost pageHost;
     private ImageView backdropView;
     private View backdropScrimView;
+    /** The streaming surface: the view or the stats, over the strip. */
+    private View streamView;
     private View statsView;
-    /** The view and the strip under it, shown together while a view is on screen. */
-    private View telemetryPanel;
     /** Where the telemetry view goes. Empty unless a view is on screen. */
     private FrameLayout telemetryContainer;
-    /** The strip's line of stream stats. */
-    private TextView telemetryStatsView;
-    /**
-     * Whether the full stats are showing in place of the game's telemetry view: the strip under a
-     * view only fits frame rate and latency, so a tap on it swaps the view for the full stats, and
-     * a tap on those swaps back. Lasts until the stream ends.
-     */
-    private boolean statsOverTelemetry;
     /**
      * The telemetry view, or null when none is on screen. Created only when a game has a view and
      * destroyed as soon as it is not needed: a WebView is a renderer process and a Chromium
@@ -101,8 +132,6 @@ public class CompanionPresentation extends android.app.Presentation
     private String loadedTelemetryHtml;
     /** Whether the loaded view has finished loading and can be handed frames. */
     private boolean telemetryViewReady;
-    /** A view whose renderer died while it was loaded, so it is not loaded into the next one. */
-    private String crashedTelemetryHtml;
     /** The stream this panel is subscribed to, so a new or ended one can be told apart from it. */
     private TelemetryStream followedStream;
 
@@ -133,24 +162,49 @@ public class CompanionPresentation extends android.app.Presentation
             telemetryView.postDelayed(this, TELEMETRY_RESYNC_MS);
         }
     };
+    // The stats: what the stream is, then up to nine tiles.
+    private View statsHeaderView;
+    private TextView statsTitleView;
+    private TextView statsSubtitleView;
+    private TextView statsCodecView;
+    private LinearLayout statsGridView;
+    /** Every tile, in reading order, whether shown or not. */
+    private View[] statTiles;
+    private View hostTile;
+    private View deviceTile;
+    /** Which tiles the grid was last cut for, a bit each, so a steady stream re-lays nothing. */
+    private int laidOutTiles = -1;
     private TextView resolutionView;
     private TextView fpsView;
     private TextView latencyView;
     private TextView decodeTimeView;
+    private TextView hostLatencyView;
     private TextView lossView;
     private TextView bandwidthView;
-    private TextView framesView;
-    private View hostRowView;
-    private TextView hostLatencyView;
-    private TextView decoderView;
+    private TextView droppedView;
+    private TextView deviceView;
 
-    // The in-game menu, when it is drawn here rather than over the game.
-    private ImageButton menuButton;
+    // The strip under the view or the stats.
+    private View statButton;
+    private View statDot;
+    private TextView statText;
+    private View sessionView;
+    private View sessionDot;
+    private TextView sessionText;
+    private View gameButton;
+
+    // The in-game controls sheet, when the controls are drawn here rather than over the game.
     private View menuOverlay;
     private TextView menuTitleView;
+    private TextView menuStatsView;
     private LinearLayout menuItemsView;
+    private LinearLayout menuDangerView;
     private MaxHeightScrollView menuScrollView;
+    /** Every entry of the page, tiles, rows and the danger row alike, in drawing order. */
+    private final List<View> menuCells = new ArrayList<>();
     private final List<Runnable> menuActions = new ArrayList<>();
+    /** Where the pad goes from each of {@link #menuCells}; null while the sheet is down. */
+    private ControlsGrid menuGrid;
     private int menuSelectedIndex = -1;
 
     // The keyboard for a text field focused on the host, created the first time one is needed.
@@ -177,7 +231,6 @@ public class CompanionPresentation extends android.app.Presentation
                 textKeyboard = new KeyBoardLayoutController(container, getContext(),
                         PreferenceConfiguration.readPreferences(getContext()));
                 textKeyboard.setViewCallbacks(shown -> {
-                    liftMenuButton(shown ? container : null);
                     if (!shown && !hidingTextKeyboard) {
                         // Closed from its own hide key
                         CompanionDisplayManager.onTextKeyboardDismissed();
@@ -194,23 +247,6 @@ public class CompanionPresentation extends android.app.Presentation
                 hidingTextKeyboard = false;
             }
         }
-    }
-
-    /**
-     * Keep the menu button clear of the keyboard: both sit at the bottom of the panel, and the
-     * keyboard is drawn over the button.
-     *
-     * @param keyboardContainer the keyboard's container while it is up, or null once it is gone
-     */
-    private void liftMenuButton(FrameLayout keyboardContainer) {
-        if (menuButton == null) {
-            return;
-        }
-        int keyboardHeight = 0;
-        if (keyboardContainer != null && keyboardContainer.getChildCount() > 0) {
-            keyboardHeight = Math.max(0, keyboardContainer.getChildAt(0).getLayoutParams().height);
-        }
-        menuButton.setTranslationY(-keyboardHeight);
     }
 
     boolean isTextKeyboardVisible() {
@@ -231,54 +267,91 @@ public class CompanionPresentation extends android.app.Presentation
 
         setContentView(R.layout.companion_surface);
         idleView = findViewById(R.id.companionIdle);
+        idleColumnView = findViewById(R.id.companionIdleColumn);
+        idleLabelView = findViewById(R.id.companionIdleLabel);
         idleTitleView = findViewById(R.id.companionIdleTitle);
         idleMetaView = findViewById(R.id.companionIdleMeta);
         idleDescriptionView = findViewById(R.id.companionIdleDescription);
         idleDescriptionScrollView = findViewById(R.id.companionIdleDescriptionScroll);
         descriptionImages = new DescriptionImages(idleDescriptionView, this::onDescriptionImageLoaded);
+        actionsView = findViewById(R.id.companionActions);
+        playLabelView = findViewById(R.id.companionPlayLabel);
+        quitView = findViewById(R.id.companionQuit);
+        hostsView = findViewById(R.id.companionHosts);
+        hostItemsView = findViewById(R.id.companionHostItems);
+        // Each acts on the browsing the buttons were drawn for, not whatever the state holds by
+        // the time the tap lands: what the user saw is what they meant.
+        findViewById(R.id.companionPlay).setOnClickListener(v -> {
+            CompanionState.Browsing browsing = shownBrowsing;
+            if (browsing != null && browsing.running) {
+                CompanionDisplayManager.onBrowsingResume(browsing);
+            } else {
+                CompanionDisplayManager.onBrowsingPlay(browsing);
+            }
+        });
+        quitView.setOnClickListener(v -> CompanionDisplayManager.onBrowsingQuit(shownBrowsing));
         backdropView = findViewById(R.id.companionBackdrop);
         backdropScrimView = findViewById(R.id.companionBackdropScrim);
+        streamView = findViewById(R.id.companionStream);
         statsView = findViewById(R.id.companionStats);
-        telemetryPanel = findViewById(R.id.companionTelemetry);
         telemetryContainer = findViewById(R.id.companionTelemetryContainer);
-        telemetryStatsView = findViewById(R.id.companionTelemetryStats);
-        resolutionView = findViewById(R.id.companionResolution);
-        fpsView = findViewById(R.id.companionFps);
-        latencyView = findViewById(R.id.companionLatency);
-        decodeTimeView = findViewById(R.id.companionDecodeTime);
-        lossView = findViewById(R.id.companionLoss);
-        bandwidthView = findViewById(R.id.companionBandwidth);
-        framesView = findViewById(R.id.companionFrames);
-        hostRowView = findViewById(R.id.companionHostRow);
-        hostLatencyView = findViewById(R.id.companionHostLatency);
-        decoderView = findViewById(R.id.companionDecoder);
+        statsHeaderView = findViewById(R.id.companionStatsHeader);
+        statsTitleView = findViewById(R.id.companionStatsTitle);
+        statsSubtitleView = findViewById(R.id.companionStatsSubtitle);
+        statsCodecView = findViewById(R.id.companionStatsCodec);
+        statsGridView = findViewById(R.id.companionStatsGrid);
+        hostTile = findViewById(R.id.companionStatHostTile);
+        deviceTile = findViewById(R.id.companionStatDeviceTile);
+        statTiles = new View[]{
+                findViewById(R.id.companionStatResolutionTile),
+                findViewById(R.id.companionStatFpsTile),
+                findViewById(R.id.companionStatLatencyTile),
+                findViewById(R.id.companionStatDecodeTile),
+                hostTile,
+                findViewById(R.id.companionStatLossTile),
+                findViewById(R.id.companionStatBitrateTile),
+                findViewById(R.id.companionStatDroppedTile),
+                deviceTile,
+        };
+        resolutionView = findViewById(R.id.companionStatResolution);
+        fpsView = findViewById(R.id.companionStatFps);
+        latencyView = findViewById(R.id.companionStatLatency);
+        decodeTimeView = findViewById(R.id.companionStatDecode);
+        hostLatencyView = findViewById(R.id.companionStatHost);
+        lossView = findViewById(R.id.companionStatLoss);
+        bandwidthView = findViewById(R.id.companionStatBitrate);
+        droppedView = findViewById(R.id.companionStatDropped);
+        deviceView = findViewById(R.id.companionStatDevice);
 
-        menuButton = findViewById(R.id.companionMenuButton);
+        statButton = findViewById(R.id.companionStatButton);
+        statDot = findViewById(R.id.companionStatDot);
+        statText = findViewById(R.id.companionStatText);
+        sessionView = findViewById(R.id.companionSession);
+        sessionDot = findViewById(R.id.companionSessionDot);
+        sessionText = findViewById(R.id.companionSessionText);
+        gameButton = findViewById(R.id.companionGameButton);
+        // The strip under a view has room for two numbers; its button swaps all of them in for
+        // the view and back, and "Game" goes back too. Kept in CompanionState, so the choice
+        // survives the panel being re-hosted (a Settings round-trip) for the rest of the stream.
+        statButton.setOnClickListener(v ->
+                state.setStatsOverTelemetry(!state.isStatsOverTelemetry()));
+        gameButton.setOnClickListener(v -> state.setStatsOverTelemetry(false));
+        // The panel's own Menu raises the controls, the same as the gamepad's combo does.
+        findViewById(R.id.companionMenuButton)
+                .setOnClickListener(v -> CompanionDisplayManager.requestOpenMenu());
+
         menuOverlay = findViewById(R.id.companionMenu);
         menuTitleView = findViewById(R.id.companionMenuTitle);
+        menuStatsView = findViewById(R.id.companionMenuStats);
         menuItemsView = findViewById(R.id.companionMenuItems);
+        menuDangerView = findViewById(R.id.companionMenuDanger);
         menuScrollView = findViewById(R.id.companionMenuScroll);
-        menuScrollView.setMaxHeightPx((int) (getContext().getResources().getDisplayMetrics().heightPixels * 0.8f));
-        // The panel's own button raises the menu, the same as the gamepad's does.
-        menuButton.setOnClickListener(v -> CompanionDisplayManager.requestOpenMenu());
-        // The strip under a telemetry view has room for two numbers; a tap brings up all of them,
-        // and a tap on the stats goes back to the view.
-        telemetryStatsView.setOnClickListener(v -> {
-            if (state.getStats() != null) {
-                statsOverTelemetry = true;
-                render();
-            }
-        });
-        statsView.setOnClickListener(v -> {
-            if (statsOverTelemetry) {
-                statsOverTelemetry = false;
-                render();
-            }
-        });
-        statsView.setClickable(false);
-        // Under a telemetry view the button lives in the panel's strip instead, off the view.
-        findViewById(R.id.companionTelemetryMenuButton)
-                .setOnClickListener(v -> CompanionDisplayManager.requestOpenMenu());
+        // The sheet's header and danger row stay in sight; only the tiles and rows scroll.
+        menuScrollView.setMaxHeightPx((int) (getContext().getResources().getDisplayMetrics().heightPixels * 0.6f));
+        // A tap on the scrim around the sheet closes it, as a tap outside any sheet does.
+        menuOverlay.setOnClickListener(v -> hideMenu());
+        pageHost = new CompanionPageHost(findViewById(R.id.companionPage),
+                LayoutInflater.from(getContext()));
     }
 
     @Override
@@ -337,47 +410,72 @@ public class CompanionPresentation extends android.app.Presentation
         }
         followTelemetryStream();
 
-        // One surface per content state. The in-game menu belongs to a running game, so its button
-        // follows the streaming state and nothing else.
+        // One surface per content state. The controls belong to a running game, so the sheet
+        // goes as soon as the stream does.
         CompanionState.Content content = state.getContent();
         boolean streaming = content == CompanionState.Content.STREAMING;
-        menuButton.setVisibility(streaming ? View.VISIBLE : View.GONE);
         if (!streaming) {
             hideMenu();
-            statsOverTelemetry = false;
         }
+
+        // The browsing controls belong to browsing alone: a tap on Play mid-stream, or on an idle
+        // panel whose main screen has gone, would act for a screen that is not there.
+        CompanionState.Browsing browsing =
+                content == CompanionState.Content.BROWSING ? state.getBrowsing() : null;
+        // A page replaces the whole browsing surface, its buttons and hosts row included; one
+        // that fails to draw leaves the spotlight in its place.
+        boolean paged = showPage(
+                content == CompanionState.Content.BROWSING ? state.getPage() : null);
+        showBrowsingControls(paged ? null : browsing,
+                browsing != null && !paged ? state.getHosts() : null);
 
         switch (content) {
             case BROWSING:
-                showSpotlight(state.getBrowsingTitle(), state.getBrowsingMetadata(),
-                        state.getBrowsingBackground());
-                return;
-            case STREAMING:
-                // A game that has a view: that view is what the panel is for, and the stats are what
-                // it falls back to when there is none.
-                String view = state.getTelemetryView();
-                PerfStats streamStats = state.getStats();
-                boolean hasView = view != null && !view.equals(crashedTelemetryHtml);
-                if (hasView && !(statsOverTelemetry && streamStats != null)) {
-                    showTelemetryView(view);
-                    showTelemetryStrip(streamStats);
+                if (paged) {
                     return;
                 }
-                // With a view behind them, the stats are there because they were asked for: a tap
-                // anywhere on them goes back to the view.
-                statsView.setClickable(hasView);
-                if (streamStats != null) {
-                    showStats(streamStats);
+                if (browsing == null) {
+                    showSpotlight(null, null, null, null);
                 } else {
-                    // Stats switched off mid-stream: a bare surface. Not the library spotlight —
-                    // that game is not the one being played.
-                    showSpotlight(null, null, null);
+                    showSpotlight(browsing.title, browsing.meta, browsing.descriptionHtml,
+                            browsing.backdrop);
+                    // "Focused" names a game the d-pad is on, with its place in the grid when
+                    // See all told it; a host is the fallback, unlabelled.
+                    idleLabelView.setText(browsing.hasPosition()
+                            ? getContext().getString(R.string.companion_focused_position,
+                                    browsing.position + 1, browsing.count)
+                            : getContext().getString(R.string.companion_focused));
+                    idleLabelView.setVisibility(browsing.kind == CompanionState.Browsing.Kind.GAME
+                            && browsing.title != null && !browsing.title.isEmpty()
+                            ? View.VISIBLE : View.GONE);
                 }
+                return;
+            case STREAMING:
+                showStream();
                 return;
             case IDLE:
             default:
-                showSpotlight(null, null, null);
+                showSpotlight(null, null, null, null);
         }
+    }
+
+    /**
+     * Draw a screen's lower half in place of the spotlight, or take the page away for null.
+     *
+     * @return whether a page is on screen
+     */
+    private boolean showPage(CompanionPage page) {
+        if (page == null || !pageHost.show(page)) {
+            pageHost.hide();
+            return false;
+        }
+        hideTelemetryView();
+        idleView.setVisibility(View.GONE);
+        streamView.setVisibility(View.GONE);
+        statsView.setVisibility(View.GONE);
+        setBackdrop(null);
+        descriptionImages.setAnimating(false);
+        return true;
     }
 
     /**
@@ -441,9 +539,11 @@ public class CompanionPresentation extends android.app.Presentation
                         + (detail.didCrash() ? "crashed" : "was killed to free memory"));
                 if (view == telemetryView) {
                     // Not loaded again. Whatever took the renderer down would most likely do it
-                    // again, so for the rest of this panel's life that view gives way to the stats.
-                    crashedTelemetryHtml = loadedTelemetryHtml;
+                    // again, so for the rest of this stream that view gives way to the stats —
+                    // remembered in the state, so a re-hosted panel does not try it once more.
+                    String crashed = loadedTelemetryHtml;
                     destroyTelemetryView();
+                    state.markTelemetryViewCrashed(crashed);
                     render();
                 } else {
                     view.destroy();
@@ -475,11 +575,8 @@ public class CompanionPresentation extends android.app.Presentation
      * Everything it draws has to arrive through {@link #deliver}.
      */
     private void showTelemetryView(String html) {
-        idleView.setVisibility(View.GONE);
-        setBackdrop(null);
-        descriptionImages.setAnimating(false);
         statsView.setVisibility(View.GONE);
-        telemetryPanel.setVisibility(View.VISIBLE);
+        telemetryContainer.setVisibility(View.VISIBLE);
         if (telemetryView == null) {
             telemetryView = new WebView(getContext());
             configureTelemetryView();
@@ -495,18 +592,6 @@ public class CompanionPresentation extends android.app.Presentation
         telemetryView.loadDataWithBaseURL(null, html, "text/html", "utf-8", null);
     }
 
-    /** The strip's quiet line: frame rate and network latency, or nothing with the stats off. */
-    private void showTelemetryStrip(PerfStats stats) {
-        // The floating button would sit on the view; the strip carries its own.
-        menuButton.setVisibility(View.GONE);
-        if (stats == null) {
-            telemetryStatsView.setText("");
-            return;
-        }
-        telemetryStatsView.setText(getContext().getString(R.string.companion_telemetry_strip,
-                Math.round(stats.totalFps), stats.networkLatencyMs));
-    }
-
     private void hideTelemetryView() {
         // Destroyed rather than left paused: a view holds a dead game's numbers, and the next game
         // is entitled to a view that has never seen them.
@@ -514,8 +599,8 @@ public class CompanionPresentation extends android.app.Presentation
     }
 
     private void destroyTelemetryView() {
-        if (telemetryPanel != null) {
-            telemetryPanel.setVisibility(View.GONE);
+        if (telemetryContainer != null) {
+            telemetryContainer.setVisibility(View.GONE);
         }
         if (telemetryView == null) {
             return;
@@ -567,50 +652,247 @@ public class CompanionPresentation extends android.app.Presentation
         telemetryView.evaluateJavascript(script, null);
     }
 
-    private void showStats(PerfStats stats) {
-        hideTelemetryView();
+    /**
+     * The streaming surface: the game's view when it has one (unless the stats were asked for in
+     * its place), the stats otherwise, and the strip under either. Never the library spotlight:
+     * that game is not the one being played.
+     */
+    private void showStream() {
         idleView.setVisibility(View.GONE);
-        // The hero backdrop belongs to the idle library surface, not the stats dashboard.
+        // The hero backdrop belongs to the browsing surface, not the stream.
         setBackdrop(null);
         // Nor is there any point animating a description nobody can see while a game is running.
         descriptionImages.setAnimating(false);
-        statsView.setVisibility(View.VISIBLE);
+        streamView.setVisibility(View.VISIBLE);
 
-        Context context = getContext();
-        resolutionView.setText(context.getString(R.string.companion_resolution, stats.width, stats.height));
-        fpsView.setText(String.valueOf(Math.round(stats.totalFps)));
-        latencyView.setText(context.getString(R.string.companion_value_latency,
-                stats.networkLatencyMs, stats.networkLatencyVarianceMs));
-        decodeTimeView.setText(context.getString(R.string.companion_value_ms, stats.decodeTimeMs));
-        lossView.setText(context.getString(R.string.companion_value_percent, stats.networkDropsPercent));
-        bandwidthView.setText(formatBandwidth(stats));
-        framesView.setText(context.getString(R.string.companion_value_frames,
-                stats.receivedFps, stats.renderedFps));
-        decoderView.setText(stats.decoder);
-
-        if (stats.hasHostProcessingLatency) {
-            hostRowView.setVisibility(View.VISIBLE);
-            hostLatencyView.setText(context.getString(R.string.companion_value_host_latency,
-                    stats.minHostProcessingLatencyMs,
-                    stats.maxHostProcessingLatencyMs,
-                    stats.avgHostProcessingLatencyMs));
+        String view = state.getUsableTelemetryView();
+        boolean hasView = view != null;
+        boolean statsOver = hasView && state.isStatsOverTelemetry();
+        PerfStats stats = state.getStats();
+        CompanionState.StreamSession session = state.getStreamSession();
+        if (hasView && !statsOver) {
+            showTelemetryView(view);
         } else {
-            // Not every host reports it, and an empty row reads better than a row of dashes.
-            hostRowView.setVisibility(View.GONE);
+            // Destroyed rather than hidden while the stats are up: the swap back loads the view
+            // afresh, and onPageFinished hands it the whole picture again.
+            hideTelemetryView();
+            statsView.setVisibility(View.VISIBLE);
+            bindStats(stats, session);
+        }
+        bindStrip(hasView, statsOver, stats, session);
+        if (isMenuOpen()) {
+            bindMenuHeader();
         }
     }
 
     /**
-     * The non-stats surface: a spotlight on the given game, or a bare panel when passed nothing.
-     * Callers hand it the content to draw rather than a mode to interpret, so "nothing to show"
-     * and "show this game" are the same code path with different arguments.
+     * The header and the tiles, or a dash in each until the first second of numbers arrives.
+     * The header names the game, with the PC and the time played under it, as the controls do;
+     * the PC is never the title.
      */
-    private void showSpotlight(String title, AppMetadata meta, Bitmap backdrop) {
+    private void bindStats(PerfStats stats, CompanionState.StreamSession session) {
+        Context context = getContext();
+        String title = session != null ? session.game : null;
+        String host = session != null ? session.host : null;
+        String played = session != null && session.startUptimeMs > 0
+                ? StreamControlsPanel.sessionLength(context.getResources(),
+                        SystemClock.uptimeMillis() - session.startUptimeMs)
+                : null;
+        String subtitle = host != null && played != null
+                ? context.getString(R.string.companion_stats_subtitle, host, played)
+                : host != null ? host : played;
+        String codec = session != null ? session.codec : null;
+        statsTitleView.setText(title);
+        statsTitleView.setVisibility(title != null ? View.VISIBLE : View.GONE);
+        statsSubtitleView.setText(subtitle);
+        statsSubtitleView.setVisibility(subtitle != null ? View.VISIBLE : View.GONE);
+        statsCodecView.setText(codec);
+        statsHeaderView.setVisibility(title != null || subtitle != null || codec != null
+                ? View.VISIBLE : View.GONE);
+
+        String none = context.getString(R.string.companion_value_unavailable);
+        float deviceC = deviceTemperatureC(context);
+        deviceView.setText(Float.isNaN(deviceC) ? none
+                : context.getString(R.string.companion_value_celsius, deviceC));
+        // Host only from a host that reports its own latency: most never do, and a tile reading
+        // a dash for a whole stream is a tile that is not there. Once seen it stays for the
+        // stream, a dash in a second that had no frame to time, so the grid does not jump; the
+        // state remembers it, so a panel built again mid-stream cuts the same grid as before.
+        // Device only where the device says (its battery's sensor, which needs no permission).
+        layoutStatTiles(state.hasSeenHostLatency(), !Float.isNaN(deviceC));
+
+        if (stats == null) {
+            for (TextView value : new TextView[]{resolutionView, fpsView, latencyView,
+                    decodeTimeView, hostLatencyView, lossView, bandwidthView, droppedView}) {
+                value.setText(none);
+            }
+            return;
+        }
+        resolutionView.setText(context.getString(R.string.companion_resolution, stats.width, stats.height));
+        fpsView.setText(context.getString(R.string.companion_value_fps, stats.totalFps));
+        latencyView.setText(context.getString(R.string.companion_value_ms_whole, stats.networkLatencyMs));
+        decodeTimeView.setText(context.getString(R.string.companion_value_ms, stats.decodeTimeMs));
+        hostLatencyView.setText(stats.hasHostProcessingLatency
+                ? context.getString(R.string.companion_value_ms, stats.avgHostProcessingLatencyMs)
+                : none);
+        // A window with no frames has 0/0 for its loss, which is no number at all.
+        lossView.setText(Float.isNaN(stats.networkDropsPercent) ? none
+                : context.getString(R.string.companion_value_percent, stats.networkDropsPercent));
+        // In Mbps, as the controls' header and the Bitrate entry write it.
+        bandwidthView.setText(stats.hasBandwidth()
+                ? StreamRate.mbps(context.getResources(), stats) : none);
+        // Frames that arrived in the last second but never reached the screen.
+        droppedView.setText(String.valueOf(
+                Math.max(0, Math.round(stats.receivedFps - stats.renderedFps))));
+    }
+
+    /**
+     * Cut the shown tiles into full rows ({@link StatsGrid}). Re-parents the tiles only when which
+     * of them show has changed, which is at most twice a stream.
+     */
+    private void layoutStatTiles(boolean hostShown, boolean deviceShown) {
+        int shown = 0;
+        int count = 0;
+        for (int i = 0; i < statTiles.length; i++) {
+            View tile = statTiles[i];
+            boolean visible = (tile != hostTile || hostShown) && (tile != deviceTile || deviceShown);
+            if (visible) {
+                shown |= 1 << i;
+                count++;
+            }
+        }
+        if (shown == laidOutTiles) {
+            return;
+        }
+        laidOutTiles = shown;
+
+        for (View tile : statTiles) {
+            ViewGroup parent = (ViewGroup) tile.getParent();
+            if (parent != null) {
+                parent.removeView(tile);
+            }
+        }
+        statsGridView.removeAllViews();
+
+        int columns = StatsGrid.columns(count);
+        int gap = getContext().getResources().getDimensionPixelSize(R.dimen.companion_stat_gap);
+        LinearLayout row = null;
+        int inRow = 0;
+        for (int i = 0; i < statTiles.length; i++) {
+            if ((shown & (1 << i)) == 0) {
+                continue;
+            }
+            if (row == null || inRow == columns) {
+                row = new LinearLayout(getContext());
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                row.setBaselineAligned(false);
+                LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                rowLp.bottomMargin = gap;
+                statsGridView.addView(row, rowLp);
+                inRow = 0;
+            }
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0,
+                    ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            lp.setMarginStart(inRow > 0 ? gap : 0);
+            row.addView(statTiles[i], lp);
+            inRow++;
+        }
+        // A short last row keeps the columns' width rather than stretching its tiles.
+        while (row != null && inRow > 0 && inRow < columns) {
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, 0, 1f);
+            lp.setMarginStart(gap);
+            row.addView(new View(getContext()), lp);
+            inRow++;
+        }
+    }
+
+    /**
+     * The device's temperature in degrees Celsius, NaN where it does not say. Read from the
+     * battery's sensor: the one temperature an app may read without system permissions (the
+     * thermal zones are closed to it), and on a handheld it follows the SoC closely enough to see
+     * the device heat up over a session. A sticky broadcast, so no receiver is registered.
+     */
+    private static float deviceTemperatureC(Context context) {
+        try {
+            Intent battery = ContextCompat.registerReceiver(context.getApplicationContext(), null,
+                    new IntentFilter(Intent.ACTION_BATTERY_CHANGED),
+                    ContextCompat.RECEIVER_NOT_EXPORTED);
+            int tenths = battery != null
+                    ? battery.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, Integer.MIN_VALUE)
+                    : Integer.MIN_VALUE;
+            // 0 is what a device with no sensor commonly reports; no handheld runs at 0 °C.
+            return tenths == Integer.MIN_VALUE || tenths == 0 ? Float.NaN : tenths / 10f;
+        } catch (RuntimeException e) {
+            return Float.NaN;
+        }
+    }
+
+    /**
+     * The strip. Under a view: the stats button, lit while the stats are in the view's place, and
+     * "Game" while they are. Under the stats of a game with no view there is nothing to swap, so
+     * the button gives way to the session's length. Menu is drawn by the layout, always there.
+     */
+    private void bindStrip(boolean hasView, boolean statsOver, PerfStats stats,
+                           CompanionState.StreamSession session) {
+        Context context = getContext();
+        ColorStateList health = ColorStateList.valueOf(
+                ContextCompat.getColor(context, healthColor(stats)));
+        statButton.setVisibility(hasView ? View.VISIBLE : View.GONE);
+        sessionView.setVisibility(hasView ? View.GONE : View.VISIBLE);
+        gameButton.setVisibility(statsOver ? View.VISIBLE : View.GONE);
+
+        if (hasView) {
+            statButton.setActivated(statsOver);
+            ViewCompat.setBackgroundTintList(statDot, health);
+            statText.setText(stats != null
+                    ? context.getString(R.string.companion_strip_stats,
+                            Math.round(stats.totalFps), stats.networkLatencyMs)
+                    : context.getString(R.string.companion_value_unavailable));
+            // Said by what a tap will do, since the button is a toggle with no words of its own.
+            statButton.setContentDescription(context.getString(statsOver
+                    ? R.string.companion_strip_show_view : R.string.companion_strip_show_stats));
+        } else {
+            ViewCompat.setBackgroundTintList(sessionDot, health);
+            // Moves on with each second of numbers, which keep coming for as long as the panel
+            // can show them (Game measures for it whenever the panel exists).
+            sessionText.setText(session != null && session.startUptimeMs > 0
+                    ? StreamControlsPanel.sessionLength(context.getResources(),
+                            SystemClock.uptimeMillis() - session.startUptimeMs)
+                    : null);
+        }
+    }
+
+    /** The HUD's health dot, judged the same way; faint until there is anything to judge. */
+    private static int healthColor(PerfStats stats) {
+        if (stats == null) {
+            return R.color.content_faint;
+        }
+        // The host's "poor connection" reports reach the top screen's HUD only, so this dot reads
+        // the numbers alone; they show the same trouble a moment later.
+        switch (StreamHealth.classify(stats, false)) {
+            case BAD:
+                return R.color.health_bad;
+            case WARN:
+                return R.color.health_warn;
+            case GOOD:
+            default:
+                return R.color.health_good;
+        }
+    }
+
+    /**
+     * The non-stats surface: a spotlight on the given game or host, or a bare panel when passed
+     * nothing. Callers hand it the content to draw rather than a mode to interpret, so "nothing
+     * to show" and "show this game" are the same code path with different arguments.
+     */
+    private void showSpotlight(String title, String metaLine, String html, Bitmap backdrop) {
         hideTelemetryView();
         if (idleTitleView == null) {
             return;
         }
 
+        streamView.setVisibility(View.GONE);
         statsView.setVisibility(View.GONE);
         idleView.setVisibility(View.VISIBLE);
         setBackdrop(backdrop);
@@ -620,17 +902,22 @@ public class CompanionPresentation extends android.app.Presentation
         boolean spotlightChanged = !TextUtils.equals(title, renderedTitle);
         renderedTitle = title;
 
+        idleLabelView.setVisibility(View.GONE);
         if (title == null || title.isEmpty()) {
+            // Nothing to show: the app name alone, in the middle of the panel.
+            idleColumnView.setGravity(Gravity.CENTER);
+            setColumnFills(true);
             idleTitleView.setText(R.string.app_label);
             idleMetaView.setVisibility(View.GONE);
             idleDescriptionScrollView.setVisibility(View.GONE);
             return;
         }
+        // A game or a host reads from the top left, its actions at the foot of the column.
+        idleColumnView.setGravity(Gravity.TOP | Gravity.START);
 
         idleTitleView.setText(title);
 
-        String metaLine = meta != null ? buildMetaLine(meta) : "";
-        if (metaLine.isEmpty()) {
+        if (metaLine == null || metaLine.isEmpty()) {
             idleMetaView.setVisibility(View.GONE);
         } else {
             idleMetaView.setText(metaLine);
@@ -639,21 +926,40 @@ public class CompanionPresentation extends android.app.Presentation
 
         // Re-parsing the HTML on every push would be wasted work, and re-setting the text would
         // fight the reader's scroll position, so only touch it when the description itself changed.
-        String html = meta != null ? meta.getDescription() : null;
         if (!TextUtils.equals(html, renderedDescriptionHtml)) {
             renderedDescriptionHtml = html;
             // The images belong to the description being replaced: let them go with it.
             descriptionImages.reset();
-            CharSequence description = toRichText(html);
-            idleDescriptionView.setText(description);
-            idleDescriptionScrollView.setVisibility(
-                    description.length() == 0 ? View.GONE : View.VISIBLE);
+            idleDescriptionView.setText(toRichText(html));
         } else {
             // Coming back from a stream, the images are still the right ones: play them again.
             descriptionImages.setAnimating(true);
         }
+        // From the text drawn, not only when it changes: the bare panel hid it in between.
+        // Without one, the actions follow the title and meta line straight on rather than
+        // sitting at the foot of an empty column, which read as a panel still loading.
+        boolean hasDescription = idleDescriptionView.getText().length() > 0;
+        idleDescriptionScrollView.setVisibility(hasDescription ? View.VISIBLE : View.GONE);
+        // Nor does the hosts row stay at the panel's foot under an empty half: without a
+        // description the column is as tall as it holds, and the row follows Play straight on.
+        setColumnFills(hasDescription);
         if (spotlightChanged) {
             idleDescriptionScrollView.scrollTo(0, 0);
+        }
+    }
+
+    /**
+     * Whether the spotlight's column takes the panel's height, its description scrolling and the
+     * hosts row at the foot, or only its own, with the hosts row right under it.
+     */
+    private void setColumnFills(boolean fills) {
+        LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) idleColumnView.getLayoutParams();
+        int height = fills ? 0 : ViewGroup.LayoutParams.WRAP_CONTENT;
+        float weight = fills ? 1f : 0f;
+        if (lp.height != height || lp.weight != weight) {
+            lp.height = height;
+            lp.weight = weight;
+            idleColumnView.setLayoutParams(lp);
         }
     }
 
@@ -673,27 +979,89 @@ public class CompanionPresentation extends android.app.Presentation
         }
     }
 
-    // "2020 · Action, RPG · 88%" — only the parts we actually have.
-    private String buildMetaLine(AppMetadata meta) {
-        List<String> parts = new ArrayList<>(3);
+    /** The name of the PC with this uuid in the hosts row; null when it is not there. */
+    private static String hostName(List<CompanionState.HostChip> hosts, String uuid) {
+        if (hosts == null || uuid == null) {
+            return null;
+        }
+        for (CompanionState.HostChip host : hosts) {
+            if (uuid.equals(host.uuid)) {
+                return host.name;
+            }
+        }
+        return null;
+    }
 
-        String year = meta.getReleaseYear();
-        if (!year.isEmpty()) {
-            parts.add(year);
+    /**
+     * Play, or Resume and Quit game, for a browsed game; and the hosts row under any browsing.
+     * Both are left out when no screen has registered to act on them: a button that does
+     * nothing when pressed is worse than no button.
+     *
+     * @param browsing what is browsed, or null to take the controls away
+     * @param hosts    the row's PCs; null or empty for no row
+     */
+    private void showBrowsingControls(CompanionState.Browsing browsing,
+                                      List<CompanionState.HostChip> hosts) {
+        if (actionsView == null) {
+            return;
+        }
+        boolean actionable = browsing != null && CompanionDisplayManager.hasBrowsingActions();
+        shownBrowsing = actionable ? browsing : null;
+
+        if (actionable && browsing.hasGame()) {
+            String hostName = hostName(hosts, browsing.hostUuid);
+            if (browsing.running) {
+                playLabelView.setText(R.string.library_resume);
+            } else if (hostName != null) {
+                playLabelView.setText(getContext().getString(R.string.companion_play_on, hostName));
+            } else {
+                playLabelView.setText(R.string.companion_play);
+            }
+            quitView.setVisibility(browsing.running ? View.VISIBLE : View.GONE);
+            actionsView.setVisibility(View.VISIBLE);
+        } else {
+            actionsView.setVisibility(View.GONE);
         }
 
-        List<String> genres = meta.getGenres();
-        if (genres != null && !genres.isEmpty()) {
-            int limit = Math.min(3, genres.size());
-            parts.add(TextUtils.join(", ", genres.subList(0, limit)));
+        if (!actionable || hosts == null || hosts.isEmpty()) {
+            hostsView.setVisibility(View.GONE);
+            return;
         }
-
-        int score = meta.getCommunityScore();
-        if (score >= 0) {
-            parts.add(score + "%");
+        hostsView.setVisibility(View.VISIBLE);
+        if (hosts.equals(renderedHosts)) {
+            return;
         }
-
-        return TextUtils.join("  ·  ", parts);
+        renderedHosts = hosts;
+        hostItemsView.removeAllViews();
+        Context context = getContext();
+        LayoutInflater inflater = LayoutInflater.from(context);
+        for (final CompanionState.HostChip host : hosts) {
+            View chip = inflater.inflate(R.layout.item_companion_host, hostItemsView, false);
+            String name = host.name != null ? host.name : context.getString(R.string.library_this_pc);
+            ((TextView) chip.findViewById(R.id.companionHostName)).setText(name);
+            // The PC card's dot, in the PC card's colours: a host looks the same wherever it is.
+            ViewCompat.setBackgroundTintList(chip.findViewById(R.id.companionHostDot),
+                    ColorStateList.valueOf(ContextCompat.getColor(context,
+                            host.online ? R.color.status_online : R.color.content_faint)));
+            chip.setSelected(host.selected);
+            String status = context.getString(host.online
+                    ? R.string.pcview_status_online : R.string.pcview_status_offline);
+            chip.setContentDescription(context.getString(host.selected
+                    ? R.string.companion_host_selected_a11y : R.string.companion_host_a11y,
+                    name, status));
+            chip.setOnClickListener(v -> CompanionDisplayManager.onBrowsingSelectHost(host.uuid));
+            hostItemsView.addView(chip);
+        }
+        // Last, "+": add a PC, as the PCs section's button does.
+        View add = inflater.inflate(R.layout.item_companion_host, hostItemsView, false);
+        add.findViewById(R.id.companionHostDot).setVisibility(View.GONE);
+        TextView plus = add.findViewById(R.id.companionHostName);
+        plus.setText(R.string.companion_add_host_glyph);
+        plus.setPadding(0, 0, 0, 0);
+        add.setPaddingRelative(add.getPaddingEnd(), 0, add.getPaddingEnd(), 0);
+        add.setContentDescription(context.getString(R.string.pcs_add_pc));
+        add.setOnClickListener(v -> CompanionDisplayManager.onBrowsingAddHost());
+        hostItemsView.addView(add);
     }
 
     // An image has landed: draw the description again, and put the reader back where they were —
@@ -766,24 +1134,13 @@ public class CompanionPresentation extends android.app.Presentation
         return text.subSequence(start, end);
     }
 
-    private String formatBandwidth(PerfStats stats) {
-        Context context = getContext();
-        if (!stats.hasBandwidth()) {
-            return context.getString(R.string.companion_value_unavailable);
-        }
-        if (stats.bandwidthKbps >= 1000) {
-            return context.getString(R.string.companion_value_mbps, stats.bandwidthKbps / 1024f);
-        }
-        return context.getString(R.string.companion_value_kbps, stats.bandwidthKbps);
-    }
-
-    // --- The in-game menu, drawn on this panel ---
+    // --- The in-game controls, drawn on this panel as a sheet ---
     //
     // The panel takes no input focus of its own: the window is not focusable, so the gamepad
     // stays with the game on the main screen. The Game activity, which keeps receiving the pad,
-    // routes it here while the menu is up — moving the selection and activating a row through the
-    // methods below. The selected row is marked activated rather than focused (there is no real
-    // focus to give it), and the two wear the same ring.
+    // routes it here while the sheet is up — moving the selection along the page's ControlsGrid
+    // and activating an entry through the methods below. The entry under the pad is marked
+    // selected rather than focused (there is no real focus to give it), and wears the same ring.
 
     /** The unlock toast, over whatever the panel shows, at its bottom centre. */
     public void showAchievementToast(List<Achievement> fresh, HostSession session) {
@@ -797,32 +1154,193 @@ public class CompanionPresentation extends android.app.Presentation
         return menuOverlay != null && menuOverlay.getVisibility() == View.VISIBLE;
     }
 
-    /** Draw the given actions as a menu and select the first row. Replaces any menu already up. */
+    /**
+     * Draw one page of the controls as the sheet and select its first entry. Replaces any page
+     * already up. The entries come in the tree's order: the tiles in rows of four, each list
+     * entry a row of its own, and the danger entries the row under the scroll.
+     *
+     * @param title the page's own name; unused, the header names the game (a page's name is on
+     *              its way-back row), and never the root's generic one
+     */
     public void showMenu(String title, List<CompanionMenuItem> items) {
         if (menuItemsView == null) {
             return;
         }
 
-        menuTitleView.setText(title);
-        menuTitleView.setVisibility(title == null || title.isEmpty() ? View.GONE : View.VISIBLE);
-
         menuItemsView.removeAllViews();
+        menuDangerView.removeAllViews();
+        menuCells.clear();
         menuActions.clear();
 
+        List<StreamAction.Group> groups = new ArrayList<>(items.size());
         LayoutInflater inflater = LayoutInflater.from(getContext());
+        LinearLayout tileRow = null;
+        boolean afterRow = false;
         for (CompanionMenuItem item : items) {
-            View row = inflater.inflate(R.layout.menu_sheet_row, menuItemsView, false);
-            ((TextView) row.findViewById(R.id.menuRowLabel)).setText(item.label);
+            View cell;
+            switch (item.group) {
+                case TILE:
+                    if (tileRow != null && tileRow.getChildCount() == ControlsGrid.SHEET_TILES_PER_ROW) {
+                        tileRow = null;
+                    }
+                    if (tileRow == null) {
+                        tileRow = new LinearLayout(getContext());
+                        tileRow.setOrientation(LinearLayout.HORIZONTAL);
+                        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                        lp.bottomMargin = dp(8);
+                        menuItemsView.addView(tileRow, lp);
+                    }
+                    cell = addMenuTile(inflater, tileRow, item);
+                    afterRow = false;
+                    break;
+                case DANGER:
+                    cell = addMenuDanger(item);
+                    break;
+                default:
+                    // The tiles after a row start a row of their own, as ControlsGrid counts them.
+                    padTileRow(tileRow);
+                    tileRow = null;
+                    // The mock's hairline between list rows, never after the last one.
+                    if (afterRow) {
+                        addMenuDivider();
+                    }
+                    cell = addMenuRow(inflater, item);
+                    afterRow = true;
+                    break;
+            }
+            // Touch only, like everything on the panel; the pad's selection is drawn by hand.
+            cell.setFocusable(false);
             final int index = menuActions.size();
-            row.setOnClickListener(v -> activateAt(index));
-            menuItemsView.addView(row);
+            cell.setOnClickListener(v -> activateAt(index));
+            menuCells.add(cell);
             menuActions.add(item.action);
+            groups.add(item.group);
         }
+        padTileRow(tileRow);
+        menuDangerView.setVisibility(menuDangerView.getChildCount() > 0 ? View.VISIBLE : View.GONE);
+        menuGrid = ControlsGrid.of(groups, ControlsGrid.SHEET_TILES_PER_ROW);
 
+        bindMenuHeader();
         menuOverlay.setVisibility(View.VISIBLE);
         menuScrollView.scrollTo(0, 0);
         menuSelectedIndex = -1;
-        moveSelection(1); // land on the first row
+        int first = menuGrid.first();
+        if (first >= 0) {
+            setSelected(first);
+        }
+    }
+
+    /**
+     * The header: the game, and the stream's numbers as the side panel writes them. Only the
+     * game: the root page's generic name ("Quick Menu") read as a title flipping between runs.
+     */
+    private void bindMenuHeader() {
+        CompanionState.StreamSession session = state.getStreamSession();
+        String title = session != null ? session.game : null;
+        menuTitleView.setText(title);
+        menuTitleView.setVisibility(title == null || title.isEmpty() ? View.INVISIBLE : View.VISIBLE);
+        PerfStats stats = state.getStats();
+        menuStatsView.setText(stats != null
+                ? StreamControlsPanel.statsText(getContext().getResources(), stats) : null);
+        menuStatsView.setVisibility(stats != null ? View.VISIBLE : View.GONE);
+    }
+
+    /**
+     * Fill a short tile row out to four with blanks, so its tiles keep the width of the full row
+     * above rather than stretching across it.
+     */
+    private void padTileRow(LinearLayout row) {
+        if (row == null || row.getChildCount() == 0) {
+            return;
+        }
+        int gap = getContext().getResources().getDimensionPixelSize(R.dimen.controls_tile_gap);
+        while (row.getChildCount() < ControlsGrid.SHEET_TILES_PER_ROW) {
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, 0, 1f);
+            lp.leftMargin = gap;
+            row.addView(new View(getContext()), lp);
+        }
+    }
+
+    private View addMenuTile(LayoutInflater inflater, LinearLayout row, CompanionMenuItem item) {
+        View tile = inflater.inflate(R.layout.item_controls_tile, row, false);
+        tile.setBackgroundResource(R.drawable.companion_sheet_tile_bg);
+        ImageView icon = tile.findViewById(R.id.controlsTileIcon);
+        if (item.iconRes != 0) {
+            icon.setImageResource(item.iconRes);
+        } else {
+            icon.setVisibility(View.GONE);
+        }
+        ((TextView) tile.findViewById(R.id.controlsTileLabel)).setText(item.label);
+        // On is activated, as on the side panel; the pad's selection is the separate selected.
+        tile.setActivated(Boolean.TRUE.equals(item.checked));
+        tile.setContentDescription(item.label);
+        LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) tile.getLayoutParams();
+        if (row.getChildCount() > 0) {
+            lp.leftMargin = getContext().getResources().getDimensionPixelSize(R.dimen.controls_tile_gap);
+        }
+        row.addView(tile, lp);
+        return tile;
+    }
+
+    private View addMenuRow(LayoutInflater inflater, CompanionMenuItem item) {
+        View row = inflater.inflate(R.layout.item_controls_row, menuItemsView, false);
+        row.setBackgroundResource(R.drawable.companion_sheet_row_bg);
+        ((TextView) row.findViewById(R.id.controlsRowLabel)).setText(item.label);
+        if (item.iconRes != 0) {
+            ImageView icon = row.findViewById(R.id.controlsRowIcon);
+            icon.setImageResource(item.iconRes);
+            icon.setVisibility(View.VISIBLE);
+        }
+        // A chevron on a row that opens a page, a check on a choice in use: the side panel's rows.
+        int trailing = 0;
+        int tint = 0;
+        if (item.opensPage) {
+            trailing = R.drawable.ic_chevron_right;
+            tint = R.color.content_muted;
+        } else if (Boolean.TRUE.equals(item.checked)) {
+            trailing = R.drawable.ic_check;
+            tint = R.color.signal;
+        }
+        if (trailing != 0) {
+            ImageView end = row.findViewById(R.id.controlsRowTrailing);
+            end.setImageResource(trailing);
+            end.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(getContext(), tint)));
+            end.setVisibility(View.VISIBLE);
+        }
+        menuItemsView.addView(row);
+        return row;
+    }
+
+    private void addMenuDivider() {
+        View rule = new View(getContext());
+        rule.setBackgroundColor(ContextCompat.getColor(getContext(), R.color.divider));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, dp(1)));
+        lp.bottomMargin = dp(2);
+        menuItemsView.addView(rule, lp);
+    }
+
+    /** Disconnect, and Quit game in the danger hue: the mock's two buttons, side by side. */
+    private View addMenuDanger(CompanionMenuItem item) {
+        TextView button = new TextView(getContext());
+        button.setText(item.label);
+        button.setGravity(Gravity.CENTER);
+        button.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        button.setSingleLine(true);
+        button.setTextColor(ContextCompat.getColor(getContext(),
+                item.warn ? R.color.danger : R.color.content_primary));
+        button.setBackgroundResource(item.warn
+                ? R.drawable.companion_sheet_danger_bg : R.drawable.companion_sheet_tile_bg);
+        button.setClickable(true);
+
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0,
+                getContext().getResources().getDimensionPixelSize(R.dimen.menu_row_min_height), 1f);
+        if (menuDangerView.getChildCount() > 0) {
+            lp.leftMargin = getContext().getResources().getDimensionPixelSize(R.dimen.controls_tile_gap);
+        }
+        menuDangerView.addView(button, lp);
+        return button;
     }
 
     public void hideMenu() {
@@ -831,22 +1349,24 @@ public class CompanionPresentation extends android.app.Presentation
         }
         menuOverlay.setVisibility(View.GONE);
         menuItemsView.removeAllViews();
+        menuDangerView.removeAllViews();
+        menuCells.clear();
         menuActions.clear();
+        menuGrid = null;
         menuSelectedIndex = -1;
         // Let the game know it is back to steering the pad itself.
         CompanionDisplayManager.onMenuClosed();
     }
 
-    /** Move the selection by delta rows, wrapping at the ends. */
-    public void moveSelection(int delta) {
-        int count = menuItemsView.getChildCount();
-        if (count == 0) {
+    /** Move the selection one step along the page's grid; at an edge it stays put. */
+    public void moveSelection(ControlsSurface.Nav nav) {
+        if (menuGrid == null || menuCells.isEmpty()) {
             return;
         }
-        int next = menuSelectedIndex < 0
-                ? (delta > 0 ? 0 : count - 1)
-                : Math.floorMod(menuSelectedIndex + delta, count);
-        setSelected(next);
+        int next = menuGrid.neighbour(menuSelectedIndex, nav);
+        if (next >= 0 && next != menuSelectedIndex) {
+            setSelected(next);
+        }
     }
 
     public void activateSelection() {
@@ -857,8 +1377,8 @@ public class CompanionPresentation extends android.app.Presentation
         if (index < 0 || index >= menuActions.size()) {
             return;
         }
-        // Take the menu down before running, so a re-opening action (a submenu) is not undone
-        // by this same dismissal.
+        // Take the sheet down before running, so a re-opening action (a page) is not undone
+        // by this same dismissal, and nothing the action opens lands under a sheet still up.
         Runnable action = menuActions.get(index);
         hideMenu();
         if (action != null) {
@@ -867,14 +1387,20 @@ public class CompanionPresentation extends android.app.Presentation
     }
 
     private void setSelected(int index) {
-        if (menuSelectedIndex >= 0 && menuSelectedIndex < menuItemsView.getChildCount()) {
-            menuItemsView.getChildAt(menuSelectedIndex).setActivated(false);
+        if (menuSelectedIndex >= 0 && menuSelectedIndex < menuCells.size()) {
+            menuCells.get(menuSelectedIndex).setSelected(false);
         }
         menuSelectedIndex = index;
-        View row = menuItemsView.getChildAt(index);
-        row.setActivated(true);
-        // Keep the selected row in view once the panel has been laid out.
-        row.post(() -> row.requestRectangleOnScreen(
-                new android.graphics.Rect(0, 0, row.getWidth(), row.getHeight()), false));
+        View cell = menuCells.get(index);
+        cell.setSelected(true);
+        // Keep the selected entry in view once the panel has been laid out.
+        cell.post(() -> cell.requestRectangleOnScreen(
+                new android.graphics.Rect(0, 0, cell.getWidth(), cell.getHeight()), false));
+    }
+
+    private int dp(int value) {
+        return Math.round(TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP, value,
+                getContext().getResources().getDisplayMetrics()));
     }
 }

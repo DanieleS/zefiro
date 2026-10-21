@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The facts grid of the focused PC on the companion panel (companion_pc_details), the mock's
+    .kv: a quiet raised card one step above the true-black ground. Not a control.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="@dimen/pc_details_card_corner" />
+    <solid android:color="@color/surface_container_low" />
+</shape>

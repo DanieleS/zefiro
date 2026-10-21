@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.Application;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.SharedPreferences;
 import android.hardware.display.DisplayManager;
 import android.os.Bundle;
 import android.os.Handler;
@@ -11,10 +12,16 @@ import android.os.Looper;
 import android.view.Display;
 import android.view.WindowManager;
 
+import androidx.annotation.NonNull;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.MutableLiveData;
+import androidx.preference.PreferenceManager;
+
 import com.limelight.LimeLog;
 import com.limelight.nvstream.http.Achievement;
 import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.stats.HostSession;
+import com.limelight.stream.ControlsSurface;
 
 import java.util.List;
 
@@ -28,10 +35,11 @@ import java.util.List;
  * visibly restarts. The re-host is make-before-break — the new panel is shown before the old
  * one is dismissed — so navigating between screens does not blink the panel.
  *
- * The panel takes the gamepad focus only while its in-game menu is open (see
- * {@link CompanionPresentation}); a back gesture then closes the menu rather than the panel. With
- * no menu up it can be dismissed with a back gesture, and turned on again from the library bar or
- * the in-stream menu.
+ * The panel never takes focus; while its controls sheet is open the stream activity steers the
+ * gamepad into it (see {@link CompanionPresentation}). A panel that goes away with the sheet still
+ * open — dismissed, re-hosted, or its display gone — reports the sheet closed on its way out, so
+ * the stream never keeps routing a pad to a sheet that no longer exists. The panel can be
+ * dismissed with a back gesture, and turned on again from the library or the in-stream controls.
  *
  * Everything here is best-effort: with no usable secondary display, or when the platform
  * refuses the window, the manager logs and stays idle so the rest of the app is unaffected.
@@ -39,6 +47,10 @@ import java.util.List;
 public class CompanionDisplayManager implements Application.ActivityLifecycleCallbacks {
 
     private static CompanionDisplayManager instance;
+
+    // Whether a panel is on screen, for the screens that lay out differently with one (a lower
+    // half drawn there, or inline). Static, so it reads false on a device with no manager at all.
+    private static final MutableLiveData<Boolean> panelShowing = new MutableLiveData<>(false);
 
     private final Application application;
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -57,6 +69,13 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
     // raise the in-game menu here.
     private Runnable menuRequestListener;
 
+    // What the browsing surface's Play, Resume, Quit and host taps do; the main screen registers
+    // it while it is started, the way the stream activity registers the menu request below.
+    private BrowsingActions browsingActions;
+
+    // Where a page's taps go; registered alongside the browsing actions.
+    private PageActions pageActions;
+
     // Invoked when the panel's menu opens and closes; the stream activity registers these to
     // track whether it should be steering the gamepad into the menu drawn here.
     private Runnable menuOpenedListener;
@@ -69,6 +88,18 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
     // Invoked when the user closes that keyboard from the panel; the stream activity registers it
     // so a later "focus left the field" does not count on a keyboard that is already gone.
     private Runnable textKeyboardDismissedListener;
+
+    // The companion switches are read on every screen change, but Settings is now a section of
+    // the main screen, so switching them there changes no screen: this brings the panel up or
+    // down at once instead. A field, since SharedPreferences holds its listeners weakly.
+    private final SharedPreferences.OnSharedPreferenceChangeListener enabledChanged =
+            (sharedPreferences, key) -> {
+                if (KEY_COMPANION_DISPLAY.equals(key) || KEY_FULL_EX_DISPLAY.equals(key)) {
+                    sync();
+                }
+            };
+    private static final String KEY_COMPANION_DISPLAY = "checkbox_enable_companion_display";
+    private static final String KEY_FULL_EX_DISPLAY = "checkbox_enable_fullexdisplay";
 
     private final DisplayManager.DisplayListener displayListener = new DisplayManager.DisplayListener() {
         @Override
@@ -115,6 +146,8 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
         application.registerActivityLifecycleCallbacks(manager);
         manager.displayManager.registerDisplayListener(manager.displayListener, manager.handler);
         manager.state.setOwnerListener(manager::onOwnerChanged);
+        PreferenceManager.getDefaultSharedPreferences(application)
+                .registerOnSharedPreferenceChangeListener(manager.enabledChanged);
         instance = manager;
     }
 
@@ -135,9 +168,40 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
         return isEnabled(context);
     }
 
-    /** Whether a panel is on screen right now. */
+    /**
+     * Whether a panel is on screen right now: the one answer to "is a companion screen showing",
+     * which every two-screen layout follows, and never the window's shape or size. A lower half
+     * (a game's achievements, the Stats remote, a PC's details, the stream's strip and controls
+     * sheet) goes on the panel exactly while this is true, and is laid out on the main screen
+     * otherwise: on a phone, on a Thor whose lower screen is off or hidden, or lent to a
+     * companion app. Not the same as {@link #isCompanionAvailable}, which also counts a display
+     * that could host a panel. Screens that must follow it as it changes observe
+     * {@link #panelShowing()}.
+     */
     public static boolean isShowing() {
         return instance != null && instance.presentation != null;
+    }
+
+    /**
+     * Whether a panel is on screen, as it changes: {@link #isShowing()} answers for the moment
+     * only, and a screen that puts its lower half on the panel must hear when the panel comes or
+     * goes (turned off from the host sheet, the display powered down) to lay it out inline
+     * instead, as the stream must to offer its controls on its own screen. Set on the main thread,
+     * whenever the panel is attached or taken down, after {@link #isShowing()} already answers
+     * the new way.
+     */
+    @NonNull
+    public static LiveData<Boolean> panelShowing() {
+        return panelShowing;
+    }
+
+    // After every change of presentation: the one place the LiveData follows it from.
+    private void publishShowing() {
+        boolean showing = presentation != null;
+        if (!Boolean.valueOf(showing).equals(panelShowing.getValue())) {
+            LimeLog.info("CompanionDisplay: panelShowing " + showing);
+            panelShowing.setValue(showing);
+        }
     }
 
     /**
@@ -153,6 +217,109 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
     public static void toggle() {
         CompanionState state = CompanionState.getInstance();
         setVisible(state.getOwner() != CompanionState.Owner.PANEL);
+    }
+
+    // --- The browsing surface's controls ---
+
+    /**
+     * What the browsing surface's buttons do. Each call names the {@link CompanionState.Browsing}
+     * the tap landed on, so a tap that races a focus move still acts on the game the user saw.
+     *
+     * <p>The panel never takes key focus, so these are reached by touch alone; the main screen
+     * offers the same actions to the d-pad itself (A plays, Y opens a game's actions).
+     */
+    public interface BrowsingActions {
+        void play(CompanionState.Browsing browsing);
+
+        void resume(CompanionState.Browsing browsing);
+
+        void quit(CompanionState.Browsing browsing);
+
+        void selectHost(String hostUuid);
+
+        /** The hosts row's "+": add a PC. */
+        void addHost();
+    }
+
+    /**
+     * Register what the browsing surface's buttons do, or null to take them away. The main
+     * screen sets it while started and clears it when stopped, so a button drawn for a screen
+     * that has gone does nothing rather than act on its behalf.
+     */
+    public static void setBrowsingActions(BrowsingActions actions) {
+        if (instance != null) {
+            instance.browsingActions = actions;
+        }
+    }
+
+    /** Whether a tap on the browsing surface would reach anyone; the panel hides what would not. */
+    static boolean hasBrowsingActions() {
+        return instance != null && instance.browsingActions != null;
+    }
+
+    static void onBrowsingPlay(CompanionState.Browsing browsing) {
+        if (instance != null && instance.browsingActions != null && browsing != null) {
+            instance.browsingActions.play(browsing);
+        }
+    }
+
+    static void onBrowsingResume(CompanionState.Browsing browsing) {
+        if (instance != null && instance.browsingActions != null && browsing != null) {
+            instance.browsingActions.resume(browsing);
+        }
+    }
+
+    static void onBrowsingQuit(CompanionState.Browsing browsing) {
+        if (instance != null && instance.browsingActions != null && browsing != null) {
+            instance.browsingActions.quit(browsing);
+        }
+    }
+
+    static void onBrowsingSelectHost(String hostUuid) {
+        if (instance != null && instance.browsingActions != null && hostUuid != null) {
+            instance.browsingActions.selectHost(hostUuid);
+        }
+    }
+
+    static void onBrowsingAddHost() {
+        if (instance != null && instance.browsingActions != null) {
+            instance.browsingActions.addHost();
+        }
+    }
+
+    // --- A page's taps ---
+
+    /**
+     * What a tap on a {@link CompanionPage}'s stop does. The page tapped is named, so the
+     * screen that published it can tell what the user saw.
+     *
+     * <p>Like the browsing actions, these are reached by touch; the d-pad drives a page from the
+     * main screen, which never gives up key focus.
+     */
+    public interface PageActions {
+        void onPageTap(@NonNull CompanionPage page, int stopId);
+    }
+
+    /**
+     * Register where a page's taps go, or null to take them away. The main screen sets it while
+     * started and clears it when stopped, as it does the browsing actions.
+     */
+    public static void setPageActions(PageActions actions) {
+        if (instance != null) {
+            instance.pageActions = actions;
+        }
+    }
+
+    /**
+     * A stop on the drawn page was tapped. Dropped unless that page is still the state's: a tap
+     * that races a change (a filter, a new month) must never act on a row that has moved.
+     */
+    static void onPageTap(@NonNull CompanionPage page, int stopId) {
+        if (instance == null || instance.pageActions == null
+                || !page.equals(instance.state.getPage())) {
+            return;
+        }
+        instance.pageActions.onPageTap(page, stopId);
     }
 
     // --- The in-game menu, when it is drawn on the companion panel ---
@@ -274,9 +441,10 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
         return instance != null && instance.presentation != null && instance.presentation.isMenuOpen();
     }
 
-    public static void moveMenuSelection(int delta) {
+    /** Move the sheet's selection one step in a direction; the other navs are ignored. */
+    public static void moveMenuSelection(ControlsSurface.Nav nav) {
         if (isMenuOpen()) {
-            instance.presentation.moveSelection(delta);
+            instance.presentation.moveSelection(nav);
         }
     }
 
@@ -352,6 +520,7 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
 
         presentation = shown;
         presentationDisplayId = display.getDisplayId();
+        publishShowing();
         LimeLog.info("CompanionDisplay: attached to display " + presentationDisplayId
                 + " via " + owner.getClass().getSimpleName());
     }
@@ -382,13 +551,21 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
         CompanionPresentation previous = presentation;
         presentation = replacement;
         presentationDisplayId = display.getDisplayId();
+        publishShowing();
+        boolean sheetLost = false;
         if (previous != null) {
+            // The sheet is not carried over: it was drawn for the page stack of whoever opened
+            // it, and the replacement starts without one.
+            sheetLost = previous.isMenuOpen();
             // Its listener is cleared so this deliberate dismissal is not read as the user
             // closing the panel, and CompanionState keeps the replacement's listener.
             previous.setOnDismissListener(null);
             previous.dismiss();
         }
         LimeLog.info("CompanionDisplay: re-hosted on " + owner.getClass().getSimpleName());
+        if (sheetLost) {
+            onMenuClosed();
+        }
     }
 
     private Display findDisplay() {
@@ -424,8 +601,14 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
         }
 
         int dismissedId = presentationDisplayId;
+        boolean sheetLost = presentation.isMenuOpen();
         presentation = null;
         presentationDisplayId = Display.INVALID_DISPLAY;
+        publishShowing();
+        // Told only now, with no panel left: the stream asks isMenuOpen() and must hear "no".
+        if (sheetLost) {
+            onMenuClosed();
+        }
 
         Display display = displayManager.getDisplay(dismissedId);
         boolean displayAlive = display != null && display.isValid()
@@ -446,10 +629,17 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
         LimeLog.info("CompanionDisplay: detaching from display " + presentationDisplayId);
         // Clear the dismiss listener first so our own dismissal isn't mistaken for the user
         // closing the panel out from under us.
+        boolean sheetLost = presentation.isMenuOpen();
         presentation.setOnDismissListener(null);
         presentation.dismiss();
         presentation = null;
         presentationDisplayId = Display.INVALID_DISPLAY;
+        publishShowing();
+        // A sheet that goes down with its panel never calls hideMenu() itself, so the stream
+        // would go on steering the pad into nothing — the pad stuck until the stream ended.
+        if (sheetLost) {
+            onMenuClosed();
+        }
     }
 
     /**

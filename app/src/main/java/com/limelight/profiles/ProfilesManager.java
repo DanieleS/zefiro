@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class ProfilesManager {
     private static final String PROFILES_DIR = "profiles";
@@ -34,7 +35,10 @@ public class ProfilesManager {
 
     private final Map<UUID, SettingsProfile> profiles = new LinkedHashMap<>();
     private UUID activeProfileId;
-    private final List<ProfileChangeListener> listeners = new ArrayList<>();
+    // Copy-on-write so a listener may add or remove itself (or another) from inside
+    // onProfilesChanged without breaking the loop in notifyListeners: long-lived listeners, such
+    // as a profile avatar that lives as long as the main screen, unregister on the same thread.
+    private final List<ProfileChangeListener> listeners = new CopyOnWriteArrayList<>();
     private Context appContext; // Application context for auto-save
 
     private ProfilesManager() {}

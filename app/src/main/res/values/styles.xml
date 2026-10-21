@@ -74,6 +74,11 @@
              materialAlertDialogTheme; without this they stay on Material's stock grey. -->
         <item name="alertDialogTheme">@style/ThemeOverlay.Zefiro.AlertDialog</item>
         <item name="preferenceTheme">@style/PreferenceThemeOverlay.Zefiro</item>
+
+        <!-- The main screen's rail and bottom bar, and every bottom sheet raised from it. -->
+        <item name="navigationRailStyle">@style/Widget.Zefiro.NavigationRail</item>
+        <item name="bottomNavigationStyle">@style/Widget.Zefiro.BottomNavigation</item>
+        <item name="bottomSheetDialogTheme">@style/ThemeOverlay.Zefiro.BottomSheetDialog</item>
     </style>
 
     <style name="StreamBaseTheme" parent="AppBaseTheme">
@@ -125,30 +130,8 @@
         <item name="android:windowBackground">@android:color/black</item>
     </style>
 
-    <!-- The bar of actions along the top of the library screens. -->
-    <style name="TopBar">
-        <item name="android:layout_width">match_parent</item>
-        <item name="android:layout_height">@dimen/top_bar_height</item>
-        <item name="android:orientation">horizontal</item>
-        <item name="android:gravity">center_vertical</item>
-        <item name="android:paddingStart">@dimen/top_bar_padding</item>
-        <item name="android:paddingEnd">@dimen/top_bar_padding</item>
-    </style>
-
-    <style name="TopBarTitle">
-        <item name="android:layout_width">0dp</item>
-        <item name="android:layout_height">wrap_content</item>
-        <item name="android:layout_weight">1</item>
-        <item name="android:layout_marginStart">@dimen/action_icon_inset</item>
-        <item name="android:textColor">@color/content_muted</item>
-        <item name="android:textSize">14sp</item>
-        <item name="android:letterSpacing">0.16</item>
-        <item name="android:textAllCaps">true</item>
-        <item name="android:singleLine">true</item>
-        <item name="android:ellipsize">end</item>
-    </style>
-
-    <style name="TopBarAction">
+    <!-- A round icon action in a section's header, such as See all's back. -->
+    <style name="HeaderAction">
         <item name="android:layout_width">@dimen/action_size</item>
         <item name="android:layout_height">@dimen/action_size</item>
         <item name="android:padding">@dimen/action_icon_inset</item>
@@ -158,35 +141,30 @@
         <item name="android:focusable">true</item>
     </style>
 
-    <!-- The profiles action carries the active profile's name, so it is a button, not an icon. -->
-    <style name="TopBarProfile" parent="Widget.Material3.Button.TextButton.Icon">
-        <item name="android:layout_width">wrap_content</item>
-        <item name="android:layout_height">@dimen/action_size</item>
-        <item name="android:textColor">@color/content_secondary</item>
-        <item name="android:letterSpacing">0.04</item>
-        <item name="iconTint">@color/action_icon_tint</item>
-        <item name="strokeColor">@color/action_stroke</item>
-        <item name="strokeWidth">@dimen/tile_focus_stroke</item>
-        <item name="rippleColor">@color/signal_wash</item>
-    </style>
-
     <!--
-        The action on a PC card. An outlined button rather than a filled one: the card is
-        already a surface, and the signal is spent on focus, not on decoration.
+        The one action on a PC tile (Resume, Wake, Pair): a full-width pill, 48dp to touch and
+        drawn 36dp tall. The fill is set by HostTileBinder, the signal for Resume and a tonal
+        surface for the others. It is never focused itself (the d-pad stays on the tile, and X
+        fires it), so it needs no focus stroke.
     -->
-    <style name="PcCardAction" parent="Widget.Material3.Button.OutlinedButton">
-        <item name="android:layout_width">wrap_content</item>
+    <style name="PcTileAction" parent="Widget.Material3.Button.UnelevatedButton">
+        <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:minWidth">0dp</item>
-        <item name="android:minHeight">40dp</item>
-        <item name="android:paddingStart">16dp</item>
-        <item name="android:paddingEnd">16dp</item>
-        <item name="android:insetTop">0dp</item>
-        <item name="android:insetBottom">0dp</item>
-        <item name="android:textColor">@color/content_primary</item>
-        <item name="android:letterSpacing">0.04</item>
-        <item name="strokeColor">@color/pc_card_action_stroke</item>
-        <item name="strokeWidth">@dimen/tile_focus_stroke</item>
+        <item name="android:minHeight">@dimen/action_size</item>
+        <item name="android:insetTop">@dimen/pc_tile_action_inset</item>
+        <item name="android:insetBottom">@dimen/pc_tile_action_inset</item>
+        <item name="android:paddingStart">12dp</item>
+        <item name="android:paddingEnd">12dp</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:letterSpacing">0.02</item>
+        <item name="android:singleLine">true</item>
+        <item name="cornerRadius">@dimen/primary_button_corner</item>
+        <item name="iconGravity">textStart</item>
+        <item name="iconPadding">8dp</item>
+        <item name="iconSize">16dp</item>
         <item name="rippleColor">@color/signal_wash</item>
     </style>
 
@@ -213,38 +191,59 @@
         <attr name="aperture_middle_color" format="color" />
     </declare-styleable>
 
-    <!-- Companion surface: a headline stat tile, and a label/value line for secondary detail. -->
-    <style name="CompanionTileLabel">
+    <!-- A section's label on the companion panel's browsing surface: "Focused", "Hosts". -->
+    <style name="CompanionSectionLabel">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:textColor">@color/content_muted</item>
-        <item name="android:textSize">10sp</item>
+        <item name="android:textSize">13sp</item>
         <item name="android:letterSpacing">0.16</item>
         <item name="android:textAllCaps">true</item>
     </style>
 
-    <style name="CompanionTileValue">
-        <item name="android:layout_width">wrap_content</item>
+    <!--
+        The companion panel's stats while streaming, after the approved StreamTelemetry mock: a
+        row of three tiles, each a number over its name, on a ground a step above the panel.
+    -->
+    <style name="CompanionStatRow">
+        <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:layout_marginTop">2dp</item>
-        <item name="android:textColor">@color/content_primary</item>
-        <item name="android:textSize">22sp</item>
-        <item name="android:fontFamily">sans-serif-light</item>
+        <item name="android:layout_marginBottom">@dimen/companion_stat_gap</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:baselineAligned">false</item>
     </style>
 
-    <style name="CompanionDetailLabel">
+    <style name="CompanionStatTile">
         <item name="android:layout_width">0dp</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_weight">1</item>
-        <item name="android:textColor">@color/content_faint</item>
-        <item name="android:textSize">12sp</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:background">@drawable/companion_stat_tile_bg</item>
+        <item name="android:paddingStart">12dp</item>
+        <item name="android:paddingEnd">8dp</item>
+        <item name="android:paddingTop">10dp</item>
+        <item name="android:paddingBottom">10dp</item>
     </style>
 
-    <style name="CompanionDetailValue">
+    <style name="CompanionStatValue">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:textColor">@color/content_secondary</item>
-        <item name="android:textSize">12sp</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:textColor">@color/content_primary</item>
+        <item name="android:textSize">17sp</item>
+        <item name="android:fontFamily">monospace</item>
+    </style>
+
+    <style name="CompanionStatLabel">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">3dp</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:textColor">@color/content_muted</item>
+        <item name="android:textSize">10sp</item>
+        <item name="android:letterSpacing">0.12</item>
+        <item name="android:textAllCaps">true</item>
     </style>
 
     <!-- ============================================================================
@@ -336,11 +335,11 @@
         <item name="preferenceCategoryStyle">@style/Preference.Category.Zefiro</item>
 
         <!-- Every row the settings screen actually uses. androidx picks the style per
-             preference type, so the layout has to be hung on each one; the types not
-             listed (checkBoxPreferenceStyle, which SmallIconCheckboxPreference rides on)
-             keep their own layout on purpose. -->
+             preference type, so the layout has to be hung on each one: a row left on the
+             stock layout would miss the value and changed dot the settings list binds. -->
         <item name="preferenceStyle">@style/Preference.Zefiro</item>
         <item name="switchPreferenceCompatStyle">@style/Preference.Zefiro.Switch</item>
+        <item name="checkBoxPreferenceStyle">@style/Preference.Zefiro.CheckBox</item>
         <item name="dialogPreferenceStyle">@style/Preference.Zefiro.Dialog</item>
         <item name="editTextPreferenceStyle">@style/Preference.Zefiro.EditText</item>
     </style>
@@ -357,6 +356,11 @@
     </style>
 
     <style name="Preference.Zefiro.Switch" parent="Preference.SwitchPreferenceCompat.Material">
+        <item name="android:layout">@layout/preference_zefiro</item>
+        <item name="iconSpaceReserved">false</item>
+    </style>
+
+    <style name="Preference.Zefiro.CheckBox" parent="Preference.CheckBoxPreference.Material">
         <item name="android:layout">@layout/preference_zefiro</item>
         <item name="iconSpaceReserved">false</item>
     </style>
@@ -415,7 +419,7 @@
 
     <!-- ============================================================================
          Statistics. A quiet eyebrow over each section, as CouchPilot heads its own, and
-         light numerals for the figures, as the companion's tiles have them.
+         figures in mono, as the Stats mock sets them.
          ============================================================================ -->
     <style name="StatsEyebrow">
         <item name="android:layout_width">wrap_content</item>
@@ -446,30 +450,26 @@
         <item name="android:gravity">bottom</item>
     </style>
 
-    <style name="StatsSegment">
+    <!-- The library's four totals, in one card: a figure in mono over what it counts. -->
+    <style name="StatsTotal">
         <item name="android:layout_width">0dp</item>
-        <item name="android:layout_height">40dp</item>
+        <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_weight">1</item>
-        <item name="android:gravity">center</item>
-        <item name="android:background">@drawable/stats_segment_item_bg</item>
-        <item name="android:textColor">@color/stats_segment_text</item>
-        <item name="android:textSize">14sp</item>
-        <item name="android:fontFamily">sans-serif-medium</item>
-        <item name="android:focusable">true</item>
-        <item name="android:clickable">true</item>
-        <item name="android:singleLine">true</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:paddingEnd">8dp</item>
     </style>
 
-    <style name="StatsFigure">
+    <style name="StatsTotalFigure">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:textColor">@color/content_primary</item>
-        <item name="android:textSize">24sp</item>
-        <item name="android:fontFamily">sans-serif-light</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:fontFamily">monospace</item>
+        <item name="android:textStyle">bold</item>
         <item name="android:singleLine">true</item>
     </style>
 
-    <style name="StatsFigureLabel">
+    <style name="StatsTotalLabel">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_marginTop">2dp</item>
@@ -477,20 +477,249 @@
         <item name="android:textSize">12sp</item>
     </style>
 
-    <style name="StatsTile">
+    <!-- A tab on the Stats bottom screen ("Unlocks 64"), the mock's .tab: a chip, signal when
+         active, ringed when the panel's d-pad is on it. Its count is spanned in by the renderer. -->
+    <style name="StatsRemoteTab">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">@dimen/action_size</item>
+        <item name="android:background">@drawable/chip_bg</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">false</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:gravity">center</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:textColor">@color/chip_text</item>
+        <item name="android:textSize">14sp</item>
+    </style>
+
+    <!--
+        The main screen's navigation, rail and bottom bar alike: laid on the true-black ground
+        rather than on Material's container grey, the selected section in the signal over its
+        sunk container, everything else muted. Focus gets the tiles' signal ring through the
+        item background, because Material's own focus tint is too faint to find on OLED black;
+        that background is a ripple and carries the press wash too, since Material drops its
+        itemRippleColor whenever an item background is set.
+        Window insets are applied by the main screen itself, which knows when the bars are
+        hidden, so the widgets must not pad for them on their own. The rail is told so here.
+        The bottom bar has no such attributes (its inset padding is hard-wired), so MainActivity
+        replaces its inset listener instead.
+    -->
+    <style name="Widget.Zefiro.NavigationRail" parent="Widget.Material3.NavigationRailView">
+        <item name="android:minWidth">@dimen/nav_rail_width</item>
+        <item name="android:background">@color/surface_deep</item>
+        <item name="elevation">0dp</item>
+        <item name="labelVisibilityMode">unlabeled</item>
+        <item name="menuGravity">top</item>
+        <item name="itemMinHeight">@dimen/nav_rail_item_min_height</item>
+        <item name="itemIconTint">@color/nav_item_tint</item>
+        <item name="itemTextColor">@color/nav_item_tint</item>
+        <item name="itemBackground">@drawable/nav_item_focus_ring</item>
+        <item name="itemActiveIndicatorStyle">@style/Widget.Zefiro.NavigationRail.ActiveIndicator</item>
+        <item name="paddingTopSystemWindowInsets">false</item>
+        <item name="paddingBottomSystemWindowInsets">false</item>
+        <item name="paddingStartSystemWindowInsets">false</item>
+    </style>
+
+    <style name="Widget.Zefiro.NavigationRail.ActiveIndicator" parent="Widget.Material3.NavigationRailView.ActiveIndicator">
+        <item name="android:width">@dimen/nav_rail_indicator_size</item>
+        <item name="android:height">@dimen/nav_rail_indicator_size</item>
+        <item name="android:color">@color/signal_container</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Zefiro.NavRailIndicator</item>
+    </style>
+
+    <style name="ShapeAppearance.Zefiro.NavRailIndicator" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">@dimen/nav_rail_indicator_corner</item>
+    </style>
+
+    <style name="Widget.Zefiro.BottomNavigation" parent="Widget.Material3.BottomNavigationView">
+        <item name="android:background">@color/surface_deep</item>
+        <item name="elevation">0dp</item>
+        <item name="labelVisibilityMode">labeled</item>
+        <item name="itemIconTint">@color/nav_item_tint</item>
+        <item name="itemTextColor">@color/nav_item_tint</item>
+        <item name="itemBackground">@drawable/nav_item_focus_ring</item>
+        <item name="itemActiveIndicatorStyle">@style/Widget.Zefiro.BottomNavigation.ActiveIndicator</item>
+    </style>
+
+    <style name="Widget.Zefiro.BottomNavigation.ActiveIndicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
+        <item name="android:width">@dimen/nav_bottom_indicator_width</item>
+        <item name="android:height">@dimen/nav_bottom_indicator_height</item>
+        <item name="android:color">@color/signal_container</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Zefiro.NavBottomIndicator</item>
+    </style>
+
+    <style name="ShapeAppearance.Zefiro.NavBottomIndicator" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">@dimen/nav_bottom_indicator_corner</item>
+    </style>
+
+    <!--
+        A section's header (see dimens: section_*). The title is the mocks' big bold word; the
+        chip is their dark pill, here a 48dp touch target around a 36dp pill, with the signal
+        ring on focus like every other control, since a chip has no other focus state to show.
+    -->
+    <style name="SectionTitle">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:textColor">@color/content_primary</item>
+        <item name="android:textSize">@dimen/section_title_size</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:ellipsize">end</item>
+    </style>
+
+    <style name="Widget.Zefiro.HeaderChip" parent="Widget.Material3.Button.UnelevatedButton">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:minHeight">@dimen/action_size</item>
+        <item name="android:insetTop">@dimen/header_chip_inset</item>
+        <item name="android:insetBottom">@dimen/header_chip_inset</item>
+        <item name="android:paddingStart">14dp</item>
+        <item name="android:paddingEnd">16dp</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:letterSpacing">0.02</item>
+        <item name="android:textColor">@color/content_primary</item>
+        <item name="backgroundTint">@color/surface_container</item>
+        <item name="cornerRadius">@dimen/header_chip_corner</item>
+        <item name="iconTint">@color/content_primary</item>
+        <item name="iconSize">@dimen/header_chip_icon</item>
+        <item name="iconPadding">6dp</item>
+        <item name="strokeColor">@color/action_stroke</item>
+        <item name="strokeWidth">@dimen/tile_focus_stroke</item>
+        <item name="rippleColor">@color/signal_wash</item>
+    </style>
+
+    <!--
+        Bottom sheets. Without this a BottomSheetDialog is painted in Material's
+        surfaceContainerLow grey; the palette's step for it is surface_container_low.
+    -->
+    <style name="ThemeOverlay.Zefiro.BottomSheetDialog" parent="ThemeOverlay.Material3.BottomSheetDialog">
+        <item name="bottomSheetStyle">@style/Widget.Zefiro.BottomSheet</item>
+    </style>
+
+    <style name="Widget.Zefiro.BottomSheet" parent="Widget.Material3.BottomSheet.Modal">
+        <item name="backgroundTint">@color/surface_container_low</item>
+    </style>
+
+    <!--
+        The one filled button on a screen: the way forward (Wake, Pair, Play), as the mocks'
+        .play pill draws it, the signal with the ground's colour on it. Focus cannot be the
+        signal ring here, since the fill already is the signal, so a focused one is ringed in
+        the primary content colour instead.
+    -->
+    <style name="Widget.Zefiro.PrimaryButton" parent="Widget.Material3.Button.UnelevatedButton">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:minHeight">@dimen/action_size</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:paddingStart">24dp</item>
+        <item name="android:paddingEnd">24dp</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:letterSpacing">0.02</item>
+        <item name="android:textColor">@color/on_signal</item>
+        <item name="backgroundTint">@color/signal</item>
+        <item name="cornerRadius">@dimen/primary_button_corner</item>
+        <item name="iconTint">@color/on_signal</item>
+        <item name="strokeColor">@color/primary_button_stroke</item>
+        <item name="strokeWidth">@dimen/tile_focus_stroke</item>
+        <item name="rippleColor">@color/scrim_soft</item>
+    </style>
+
+    <!--
+        The quiet button beside the filled one (the hero's Quit game): the mock's .ghost pill,
+        a white wash with the content colour on it. Its focus is the signal ring, as on a chip.
+    -->
+    <style name="Widget.Zefiro.GhostButton" parent="Widget.Material3.Button.UnelevatedButton">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:minHeight">@dimen/action_size</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:paddingStart">20dp</item>
+        <item name="android:paddingEnd">20dp</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:letterSpacing">0.02</item>
+        <item name="android:textColor">@color/content_primary</item>
+        <item name="backgroundTint">@color/ghost_fill</item>
+        <item name="cornerRadius">@dimen/primary_button_corner</item>
+        <item name="strokeColor">@color/action_stroke</item>
+        <item name="strokeWidth">@dimen/tile_focus_stroke</item>
+        <item name="rippleColor">@color/signal_wash</item>
+    </style>
+
+    <!-- A shelf's label, the mocks' .sect: the row's name in the primary colour, medium weight. -->
+    <style name="ShelfLabel">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:textColor">@color/content_primary</item>
+        <item name="android:textSize">@dimen/shelf_label_size</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:ellipsize">end</item>
+    </style>
+
+    <!-- ============================================================================
+         Screens T3: the game page.
+         ============================================================================ -->
+
+    <!--
+        Quit game beside Resume: the mocks' danger pill, the error's container with its light
+        text. Focus is the signal ring, as on the ghost button.
+    -->
+    <style name="Widget.Zefiro.DangerButton" parent="Widget.Zefiro.GhostButton">
+        <item name="android:textColor">@color/danger</item>
+        <item name="backgroundTint">@color/danger_container</item>
+        <item name="iconTint">@color/danger</item>
+        <item name="rippleColor">@color/scrim_soft</item>
+    </style>
+
+    <!-- A figure on the game page, the mocks' .st b: a mono number in the primary colour. -->
+    <style name="GamePageFigure">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:fontFamily">monospace</item>
+        <item name="android:textColor">@color/content_primary</item>
+        <item name="android:textSize">@dimen/game_page_figure_size</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:ellipsize">end</item>
+    </style>
+
+    <!-- The small tracked caption under a figure, the mocks' .cap. -->
+    <style name="GamePageCap">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">2dp</item>
+        <item name="android:letterSpacing">0.12</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:textColor">@color/content_muted</item>
+        <item name="android:textSize">11sp</item>
+    </style>
+
+    <!-- A figure's card: the mocks' .st, a quiet fill and nothing to focus. -->
+    <style name="GamePageFigureCard">
         <item name="android:layout_width">0dp</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_weight">1</item>
         <item name="android:orientation">vertical</item>
-        <item name="android:background">@drawable/stats_card_bg</item>
-        <item name="android:padding">14dp</item>
-    </style>
-
-    <style name="StatsSmall">
-        <item name="android:layout_width">wrap_content</item>
-        <item name="android:layout_height">wrap_content</item>
-        <item name="android:textColor">@color/content_muted</item>
-        <item name="android:textSize">12sp</item>
+        <item name="android:background">@drawable/game_page_card_bg</item>
+        <item name="android:paddingStart">12dp</item>
+        <item name="android:paddingEnd">12dp</item>
+        <item name="android:paddingTop">10dp</item>
+        <item name="android:paddingBottom">10dp</item>
     </style>
 
 </resources>

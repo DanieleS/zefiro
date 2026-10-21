@@ -16,6 +16,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import com.limelight.LimeLog;
 import com.limelight.binding.PlatformBinding;
 import com.limelight.discovery.DiscoveryService;
+import com.limelight.library.LibraryModel;
 import com.limelight.nvstream.NvConnection;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.NvApp;
@@ -59,7 +60,15 @@ public class ComputerManagerService extends Service {
 
     private IdentityManager idManager;
     private final LinkedList<PollingTuple> pollingTuples = new LinkedList<>();
-    private ComputerManagerListener listener = null;
+
+    // Everyone listening to the polls. Polling runs while it is non-empty; see PollingListeners.
+    private final PollingListeners listeners = new PollingListeners();
+
+    // Makes "add the first listener and start polling" and "remove the last one and tear down"
+    // atomic against each other. Without it a remove racing an add could tear down right after
+    // the add saw polling already running, leaving a listener registered with nothing polling.
+    // Always taken before pollingTuples, never inside it.
+    private final Object pollingStateLock = new Object();
     private final AtomicInteger activePolls = new AtomicInteger(0);
     private boolean pollingActive = false;
     private final Lock defaultNetworkLock = new ReentrantLock();
@@ -152,9 +161,9 @@ public class ComputerManagerService extends Service {
             }
         }
 
-        // Don't call the listener if this is a failed lookup of a new PC
-        if ((!newPc || details.state == ComputerDetails.State.ONLINE) && listener != null) {
-            listener.notifyComputerUpdated(details);
+        // Don't call the listeners if this is a failed lookup of a new PC
+        if (!newPc || details.state == ComputerDetails.State.ONLINE) {
+            listeners.notifyComputerUpdated(details);
         }
 
         releaseLocalDatabaseReference();
@@ -194,32 +203,78 @@ public class ComputerManagerService extends Service {
     }
 
     public class ComputerManagerBinder extends Binder {
-        public void startPolling(ComputerManagerListener listener) {
-            // Polling is active
-            pollingActive = true;
+        /**
+         * Starts sending poll results to this listener, and starts polling if it is the first.
+         *
+         * <p>The listener gets an immediate report of every known host, synchronously, before
+         * this returns, and then every poll from every host until it is removed. Only the
+         * listener just added gets that initial report; the others already have the picture.
+         *
+         * <p>The initial report runs on the caller's thread while holding two locks,
+         * {@code pollingStateLock} and {@code pollingTuples}, and it hands over the live
+         * {@link ComputerDetails} the polling threads keep writing to. A listener must therefore
+         * only copy what it needs and post it elsewhere. Blocking here stalls every polling thread
+         * (they report under {@code pollingTuples}), and it also holds up every other client's
+         * {@code addPollingListener} and {@code removePollingListener}, which wait on
+         * {@code pollingStateLock} and are usually called from the main thread, so one slow
+         * listener can freeze another screen. Keeping the object shares it with the polling
+         * threads.
+         *
+         * <p>Nor may a listener call this method or {@link #removePollingListener} synchronously
+         * from {@code notifyComputerUpdated}, for itself or anyone else. Some reports arrive under
+         * {@code pollingTuples} alone (the network callback), and both methods take
+         * {@code pollingStateLock} before {@code pollingTuples}: re-entering from such a report
+         * inverts that order and can deadlock with a client adding on another thread. Post the
+         * change instead, as {@code ShortcutTrampoline} does with {@code runOnUiThread}.
+         *
+         * <p>Adding a listener that is already registered just repeats its initial report.
+         * Call it after {@link #waitForReady()}, as mDNS discovery must exist to be started.
+         */
+        public void addPollingListener(ComputerManagerListener listener) {
+            synchronized (pollingStateLock) {
+                boolean first = listeners.add(listener);
 
-            // Set the listener
-            ComputerManagerService.this.listener = listener;
+                if (first) {
+                    // Polling is active
+                    pollingActive = true;
 
-            // Start mDNS autodiscovery too
-            discoveryBinder.startDiscovery(MDNS_QUERY_PERIOD_MS);
+                    // Start mDNS autodiscovery too
+                    discoveryBinder.startDiscovery(MDNS_QUERY_PERIOD_MS);
+                }
 
-            synchronized (pollingTuples) {
-                for (PollingTuple tuple : pollingTuples) {
-                    // Enforce the poll data TTL
-                    if (SystemClock.elapsedRealtime() - tuple.lastSuccessfulPollMs > POLL_DATA_TTL_MS) {
-                        LimeLog.info("Timing out polled state for "+tuple.computer.name);
-                        tuple.computer.state = ComputerDetails.State.UNKNOWN;
+                synchronized (pollingTuples) {
+                    for (PollingTuple tuple : pollingTuples) {
+                        // Enforce the poll data TTL. Only when polling is just starting: while it
+                        // runs, the threads keep the state fresh, and resetting an offline host to
+                        // unknown here would flicker it for the listeners already watching.
+                        if (first && SystemClock.elapsedRealtime() - tuple.lastSuccessfulPollMs > POLL_DATA_TTL_MS) {
+                            LimeLog.info("Timing out polled state for "+tuple.computer.name);
+                            tuple.computer.state = ComputerDetails.State.UNKNOWN;
+                        }
+
+                        // Report this computer initially, to the newcomer only
+                        listener.notifyComputerUpdated(tuple.computer);
+
+                        // This polling thread might already be there
+                        if (tuple.thread == null) {
+                            tuple.thread = createPollingThread(tuple);
+                            tuple.thread.start();
+                        }
                     }
+                }
+            }
+        }
 
-                    // Report this computer initially
-                    listener.notifyComputerUpdated(tuple.computer);
-
-                    // This polling thread might already be there
-                    if (tuple.thread == null) {
-                        tuple.thread = createPollingThread(tuple);
-                        tuple.thread.start();
-                    }
+        /**
+         * Stops sending poll results to this listener, and stops polling if it was the last one.
+         * Only this listener is affected: a screen leaving no longer silences the others.
+         * Removing a listener that is not registered does nothing. Never call it synchronously
+         * from a listener's callback; see {@link #addPollingListener} for the lock order.
+         */
+        public void removePollingListener(ComputerManagerListener listener) {
+            synchronized (pollingStateLock) {
+                if (listeners.remove(listener)) {
+                    stopPollingLocked();
                 }
             }
         }
@@ -265,11 +320,6 @@ public class ComputerManagerService extends Service {
             ComputerManagerService.this.removeComputer(computer);
         }
 
-        public void stopPolling() {
-            // Just call the unbind handler to cleanup
-            ComputerManagerService.this.onUnbind(null);
-        }
-
         public ApplistPoller createAppListPoller(ComputerDetails computer) {
             return new ApplistPoller(computer);
         }
@@ -305,8 +355,23 @@ public class ComputerManagerService extends Service {
         }
     }
 
+    /**
+     * The system unbinding the last client. Whoever was still listening is gone with it, so the
+     * set is dropped wholesale and polling torn down.
+     */
     @Override
     public boolean onUnbind(Intent intent) {
+        synchronized (pollingStateLock) {
+            listeners.clear();
+            stopPollingLocked();
+        }
+
+        return false;
+    }
+
+    // Stops discovery and every polling thread. Called under pollingStateLock, on the edge where
+    // nobody is listening any more; the listener set itself is the caller's business.
+    private void stopPollingLocked() {
         if (discoveryBinder != null) {
             // Stop mDNS autodiscovery
             discoveryBinder.stopDiscovery();
@@ -323,11 +388,6 @@ public class ComputerManagerService extends Service {
                 }
             }
         }
-
-        // Remove the listener
-        listener = null;
-
-        return false;
     }
 
     private void populateExternalAddress(ComputerDetails details) {
@@ -747,9 +807,7 @@ public class ComputerManagerService extends Service {
                     synchronized (pollingTuples) {
                         for (PollingTuple tuple : pollingTuples) {
                             tuple.computer.state = ComputerDetails.State.UNKNOWN;
-                            if (listener != null) {
-                                listener.notifyComputerUpdated(tuple.computer);
-                            }
+                            listeners.notifyComputerUpdated(tuple.computer);
                         }
                     }
                 }
@@ -760,9 +818,7 @@ public class ComputerManagerService extends Service {
                     synchronized (pollingTuples) {
                         for (PollingTuple tuple : pollingTuples) {
                             tuple.computer.state = ComputerDetails.State.OFFLINE;
-                            if (listener != null) {
-                                listener.notifyComputerUpdated(tuple.computer);
-                            }
+                            listeners.notifyComputerUpdated(tuple.computer);
                         }
                     }
                 }
@@ -853,9 +909,7 @@ public class ComputerManagerService extends Service {
                         // Can't poll if it's not online or paired
                         if (computer.state != ComputerDetails.State.ONLINE ||
                                 computer.pairState != PairingManager.PairState.PAIRED) {
-                            if (listener != null) {
-                                listener.notifyComputerUpdated(computer);
-                            }
+                            listeners.notifyComputerUpdated(computer);
                             continue;
                         }
 
@@ -894,13 +948,18 @@ public class ComputerManagerService extends Service {
                             }
                             if (!appList.isEmpty() &&
                                     (!list.isEmpty() || emptyAppListResponses >= EMPTY_LIST_THRESHOLD)) {
-                                // Open the cache file
-                                try (final OutputStream cacheOut = CacheHelper.openCacheFileForOutput(
-                                        getCacheDir(), "applist", computer.uuid)
-                                ) {
-                                    CacheHelper.writeStringToOutputStream(cacheOut, appList);
-                                } catch (IOException e) {
-                                    e.printStackTrace();
+                                // The cache keeps the host's library: the catalogue it lists
+                                // while a Remote Monitor session is held (Resume, Disconnect
+                                // Monitor) is not one, and would replace every game with two
+                                // controls for the next visit, shortcut and count.
+                                if (!LibraryModel.isSessionCatalogue(list)) {
+                                    try (final OutputStream cacheOut = CacheHelper.openCacheFileForOutput(
+                                            getCacheDir(), "applist", computer.uuid)
+                                    ) {
+                                        CacheHelper.writeStringToOutputStream(cacheOut, appList);
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    }
                                 }
 
                                 // Reset empty count if it wasn't empty this time
@@ -914,8 +973,8 @@ public class ComputerManagerService extends Service {
 
                                 // Notify that the app list has been updated
                                 // and ensure that the thread is still active
-                                if (listener != null && thread != null) {
-                                    listener.notifyComputerUpdated(computer);
+                                if (thread != null) {
+                                    listeners.notifyComputerUpdated(computer);
                                 }
                             }
                             else if (appList.isEmpty()) {

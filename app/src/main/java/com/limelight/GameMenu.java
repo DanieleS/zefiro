@@ -1,46 +1,74 @@
 package com.limelight;
 
 import android.app.Activity;
-import android.app.Dialog;
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.os.Handler;
-import android.text.TextUtils;
+import android.os.Looper;
 import android.view.ContextThemeWrapper;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.limelight.binding.input.GameInputDevice;
-import com.limelight.binding.input.KeyboardTranslator;
-import com.limelight.bitrate.BitrateSteps;
 import com.limelight.bitrate.LiveBitrate;
 import com.limelight.companion.CompanionDisplayManager;
-import com.limelight.companion.CompanionMenuItem;
 import com.limelight.preferences.PreferenceConfiguration;
-import com.limelight.ui.MenuSheet;
+import com.limelight.stream.CompanionSheetSurface;
+import com.limelight.stream.ControlsInputRouter;
+import com.limelight.stream.ControlsPlacement;
+import com.limelight.stream.ControlsSurface;
+import com.limelight.stream.MenuSheetSurface;
+import com.limelight.stream.StreamAction;
+import com.limelight.stream.StreamActions;
+import com.limelight.stream.StreamCapabilities;
+import com.limelight.stream.StreamControlsPanel;
 import com.limelight.utils.CaptureTool;
-import com.limelight.utils.KeyConfigHelper;
-import com.limelight.utils.KeyMapper;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Provide options for ongoing Game Stream.
- * <p>
- * Shown on back action in game activity.
+ * The in-stream controls' router: it snapshots what the stream can do, builds the
+ * {@link StreamActions} tree from it, picks the surface to draw it on, and runs what is chosen.
+ * What the entries are lives in StreamActions; how they look lives in each surface; what they do
+ * lives here, in {@link #perform}.
+ *
+ * <h3>Which surface</h3>
+ *
+ * <pre>
+ *   companion panel showing                   the panel's controls sheet, so the game stays whole
+ *   opened for the external display's phone   the centred sheet, on that phone
+ *   otherwise                                 the side panel, over the game
+ * </pre>
+ *
+ * Chosen again on every open ({@link ControlsPlacement}), since the companion panel can come and
+ * go mid-stream. While the panel shows, the controls are only ever drawn there: Game hides the
+ * side panel's edge handle too, so the top screen is the game and the HUD and nothing else. When
+ * the panel comes or goes while they are open, they move across on the page they were on
+ * ({@link #onPanelShowingChanged}), rather than closing under the user's thumb.
+ *
+ * <h3>Open and closed</h3>
+ *
+ * Whatever surface is up owns the pad and the keys ({@link ControlsInputRouter}); Game is told
+ * when one comes up and when it goes, so it can let go of the host's input and take it back.
  */
-public class GameMenu implements Game.GameMenuCallbacks {
+public class GameMenu implements Game.GameMenuCallbacks, ControlsSurface.Callbacks {
 
     public static final long KEY_UP_DELAY = 25;
     private static final long TEST_GAME_FOCUS_DELAY = 10;
 
-    public static final String PREF_NAME = "specialPrefs"; // SharedPreferences的名称
+    /** Where the settings' import keeps the user's own special keys (KeyConfigHelper JSON). */
+    public static final String PREF_NAME = "specialPrefs";
 
-    public static final String KEY_NAME = "special_key"; // 要保存的键名称
+    public static final String KEY_NAME = "special_key";
 
+    /**
+     * A gamepad's own entry, offered through {@link GameInputDevice#getGameMenuOptions()}. Drawn
+     * on the Mouse page; its runnable stays here and is run by index.
+     */
     public static class MenuOption {
         private final String label;
         private final boolean withGameFocus;
@@ -59,351 +87,323 @@ public class GameMenu implements Game.GameMenuCallbacks {
 
     private final Game game;
     private final Context dialogScreenContext;
+    private final Handler handler = new Handler(Looper.getMainLooper());
 
-    private Dialog currentDialog;
+    /** Over the game: the side panel. From the external display's phone: the centred sheet. */
+    private final ControlsSurface mainSurface;
+    private final ControlsSurface companionSurface;
+    // The surface the open tree is on, for what differs between them; null while none is.
+    private ControlsSurface activeSurface;
+
+    // What the open tree was built from, for what the tree only points at by index or flag.
+    private List<MenuOption> deviceOptions = Collections.emptyList();
+    private StreamCapabilities caps;
+    private CaptureTool captureTool;
 
     public GameMenu(Game game, Context dialogScreenContext) {
         this.game = game;
         this.dialogScreenContext = dialogScreenContext;
+        if (dialogScreenContext == game) {
+            StreamControlsPanel panel = game.getControlsPanel();
+            panel.bind(this);
+            this.mainSurface = panel;
+        } else {
+            this.mainSurface = new MenuSheetSurface(dialogScreenContext, this);
+        }
+        this.companionSurface = new CompanionSheetSurface(game.getResources(), this);
     }
 
     public GameMenu(Game game) {
-        this.game = game;
-        this.dialogScreenContext = game;
+        this(game, game);
     }
 
-    private String getString(int id) {
-        return game.getResources().getString(id);
-    }
+    /** Main thread only. */
+    @Override
+    public void showMenu(GameInputDevice device) {
+        hideMenu();
 
+        List<MenuOption> options = device != null ? device.getGameMenuOptions() : null;
+        deviceOptions = options != null ? new ArrayList<>(options) : Collections.emptyList();
+        PreferenceConfiguration prefs = PreferenceConfiguration.readPreferences(game);
+        captureTool = prefs.captureTool;
+        caps = capture(prefs);
 
-    private void sendKeys(short[] keys) {
-        game.sendKeys(keys);
-    }
-
-    private void sendCapture(CaptureTool tool, CaptureTool.Action action) {
-        short[] keys = tool.keysFor(action);
-        if (keys != null) {
-            sendKeys(keys);
-        }
-    }
-
-    private void runWithGameFocus(Runnable runnable) {
-        // Ensure that the Game activity is still active (not finished)
-        if (game.isFinishing()) {
-            return;
-        }
-        // Check if the game window has focus again, if not try again after delay
-        if (!game.hasWindowFocus() && dialogScreenContext instanceof Game) {
-            new Handler().postDelayed(() -> runWithGameFocus(runnable), TEST_GAME_FOCUS_DELAY);
-            return;
-        }
-        // Game Activity has focus, run runnable
-        runnable.run();
-    }
-
-    private void run(MenuOption option) {
-        if (option.runnable == null) {
-            return;
-        }
-
-        if (option.withGameFocus) {
-            runWithGameFocus(option.runnable);
+        ControlsSurface surface = surfaceOf(ControlsPlacement.surfaceFor(
+                dialogScreenContext == game, CompanionDisplayManager.isShowing()));
+        activeSurface = surface;
+        surface.open(StreamActions.build(caps));
+        if (surface.isOpen()) {
+            game.onControlsOpened();
         } else {
-            option.runnable.run();
+            activeSurface = null;
         }
-    }
-
-    private void showMenuDialog(String title, MenuOption[] options) {
-        if (currentDialog != null) {
-            currentDialog.dismiss();
-            currentDialog = null;
-        }
-
-        // With a companion panel on screen, the menu belongs there so the game stays whole.
-        if (CompanionDisplayManager.isShowing()) {
-            List<CompanionMenuItem> items = new ArrayList<>();
-            for (MenuOption option : options) {
-                items.add(new CompanionMenuItem(option.label, () -> run(option)));
-            }
-            if (CompanionDisplayManager.showMenu(title, items)) {
-                return;
-            }
-        }
-
-        MenuSheet sheet = new MenuSheet(dialogScreenContext).setTitle(title);
-        for (MenuOption option : options) {
-            sheet.add(option.label, () -> run(option));
-        }
-        currentDialog = sheet.showCentered(dialogScreenContext);
-        currentDialog.setOnCancelListener(dialog -> hideMenu());
-    }
-
-    private void showSpecialKeysMenu() {
-        List<MenuOption> options = new ArrayList<>();
-
-        if(!PreferenceConfiguration.readPreferences(game).disableDefaultExtraKeys){
-            options.add(new MenuOption(getString(R.string.game_menu_send_keys_esc),
-                    () -> sendKeys(new short[]{KeyboardTranslator.VK_ESCAPE})));
-
-            options.add(new MenuOption(getString(R.string.game_menu_send_keys_f11),
-                    () -> sendKeys(new short[]{KeyboardTranslator.VK_F11})));
-
-            options.add(new MenuOption(getString(R.string.game_menu_send_keys_alt_f4),
-                    () -> sendKeys(new short[]{KeyboardTranslator.VK_LMENU, KeyboardTranslator.VK_F4})));
-
-            options.add(new MenuOption(getString(R.string.game_menu_send_keys_alt_enter),
-                    () -> sendKeys(new short[]{KeyboardTranslator.VK_LMENU, KeyboardTranslator.VK_RETURN})));
-
-            options.add(new MenuOption(getString(R.string.game_menu_send_keys_ctrl_v),
-                    () -> sendKeys(new short[]{KeyboardTranslator.VK_LCONTROL, KeyboardTranslator.VK_V})));
-
-            options.add(new MenuOption(getString(R.string.game_menu_send_keys_win),
-                    () -> sendKeys(new short[]{KeyboardTranslator.VK_LWIN})));
-
-            options.add(new MenuOption(getString(R.string.game_menu_send_keys_win_d),
-                    () -> sendKeys(new short[]{KeyboardTranslator.VK_LWIN, KeyboardTranslator.VK_D})));
-
-            options.add(new MenuOption(getString(R.string.game_menu_send_keys_win_g),
-                    () -> sendKeys(new short[]{KeyboardTranslator.VK_LWIN, KeyboardTranslator.VK_G})));
-
-            options.add(new MenuOption(getString(R.string.game_menu_send_keys_ctrl_alt_tab),
-                    () -> sendKeys(new short[]{KeyboardTranslator.VK_LCONTROL, KeyboardTranslator.VK_LMENU, KeyboardTranslator.VK_TAB})));
-
-            options.add(new MenuOption(getString(R.string.game_menu_send_keys_shift_tab),
-                    () -> sendKeys(new short[]{KeyboardTranslator.VK_LSHIFT, KeyboardTranslator.VK_TAB})));
-
-            options.add(new MenuOption(getString(R.string.game_menu_send_keys_win_shift_left),
-                    () -> sendKeys(new short[]{KeyboardTranslator.VK_LWIN, KeyboardTranslator.VK_LSHIFT, KeyboardTranslator.VK_LEFT})));
-
-            options.add(new MenuOption(getString(R.string.game_menu_send_keys_ctrl_alt_shift_f1),
-                    () -> sendKeys(new short[]{KeyboardTranslator.VK_LCONTROL,KeyboardTranslator.VK_LMENU, KeyboardTranslator.VK_LSHIFT, KeyboardTranslator.VK_F1})));
-
-            options.add(new MenuOption(getString(R.string.game_menu_send_keys_ctrl_alt_shift_f12),
-                    () -> sendKeys(new short[]{KeyboardTranslator.VK_LCONTROL,KeyboardTranslator.VK_LMENU, KeyboardTranslator.VK_LSHIFT, KeyboardTranslator.VK_F12})));
-
-            options.add(new MenuOption(getString(R.string.game_menu_send_keys_alt_b),
-                    () -> sendKeys(new short[]{KeyboardTranslator.VK_LWIN, KeyboardTranslator.VK_LMENU, KeyboardTranslator.VK_B})));
-        }
-
-        // Import custom shortcuts
-        SharedPreferences preferences = game.getSharedPreferences(PREF_NAME, Activity.MODE_PRIVATE);
-        String value = preferences.getString(KEY_NAME,"");
-
-        if(!TextUtils.isEmpty(value)){
-            try {
-                KeyConfigHelper.ShortcutFile shortcutFile = KeyConfigHelper.parseShortcutFile(value);
-                if (shortcutFile != null && shortcutFile.data != null && !shortcutFile.data.isEmpty()) {
-                    List<KeyConfigHelper.Shortcut> data = shortcutFile.data;
-                    for (KeyConfigHelper.Shortcut sc : data) {
-                        List<String> keys = sc.keys;
-                        short[] keyCodes = new short[keys.size()];
-
-                        for (int i = 0; i < keys.size(); i++) {
-                            String code = keys.get(i);
-                            int keycode;
-
-                            if (code.startsWith("0x")) {               // literal hex value
-                                keycode = Integer.parseInt(code.substring(2), 16);
-                            } else if (code.startsWith("VK_")) {       // symbolic constant in KeyMapper
-                                Field field = KeyMapper.class.getDeclaredField(code);
-                                keycode = field.getInt(null);
-                            } else {                                   // unsupported
-                                throw new IllegalArgumentException("Unknown key code: " + code);
-                            }
-                            keyCodes[i] = (short) keycode;
-                        }
-
-                        // Whatever MenuOption looks like in your project
-                        MenuOption option = new MenuOption(sc.name, () -> sendKeys(keyCodes));
-                        options.add(option);
-                    }
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-                Toast.makeText(game,getString(R.string.wrong_import_format),Toast.LENGTH_SHORT).show();
-            }
-        }
-        options.add(new MenuOption(getString(R.string.game_menu_cancel), null));
-
-        showMenuDialog(getString(R.string.game_menu_send_keys), options.toArray(new MenuOption[options.size()]));
-    }
-
-    private void showAdvancedMenu(GameInputDevice device) {
-        List<MenuOption> options = new ArrayList<>();
-        if (game.allowChangeMouseMode) {
-            options.add(new MenuOption(getString(R.string.game_menu_select_mouse_mode), true, () -> game.selectMouseMode(dialogScreenContext)));
-        }
-        
-        options.add(new MenuOption(getString(R.string.game_menu_toggle_hud), true, game::toggleHUD));
-        if (game.isCompanionAppSupported()) {
-            // Open this game's companion app on the second screen (or pick one, if none yet).
-            options.add(new MenuOption(getString(R.string.game_menu_companion_app),
-                    game::openCompanionApp));
-        }
-        options.add(new MenuOption(getString(R.string.game_menu_toggle_floating_button), true, game::toggleFloatingButtonVisibility));
-        options.add(new MenuOption(getString(R.string.game_menu_toggle_keyboard_model), true, game::toggleKeyboardController));
-        if (!game.isOnExternalDisplay()) {
-            options.add(new MenuOption(getString(R.string.game_menu_toggle_virtual_model), true, game::toggleVirtualController));
-        }
-        options.add(new MenuOption(getString(R.string.game_menu_toggle_virtual_keyboard_model), true, game::toggleFullKeyboard));
-        options.add(new MenuOption(getString(R.string.game_menu_task_manager), true, () -> sendKeys(new short[]{KeyboardTranslator.VK_LCONTROL, KeyboardTranslator.VK_LSHIFT, KeyboardTranslator.VK_ESCAPE})));
-
-        // **FIXED:** This is a UI navigation action, so it should not use withGameFocus.
-        options.add(new MenuOption(getString(R.string.game_menu_send_keys), () -> {
-            hideMenu();
-            showSpecialKeysMenu();
-        }));
-
-        options.add(new MenuOption(getString(R.string.game_menu_switch_touch_sensitivity_model), true, game::switchTouchSensitivity));
-        if (device != null) {
-            options.addAll(device.getGameMenuOptions());
-        }
-        options.add(new MenuOption(getString(R.string.game_menu_cancel), null));
-        showMenuDialog(getString(R.string.game_menu_advanced), options.toArray(new MenuOption[options.size()]));
     }
 
     /**
-     * The stream's bitrate, changed on the spot: adaptation on or off, and a list of bitrates with
-     * the one chosen in the settings among them. A list rather than a slider, so it is driven with
-     * the d-pad like the rest of the menu and fits on the companion panel too.
+     * The companion panel came or went. Open controls move to the surface that now holds them, on
+     * the page they were on, so turning the Thor's lower screen off with the sheet up leaves the
+     * same page on the side panel, and turning it on again sends it back down. Main thread only.
+     *
+     * <p>Heard before the panel's own report that its sheet closed (CompanionDisplayManager
+     * publishes the change first), so the page is still known here, and Game, told of that close,
+     * finds the controls open again and keeps the host's input held.
      */
-    private void showBitrateMenu(LiveBitrate bitrate) {
-        List<MenuOption> options = new ArrayList<>();
-
-        boolean adaptive = bitrate.isAdaptive();
-        options.add(new MenuOption(getString(adaptive
-                ? R.string.game_menu_bitrate_adaptive_on : R.string.game_menu_bitrate_adaptive_off),
-                () -> {
-                    bitrate.setAdaptive(!adaptive);
-                    Toast.makeText(game, getString(adaptive
-                            ? R.string.game_menu_bitrate_adaptive_off : R.string.game_menu_bitrate_adaptive_on),
-                            Toast.LENGTH_SHORT).show();
-                }));
-
-        int current = bitrate.getCurrentKbps();
-        for (int kbps : BitrateSteps.menuChoices(bitrate.getChosenKbps(), current)) {
-            String mbps = game.formatMbps(kbps);
-            String label = kbps == current
-                    ? game.getString(R.string.game_menu_bitrate_choice_current, mbps)
-                    : game.getString(R.string.game_menu_bitrate_choice, mbps);
-            options.add(new MenuOption(label, () -> bitrate.setManual(kbps)));
+    @Override
+    public void onPanelShowingChanged(boolean showing) {
+        ControlsSurface from = activeSurface;
+        ControlsPlacement.Surface target = ControlsPlacement.moveTo(placeOf(from),
+                dialogScreenContext == game, showing);
+        if (from == null || target == null) {
+            return;
         }
-
-        options.add(new MenuOption(getString(R.string.game_menu_cancel), null));
-
-        showMenuDialog(bitrateLabel(bitrate), options.toArray(new MenuOption[options.size()]));
+        StreamAction page = from.shownPage();
+        if (page == null) {
+            return;
+        }
+        ControlsSurface to = surfaceOf(target);
+        PreferenceConfiguration prefs = PreferenceConfiguration.readPreferences(game);
+        captureTool = prefs.captureTool;
+        // Built afresh: the companion's own entry reads "show" or "hide" by whether it shows.
+        caps = capture(prefs);
+        activeSurface = to;
+        to.openAt(StreamActions.build(caps), page.id);
+        // Only now, so its close finds the controls still open and hands nothing back to the host.
+        from.close();
+        if (to.isOpen()) {
+            game.onControlsOpened();
+        } else {
+            activeSurface = null;
+            game.onControlsClosed();
+        }
     }
 
-    private String bitrateLabel(LiveBitrate bitrate) {
-        return game.getString(bitrate.isAdaptive() ? R.string.game_menu_bitrate_adaptive : R.string.game_menu_bitrate,
-                game.formatMbps(bitrate.getCurrentKbps()));
+    private ControlsSurface surfaceOf(ControlsPlacement.Surface place) {
+        return place == ControlsPlacement.Surface.COMPANION ? companionSurface : mainSurface;
     }
 
-    private void showServerCmd(ArrayList<String> serverCmds) {
-        List<MenuOption> options = new ArrayList<>();
-
-        AtomicInteger index = new AtomicInteger(0);
-        for (String str : serverCmds) {
-            final int finalI = index.getAndIncrement();
-            options.add(new MenuOption("> " + str, true, () -> game.sendExecServerCmd(finalI)));
-        };
-
-        options.add(new MenuOption(getString(R.string.game_menu_cancel), null));
-
-        showMenuDialog(getString(R.string.game_menu_server_cmd), options.toArray(new MenuOption[options.size()]));
+    @Nullable
+    private ControlsPlacement.Surface placeOf(@Nullable ControlsSurface surface) {
+        if (surface == null) {
+            return null;
+        }
+        return surface == companionSurface ? ControlsPlacement.Surface.COMPANION
+                : ControlsPlacement.Surface.MAIN;
     }
 
-    public void showMenu(GameInputDevice device) {
-        List<MenuOption> options = new ArrayList<>();
-
-        options.add(new MenuOption(getString(R.string.game_menu_disconnect), game::disconnect));
-
-        options.add(new MenuOption(getString(R.string.game_menu_quit_session), game::quit));
-
-        options.add(new MenuOption(getString(R.string.game_menu_upload_clipboard), true,
-                () -> game.sendClipboard(true)));
-
-        options.add(new MenuOption(getString(R.string.game_menu_fetch_clipboard), true,
-                () -> game.getClipboard(0)));
-
-        options.add(new MenuOption(getString(R.string.game_menu_server_cmd), true,
-                () -> {
-                    ArrayList<String> serverCmds = game.getServerCmds();
-                    if (serverCmds.isEmpty()) {
-                        int themeResId = game.getApplicationInfo().theme;
-                        Context themedContext = new ContextThemeWrapper(dialogScreenContext, themeResId);
-                        new MaterialAlertDialogBuilder(themedContext, R.style.ThemeOverlay_Zefiro_MaterialAlertDialog)
-                                .setTitle(R.string.game_dialog_title_server_cmd_empty)
-                                .setMessage(R.string.game_dialog_message_server_cmd_empty)
-                                .show();
-                    } else {
-                        hideMenu();
-                        this.showServerCmd(serverCmds);
-                    }
-                }));
-
-        options.add(new MenuOption(getString(R.string.game_menu_toggle_keyboard), true,
-                game::toggleKeyboard));
-
-        options.add(new MenuOption(getString(game.isZoomModeEnabled() ? R.string.game_menu_disable_zoom_mode : R.string.game_menu_enable_zoom_mode), true,
-                game::toggleZoomMode));
-
-        if (dialogScreenContext == game) {
-            options.add(new MenuOption(getString(R.string.game_menu_rotate_screen), true,
-                    game::rotateScreen));
+    private StreamCapabilities capture(PreferenceConfiguration prefs) {
+        List<StreamCapabilities.DeviceOption> device = new ArrayList<>();
+        for (MenuOption option : deviceOptions) {
+            device.add(new StreamCapabilities.DeviceOption(option.label, option.withGameFocus));
         }
 
-        if (CompanionDisplayManager.isConfigured(game)) {
-            // Front and centre rather than buried in Advanced: with a companion app able to take
-            // the second screen mid-game, sending the panel away and calling it back is something
-            // reached often, not a setting configured once.
-            options.add(new MenuOption(getString(CompanionDisplayManager.isShowing()
-                    ? R.string.game_menu_companion_hide : R.string.game_menu_companion_show),
-                    CompanionDisplayManager::toggle));
-        }
-
-        // Captures, made by the PC's own capture tool: its shortcuts go out through the stream's
-        // keyboard, once the menu is gone and the game has focus again, as if pressed at the PC.
-        CaptureTool captureTool = PreferenceConfiguration.readPreferences(game).captureTool;
-        if (captureTool.isEnabled()) {
-            options.add(new MenuOption(getString(R.string.game_menu_capture_screenshot), true,
-                    () -> sendCapture(captureTool, CaptureTool.Action.SCREENSHOT)));
-            options.add(new MenuOption(getString(R.string.game_menu_capture_replay), true,
-                    () -> sendCapture(captureTool, CaptureTool.Action.SAVE_REPLAY)));
-            options.add(new MenuOption(getString(R.string.game_menu_capture_record), true,
-                    () -> sendCapture(captureTool, CaptureTool.Action.TOGGLE_RECORDING)));
-        }
-
-        // Only on hosts that can change it mid-stream; the entry shows where it stands now.
+        StreamCapabilities.Builder b = StreamCapabilities.builder()
+                .captureEnabled(captureTool.isEnabled())
+                .locale(game.getResources().getConfiguration().locale)
+                .allowChangeMouseMode(game.allowChangeMouseMode)
+                .mouseModes(game.getMouseModes(), game.getMouseModeIndex())
+                .onExternalDisplay(game.isOnExternalDisplay())
+                .companion(CompanionDisplayManager.isConfigured(game), CompanionDisplayManager.isShowing())
+                .companionAppSupported(game.isCompanionAppSupported())
+                // Rotating turns the activity the sheet is drawn over; from the external display's
+                // phone that would be the wrong screen.
+                .canRotate(dialogScreenContext == game)
+                .zoomEnabled(game.isZoomModeEnabled())
+                .hudVisible(game.isHudVisible())
+                .virtualControllerShown(game.isVirtualControllerShown())
+                .serverCmds(game.getServerCmds())
+                .deviceOptions(device)
+                .defaultSpecialKeys(!prefs.disableDefaultExtraKeys)
+                .customKeys(StreamCapabilities.parseCustomKeys(
+                        game.getSharedPreferences(PREF_NAME, Activity.MODE_PRIVATE)
+                                .getString(KEY_NAME, "")));
         LiveBitrate bitrate = game.getLiveBitrate();
         if (bitrate != null) {
-            options.add(new MenuOption(bitrateLabel(bitrate), () -> {
-                hideMenu();
-                showBitrateMenu(bitrate);
-            }));
+            b.liveBitrate(bitrate.isAdaptive(), bitrate.getCurrentKbps(), bitrate.getChosenKbps());
+        }
+        return b.build();
+    }
+
+    @Override
+    public boolean onPageOpening(@NonNull StreamAction page) {
+        if (page.id == StreamAction.Id.SERVER_COMMANDS && page.children != null
+                && page.children.isEmpty() && !(activeSurface instanceof StreamControlsPanel)) {
+            // The side panel says it on the page itself; the centred sheet and the companion's
+            // sheet have nowhere to put a paragraph, so they say it in a dialog, as it always was.
+            Context themedContext = new ContextThemeWrapper(dialogScreenContext,
+                    game.getApplicationInfo().theme);
+            new MaterialAlertDialogBuilder(themedContext, R.style.ThemeOverlay_Zefiro_MaterialAlertDialog)
+                    .setTitle(R.string.game_dialog_title_server_cmd_empty)
+                    .setMessage(R.string.game_dialog_message_server_cmd_empty)
+                    .show();
+            return false;
+        }
+        if (page.id == StreamAction.Id.SPECIAL_KEYS && caps != null && caps.customKeysInvalid) {
+            // The page still opens, with whatever did parse; the toast says the rest is missing.
+            Toast.makeText(game, R.string.wrong_import_format, Toast.LENGTH_SHORT).show();
+        }
+        return true;
+    }
+
+    @Override
+    public void onLeaf(@NonNull StreamAction leaf) {
+        if (leaf.withGameFocus) {
+            runWithGameFocus(() -> perform(leaf));
+        } else {
+            perform(leaf);
+        }
+    }
+
+    /** What every leaf does. Main thread only. */
+    private void perform(StreamAction action) {
+        short[] keys = action.keys();
+        if (keys != null) {
+            // Special keys and the task manager: pressed at the PC through the stream's keyboard.
+            game.sendKeys(keys);
+            return;
         }
 
-        options.add(new MenuOption(getString(R.string.game_menu_advanced), true,
-                () -> showAdvancedMenu(device)));
+        switch (action.id) {
+            case KEYBOARD:
+                game.toggleKeyboard();
+                break;
+            case GAMEPAD:
+                game.toggleVirtualController();
+                break;
+            case MOUSE_MODE_CHOICE:
+                game.chooseMouseMode(action.arg);
+                break;
+            case LOCAL_CURSOR:
+                game.toggleMouseLocalCursor();
+                break;
+            case DEVICE_OPTION:
+                if (action.arg < deviceOptions.size()) {
+                    Runnable run = deviceOptions.get(action.arg).runnable;
+                    if (run != null) {
+                        run.run();
+                    }
+                }
+                break;
+            case OVERLAY:
+                game.toggleHUD();
+                break;
+            case SCREENSHOT:
+                sendCapture(CaptureTool.Action.SCREENSHOT);
+                break;
+            case SAVE_REPLAY:
+                sendCapture(CaptureTool.Action.SAVE_REPLAY);
+                break;
+            case RECORD:
+                sendCapture(CaptureTool.Action.TOGGLE_RECORDING);
+                break;
+            case BITRATE_ADAPTIVE: {
+                LiveBitrate bitrate = game.getLiveBitrate();
+                if (bitrate != null) {
+                    boolean adaptive = !bitrate.isAdaptive();
+                    bitrate.setAdaptive(adaptive);
+                    Toast.makeText(game, adaptive ? R.string.game_menu_bitrate_adaptive_on
+                            : R.string.game_menu_bitrate_adaptive_off, Toast.LENGTH_SHORT).show();
+                }
+                break;
+            }
+            case BITRATE_CHOICE: {
+                LiveBitrate bitrate = game.getLiveBitrate();
+                if (bitrate != null) {
+                    bitrate.setManual(action.arg);
+                }
+                break;
+            }
+            case CLIPBOARD_UPLOAD:
+                game.sendClipboard(true);
+                break;
+            case CLIPBOARD_FETCH:
+                game.getClipboard(0);
+                break;
+            case SERVER_COMMAND:
+                game.sendExecServerCmd(action.arg);
+                break;
+            case PAN_ZOOM:
+                game.toggleZoomMode();
+                break;
+            case ROTATE:
+                game.rotateScreen();
+                break;
+            case COMPANION_SCREEN:
+                CompanionDisplayManager.toggle();
+                break;
+            case COMPANION_APP:
+                game.openCompanionApp();
+                break;
+            case SPECIAL_KEYS_BAR:
+                game.toggleKeyboardController();
+                break;
+            case FULL_KEYBOARD:
+                game.toggleFullKeyboard();
+                break;
+            case TOUCH_SENSITIVITY:
+                game.switchTouchSensitivity();
+                break;
+            case DISCONNECT:
+                game.disconnect();
+                break;
+            case QUIT:
+                game.quit();
+                break;
+            default:
+                // Pages never reach here; the surface opens them itself.
+                break;
+        }
+    }
 
-        options.add(new MenuOption(getString(R.string.game_menu_cancel), null));
+    private void sendCapture(CaptureTool.Action action) {
+        short[] keys = captureTool != null ? captureTool.keysFor(action) : null;
+        if (keys != null) {
+            game.sendKeys(keys);
+        }
+    }
 
-        showMenuDialog(getString(R.string.quick_menu_title), options.toArray(new MenuOption[options.size()]));
+    /**
+     * Run once the game window has focus again. The centred sheet is a Dialog and takes it while
+     * up; keys injected before it is back are lost, and a dialog opened before it would be
+     * dismissed by the focus change. Polled, since there is no callback for it here. The side
+     * panel never takes the focus, so from it this runs at once.
+     */
+    private void runWithGameFocus(Runnable runnable) {
+        if (game.isFinishing()) {
+            return;
+        }
+        if (!game.hasWindowFocus() && dialogScreenContext instanceof Game) {
+            handler.postDelayed(() -> runWithGameFocus(runnable), TEST_GAME_FOCUS_DELAY);
+            return;
+        }
+        runnable.run();
+    }
+
+    @Override
+    public void onClosed() {
+        if (!isMenuOpen()) {
+            activeSurface = null;
+            game.onControlsClosed();
+        }
+    }
+
+    /** Hand a surface's input to whichever surface is open. Main thread only. */
+    @Override
+    public boolean onNav(ControlsSurface.Nav nav) {
+        if (companionSurface.isOpen()) {
+            return companionSurface.onNav(nav);
+        }
+        return mainSurface.onNav(nav);
     }
 
     @Override
     public void hideMenu() {
-        if (currentDialog != null && currentDialog.isShowing()) {
-            currentDialog.dismiss();
-        }
-        currentDialog = null;
-        CompanionDisplayManager.hideMenu();
+        mainSurface.close();
+        // Also when this menu did not open it: the panel's menu is shut on any hide, as before.
+        companionSurface.close();
     }
 
     @Override
     public boolean isMenuOpen() {
-        return (currentDialog != null && currentDialog.isShowing())
-                || CompanionDisplayManager.isMenuOpen();
+        return mainSurface.isOpen() || companionSurface.isOpen();
     }
 }

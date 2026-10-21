@@ -21,6 +21,21 @@
     <!-- Laid over box art, to say the app behind it is already running. -->
     <color name="scrim_soft">#66000000</color>
 
+    <!--
+        The RUNNING badge on a game tile. It is the signal, deliberately: a running game is
+        the one thing in the library that is live, which is what the signal is spent on. Its
+        own name so the badge can move off the signal without touching focus.
+    -->
+    <color name="running_badge">#FF4FC3F7</color>
+
+    <!--
+        The title card of a game with no cover, as the approved See all mock draws it: a
+        slightly blue-cold surface and a hairline a step brighter than outline_variant, so a
+        card reads as a tile among covers and not as a gap in the grid.
+    -->
+    <color name="tile_placeholder">#FF1A1D22</color>
+    <color name="tile_placeholder_outline">#FF333944</color>
+
     <!-- Content, most prominent first. -->
     <color name="content_primary">#FFF2F5F8</color>
     <color name="content_secondary">#FFBFC7D2</color>
@@ -33,6 +48,26 @@
     <!-- The signal. -->
     <color name="signal">#FF4FC3F7</color>
 
+    <!--
+        A PC that is online and paired, as its status dot: green, as in the approved mocks, so
+        "this PC can be played on" never reads as the signal's "this is focused" or "running".
+    -->
+    <color name="status_online">#FF7EE08A</color>
+
+    <!--
+        The stream HUD's health dot (StreamHealth): the only place the app speaks in traffic
+        lights, so the three are their own names. Good is the mock's green, the same as a PC
+        that is online; warn and bad are softened amber and red, bright enough to read as a
+        6dp dot over any game but kept inside the cold, low-glow scale.
+    -->
+    <color name="health_good">#FF7EE08A</color>
+    <color name="health_warn">#FFF2C46D</color>
+    <color name="health_bad">#FFF28B82</color>
+
+    <!-- Behind the stream HUD: the mock's 60% black, darker than @color/scrim so the
+         one line of numbers holds over a bright frame. -->
+    <color name="hud_scrim">#99000000</color>
+
     <!-- The signal, thinned to a wash, for the moment a focused tile is pressed. -->
     <color name="signal_wash">#334FC3F7</color>
 
@@ -43,6 +78,13 @@
         buttons) so those components stay on-brand and OLED-quiet.
     -->
     <color name="signal_container">#FF10333F</color>
+
+    <!--
+        The signal container a step deeper: a PC tile's icon box while the tile is focused. The
+        tile itself is the container then, and the box has to stay a box on it, as the PCs mock
+        draws it.
+    -->
+    <color name="pc_tile_icon_focused">#FF0B2730</color>
 
     <!--
         Read on the signal. The accent is a light blue, so what sits on top of it is the
@@ -78,5 +120,50 @@
     -->
     <color name="outline">#FF4A5361</color>
     <color name="outline_variant">#FF2A2E34</color>
+
+    <!--
+        The hero's second button (Quit game) after the mock's .ghost pill: a white wash over
+        whatever the backdrop is, so it reads as a button on art and on the plain card alike
+        without competing with the one filled button beside it.
+    -->
+    <color name="ghost_fill">#1AFFFFFF</color>
+
+    <!--
+        Laid over the hero's backdrop, left to right: near-opaque where the title and buttons
+        sit, thinning towards the right so the art still shows. Its own pair so the hero can be
+        retuned without touching the stream's scrims.
+    -->
+    <color name="hero_scrim_start">#E6000000</color>
+    <color name="hero_scrim_end">#59000000</color>
+
+    <!--
+        The in-stream side panel (StreamControlsPanel). The scrim is the mock's 35% black: the
+        game stays readable behind it, so the panel reads as laid over a running stream rather
+        than as a screen of its own. The edge handle is a white pill whose alpha is set where it
+        is drawn, faint at rest and full under the finger.
+    -->
+    <color name="controls_scrim">#59000000</color>
+    <color name="edge_handle">#FFF2F5F8</color>
+
+    <!--
+        The charts' bars, after the Stats and game page mocks. A bar is the signal
+        sunk into the ground; one with nothing in it a step of grey; a period that has not
+        happened yet barely there. The selected bar is drawn in @color/signal.
+    -->
+    <color name="chart_bar">#FF1B4554</color>
+    <color name="chart_bar_future">#FF151515</color>
+    <color name="chart_bar_zero">#FF262626</color>
+    <!-- The game page's twelve-week bars, a little greyer than the Stats chart's. -->
+    <color name="week_bar">#FF2C4652</color>
+    <!-- Screens T3: the text on the game page's green RUNNING badge. -->
+    <color name="on_status_online">#FF08210C</color>
+
+    <!--
+        Screens T8: the Settings section's pinned card, after its mock: the signal's container
+        sunk half a step further, so the card reads as one block of the accent's family without
+        competing with a selected chip, and a hairline of the same family between its pins.
+    -->
+    <color name="settings_card">#FF0D2129</color>
+    <color name="settings_card_rule">#FF1E3A45</color>
 
 </resources>

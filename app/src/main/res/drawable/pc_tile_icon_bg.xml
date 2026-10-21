@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The icon box on a PC tile. It follows the tile's state (duplicateParentState): on a focused
+    tile it sinks a step below the tile's signal container, as the mock draws it, so the box
+    still reads as a box on the lit tile.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/pc_tile_icon_corner" />
+            <solid android:color="@color/pc_tile_icon_focused" />
+        </shape>
+    </item>
+
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/pc_tile_icon_corner" />
+            <solid android:color="@color/pc_tile_icon_focused" />
+        </shape>
+    </item>
+
+    <item android:state_activated="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/pc_tile_icon_corner" />
+            <solid android:color="@color/pc_tile_icon_focused" />
+        </shape>
+    </item>
+
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/pc_tile_icon_corner" />
+            <solid android:color="@color/surface_container" />
+        </shape>
+    </item>
+
+</selector>

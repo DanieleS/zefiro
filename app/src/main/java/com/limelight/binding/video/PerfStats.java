@@ -4,8 +4,8 @@ package com.limelight.binding.video;
  * One second's worth of streaming statistics, as measured by
  * {@link MediaCodecDecoderRenderer}.
  *
- * The perf overlay drawn over the stream needs no more than a preformatted string, but the
- * companion surface lays the numbers out itself, so they travel unformatted.
+ * They travel unformatted: the stream HUD judges its health dot on them and the companion
+ * surface lays them out its own way, and neither could do that from a sentence.
  */
 public class PerfStats {
 

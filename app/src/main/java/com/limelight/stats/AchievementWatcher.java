@@ -120,6 +120,16 @@ public class AchievementWatcher {
         return pendingSince;
     }
 
+    /**
+     * The host the last stream ran against, if the library has not looked after it yet; null
+     * otherwise. Does not clear it. The main screen browses whichever host is selected, which
+     * need not be the one just streamed (a shortcut can stream another), so it asks which host
+     * to look at before it can make the connection that {@link #takePendingCheck} is then for.
+     */
+    public static synchronized String pendingCheckHost() {
+        return pendingPcUuid;
+    }
+
     /** Look once, in the background, and tell {@code listener} about anything not yet announced. */
     public static void checkOnce(HostSession session, long sinceSeconds, Listener listener) {
         Handler main = new Handler(Looper.getMainLooper());

@@ -51,6 +51,12 @@ public class TextFocusKeyboard {
 
     // Where the keyboard we raised is, or null when there is none of ours on screen
     private Target raisedOn;
+    // What the host last reported has focus
+    private byte lastFocus = FOCUS_NONE;
+    // While the in-stream controls are open no keyboard is raised; this is the focus to raise
+    // one for when they shut, FOCUS_NONE for none
+    private boolean suspended;
+    private byte focusOnResume = FOCUS_NONE;
 
     public TextFocusKeyboard(Keyboards keyboards) {
         this.keyboards = keyboards;
@@ -90,6 +96,13 @@ public class TextFocusKeyboard {
 
     /** The host reported what has focus now. */
     public void onFocus(byte focusType) {
+        lastFocus = focusType;
+        if (suspended) {
+            // Kept for the close: a keyboard raised now would cover the controls, and what it
+            // typed would be dropped
+            focusOnResume = isTextField(focusType) ? focusType : FOCUS_NONE;
+            return;
+        }
         if (!isTextField(focusType)) {
             dismiss();
             return;
@@ -114,10 +127,12 @@ public class TextFocusKeyboard {
      */
     public void onManualKeyboardUse() {
         raisedOn = null;
+        focusOnResume = FOCUS_NONE;
     }
 
     /** Take down the keyboard we raised, if any. The stream ending calls this too. */
     public void dismiss() {
+        focusOnResume = FOCUS_NONE;
         if (raisedOn != null) {
             Target target = raisedOn;
             raisedOn = null;
@@ -127,5 +142,39 @@ public class TextFocusKeyboard {
 
     public Target getRaisedOn() {
         return raisedOn;
+    }
+
+    /**
+     * The in-stream controls opened. The keyboard we raised is taken down, as what it types
+     * would not reach the host, and none is raised until {@link #resume()}. The host's field
+     * keeps its focus meanwhile and will not report it again, so the keyboard comes back then.
+     */
+    public void suspend() {
+        if (suspended) {
+            return;
+        }
+        focusOnResume = raisedOn != null && isTextField(lastFocus) ? lastFocus : FOCUS_NONE;
+        if (raisedOn != null) {
+            Target target = raisedOn;
+            raisedOn = null;
+            keyboards.hide(target);
+        }
+        suspended = true;
+    }
+
+    /**
+     * The controls shut: the keyboard comes back if one was up as they opened, or the host
+     * focused a text field since, and the field still has the focus.
+     */
+    public void resume() {
+        if (!suspended) {
+            return;
+        }
+        suspended = false;
+        byte focus = focusOnResume;
+        focusOnResume = FOCUS_NONE;
+        if (isTextField(focus)) {
+            onFocus(focus);
+        }
     }
 }

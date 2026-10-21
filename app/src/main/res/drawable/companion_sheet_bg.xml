@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The controls sheet on the companion panel: the mock's bottom sheet, its top corners rounded,
+    on the true-black ground with a hairline to hold its edge against the black around it — the
+    grammar of @drawable/menu_sheet_bg, with no shadow.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/surface_deep" />
+    <corners
+        android:topLeftRadius="@dimen/companion_sheet_corner"
+        android:topRightRadius="@dimen/companion_sheet_corner"
+        android:bottomLeftRadius="0dp"
+        android:bottomRightRadius="0dp" />
+    <stroke
+        android:width="1dp"
+        android:color="@color/divider" />
+</shape>

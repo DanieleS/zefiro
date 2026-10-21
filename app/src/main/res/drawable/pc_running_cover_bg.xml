@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The box behind the running game's cover: what shows, with the host glyph, while the cover is
+    read or when the game has none.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="@dimen/tile_corner_small" />
+    <solid android:color="@color/surface_container" />
+</shape>

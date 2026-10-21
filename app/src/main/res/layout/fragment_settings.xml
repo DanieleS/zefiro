@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The Settings section (settings/SettingsSectionFragment), after Settings_C: a header slot, and
+    under it either the settings list or the search results.
+
+    settingsHeaderSlot  holds the header (@layout/view_settings_header) in a wide window and while
+                        searching; in a compact window at rest the header is the list's first
+                        item instead, and the slot is empty; in a short wide one (a turned
+                        phone) the card alone is the list's first item
+    settingsList        the StreamPreferencesFragment, added in code under "settings:list", never
+                        named here, so this layout inflates outside a FragmentActivity too
+    settingsResults     the search results, shown only while searching, in the list's place
+    settingsSticky      the slim label over the list's top: the section the rows under it are
+                        in ("VIDEO 34"), or where the focused row is ("VIDEO · FRAME PACING ·
+                        8 OF 34"); shown at rest once the header is out of view, in any window
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/settingsRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface_deep"
+    android:orientation="vertical">
+
+    <FrameLayout
+        android:id="@+id/settingsHeaderSlot"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <FrameLayout
+            android:id="@+id/settingsList"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/settingsResults"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingBottom="@dimen/section_gutter"
+            android:scrollbars="none"
+            android:visibility="gone" />
+
+        <!-- Over the list, not above it: shown and hidden as the header scrolls, it never
+             moves the rows. Opaque, so a section header passing under it is covered. -->
+        <LinearLayout
+            android:id="@+id/settingsSticky"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/surface_deep"
+            android:baselineAligned="true"
+            android:orientation="horizontal"
+            android:paddingStart="@dimen/settings_gutter"
+            android:paddingTop="@dimen/settings_sticky_padding_vertical"
+            android:paddingEnd="@dimen/settings_gutter"
+            android:paddingBottom="@dimen/settings_sticky_padding_vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/settingsStickySection"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:singleLine="true"
+                android:textAppearance="@style/TextAppearance.Zefiro.PreferenceCategory" />
+
+            <TextView
+                android:id="@+id/settingsStickyDetail"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:fontFamily="monospace"
+                android:singleLine="true"
+                android:textAllCaps="true"
+                android:textColor="@color/content_faint"
+                android:textSize="12sp" />
+
+        </LinearLayout>
+
+    </FrameLayout>
+
+</LinearLayout>

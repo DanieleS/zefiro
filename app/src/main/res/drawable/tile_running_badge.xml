@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The RUNNING badge's ground: a small filled tag, not a pill, so it reads as a label. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="@dimen/tile_badge_corner" />
+    <solid android:color="@color/running_badge" />
+</shape>

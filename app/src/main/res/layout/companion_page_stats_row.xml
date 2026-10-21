@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A row on the Stats bottom screen (stats/StatsRemoteRenderer), the mock's .lrow: a glyph in
+    the signal's square (a trophy for an unlock, the resume arrow for a game to pick up again),
+    what it is, and when at the end. At least 48dp, on a card fill. Not focusable: the panel's
+    d-pad place is drawn activated.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="4dp"
+    android:background="@drawable/companion_action_row_bg"
+    android:clickable="true"
+    android:focusable="false"
+    android:gravity="center_vertical"
+    android:minHeight="@dimen/action_size"
+    android:orientation="horizontal"
+    android:paddingStart="10dp"
+    android:paddingTop="6dp"
+    android:paddingEnd="12dp"
+    android:paddingBottom="6dp">
+
+    <ImageView
+        android:id="@+id/companionStatsRowIcon"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:background="@drawable/stats_remote_icon_bg"
+        android:importantForAccessibility="no"
+        android:padding="6dp"
+        android:tint="@color/signal" />
+
+    <TextView
+        android:id="@+id/companionStatsRowTitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:singleLine="true"
+        android:textColor="@color/content_primary"
+        android:textSize="14sp"
+        tools:text="Wheels Champion · Sea of Stars" />
+
+    <TextView
+        android:id="@+id/companionStatsRowDetail"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:singleLine="true"
+        android:textColor="@color/content_muted"
+        android:textSize="12sp"
+        tools:text="7 October" />
+
+</LinearLayout>

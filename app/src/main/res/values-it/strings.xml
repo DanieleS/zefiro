@@ -30,10 +30,6 @@
     </string>
     <string name="wol_fail">Invio pacchetti Wake-On-LAN fallito</string>
     <!-- Unpair messages -->
-    <string name="unpairing">Disaccoppiamento…</string>
-    <string name="unpair_success">Disaccoppiato con successo</string>
-    <string name="unpair_fail">Disaccoppiamento fallito</string>
-    <string name="unpair_error">Il dispositivo non è stato accoppiato</string>
     <!-- Errors -->
     <string name="error_pc_offline">PC offline</string>
     <string name="error_manager_not_running">Il servizio ComputerManager non è avviato. Attendi qualche secondo o riavvia l\'applicazione.</string>
@@ -65,7 +61,6 @@
 \n Assicurati che Sunshine sia avviato o che GameStream sia abilitato nelle impostazioni SHIELD di GeForce Experience.</string>
     <string name="yes">Sì</string>
     <string name="no">No</string>
-    <string name="lost_connection">Connessione con il PC persa</string>
     <string name="help">Assistenza</string>
     <!-- AppList activity -->
     <string name="applist_connect_msg">Connessione al PC in corso…</string>
@@ -73,8 +68,6 @@
     <string name="applist_menu_quit">Chiudi sessione</string>
     <string name="applist_menu_quit_and_start">Chiudi sessione corrente e avvia</string>
     <string name="applist_menu_cancel">Annulla</string>
-    <string name="applist_refresh_title">Lista applicazioni</string>
-    <string name="applist_refresh_msg">Aggiornamento lista in corso…</string>
     <string name="applist_refresh_error_title">Errore</string>
     <string name="applist_refresh_error_msg">Ricezione lista applicazioni fallita</string>
     <string name="applist_quit_app">Chiusura in corso</string>
@@ -122,10 +115,6 @@
     <string name="dialog_text_reset_osc">Sei sicuro di voler ripristinare ai valori predefiniti i layout dei controlli a schermo?</string>
     <string name="toast_reset_osc_success">I controlli a schermo sono stati ripristinati</string>
     <string name="category_ui_settings">Impostazioni dell\'interfaccia</string>
-    <string name="title_language_list">Lingua</string>
-    <string name="summary_language_list">Lingua da usare in Moonlight</string>
-    <string name="title_checkbox_small_icon_mode">Usa icone piccole</string>
-    <string name="summary_checkbox_small_icon_mode">Usa icone piccole nella griglia per avere più oggetti a schermo</string>
     <string name="category_host_settings">Impostazioni del PC host</string>
     <string name="title_checkbox_enable_sops">Ottimizza le impostazioni dei giochi</string>
     <string name="summary_checkbox_enable_sops">Permetti a GFE di modificare le impostazioni dei giochi per uno streaming ottimale</string>
@@ -159,14 +148,8 @@
     <string name="pcview_action_pair">Appaia</string>
     <string name="pcview_action_wake">Accendi</string>
 
-    <string name="action_change_pc">Cambia PC</string>
-    <string name="title_checkbox_auto_enter_last_pc">Vai all\'ultimo PC</string>
-    <string name="summary_checkbox_auto_enter_last_pc">All\'avvio apre subito la libreria dell\'ultimo PC usato, se è online e appaiato. Premi indietro per tornare all\'elenco dei PC.</string>
     <string name="title_details">Dettagli</string>
     <string name="delete_pc_msg">Sei sicuro di voler rimuovere questo PC\?</string>
-    <string name="slow_connection_msg">Connessione lenta al PC
-\nRidurre il bitrate</string>
-    <string name="poor_connection_msg">Connessione al PC di bassa qualità</string>
     <string name="reconnect_waiting_msg">Rete persa, in attesa del PC… %1$d s</string>
     <string name="reconnect_reconnecting_msg">Connessione persa, riconnessione… %1$d s</string>
     <string name="reconnect_failed_msg">Non è stato possibile ristabilire la connessione entro %1$d secondi.</string>
@@ -211,7 +194,6 @@
     <string name="suffix_seekbar_bitrate_mbps">Mbps</string>
     <string name="resolution_prefix_native">Nativo</string>
     <string name="no_video_received_error">Nessun video ricevuto dal PC sorgente.</string>
-    <string name="resolution_prefix_native_fullscreen">Schermo intero nativo</string>
     <string name="category_input_settings">Impostazioni di input</string>
     <string name="title_native_res_dialog">Avviso Risoluzione Nativa</string>
     <string name="dialog_title_osc_opacity">Cambia opacità</string>
@@ -319,9 +301,6 @@
     <string name="title_text_focus_keyboard">Tastiera quando un campo di testo è selezionato</string>
     <string name="summary_text_focus_keyboard">Apre da sola una tastiera quando selezioni un campo di testo sul PC: sul secondo schermo se c\'è il pannello companion o il controller del display esterno, altrimenti sopra lo stream. Richiede un host Scirocco con i suggerimenti di focus attivi; con gli altri host non cambia nulla.</string>
 
-    <string name="action_stats">Statistiche</string>
-    <string name="stats_title">Statistiche</string>
-    <string name="stats_back">Indietro</string>
     <string name="stats_range_week">Settimana</string>
     <string name="stats_range_month">Mese</string>
     <string name="stats_range_year">Anno</string>
@@ -334,7 +313,6 @@
     <string name="stats_untracked">Ancora nessuna sessione registrata: per questo periodo non ce ne sono. I totali li trovi qui sotto.</string>
     <string name="stats_untracked_since">Le sessioni sono registrate dal %1$s: per questo periodo non ce ne sono. I totali li trovi qui sotto.</string>
     <string name="stats_no_activity">Installa GameActivity in Playnite per vedere quando giochi. I totali li trovi qui sotto.</string>
-    <string name="stats_played">Giocate</string>
     <string name="stats_than_week_running">della settimana scorsa a questo punto</string>
     <string name="stats_than_week_done">della settimana prima</string>
     <string name="stats_than_month_running">del mese scorso a questo punto</string>
@@ -348,14 +326,7 @@
         <item quantity="other">%d sessioni</item>
     </plurals>
     <string name="stats_average">media %1$s</string>
-    <string name="stats_top">Più giocati</string>
     <string name="stats_achievements">Obiettivi</string>
-    <plurals name="stats_unlocked">
-        <item quantity="one">sbloccato</item>
-        <item quantity="other">sbloccati</item>
-    </plurals>
-    <string name="stats_no_achievements">Niente in questo periodo.</string>
-    <string name="stats_library">Libreria</string>
     <string name="stats_hours_total">%1$s h</string>
     <string name="stats_played_total">giocate in tutto</string>
     <string name="stats_games">giochi, %1$s installati</string>
@@ -366,7 +337,6 @@
     <string name="stats_resume_detail">%1$s · %2$s</string>
     <string name="stats_achievement_detail">%1$s · %2$s</string>
     <string name="stats_bar_caption">%1$s · %2$s</string>
-    <string name="stats_hint_period">Periodo</string>
     <string name="stats_hint_range">Intervallo</string>
     <string-array name="stats_weekdays">
         <item>L</item>
@@ -398,7 +368,6 @@
     <string name="stats_today_at">Oggi alle %1$s</string>
     <string name="stats_yesterday_at">Ieri alle %1$s</string>
     <string name="stats_bars_label">Tempo di gioco</string>
-    <string name="stats_bars_hint">Scegli una barra per il dettaglio</string>
     <string name="applist_menu_stats">Statistiche e obiettivi</string>
     <string name="game_stats_loading">Caricamento…</string>
     <string name="game_stats_nothing">Ancora nessuna statistica né obiettivo per questo gioco.</string>
@@ -412,7 +381,6 @@
     <string name="game_stats_per_session">a sessione</string>
     <string name="game_stats_per_launch">ad avvio</string>
     <string name="game_stats_last_12_weeks">Ultime 12 settimane</string>
-    <string name="game_stats_this_week">%1$s questa</string>
     <string name="game_stats_last_played">Ultima volta %1$s</string>
     <string name="game_stats_last_played_for">Ultima volta %1$s, per %2$s</string>
     <string name="game_stats_today">oggi</string>
@@ -421,18 +389,8 @@
         <item quantity="one">%d giorno fa</item>
         <item quantity="other">%d giorni fa</item>
     </plurals>
-    <string name="game_stats_achievements_count">Obiettivi · %1$d/%2$d</string>
-    <string name="game_stats_see_all">Vedi tutti</string>
-    <string name="game_stats_latest">ultimo: %1$s</string>
-    <string name="game_stats_none_yet">ancora nessuno</string>
-    <string name="achievements_title">Obiettivi di %1$s</string>
-    <string name="achievements_count">%1$d di %2$d obiettivi</string>
-    <string name="achievements_count_score">%1$d di %2$d obiettivi · %3$d / %4$d G</string>
     <string name="achievements_percent">%1$d%%</string>
-    <string name="achievements_percent_all">%1$d%% · tutti!</string>
-    <string name="achievements_filter_all">Tutti</string>
     <string name="achievements_filter_unlocked">Sbloccati %1$d</string>
-    <string name="achievements_filter_locked">Da fare %1$d</string>
     <string name="achievements_all_done">Niente da fare: li hai tutti.</string>
     <string name="achievements_none_yet">Ancora nessuno: la prossima partita è quella buona.</string>
     <string name="achievements_hidden">Obiettivo nascosto</string>

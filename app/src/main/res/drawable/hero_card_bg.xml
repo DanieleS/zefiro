@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The hero's card, as the Shelves mock draws it: a 12dp rounded block on the black ground.
+    This is also the hero's placeholder: with neither a background nor a cover to lay over it,
+    the plain container is what shows. The card clips its backdrop to this shape's outline.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="@dimen/hero_corner" />
+    <solid android:color="@color/surface_container" />
+</shape>

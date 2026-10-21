@@ -34,8 +34,6 @@
     <string name="nettest_text_blocked">A conexão de rede atual do seu aparelho está a bloquear o Moonlight. A transmissão pela Internet pode não funcionar enquanto estiver conectado a esta rede.</string>
     <string name="wol_waking_msg">Pode levar alguns segundos até o seu PC acordar. Se isso não acontecer, verifique se ele está configurado corretamente para Wake-On-LAN.</string>
     <string name="wol_fail">Falha ao enviar pacotes Wake-On-LAN</string>
-    <string name="unpair_success">Despareado com sucesso</string>
-    <string name="unpair_fail">Falha ao desparear</string>
     <string name="title_decoding_error">Decodificador de Vídeo Crashou</string>
     <string name="title_decoding_reset">Resetar Configurações de Vídeo</string>
     <string name="message_decoding_error">Moonlight crashou devido a uma incompatibilidade com o decodificador de vídeo deste aparelho. Certifique-se de que o GeForce Experience esteja atualizado à versão mais recente no seu PC. Tente ajustar as configurações de transmissão se as falhas continuarem.</string>
@@ -63,7 +61,6 @@
     <string name="perf_overlay_netdrops">Quadros dropados pela rede: %1$.2f%%</string>
     <string name="perf_overlay_netlatency">Latência média da rede: %1$d ms (variação: %2$d ms)</string>
     <string name="applist_menu_scut">Criar Atalho</string>
-    <string name="applist_refresh_msg">A recarregar apps…</string>
     <string name="applist_refresh_error_msg">Falha ao obter a lista de apps</string>
     <string name="applist_quit_app">Saindo</string>
     <string name="applist_quit_success">Saiu com sucesso</string>
@@ -104,7 +101,6 @@
     <string name="category_ui_settings">Configurações de Interface</string>
     <string name="title_checkbox_enable_pip">Ativar modo Picture-in-Picture</string>
     <string name="summary_checkbox_enable_pip">Permite que a transmissão seja visualizada (mas não controlada) enquanto usa outros apps</string>
-    <string name="summary_checkbox_small_icon_mode">Diminui o tamanho dos ícones permitindo que mais apps sejam visíveis no ecrã</string>
     <string name="summary_checkbox_host_audio">Reproduz o áudio do computador e deste aparelho</string>
     <string name="category_advanced_settings">Configurações Avançadas</string>
     <string name="title_unlock_fps">Liberar todas as taxas de quadros possíveis</string>
@@ -148,13 +144,9 @@
     <string name="conn_error_title">Erro de Conexão</string>
     <string name="yes">Sim</string>
     <string name="no">Não</string>
-    <string name="lost_connection">Conexão perdida com o PC</string>
     <string name="title_details">Detalhes</string>
     <string name="help">Ajuda</string>
     <string name="delete_pc_msg">Tem certeza de que deseja apagar este PC\?</string>
-    <string name="poor_connection_msg">Conexão ruim com o PC</string>
-    <string name="slow_connection_msg">Conexão lenta com o PC
-\nReduza sua taxa de bits</string>
     <string name="perf_overlay_streamdetails">Transmissão: %1$s %2$.2f FPS</string>
     <string name="perf_overlay_decoder">Decodificador: %1$s</string>
     <string name="perf_overlay_incomingfps">Taxa de quadros recebidos pela rede:: %1$.2f FPS</string>
@@ -167,7 +159,6 @@
     <string name="applist_menu_details">Ver Detalhes</string>
     <string name="applist_menu_tv_channel">Adicionar ao Canal</string>
     <string name="applist_menu_hide_app">Esconder app</string>
-    <string name="applist_refresh_title">Lista de apps</string>
     <string name="applist_refresh_error_title">Erro</string>
     <string name="applist_quit_confirmation">Tem certeza de que deseja sair da app em execução\? Todos os dados não salvos serão perdidos.</string>
     <string name="applist_details_id">ID do App:</string>
@@ -185,7 +176,6 @@
     <string name="title_seekbar_bitrate">Taxa de bits</string>
     <string name="summary_seekbar_bitrate">Aumente para uma melhor qualidade de imagem. Diminua para melhorar o desempenho em conexões mais lentas.</string>
     <string name="resolution_prefix_native">Nativa</string>
-    <string name="resolution_prefix_native_fullscreen">Ecrã Cheio Nativo</string>
     <string name="category_audio_settings">Configurações de Áudio</string>
     <string name="summary_audio_config_list">Ativa o som Surround 5.1 ou 7.1 para sistemas de home theater</string>
     <string name="category_input_settings">Configurações de Controles</string>
@@ -199,9 +189,6 @@
     <string name="title_reset_osc">Limpar o layout salvo dos controles de ecrã</string>
     <string name="summary_reset_osc">Redefine todos os controles no ecrã para tamanho e posição padrão dele</string>
     <string name="summary_osc_opacity">Deixe os controles de ecrã mais/menos transparentes</string>
-    <string name="title_language_list">Idioma</string>
-    <string name="summary_language_list">Idioma para ser usado no Moonlight</string>
-    <string name="title_checkbox_small_icon_mode">Mostrar ícones menores</string>
     <string name="summary_checkbox_enable_sops">Permitir que o GFE modifique as configurações do jogo para otimizar a transmissão</string>
     <string name="title_checkbox_host_audio">Reproduzir áudio no PC</string>
     <string name="title_checkbox_disable_warnings">Desativar mensagens de alerta</string>
@@ -219,8 +206,6 @@
     <string name="wol_pc_online">Esse computador está disponível</string>
     <string name="wol_no_mac">Não foi possível acordar o PC porque o GFE não enviou um endereço MAC</string>
     <string name="wol_waking_pc">Acordando o PC…</string>
-    <string name="unpairing">Despareando…</string>
-    <string name="unpair_error">Aparelho não pareado</string>
     <string name="error_pc_offline">Esse computador está indisponível</string>
     <string name="error_manager_not_running">O serviço ComputerManager não está em execução. Aguarde alguns segundos ou reinicie a app..</string>
     <string name="error_unknown_host">Falha ao encontrar o host</string>

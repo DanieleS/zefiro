@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    A menu's panel: a raised, hairlined surface with a quiet header and a scrolling column
-    of actions. The same panel whether it rises as a sheet in the library or sits centred
+    A menu's panel: a raised, hairlined surface with a quiet header (a title and, optionally,
+    a line of facts under it) and a scrolling column of actions. The same panel whether it rises as a sheet in the library or sits centred
     over a game. Rows are added to @id/menuSheetItems in code.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -28,10 +28,30 @@
         android:textColor="@color/content_muted"
         android:textSize="12sp" />
 
+    <!-- An optional second header line, facts about what the menu acts on (a PC's address and
+         games). Gone unless set; it sits under the title, which then keeps no gap of its own. -->
+    <TextView
+        android:id="@+id/menuSheetSubtitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="10dp"
+        android:ellipsize="end"
+        android:fontFamily="monospace"
+        android:singleLine="true"
+        android:textColor="@color/content_secondary"
+        android:textSize="13sp"
+        android:visibility="gone" />
+
+    <!-- Capped to the window (MenuSheet), it scrolls on a short one: a phone in landscape. The
+         faded edge is the cue that there are rows past it; it shows only while there are. -->
     <com.limelight.ui.MaxHeightScrollView
         android:id="@+id/menuSheetScroll"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:fadingEdgeLength="40dp"
+        android:requiresFadingEdge="vertical"
         android:scrollbars="none">
 
         <LinearLayout

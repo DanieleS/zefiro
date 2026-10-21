@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One stat on the companion panel's streaming stats: the mock's .st, a step above the black
+     ground. Not interactive, so it has no states. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="@dimen/companion_stat_corner" />
+    <solid android:color="@color/surface_container_low" />
+</shape>

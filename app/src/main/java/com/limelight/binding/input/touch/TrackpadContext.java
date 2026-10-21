@@ -24,6 +24,8 @@ public class TrackpadContext implements TouchContext {
     private boolean clickedMiddle = false;
     private int maxPointerCountInGesture;
     private boolean isClickPending;
+    // The button a tap holds down until its delayed release, while isClickPending
+    private byte clickButton;
     private boolean isDblClickPending;
     private boolean isFlicking;
     private double velocityX = 0.0;
@@ -274,11 +276,12 @@ public class TrackpadContext implements TouchContext {
         else if (isTap(eventTime)) {
             conn.sendMouseButtonDown(buttonIndex);
             isClickPending = true;
+            clickButton = buttonIndex;
 
             handler.removeCallbacksAndMessages(null);
             handler.postDelayed(() -> {
                 if (isClickPending) {
-                    conn.sendMouseButtonUp(buttonIndex);
+                    conn.sendMouseButtonUp(clickButton);
                     isClickPending = false;
                 }
                 isDblClickPending = false;
@@ -415,13 +418,22 @@ public class TrackpadContext implements TouchContext {
     public void cancelTouch() {
         cancelled = true;
 
-        if (isFlicking) {
-            isFlicking = false;
-            handler.removeCallbacksAndMessages(null);
+        // Nothing of the gesture goes on after it: no flick still moving or scrolling the
+        // mouse, and no click left to be released later. A button it holds down is let go of
+        // now, so the host is left holding nothing.
+        isFlicking = false;
+        handler.removeCallbacksAndMessages(null);
+        isScrollTransitioning = false;
+
+        if (isClickPending) {
+            conn.sendMouseButtonUp(clickButton);
+            isClickPending = false;
         }
+        isDblClickPending = false;
 
         if (confirmedDrag) {
             conn.sendMouseButtonUp(getMouseButtonIndex());
+            confirmedDrag = false;
         }
     }
 

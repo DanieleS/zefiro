@@ -74,10 +74,6 @@
 	<string name="wol_fail">無法傳送 Wake-On-LAN 封包</string>
 
 	<!-- Unpair messages -->
-	<string name="unpairing">正在取消配對…</string>
-	<string name="unpair_success">取消配對成功</string>
-	<string name="unpair_fail">取消配對失敗</string>
-	<string name="unpair_error">裝置未配對</string>
 
 	<!-- Errors -->
 	<string name="error_pc_offline">電腦已離線</string>
@@ -119,12 +115,9 @@
 		請確認 Apollo 已在主機電腦上執行。</string>
 	<string name="yes">是</string>
 	<string name="no">否</string>
-	<string name="lost_connection">與電腦的連線中斷</string>
 	<string name="title_details">詳細資訊</string>
 	<string name="help">說明</string>
 	<string name="delete_pc_msg">您確定要刪除此電腦嗎？</string>
-	<string name="slow_connection_msg">與電腦連線速度緩慢\n請降低位元率</string>
-	<string name="poor_connection_msg">與電腦的連線品質不佳</string>
 	<string name="perf_overlay_streamdetails">影片串流：%1$s %2$.2f FPS</string>
 	<string name="perf_overlay_decoder">解碼器：%1$s</string>
 	<string name="perf_overlay_incomingfps">從網路接收的影格率：%1$.2f FPS</string>
@@ -163,8 +156,6 @@
 	<string name="applist_menu_export_launcher">匯出啟動檔</string>
 	<string name="applist_menu_tv_channel">新增至頻道</string>
 	<string name="applist_menu_hide_app">隱藏應用程式</string>
-	<string name="applist_refresh_title">應用程式清單</string>
-	<string name="applist_refresh_msg">正在重新整理應用程式…</string>
 	<string name="applist_refresh_error_title">錯誤</string>
 	<string name="applist_refresh_error_msg">無法取得應用程式清單</string>
 	<string name="applist_quit_app">正在結束</string>
@@ -199,7 +190,6 @@
 	<string name="title_resolution_scale_factor">解析度縮放係數</string>
 	<string name="summary_resolution_scale_factor">伺服器端請求的虛擬螢幕解析度將乘以此係數。串流解析度不受影響。\n例如：120% 會將 2000x1000 變為 2400x1200。\n設定較高的縮放係數可改善部分遊戲的影像品質。\n需要 Apollo 才能生效。</string>
 	<string name="resolution_prefix_native">原生</string>
-	<string name="resolution_prefix_native_fullscreen">原生全螢幕</string>
 	<string name="resolution_prefix_native_landscape">（橫向）</string>
 	<string name="resolution_prefix_native_portrait">（直向）</string>
 	<string name="resolution_prefix_custom">自訂</string>
@@ -282,10 +272,6 @@
 	<string name="category_ui_settings">介面設定</string>
 	<string name="title_checkbox_enable_pip">啟用子母畫面旁觀模式</string>
 	<string name="summary_checkbox_enable_pip">允許在多工時觀看串流（不可控制）</string>
-	<string name="title_language_list">語言</string>
-	<string name="summary_language_list">Artemis 使用的語言</string>
-	<string name="title_checkbox_small_icon_mode">使用小型封面圖</string>
-	<string name="summary_checkbox_small_icon_mode">在應用程式格狀檢視中使用較小封面圖，可在同一畫面顯示更多應用程式</string>
 
 	<string name="category_host_settings">主機設定</string>
 	<string name="title_checkbox_enable_sops">最佳化遊戲設定</string>
@@ -367,16 +353,12 @@
 
 
 	<!-- In Game menu -->
-	<string name="game_menu_toggle_keyboard">顯示軟體鍵盤</string>
-	<string name="game_menu_toggle_hud">切換即時效能資訊</string>
-	<string name="game_menu_toggle_floating_button">切換浮動按鈕</string>
 	<string name="game_menu_select_mouse_mode">選擇滑鼠模式</string>
 	<string name="game_menu_select_steam_mode">選擇串流模式</string>
 	<string name="game_menu_enable_zoom_mode">啟用平移/縮放</string>
 	<string name="game_menu_disable_zoom_mode">停用平移/縮放</string>
 	<string name="game_menu_rotate_screen">旋轉螢幕</string>
 	<string name="game_menu_toggle_keyboard_model">切換特殊按鍵</string>
-	<string name="game_menu_toggle_virtual_model">切換虛擬手把</string>
 	<string name="game_menu_toggle_virtual_keyboard_model">切換螢幕完整鍵盤</string>
 	<string name="game_menu_switch_touch_sensitivity_model">切換觸控靈敏度</string>
 
@@ -384,9 +366,7 @@
 	<string name="game_menu_toggle_mouse_on">啟用手把滑鼠控制</string>
 	<string name="game_menu_toggle_mouse_off">停用手把滑鼠控制</string>
 	<string name="game_menu_disconnect">中斷連線</string>
-	<string name="game_menu_cancel">取消</string>
 	<string name="game_menu_task_manager">開啟工作管理員</string>
-	<string name="game_menu_send_keys">傳送特殊按鍵</string>
 	<string name="game_menu_send_keys_esc">ESC</string>
 	<string name="game_menu_send_keys_f11">F11</string>
 	<string name="game_menu_send_keys_alt_f4">Alt + F4</string>
@@ -413,15 +393,9 @@
 	<string name="analogscroll_right">右搖桿</string>
 	<string name="analogscroll_left">左搖桿</string>
 
-	<string name="perf_overlay_lite_net">%1$dms</string>
-	<string name="perf_overlay_lite_dectime">%1$.2fms</string>
-	<string name="perf_overlay_lite_netdrops">%1$.2f%%</string>
-	<string name="perf_overlay_lite_streamdetails">%1$s</string>
-	<string name="perf_overlay_lite_fps">%1$.2f</string>
 	<string name="perf_overlay_drawn_fps">GPU FPS：</string>
 	<string name="perf_overlay_ai_fps">3D FPS：</string>
 	<string name="perf_overlay_ai_delegate">代理：</string>
-	<string name="perf_overlay_lite_decoder">解碼器：%1$s</string>
 
 	<string name="title_import_keyboard_layout">匯入鍵盤佈局</string>
 	<string name="title_export_keyboard_layout">匯出鍵盤佈局</string>
@@ -457,14 +431,10 @@
 	<string name="title_checkbox_onscreen_style_official">官方虛擬手把外觀</string>
 	<string name="summary_checkbox_onscreen_style_official">若偏好舊版官方虛擬手把按鈕樣式，可選擇此項。\n若選擇底部虛擬按鈕，按鍵外形可為方形【一般按鍵預設為方形】</string>
 
-	<string name="title_checkbox_enable_perf_overlay_lite">啟用精簡模式</string>
-	<string name="summary_checkbox_enable_perf_overlay_lite">顯示簡化的效能資訊：網路速度 / 延遲 / 解碼 / 封包遺失率 / FPS</string>
 
 	<string name="title_checkbox_enable_perf_logging">啟用效能記錄</string>
 	<string name="summary_checkbox_enable_perf_logging">「離線時」依組態儲存效能資料。</string>
 
-	<string name="title_checkbox_enable_perf_overlay_lite_dialog">精簡模式點擊彈出快速選項</string>
-	<string name="summary_checkbox_enable_perf_overlay_lite_dialog">取代返回鍵邏輯，改為彈出遊戲快速選單。</string>
 
 	<string name="title_show_overlay_zoom_toggle_button">顯示覆蓋層縮放切換按鈕</string>
 	<string name="summary_show_overlay_zoom_toggle_button">在畫面頂部顯示可拖曳的按鈕，用於切換平移/縮放模式。</string>
@@ -474,8 +444,6 @@
 	<string name="title_quit_dialog">返回選單</string>
 	<string name="summary_quit_dialog">啟用後，在串流介面按下實體返回鍵會顯示相關選項！\n軟體鍵盤、效能資訊、觸控模式切換、傳送特殊按鍵</string>
 
-	<string name="title_floating_button">浮動按鈕</string>
-	<string name="summary_floating_button">啟用浮動按鈕</string>
 
 	<string name="dialog_custom_resolution">設定解析度並離開設定頁面後生效！</string>
 	<string name="summary_custom_resolution">新增自訂解析度，以 x 分隔；不常見的解析度可能無法運作。\n例如：1920x1080\n若非原生解析度，預設可能不會填滿瀏海區域。若長寬比相同，可手動設定拉伸畫面以全螢幕顯示。</string>
@@ -594,8 +562,6 @@
 
 	<string name="title_settings_misc">雜項</string>
 	<string name="perf_overlay_lite_bandwidth">頻寬</string>
-	<string name="perf_overlay_lite_network_decoding_delay">網路/解碼延遲</string>
-	<string name="perf_overlay_lite_packet_loss">封包遺失</string>
 	<string name="wrong_import_format">匯入格式錯誤，請檢查！</string>
 
 	<string name="title_checkbox_gamepad_enable_battery_report">啟用手把電量回報</string>
@@ -677,10 +643,8 @@
 	<string name="pref_error_occurred">發生錯誤： </string>
 	<string name="pref_save_keyboard_profile">儲存 OSK 設定檔</string>
 
-	<string name="game_menu_advanced">進階選單</string>
 	<string name="game_dialog_title_quit_confirm">確定要離開？</string>
 	<string name="game_dialog_message_quit_confirm">請確認沒有未儲存的進度。離開工作階段將終止您目前執行的應用程式。</string>
-	<string name="game_menu_quit_session">結束工作階段</string>
 	<string name="game_menu_server_cmd">伺服器指令</string>
 	<string name="game_menu_fetch_clipboard">取得剪貼簿</string>
 	<string name="game_menu_upload_clipboard">上傳剪貼簿</string>
@@ -712,12 +676,6 @@
 	<string name="permission_launch_app">啟動應用程式</string>
 	<string name="permission_sync_clipboard">同步剪貼簿</string>
 	
-	<string name="searchpreference_search">搜尋…</string>
-	<string name="searchpreference_clear">清除</string>
-	<string name="searchpreference_history_entry">歷史紀錄項目</string>
-	<string name="searchpreference_more">更多</string>
-	<string name="searchpreference_clear_history">清除歷史紀錄</string>
-	<string name="searchpreference_no_results">沒有結果</string>
 
 	<!-- Keyboard -->
 	<string name="keyboard_clear_all">全部清除</string>
@@ -747,7 +705,6 @@
 	<string name="error_writing_file">寫入檔案錯誤：%s</string>
 	<string name="unexpected_error_during_file_export">匯出期間發生未預期的錯誤。</string>
 
-	<!-- AppView Toast Messages -->
 	<string name="file_export_cancelled">已取消匯出。</string>
 	<string name="app_removed_from_pc">已自電腦移除應用程式</string>
 	<string name="title_export_sunshine_launcher_file">為 Sunshine 匯出啟動檔</string>
@@ -757,8 +714,6 @@
 	<string name="summary_enable_commit_text">將軟體鍵盤的多字元輸入（手勢輸入、建議字詞、語音聽寫）轉送到主機。可能會影響依賴逐鍵輸入的遊戲。</string>
 	<string name="title_checkbox_remember_zoom_pan">記住縮放與平移</string>
 	<string name="summary_checkbox_remember_zoom_pan">在工作階段之間儲存縮放與平移位置</string>
-	<string name="title_checkbox_enable_perf_overlay_bottom">將效能資訊移至底部</string>
-	<string name="summary_checkbox_enable_perf_overlay_bottom">在非原生解析度串流、同時啟用「置頂置中顯示」與精簡模式時特別有用。</string>
 
 	<string name="title_edit_profile">編輯設定檔</string>
 	<string name="profile_manager_new_profile">新增設定檔</string>
@@ -773,7 +728,6 @@
 	<string name="profile_manager_no_profiles_yet">尚無設定檔</string>
 	<string name="profile_manager_profiles_description">設定檔可讓你建立並儲存不同的串流組態。每個設定檔都有自己的設定，並可快速切換。</string>
 	<string name="profile_manager_tap_create_profile">點選 + 以建立第一個設定檔</string>
-	<string name="profile_manager_choose_profile">選擇設定檔</string>
 	<string name="profile_manager_deactivated_profile">已停用的設定檔</string>
 	<string name="profile_manager_activated_profile">已啟用設定檔『%s』</string>
 	<string name="profile_manager_delete_profile">刪除設定檔</string>

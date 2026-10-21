@@ -98,12 +98,28 @@
         <!-- Samsung DeX support requires explicit placement of android:resizeableActivity="true"
              in each activity even though it is implied by targeting API 24+ -->
 
+        <!-- The main screen: Library, PCs, Stats and Search as sections of one activity. It
+             handles rotation and resizing itself, so the rail and the bottom bar swap without
+             recreating the screen. Not exported: the launcher reaches it through the .PcView
+             alias below, everything else from inside the app. -->
         <activity
-            android:name=".PcView"
-            android:exported="true"
+            android:name=".main.MainActivity"
+            android:exported="false"
             android:resizeableActivity="true"
             android:enableOnBackInvokedCallback="true"
             android:configChanges="mcc|mnc|touchscreen|keyboard|keyboardHidden|navigation|screenLayout|fontScale|uiMode|orientation|screenSize|smallestScreenSize|layoutDirection">
+
+            <meta-data android:name="WindowManagerPreference:FreeformWindowSize" android:value="system-default" />
+            <meta-data android:name="WindowManagerPreference:FreeformWindowOrientation" android:value="landscape" />
+        </activity>
+        <!-- The launcher entry keeps the name of the screen it used to be. Launchers remember a
+             home icon by its component, so a pinned icon (and the Leanback and OUYA entries)
+             made before the switch to MainActivity still resolve after an upgrade. An alias must
+             follow its target. -->
+        <activity-alias
+            android:name=".PcView"
+            android:targetActivity=".main.MainActivity"
+            android:exported="true">
 
             <meta-data android:name="WindowManagerPreference:FreeformWindowSize" android:value="system-default" />
             <meta-data android:name="WindowManagerPreference:FreeformWindowOrientation" android:value="landscape" />
@@ -116,7 +132,7 @@
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
                 <category android:name="tv.ouya.intent.category.APP" />
             </intent-filter>
-        </activity>
+        </activity-alias>
         <!-- Small hack to support launcher shortcuts without relaunching over and over again when the back button is pressed -->
         <activity
             android:name=".ShortcutTrampoline"
@@ -137,22 +153,6 @@
                 <data android:mimeType="*/*" />
                 <data android:pathPattern=".*\.art" />
             </intent-filter>
-        </activity>
-        <activity
-            android:name=".AppView"
-            android:resizeableActivity="true"
-            android:enableOnBackInvokedCallback="true"
-            android:configChanges="mcc|mnc|touchscreen|keyboard|keyboardHidden|navigation|screenLayout|fontScale|uiMode|orientation|screenSize|smallestScreenSize|layoutDirection">
-            <meta-data android:name="WindowManagerPreference:FreeformWindowSize" android:value="system-default" />
-            <meta-data android:name="WindowManagerPreference:FreeformWindowOrientation" android:value="landscape" />
-        </activity>
-        <activity
-            android:name=".stats.StatsActivity"
-            android:resizeableActivity="true"
-            android:enableOnBackInvokedCallback="true"
-            android:configChanges="mcc|mnc|touchscreen|keyboard|keyboardHidden|navigation|screenLayout|fontScale|uiMode|orientation|screenSize|smallestScreenSize|layoutDirection">
-            <meta-data android:name="WindowManagerPreference:FreeformWindowSize" android:value="system-default" />
-            <meta-data android:name="WindowManagerPreference:FreeformWindowOrientation" android:value="landscape" />
         </activity>
         <activity
             android:name=".ProfilesActivity"
@@ -181,17 +181,6 @@
             android:taskAffinity=""
             android:theme="@style/ExternalDisplayControllerTheme"/>
         <activity
-            android:name=".preferences.StreamSettings"
-            android:resizeableActivity="true"
-            android:enableOnBackInvokedCallback="true"
-            android:configChanges="mcc|mnc|touchscreen|keyboard|keyboardHidden|navigation|screenLayout|fontScale|uiMode|orientation|screenSize|smallestScreenSize|layoutDirection"
-            android:label="Streaming Settings"
-            android:theme="@style/SettingsTheme"
-            >
-            <meta-data android:name="WindowManagerPreference:FreeformWindowSize" android:value="system-default" />
-            <meta-data android:name="WindowManagerPreference:FreeformWindowOrientation" android:value="landscape" />
-        </activity>
-        <activity
             android:name=".preferences.AddComputerManually"
             android:exported="true"
             android:resizeableActivity="true"
@@ -209,9 +198,13 @@
                 <data android:scheme="art" />
             </intent-filter>
         </activity>
+        <!-- The stream handles every change of window shape itself (Game#onConfigurationChanged):
+             a relaunch would end the session, since onStop always stops the connection and
+             finishes. Density and colour mode included, which change with the window when a
+             display is resized or the stream moves between screens. -->
         <activity
             android:name=".Game"
-            android:configChanges="mcc|mnc|locale|touchscreen|keyboard|keyboardHidden|navigation|screenLayout|fontScale|uiMode|orientation|screenSize|smallestScreenSize|layoutDirection"
+            android:configChanges="mcc|mnc|locale|touchscreen|keyboard|keyboardHidden|navigation|screenLayout|fontScale|uiMode|orientation|screenSize|smallestScreenSize|layoutDirection|density|colorMode"
             android:noHistory="true"
             android:supportsPictureInPicture="true"
             android:resizeableActivity="true"

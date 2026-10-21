@@ -12,7 +12,9 @@ import com.limelight.binding.PlatformBinding;
 import com.limelight.binding.audio.AndroidAudioRenderer;
 import com.limelight.binding.input.ControllerHandler;
 import com.limelight.binding.input.GameInputDevice;
+import com.limelight.binding.input.HeldMouseButtons;
 import com.limelight.binding.input.KeyboardTranslator;
+import com.limelight.binding.input.StaleGestures;
 import com.limelight.binding.input.capture.InputCaptureManager;
 import com.limelight.binding.input.capture.InputCaptureProvider;
 import com.limelight.binding.input.touch.AbsoluteTouchContext;
@@ -38,7 +40,9 @@ import com.limelight.bitrate.LiveBitrate;
 import com.limelight.companion.CompanionAppLauncher;
 import com.limelight.companion.CompanionDisplayManager;
 import com.limelight.companion.CompanionState;
+import com.limelight.companion.DisplayTargets;
 import com.limelight.companion.TelemetryController;
+import com.limelight.companion.TelemetryGate;
 import com.limelight.nvstream.http.Achievement;
 import com.limelight.stats.AchievementToast;
 import com.limelight.stats.AchievementWatcher;
@@ -59,13 +63,19 @@ import com.limelight.profiles.ProfilesManager;
 import com.limelight.ui.ConnectionOverlay;
 import com.limelight.ui.ExternalControllerView;
 import com.limelight.ui.GameGestures;
+import com.limelight.stream.ControlsInputRouter;
+import com.limelight.stream.ControlsSurface;
+import com.limelight.stream.EdgeHandleView;
+import com.limelight.stream.EdgeSwipe;
+import com.limelight.stream.StreamCapabilities;
+import com.limelight.stream.StreamControlsPanel;
+import com.limelight.stream.StreamHud;
 import com.limelight.ui.StreamContainer;
 import com.limelight.ui.TextFocusKeyboard;
 import com.limelight.utils.CacheHelper;
 import com.limelight.utils.Dialog;
 import com.limelight.utils.ExternalDisplayControlActivity;
 import com.limelight.utils.LinkHealthSummary;
-import com.limelight.utils.MouseModeOption;
 import com.limelight.utils.PanZoomHandler;
 import com.limelight.utils.PerformanceDataTracker;
 import com.limelight.utils.ServerHelper;
@@ -108,6 +118,7 @@ import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.util.Rational;
 import android.view.Display;
+import android.view.DisplayCutout;
 import android.view.Gravity;
 import android.view.InputDevice;
 import android.view.KeyCharacterMap;
@@ -126,10 +137,10 @@ import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.view.inputmethod.InputMethodManager;
-import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ImageButton;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -154,12 +165,14 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import android.view.SurfaceView;
 import android.view.ViewGroup;
 
@@ -172,6 +185,32 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     public static Game instance;
 
     private int lastButtonState = 0;
+    /**
+     * Host mouse buttons held down outside lastButtonState: a stylus or eraser touching (left or
+     * right), and a mouse's right button that Android reports as a Back key. As a
+     * {@link HeldMouseButtons} set, so opening the controls can let go of them. Main thread only.
+     */
+    private int heldPointerButtons;
+    /**
+     * The touchscreen's, touchpad's or stylus's gesture under way as the controls opened was let
+     * go of at the host; the rest of it is dropped until a new one starts, so the host never sees
+     * a contact move or lift that it was told is gone. Main thread only.
+     */
+    private final StaleGestures staleGestures = new StaleGestures();
+    /**
+     * Mouse buttons sent down through mouseButtonEvent (the on-screen keyboard's, and the
+     * root-only evdev mouse's on its own thread), as a {@link HeldMouseButtons} set, so opening
+     * the controls can let go of them. Under sideInputLock.
+     */
+    private int heldSideMouseButtons;
+    /**
+     * Taken by the input that reaches the host outside the activity's paths (mouseButtonEvent,
+     * keyboardEvent) to check the controls are shut and send a press as one step, and by the open
+     * to let go of what they hold: a press either lands before that release or is not sent.
+     */
+    private final Object sideInputLock = new Object();
+    // Touch or pen events went to the host as such, so it may have contacts down there
+    private boolean hostTouchesSent;
 
     // Only 2 touches are supported
     private final TouchContext[] touchContextMap = new TouchContext[2];
@@ -213,11 +252,35 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     public NvConnection conn;
     private ConnectionOverlay connectionOverlay;
-    // True while the in-game menu is drawn on the companion panel. The panel takes no focus, so
-    // the gamepad stays with us; this says when to steer it into that menu instead of the game.
-    private boolean companionMenuActive = false;
-    // Last vertical d-pad/stick value seen while driving the companion menu, for edge detection.
-    private float lastCompanionMenuHatY = 0;
+    /**
+     * The phone's stream controls, drawn inside this window over the stream, and the edge pill
+     * that opens them. GameMenu draws on the panel; the handle is hidden where the panel is not
+     * the surface (an external display) and in picture-in-picture.
+     */
+    private StreamControlsPanel controlsPanel;
+    private EdgeHandleView controlsHandle;
+    /** The swipe in from anywhere along the right edge, the handle's own band aside. */
+    private EdgeSwipe edgeSwipe;
+    /**
+     * While any in-stream controls surface is open (the side panel, the companion panel's sheet,
+     * the external display's sheet), the pad and the keys go to it through this and never reach
+     * the host. Asked first in every key and joystick path.
+     */
+    private ControlsInputRouter controlsInput;
+    /**
+     * Whether any controls surface is open, for the USB driver's pads: they report on their own
+     * threads and never pass through controlsInput, so ControllerHandler asks this instead.
+     * Written on the main thread, read on any.
+     */
+    private volatile boolean controlsOpenForPads;
+    // Carries those pads' navs to the main thread.
+    private final Handler padNavHandler = new Handler(Looper.getMainLooper());
+    /**
+     * The host's keyboard keys we have sent down and not yet up, so opening the controls can
+     * let go of them: their own key-ups will go to the controls instead. Any thread: the
+     * root-only evdev keyboard reports on its own.
+     */
+    private final Set<Short> heldHostKeys = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private boolean displayedFailureDialog = false;
     private boolean connecting = false;
     public boolean connected = false;
@@ -257,53 +320,42 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private float lastAbsTouchDownX, lastAbsTouchDownY;
 
     private boolean quitOnStop = false;
-    private boolean isHidingOverlays;
-    private boolean floatingButtonShown;
     private boolean overlayToggleZoomButtonShown;
-    private TextView notificationOverlayView;
-    private int requestedNotificationOverlayVisibility = View.GONE;
-    private View performanceOverlayView;
-
-    private TextView performanceOverlayLite;
-
-    private TextView performanceOverlayBig;
+    /**
+     * The one line over the stream: the numbers when {@link #hudVisible}, the reconnect status
+     * whenever there is one, and a health dot fed by both the numbers and the host's poor
+     * connection reports. See {@link StreamHud} for which input wins.
+     */
+    private StreamHud streamHud;
 
     /**
-     * When the companion panel is there to show the stats, they go there instead of on top of
-     * the game. Resolved once at startup so the overlay does not appear and disappear mid-stream.
+     * Whether the user wants the HUD's numbers over the stream: the perf overlay setting at
+     * start, then the Overlay tile. Only the HUD; the companion panel gets the stats regardless
+     * (see {@link #perfStatsWanted()}).
      */
-    /** Show or hide the on-stream stats overlay, leaving the lite/big choice as configured. */
-    private void syncLocalPerfOverlay(boolean visible) {
-        if (performanceOverlayView == null) {
-            return;
-        }
-        int visibility = visible ? View.VISIBLE : View.GONE;
-        if (performanceOverlayView.getVisibility() == visibility) {
-            return;
-        }
-        performanceOverlayView.setVisibility(visibility);
-        if (prefConfig.enablePerfOverlayLite) {
-            performanceOverlayLite.setVisibility(visibility);
-        } else {
-            performanceOverlayBig.setVisibility(visibility);
-        }
+    private boolean hudVisible;
+
+    /**
+     * Whether this session has a companion panel that could show the stats: the panel switched on
+     * in settings and a second display for it, whatever its power state or owner right now. The
+     * same session-long question {@link TelemetryGate} asks, for the same reason: the panel can
+     * be hidden, borrowed by a companion app or blanked, and come back, and the decoder must
+     * still be measuring when it does.
+     */
+    private boolean hasCompanionPanel() {
+        return TelemetryGate.shouldStart(CompanionDisplayManager.isConfigured(this),
+                DisplayTargets.findCompanionHardwareId(this));
     }
 
     /**
-     * Where the stats belong right now. Asked afresh each time rather than settled at startup: the
-     * panel can be hidden, turned back on, or handed to a companion app at any point during the
-     * stream, and a decision made once at connect time would be wrong for the rest of it.
+     * Whether the decoder should measure at all: for the HUD, and independently for the companion
+     * panel, so on a two-screen device the top screen can show the HUD while the bottom shows the
+     * stats at the same time.
      */
-    private boolean statsOnCompanion() {
-        return prefConfig.enableCompanionStats && CompanionDisplayManager.isCompanionAvailable(this);
+    private boolean perfStatsWanted() {
+        // Also while the side panel is open, for the numbers in its header.
+        return hudVisible || hasCompanionPanel() || (controlsPanel != null && controlsPanel.isOpen());
     }
-
-    /**
-     * Whether the stats are on screen at all, wherever they are drawn. The companion shows them
-     * without being asked, so this starts out true more often than the perf overlay preference
-     * does. The in-game menu toggles it.
-     */
-    private boolean statsVisible;
 
     private MediaCodecDecoderRenderer decoderRenderer;
     private boolean reportedCrash;
@@ -389,19 +441,22 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         void showMenu(GameInputDevice devic);
         void hideMenu();
         boolean isMenuOpen();
+        /** Steer the open menu; returns whether it took the input. */
+        boolean onNav(ControlsSurface.Nav nav);
+        /** The companion panel came or went: move open controls to where they now belong. */
+        void onPanelShowingChanged(boolean showing);
     }
 
     public GameMenuCallbacks gameMenuCallbacks;
 
     public boolean isInputOnly = true;
     public boolean allowChangeMouseMode = true;
+    // The mouse mode last applied (an index in R.array.mouse_mode_names), for the controls'
+    // check mark; -1 until initMouseMode has run.
+    private int mouseModeIndex = -1;
     private boolean onExternelDisplay = false;
-    private ImageButton floatingMenuButton;
     private ImageButton overlayToggleButton;
-    private float floatingButtonDX, floatingButtonDY;
-    private boolean isButtonMoving = false;
     private static final float CLICK_ACTION_THRESHOLD = 5;
-    private float floatingButtonStartX, floatingButtonStartY;
 
     // Zoom button drag state
     private float zoomButtonDX, zoomButtonDY;
@@ -483,7 +538,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         // The renderer seeds itself from the perf overlay preference, which says nothing about
         // the companion. Tell it who is really watching.
-        renderer.setPerfStatsRequested(statsVisible);
+        renderer.setPerfStatsRequested(perfStatsWanted());
 
 // --- Force tight thresholds (prefConfig.forceTightThresholds) ---
         try {
@@ -595,7 +650,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             prefConfig.height = displayHeight;
             prefConfig.fps = currentMode.getRefreshRate();
             prefConfig.videoScaleMode = PreferenceConfiguration.ScaleMode.STRETCH;
-            prefConfig.enableFloatingButton = false;
             prefConfig.showOverlayZoomToggleButton = false;
             prefConfig.enablePip = false;
             currentOrientation = Configuration.ORIENTATION_LANDSCAPE;
@@ -622,12 +676,16 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
 
 
-        if (
-                prefConfig.videoScaleMode == PreferenceConfiguration.ScaleMode.STRETCH ||
-                        shouldIgnoreInsetsForResolution(displayWidth, displayHeight)
-        ) {
-            // Allow the activity to layout under notches if the fill-screen option
-            // was turned on by the user or it's a full-screen native resolution
+        // The window runs under the cutout, edge to edge: the stream view is fitted to the
+        // stream's aspect and centred in the whole screen. Kept out of the cutout, a landscape
+        // window with one on its long edge lost a band that the video then sat below, off
+        // centre. The side panel and the overlays keep clear of the cutout themselves.
+        // The one exception is "Native, clear of the cutout": a size of the screen less the
+        // cutout's band, which fills the window only while the window leaves that band out.
+        // Centred in the whole screen, half the band it was made to avoid would fall under
+        // the notch.
+        if (prefConfig.videoScaleMode == PreferenceConfiguration.ScaleMode.STRETCH
+                || !isCutoutFreeResolution(displayWidth, displayHeight)) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 getWindow().getAttributes().layoutInDisplayCutoutMode =
                         WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS;
@@ -701,13 +759,15 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             );
         }
 
-        notificationOverlayView = findViewById(R.id.notificationOverlay);
-
-        performanceOverlayView = findViewById(R.id.performanceOverlay);
-
-        performanceOverlayLite = findViewById(R.id.performanceOverlayLite);
-
-        performanceOverlayBig = findViewById(R.id.performanceOverlayBig);
+        streamHud = findViewById(R.id.streamHud);
+        controlsPanel = findViewById(R.id.controlsPanel);
+        controlsHandle = findViewById(R.id.controlsHandle);
+        // As wide as the handle's touch zone, and as far as the handle's own swipe goes.
+        edgeSwipe = new EdgeSwipe(UiHelper.dpToPx(this, 24), UiHelper.dpToPx(this, 16));
+        // The window runs under the cutout; the overlays on it must not sit under the notch.
+        keepClearOfCutout(streamHud, true, true, false);
+        keepClearOfCutout(controlsHandle, false, false, true);
+        keepClearOfCutout(findViewById(R.id.overlayToggleZoomButton), false, true, false);
 
         inputCaptureProvider = InputCaptureManager.getInputCaptureProvider(this, this);
 
@@ -717,6 +777,14 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 public boolean onCapturedPointer(View view, MotionEvent motionEvent) {
 //                    LimeLog.info("onCapturedPointer="+motionEvent.toString());
 //                    LimeLog.info("onCapturedPointer-Device="+motionEvent.getDevice().toString());
+                    // A capture asked for before the controls opened can still land under them:
+                    // resumeHostInput's recapture runs 500 ms late, and a quick close and reopen
+                    // beats it. The mouse could then neither reach the panel nor stop reaching
+                    // the host, so let it go again and send nothing.
+                    if (gameMenuCallbacks != null && gameMenuCallbacks.isMenuOpen()) {
+                        view.releasePointerCapture();
+                        return true;
+                    }
                     return handleMotionEvent(view, motionEvent);
                 }
             });
@@ -755,6 +823,15 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         httpsPort = Game.this.getIntent().getIntExtra(EXTRA_HTTPS_PORT, 0); // 0 is treated as unknown
         appUUID = Game.this.getIntent().getStringExtra(EXTRA_APP_UUID);
         appId = Game.this.getIntent().getIntExtra(EXTRA_APP_ID, StreamConfiguration.INVALID_APP_ID);
+        if (appName == null || appName.isEmpty()) {
+            // A launch that named the game by its ids alone (a PC shortcut rejoining it, a link):
+            // the PC's cached list knows the name, and every surface titles the stream by it,
+            // the PC's name staying the subtitle. Without it the controls fell back to a
+            // generic title and the stats to the PC alone, flipping between runs.
+            appName = ServerHelper.cachedAppName(this, getIntent().getStringExtra(EXTRA_PC_UUID),
+                    appUUID, appId);
+        }
+        controlsPanel.setSession(appName, pcName);
         uniqueId = Game.this.getIntent().getStringExtra(EXTRA_UNIQUEID);
         vDisplay = Game.this.getIntent().getBooleanExtra(EXTRA_VDISPLAY, false);
         serverCommands = Game.this.getIntent().getStringArrayListExtra(EXTRA_SERVER_COMMANDS);
@@ -788,6 +865,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                         ? () -> coverConn.getBoxArt(coverApp)
                         : null,
                 appName, pcName);
+        // The same cover, small, beside the title in the side panel's header.
+        controlsPanel.setCover(boxArt);
 
         if (appId == StreamConfiguration.INVALID_APP_ID) {
             finish();
@@ -831,29 +910,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             }
         }
 
-        // Stats are collected whenever they could be shown anywhere — the panel may be off now and
-        // switched on mid-stream, and asking the decoder for them only at startup would leave it
-        // with nothing to report by then.
-        statsVisible = prefConfig.enableCompanionStats || prefConfig.enablePerfOverlay;
-
-        // Check if the user has enabled performance stats overlay
-        if (statsVisible && !statsOnCompanion()) {
-            performanceOverlayView.setVisibility(View.VISIBLE);
-            if (prefConfig.enablePerfOverlayLite) {
-                performanceOverlayLite.setVisibility(View.VISIBLE);
-                if(prefConfig.enablePerfOverlayLiteDialog){
-                    performanceOverlayLite.setOnClickListener(v -> showGameMenu(null));
-                }
-            } else {
-                performanceOverlayBig.setVisibility(View.VISIBLE);
-            }
-            if (prefConfig.enablePerfOverlayBottom) {
-                //performanceOverlayView.getLayoutParams().layout_gravity = Gravity.BOTTOM;
-                FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) performanceOverlayView.getLayoutParams();
-                params.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
-                performanceOverlayView.setLayoutParams(params);
-            }
-        }
+        // Settled before the decoder is built below, which asks perfStatsWanted() at once.
+        hudVisible = prefConfig.enablePerfOverlay;
+        streamHud.setStatsShown(hudVisible);
 
         // Kept for createDecoderRenderer(), which also builds the decoder of each reconnect attempt
         decoderNetworkMetered = connMgr.isActiveNetworkMetered();
@@ -1097,6 +1156,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             if (!attemptedConnection && streamContainer.getSurface() != null) {
                 attemptedConnection = true;
                 streamStartUptimeMs = SystemClock.uptimeMillis();
+                controlsPanel.setStreamStart(streamStartUptimeMs);
 
                 // Measure the display's actual refresh rate first, now that its mode is set, so the
                 // host can be asked for a frame rate that lines up with our vsyncs
@@ -1114,15 +1174,39 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }));
 
         gameMenuCallbacks = new GameMenu(this);
+        controlsInput = new ControlsInputRouter(new ControlsInputRouter.Target() {
+            @Override
+            public boolean isOpen() {
+                return isHostInputBlocked();
+            }
+
+            @Override
+            public boolean onNav(@NonNull ControlsSurface.Nav nav) {
+                // Only this window's surfaces are driven from here: the external display's sheet
+                // walks its own rows, and the keys are just kept from the host while it is up.
+                if (gameMenuCallbacks != null && gameMenuCallbacks.isMenuOpen()) {
+                    navControls(nav);
+                }
+                return true;
+            }
+        });
 
         // The companion panel's own menu button raises the same in-game menu.
         CompanionDisplayManager.setMenuRequestListener(() -> showGameMenu(null));
-        // Track when the panel's menu is up so the gamepad is steered into it, not the game.
-        CompanionDisplayManager.setMenuOpenedListener(() -> {
-            companionMenuActive = true;
-            reclaimGamepadFocus();
+        // The panel's menu is driven from here (its window takes no focus): make sure the pad
+        // reaches us while it is up, and take the host's input back once it is gone, however it
+        // went (the panel can close it on its own).
+        CompanionDisplayManager.setMenuOpenedListener(this::reclaimGamepadFocus);
+        CompanionDisplayManager.setMenuClosedListener(this::onControlsClosed);
+        // The panel can come and go mid-stream (powered off, hidden, borrowed by an app); the
+        // edge handle follows it, so the controls are offered in exactly one place, and controls
+        // open at that moment move across on the page they were on.
+        CompanionDisplayManager.panelShowing().observe(this, showing -> {
+            updateControlsHandle();
+            if (gameMenuCallbacks != null) {
+                gameMenuCallbacks.onPanelShowingChanged(Boolean.TRUE.equals(showing));
+            }
         });
-        CompanionDisplayManager.setMenuClosedListener(() -> companionMenuActive = false);
 
         textFocusKeyboard = new TextFocusKeyboard(new TextFocusKeyboard.Keyboards() {
             @Override
@@ -1167,9 +1251,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         // Closing the panel's keyboard by hand hands it to the user, like any other manual use
         CompanionDisplayManager.setTextKeyboardDismissedListener(this::onManualKeyboardUse);
 
-        floatingMenuButton = findViewById(R.id.floatingMenuButton);
-        updateFloatingButtonVisibility(prefConfig.enableBackMenu && prefConfig.enableFloatingButton);
-        initFloatingButton();
+        controlsHandle.setOnOpenListener(() -> showGameMenu(null));
+        updateControlsHandle();
 
         overlayToggleButton = findViewById(R.id.overlayToggleZoomButton);
         setupOverlayToggleButton();
@@ -1323,60 +1406,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         closeExternalDisplayControl();
     }
 
-    @SuppressLint("ClickableViewAccessibility")
-    private void initFloatingButton() {
-        // Touch listener for drag and click
-        if (floatingMenuButton != null) {
-            floatingMenuButton.setOnTouchListener((view, event) -> {
-                switch (event.getAction()) {
-                    case MotionEvent.ACTION_DOWN:
-                        floatingButtonStartX = event.getRawX();
-                        floatingButtonStartY = event.getRawY();
-                        floatingButtonDX = view.getX() - event.getRawX();
-                        floatingButtonDY = view.getY() - event.getRawY();
-                        isButtonMoving = false;
-                        return true;
-                    case MotionEvent.ACTION_MOVE:
-                        float newX = event.getRawX() + floatingButtonDX;
-                        float newY = event.getRawY() + floatingButtonDY;
-
-                        // Check if it's a move or just a tap
-                        if (Math.abs(event.getRawX() - floatingButtonStartX) > CLICK_ACTION_THRESHOLD ||
-                                Math.abs(event.getRawY() - floatingButtonStartY) > CLICK_ACTION_THRESHOLD) {
-                            isButtonMoving = true;
-                        }
-
-                        // Ensure the button stays within screen bounds
-                        if (newX < 0) newX = 0;
-                        if (newY < 0) newY = 0;
-
-                        int maxOffsetX = getWindow().getDecorView().getWidth() - view.getWidth();
-                        if (newX > maxOffsetX) {
-                            newX = maxOffsetX;
-                        }
-
-                        int maxOffsetY = getWindow().getDecorView().getHeight() - view.getHeight();
-                        if (newY > maxOffsetY) {
-                            newY = maxOffsetY;
-                        }
-
-                        view.setX(newX);
-                        view.setY(newY);
-                        return true;
-                    case MotionEvent.ACTION_UP:
-                        if (!isButtonMoving) {
-                            // It's a click event, show menu
-                            showGameMenu(null);
-                        }
-                        isButtonMoving = false;
-                        return true;
-                    default:
-                        return false;
-                }
-            });
-        }
-    }
-
     private void initKeyboardController(){
         keyBoardController = new KeyBoardController(conn,(FrameLayout)rootView, this);
         keyBoardController.refreshLayout();
@@ -1481,6 +1510,14 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         // Set requested orientation for possible new screen size
         setPreferredOrientationForActivity();
 
+        // A new window shape (a rotation, a resize, the Thor's screen swapped for a phone's)
+        // reaches here instead of relaunching us, which would end the stream: fit the stream
+        // view to the new window, centred, and hide the bars the change may have brought back.
+        if (streamContainer != null) {
+            streamContainer.requestLayout();
+        }
+        hideSystemUi(50);
+
         if (virtualController != null) {
             // Refresh layout of OSC for possible new screen size
             virtualController.refreshLayout();
@@ -1497,14 +1534,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         // Hide on-screen overlays in PiP mode
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             if (isInPictureInPictureMode()) {
-                isHidingOverlays = true;
-
-                floatingButtonShown = floatingMenuButton.isShown();
-
-                if (floatingButtonShown) {
-                    floatingMenuButton.setVisibility(View.GONE);
-                }
-
                 overlayToggleZoomButtonShown = overlayToggleButton != null && overlayToggleButton.isShown();
 
                 if (overlayToggleZoomButtonShown) {
@@ -1523,10 +1552,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                     keyBoardLayoutController.hide(true);
                 }
 
+                // The window is the game alone: no controls, and no handle to open them with.
                 hideGameMenu();
+                updateControlsHandle();
 
-                performanceOverlayView.setVisibility(View.GONE);
-                notificationOverlayView.setVisibility(View.GONE);
+                streamHud.setSuppressed(true);
 
                 // Disable sensors while in PiP mode
                 controllerHandler.disableSensors();
@@ -1535,12 +1565,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 UiHelper.notifyStreamEnteringPiP(this);
             }
             else {
-                isHidingOverlays = false;
-
-                if (floatingButtonShown) {
-                    floatingMenuButton.setVisibility(View.VISIBLE);
-                }
-
                 if (overlayToggleZoomButtonShown) {
                     overlayToggleButton.setVisibility(View.VISIBLE);
                 }
@@ -1559,11 +1583,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                     keyBoardLayoutController.show();
                 }
 
-                if (statsVisible && !statsOnCompanion()) {
-                    performanceOverlayView.setVisibility(View.VISIBLE);
-                }
-
-                notificationOverlayView.setVisibility(requestedNotificationOverlayVisibility);
+                streamHud.setSuppressed(false);
+                updateControlsHandle();
 
                 // Enable sensors again after exiting PiP
                 controllerHandler.enableSensors();
@@ -1692,14 +1713,252 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            resumeHostInput();
+        } else {
+            suspendHostInput();
+        }
+    }
 
+    /**
+     * Our input stops reaching the host for a while: the window lost focus, or the controls are
+     * open over the stream (which keeps the focus, so it must be done by hand). Main thread only.
+     */
+    private void suspendHostInput() {
         // We can't guarantee the state of modifiers keys which may have
         // lifted while focus was not on us. Clear the modifier state.
         this.modifierFlags = 0;
 
         // With Android native pointer capture, capture is lost when focus is lost,
         // so it must be requested again when focus is regained.
-        inputCaptureProvider.onWindowFocusChanged(hasFocus);
+        inputCaptureProvider.onWindowFocusChanged(false);
+    }
+
+    /**
+     * Our input reaches the host again. Not while the side panel is open: the window has the
+     * focus throughout, and a pointer captured under the panel could not reach its rows.
+     * Main thread only.
+     */
+    private void resumeHostInput() {
+        if (controlsPanel != null && controlsPanel.isOpen()) {
+            return;
+        }
+        this.modifierFlags = 0;
+        inputCaptureProvider.onWindowFocusChanged(true);
+    }
+
+    /**
+     * Let go, at the host, of whatever is held right now: the keyboard keys sent down, the mouse
+     * buttons, the touches, and every pad's buttons and sticks. Their releases will go to the
+     * controls instead, so without this a key held as the controls opened would stay down in the
+     * game. Main thread only.
+     */
+    private void releaseHostInput() {
+        synchronized (sideInputLock) {
+            if (conn != null) {
+                for (short key : heldHostKeys) {
+                    conn.sendKeyboardInput(key, KeyboardPacket.KEY_UP, (byte) 0, (byte) 0);
+                }
+            }
+            heldHostKeys.clear();
+        }
+        releaseHostPointer();
+        if (controllerHandler != null) {
+            controllerHandler.sendNeutralState();
+        }
+    }
+
+    /**
+     * The pointer's part of releaseHostInput. The gesture under way is cut off where it stands:
+     * the touch contexts drop it, along with a flick still moving or scrolling the mouse and a
+     * tap's release still to come (sent now); the host lets go of its touches; and the buttons a
+     * mouse or stylus holds are released. Its remaining events, still bound for the stream view
+     * under the controls, are dropped by handleMotionEvent while they are open and, for a touch,
+     * until the next one starts after the close. Main thread only.
+     */
+    private void releaseHostPointer() {
+        for (TouchContext context : touchContextMap) {
+            if (context != null) {
+                context.cancelTouch();
+                context.setPointerCount(0);
+            }
+        }
+        for (TouchContext context : trackpadContextMap) {
+            if (context != null) {
+                context.cancelTouch();
+                context.setPointerCount(0);
+            }
+        }
+        staleGestures.cutOff();
+        pointerSwiping = false;
+
+        if (conn != null) {
+            if (hostTouchesSent) {
+                conn.sendTouchEvent(MoonBridge.LI_TOUCH_EVENT_CANCEL_ALL, 0,
+                        0, 0, 0, 0, 0,
+                        MoonBridge.LI_ROT_UNKNOWN);
+                conn.sendPenEvent(MoonBridge.LI_TOUCH_EVENT_CANCEL_ALL, MoonBridge.LI_TOOL_TYPE_UNKNOWN, (byte) 0,
+                        0, 0, 0, 0, 0,
+                        MoonBridge.LI_ROT_UNKNOWN, MoonBridge.LI_TILT_UNKNOWN);
+            }
+            int held = HeldMouseButtons.fromButtonState(lastButtonState, prefConfig.mouseNavButtons)
+                    | heldPointerButtons;
+            if (isDragging) {
+                held |= HeldMouseButtons.of(MouseButtonPacket.BUTTON_LEFT);
+            }
+            synchronized (sideInputLock) {
+                HeldMouseButtons.release(conn, held | heldSideMouseButtons);
+                heldSideMouseButtons = 0;
+            }
+        }
+        hostTouchesSent = false;
+        // A button still held after the close is pressed again by its next event
+        lastButtonState = 0;
+        heldPointerButtons = 0;
+        isDragging = false;
+        pendingDrag = false;
+        synthClickPending = false;
+    }
+
+    /**
+     * Whether input must be kept from the host: some controls surface is open. That is this
+     * window's (GameMenu's) or the external display's, whose menu is a GameMenu of its own seen
+     * here only through onControlsOpened. It stays so until the close's next pass, where the
+     * pads are handed back. Main thread; other threads read controlsOpenForPads.
+     */
+    private boolean isHostInputBlocked() {
+        return controlsOpenForPads || (gameMenuCallbacks != null && gameMenuCallbacks.isMenuOpen());
+    }
+
+    /**
+     * GameMenu put a controls surface up. The pad and keys now go to it (controlsInput); the
+     * host is let go of, and the mouse freed so it can point at the side panel. Main thread only.
+     */
+    public void onControlsOpened() {
+        // Before the release below, so no USB-driver pad sends a press after the neutral state.
+        controlsOpenForPads = true;
+        releaseHostInput();
+        suspendHostInput();
+        clearCommitTextQueue();
+        // In touch mode the panel does not take the focus from the stream, so a soft keyboard
+        // stays up over it, covering its bottom rows (Disconnect, Quit) while what it types is
+        // dropped. Put it away. One the host's text field raised comes back on the close, as
+        // does one a field focused meanwhile asks for; one opened by hand stays down.
+        boolean raisedOnMain = textFocusKeyboard != null
+                && textFocusKeyboard.getRaisedOn() == TextFocusKeyboard.Target.MAIN;
+        if (textFocusKeyboard != null) {
+            textFocusKeyboard.suspend();
+        }
+        if (!raisedOnMain) {
+            hideMainSoftKeyboard();
+        }
+        // The side panel lives in our own window, so focus stays here and pointer capture with
+        // it; let the mouse out by hand.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && streamContainer.hasPointerCapture()) {
+            streamContainer.releasePointerCapture();
+        }
+        if (decoderRenderer != null) {
+            decoderRenderer.setPerfStatsRequested(perfStatsWanted());
+        }
+    }
+
+    /**
+     * Every controls surface is down. Called once per close, and again by the companion panel's
+     * own listener; idempotent. Main thread only.
+     */
+    public void onControlsClosed() {
+        if (gameMenuCallbacks != null && gameMenuCallbacks.isMenuOpen()) {
+            return;
+        }
+        // Back to the stream at once, before the chosen action runs: the soft keyboard and the
+        // key injection both want the stream view focused.
+        streamContainer.requestFocus();
+        if (decoderRenderer != null) {
+            decoderRenderer.setPerfStatsRequested(perfStatsWanted());
+        }
+        // The capture comes back on the next pass, and only if nothing reopened the controls in
+        // the meantime (a menu reopened in place closes and opens within one call).
+        streamContainer.post(() -> {
+            if (gameMenuCallbacks != null && gameMenuCallbacks.isMenuOpen()) {
+                return;
+            }
+            // The pads too, and the state they kept while shut out goes to the host.
+            controlsOpenForPads = false;
+            if (controllerHandler != null) {
+                controllerHandler.resendPads();
+            }
+            if (!isFinishing() && hasWindowFocus()) {
+                resumeHostInput();
+            }
+            // A keyboard put away at the open, or asked for since, for a host field that is
+            // still focused (it will not say so again)
+            if (textFocusKeyboard != null && !isFinishing()) {
+                textFocusKeyboard.resume();
+            }
+        });
+    }
+
+    @Override
+    public boolean isControlsOpen() {
+        return controlsOpenForPads;
+    }
+
+    @Override
+    public void onControlsNav(@NonNull ControlsSurface.Nav nav) {
+        padNavHandler.post(() -> {
+            // Only this window's surfaces: the external display's sheet has the focus of its own
+            // activity, and such a pad is just kept from the host while it is up.
+            if (controlsInput != null && gameMenuCallbacks != null
+                    && gameMenuCallbacks.isMenuOpen()) {
+                navControls(nav);
+            }
+        });
+    }
+
+    /** The negotiated codec as people name it: "HEVC", "AV1", "UNKNOWN" for none we know. */
+    private static String codecName(int videoFormat) {
+        if ((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_H264) != 0) {
+            return "H.264";
+        } else if ((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_H265) != 0) {
+            return "HEVC";
+        } else if ((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_AV1) != 0) {
+            return "AV1";
+        } else if (PyroWaveSupport.isPyroWave(videoFormat)) {
+            return "PyroWave";
+        }
+        return "UNKNOWN";
+    }
+
+    /** The companion stats header's codec, "HEVC · HDR"; null when the format is not known. */
+    private String companionCodecLabel(int videoFormat) {
+        String name = codecName(videoFormat);
+        if ("UNKNOWN".equals(name)) {
+            return null;
+        }
+        // Said either way, as the mock's "HEVC · HDR": a bare codec left HDR's state unsaid.
+        return getString((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_10BIT) != 0
+                ? R.string.companion_codec_hdr : R.string.companion_codec_sdr, name);
+    }
+
+    /** The phone's controls, for GameMenu to draw on. */
+    public StreamControlsPanel getControlsPanel() {
+        return controlsPanel;
+    }
+
+    /**
+     * The edge handle is there where the side panel is the controls: not on an external display
+     * (its phone has its own button), not in picture-in-picture, and not while the companion
+     * panel shows, whose sheet is the controls then — the top screen is the game and the HUD.
+     * Asked again whenever the companion panel comes or goes. Main thread only.
+     */
+    private void updateControlsHandle() {
+        if (controlsHandle == null) {
+            return;
+        }
+        boolean pip = Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode();
+        boolean onCompanion = CompanionDisplayManager.isShowing();
+        controlsHandle.setVisibility(!onExternelDisplay && !pip && !onCompanion
+                ? View.VISIBLE : View.GONE);
     }
 
     private boolean isRefreshRateEqualMatch(float refreshRate) {
@@ -1712,24 +1971,58 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 Math.round(refreshRate) % prefConfig.fps <= 3;
     }
 
-    private boolean shouldIgnoreInsetsForResolution(int width, int height) {
-        // Never ignore insets for non-native resolutions
+    /**
+     * Moves an overlay of the stream in by the display cutout's safe insets on the sides it sits
+     * against, over the margins its layout gives it, as StreamControlsPanel pads its rows: the
+     * window runs under the cutout, and the HUD, the zoom toggle or the handle would otherwise
+     * sit under the notch. The margins are read once, so a new cutout replaces the old one.
+     */
+    private static void keepClearOfCutout(@Nullable View view, boolean left, boolean top, boolean right) {
+        if (view == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.P
+                || !(view.getLayoutParams() instanceof ViewGroup.MarginLayoutParams)) {
+            return;
+        }
+        ViewGroup.MarginLayoutParams laid = (ViewGroup.MarginLayoutParams) view.getLayoutParams();
+        final int baseLeft = laid.leftMargin;
+        final int baseTop = laid.topMargin;
+        final int baseRight = laid.rightMargin;
+        view.setOnApplyWindowInsetsListener((v, insets) -> {
+            DisplayCutout cutout = insets.getDisplayCutout();
+            int newLeft = baseLeft + (left && cutout != null ? cutout.getSafeInsetLeft() : 0);
+            int newTop = baseTop + (top && cutout != null ? cutout.getSafeInsetTop() : 0);
+            int newRight = baseRight + (right && cutout != null ? cutout.getSafeInsetRight() : 0);
+            ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) v.getLayoutParams();
+            if (lp.leftMargin != newLeft || lp.topMargin != newTop || lp.rightMargin != newRight) {
+                // Start and end too: a margin given as start or end wins over left and right.
+                boolean rtl = v.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL;
+                lp.setMargins(newLeft, newTop, newRight, lp.bottomMargin);
+                lp.setMarginStart(rtl ? newRight : newLeft);
+                lp.setMarginEnd(rtl ? newLeft : newRight);
+                v.setLayoutParams(lp);
+            }
+            return v.onApplyWindowInsets(insets);
+        });
+    }
+
+    /**
+     * Whether the resolution is a native one the display has no mode for: the size clear of the
+     * cutout the settings offer (or a custom one), which the window must not stretch under the
+     * cutout. The display's own sizes and the standard ones are not.
+     */
+    private boolean isCutoutFreeResolution(int width, int height) {
         if (!PreferenceConfiguration.isNativeResolution(width, height)) {
             return false;
         }
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             Display display = getActiveDisplay(Game.this, prefConfig);
             for (Display.Mode candidate : display.getSupportedModes()) {
-                // Ignore insets if this is an exact match for the display resolution
                 if ((width == candidate.getPhysicalWidth() && height == candidate.getPhysicalHeight()) ||
                         (height == candidate.getPhysicalWidth() && width == candidate.getPhysicalHeight())) {
-                    return true;
+                    return false;
                 }
             }
         }
-
-        return false;
+        return true;
     }
 
     private boolean mayReduceRefreshRate() {
@@ -1994,6 +2287,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         instance = null;
         timerHandler.removeCallbacksAndMessages(null);
+        padNavHandler.removeCallbacksAndMessages(null);
 
         if (refreshMeter != null) {
             refreshMeter.cancel();
@@ -2011,7 +2305,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         CompanionDisplayManager.setMenuRequestListener(null);
         CompanionDisplayManager.setMenuOpenedListener(null);
         CompanionDisplayManager.setMenuClosedListener(null);
-        companionMenuActive = false;
         CompanionDisplayManager.hideMenu();
         // No keyboard of ours may outlive the stream it was raised for
         textFocusHandler.removeCallbacksAndMessages(null);
@@ -2123,18 +2416,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             // Add the video codec to the post-stream toast
             selectedVideoFormat += " [";
 
-            if ((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_H264) != 0) {
-                selectedVideoFormat += "H.264";
-            } else if ((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_H265) != 0) {
-                selectedVideoFormat += "HEVC";
-            } else if ((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_AV1) != 0) {
-                selectedVideoFormat += "AV1";
-            } else if (PyroWaveSupport.isPyroWave(videoFormat)) {
-                selectedVideoFormat += "PyroWave";
-            }
-            else {
-                selectedVideoFormat += "UNKNOWN";
-            }
+            selectedVideoFormat += codecName(videoFormat);
 
             if ((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_10BIT) != 0) {
                 selectedVideoFormat += " HDR";
@@ -2258,6 +2540,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 conn.sendKeyboardInput((short) KeyboardTranslator.VK_LWIN,
                         down ? KeyboardPacket.KEY_DOWN : KeyboardPacket.KEY_UP,
                         (byte) modifierFlags, (byte) 0);
+                if (down) {
+                    heldHostKeys.add((short) KeyboardTranslator.VK_LWIN);
+                } else {
+                    heldHostKeys.remove((short) KeyboardTranslator.VK_LWIN);
+                }
                 return true;
             }
             modifierMask = KeyboardPacket.MODIFIER_ALT;
@@ -2387,10 +2674,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public boolean handleKeyDown(KeyEvent event) {
-        // While the menu is up on the companion panel, the gamepad drives it from here rather
-        // than the game — nothing reaches the host until it is dismissed.
-        if (companionMenuActive) {
-            return handleCompanionMenuKeyDown(event);
+        // While the controls are open the pad and keys drive them from here rather than the
+        // game; nothing reaches the host until they are closed.
+        if (controlsInput != null && controlsInput.onKeyDown(event.getKeyCode(), event.getRepeatCount())) {
+            return true;
         }
 
         // Pass-through virtual navigation keys
@@ -2416,6 +2703,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             // care of this.
             if (!prefConfig.mouseNavButtons) {
                 conn.sendMouseButtonDown(MouseButtonPacket.BUTTON_RIGHT);
+                heldPointerButtons |= HeldMouseButtons.of(MouseButtonPacket.BUTTON_RIGHT);
             }
 
             // Always return true, otherwise the back press will be propagated
@@ -2472,6 +2760,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
             conn.sendKeyboardInput(translated, KeyboardPacket.KEY_DOWN, getModifierState(event),
                     keyboardTranslator.hasNormalizedMapping(event.getKeyCode(), deviceId) ? 0 : MoonBridge.SS_KBE_FLAG_NON_NORMALIZED);
+            heldHostKeys.add(translated);
         }
 
         return true;
@@ -2484,8 +2773,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public boolean handleKeyUp(KeyEvent event) {
-        // Swallow key-ups too while the companion menu owns the gamepad.
-        if (companionMenuActive) {
+        // Key-ups too, and also the one of a press that closed the controls.
+        if (controlsInput != null && controlsInput.onKeyUp(event.getKeyCode())) {
             return true;
         }
 
@@ -2511,6 +2800,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             // care of this.
             if (!prefConfig.mouseNavButtons) {
                 conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_RIGHT);
+                heldPointerButtons &= ~HeldMouseButtons.of(MouseButtonPacket.BUTTON_RIGHT);
             }
 
             // Always return true, otherwise the back press will be propagated
@@ -2550,6 +2840,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
             conn.sendKeyboardInput(translated, KeyboardPacket.KEY_UP, getModifierState(event),
                     keyboardTranslator.hasNormalizedMapping(event.getKeyCode(), deviceId) ? 0 : MoonBridge.SS_KBE_FLAG_NON_NORMALIZED);
+            heldHostKeys.remove(translated);
         }
 
         return true;
@@ -2573,8 +2864,28 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             return false;
         }
 
+        // Nothing reaches the host while the controls are open, typed text included: a soft
+        // keyboard left up under the panel must not type into the game. The text is dropped,
+        // not held, the same as a key press into the controls.
+        if (isHostInputBlocked()) {
+            return true;
+        }
+
         conn.sendUtf8Text(event.getCharacters());
         return true;
+    }
+
+    /**
+     * A keyboard key the host was sent down or up from outside this class (the on-screen
+     * keyboard's combo buttons), so opening the controls lets go of it with the others it holds.
+     * Main thread only.
+     */
+    public void noteHostKey(short key, boolean down) {
+        if (down) {
+            heldHostKeys.add(key);
+        } else {
+            heldHostKeys.remove(key);
+        }
     }
 
     public void sendKeys(short[] keys) {
@@ -3140,16 +3451,22 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         int eventSource = event.getSource();
         int deviceSources = event.getDevice() != null ? event.getDevice().getSources() : 0;
         if ((eventSource & InputDevice.SOURCE_CLASS_JOYSTICK) != 0) {
-            // The stick and d-pad drive the companion menu while it is open, and reach nothing
+            // The stick and d-pad drive the controls while they are open, and reach nothing
             // else. This must be caught here too, not just in onGenericMotionEvent: the stream
             // view's own listener sees the event first and would send it to the host.
-            if (companionMenuActive) {
-                handleCompanionMenuMotion(event);
+            if (routeControlsMotion(event)) {
                 return true;
             }
             if (controllerHandler.handleMotionEvent(event)) {
                 return true;
             }
+        }
+        // Nor does anything else while they are open: a mouse, the touchscreen, a pad's
+        // touchpad. Over the phone the side panel's scrim and its own handler take them first;
+        // under the companion panel's menu or the external display's sheet the stream is
+        // uncovered, and they get here.
+        else if (isHostInputBlocked()) {
+            return true;
         }
         else if ((deviceSources & InputDevice.SOURCE_CLASS_JOYSTICK) != 0 && controllerHandler.tryHandleTouchpadEvent(event)) {
             return true;
@@ -3170,6 +3487,13 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                                                     event.getToolType(0) == MotionEvent.TOOL_TYPE_ERASER)) ||
                                     eventSource == 12290) // 12290 = Samsung DeX mode desktop mouse
             ) {
+                // The rest of a stylus's gesture the controls cut off: the host has let go of it
+                if ((event.getToolType(0) == MotionEvent.TOOL_TYPE_STYLUS
+                        || event.getToolType(0) == MotionEvent.TOOL_TYPE_ERASER)
+                        && staleGestures.dropPen(event.getActionMasked())) {
+                    return true;
+                }
+
                 int buttonState = event.getButtonState();
                 int changedButtons = buttonState ^ lastButtonState;
 
@@ -3245,6 +3569,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 }
                 else if (view != null && trySendPenEvent(view, event)) {
                     // If our host supports pen events, send it directly
+                    hostTouchesSent = true;
                     return true;
                 }
                 else if (view != null) {
@@ -3410,6 +3735,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
                             // Stylus is left click
                             conn.sendMouseButtonDown(MouseButtonPacket.BUTTON_LEFT);
+                            heldPointerButtons |= HeldMouseButtons.of(MouseButtonPacket.BUTTON_LEFT);
                         } else if (event.getToolType(0) == MotionEvent.TOOL_TYPE_ERASER) {
                             lastAbsTouchDownTime = event.getEventTime();
                             lastAbsTouchDownX = event.getX(0);
@@ -3417,6 +3743,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
                             // Eraser is right click
                             conn.sendMouseButtonDown(MouseButtonPacket.BUTTON_RIGHT);
+                            heldPointerButtons |= HeldMouseButtons.of(MouseButtonPacket.BUTTON_RIGHT);
                         }
                     }
                     else if (event.getActionMasked() == MotionEvent.ACTION_UP || event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
@@ -3427,6 +3754,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
                             // Stylus is left click
                             conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_LEFT);
+                            heldPointerButtons &= ~HeldMouseButtons.of(MouseButtonPacket.BUTTON_LEFT);
                         } else if (event.getToolType(0) == MotionEvent.TOOL_TYPE_ERASER) {
                             lastAbsTouchUpTime = event.getEventTime();
                             lastAbsTouchUpX = event.getX(0);
@@ -3434,6 +3762,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
                             // Eraser is right click
                             conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_RIGHT);
+                            heldPointerButtons &= ~HeldMouseButtons.of(MouseButtonPacket.BUTTON_RIGHT);
                         }
                     }
                 }
@@ -3442,6 +3771,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             }
             // This case is for fingers
             else {
+                // The rest of a gesture the controls cut off: the host has let go of it
+                if (staleGestures.dropFinger(event.getActionMasked())) {
+                    return true;
+                }
                 if (eventSource == InputDevice.SOURCE_TOUCHPAD) {
                     return handleTouchInput(event, trackpadContextMap, false);
                 } else {
@@ -3483,6 +3816,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                     if (prefConfig.enableMultiTouchScreen && !prefConfig.touchscreenTrackpad && trySendTouchEvent(view, event)) {
                         // If this host supports touch events and absolute touch is enabled,
                         // send it directly as a touch event.
+                        hostTouchesSent = true;
                         return true;
                     }
 
@@ -3726,43 +4060,39 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public boolean onGenericMotionEvent(MotionEvent event) {
-        // The stick and d-pad drive the companion menu while it is open, and reach nothing else.
-        if (companionMenuActive) {
-            handleCompanionMenuMotion(event);
+        // The stick and d-pad drive the controls while they are open, and reach nothing else.
+        if (routeControlsMotion(event)) {
             return true;
         }
         return handleMotionEvent(null, event) || super.onGenericMotionEvent(event);
 
     }
 
-    // Route a key to the menu on the companion panel. Nav on the d-pad, select on A, dismiss on
-    // B or the menu button; everything is swallowed so the host sees nothing while it is open.
-    private boolean handleCompanionMenuKeyDown(KeyEvent event) {
-        if (event.getRepeatCount() == 0) {
-            switch (event.getKeyCode()) {
-                case KeyEvent.KEYCODE_DPAD_UP:
-                    CompanionDisplayManager.moveMenuSelection(-1);
-                    break;
-                case KeyEvent.KEYCODE_DPAD_DOWN:
-                    CompanionDisplayManager.moveMenuSelection(1);
-                    break;
-                case KeyEvent.KEYCODE_DPAD_CENTER:
-                case KeyEvent.KEYCODE_BUTTON_A:
-                case KeyEvent.KEYCODE_ENTER:
-                case KeyEvent.KEYCODE_NUMPAD_ENTER:
-                    CompanionDisplayManager.activateMenuSelection();
-                    break;
-                case KeyEvent.KEYCODE_BUTTON_B:
-                case KeyEvent.KEYCODE_BACK:
-                case KeyEvent.KEYCODE_MENU:
-                case KeyEvent.KEYCODE_BUTTON_START:
-                    CompanionDisplayManager.hideMenu();
-                    break;
-                default:
-                    break;
-            }
+    // Every surface is driven through GameMenu, so its page stack moves with it. A companion
+    // panel that lost the menu some other way is still shut, so the pad is never left stuck.
+    private void navControls(ControlsSurface.Nav nav) {
+        if (gameMenuCallbacks == null || !gameMenuCallbacks.onNav(nav)) {
+            CompanionDisplayManager.hideMenu();
         }
-        return true;
+    }
+
+    // A joystick's hat and left stick, to the controls while they are open. Returns whether it
+    // was taken. The pad's sticks and triggers are still kept by ControllerHandler, unsent, so
+    // the close can send whatever is held by then. Pointer input is left alone here: the side
+    // panel's scrim takes the touches, and handleMotionEvent drops what reaches the stream.
+    private boolean routeControlsMotion(MotionEvent event) {
+        if (controlsInput == null
+                || (event.getSource() & InputDevice.SOURCE_JOYSTICK) != InputDevice.SOURCE_JOYSTICK) {
+            return false;
+        }
+        boolean taken = controlsInput.onAxes(event.getAxisValue(MotionEvent.AXIS_HAT_X),
+                event.getAxisValue(MotionEvent.AXIS_HAT_Y),
+                event.getAxisValue(MotionEvent.AXIS_X),
+                event.getAxisValue(MotionEvent.AXIS_Y));
+        if (taken && controllerHandler != null) {
+            controllerHandler.handleMotionEvent(event);
+        }
+        return taken;
     }
 
     // Interacting with the companion panel's display can hand the system's key focus to that
@@ -3777,31 +4107,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             }
         } catch (Exception e) {
             LimeLog.warning("Unable to reclaim gamepad focus: " + e);
-        }
-    }
-
-    // The d-pad HAT and the left stick move the companion menu's selection, one row per push.
-    private void handleCompanionMenuMotion(MotionEvent event) {
-        if ((event.getSource() & InputDevice.SOURCE_JOYSTICK) != InputDevice.SOURCE_JOYSTICK) {
-            return;
-        }
-
-        float value = event.getAxisValue(MotionEvent.AXIS_HAT_Y);
-        if (value == 0) {
-            float stickY = event.getAxisValue(MotionEvent.AXIS_Y);
-            value = Math.abs(stickY) > 0.5f ? Math.signum(stickY) : 0;
-        }
-
-        // Act only on the transition away from centre, so a held stick moves once.
-        if (value == lastCompanionMenuHatY) {
-            return;
-        }
-        lastCompanionMenuHatY = value;
-
-        if (value < 0) {
-            CompanionDisplayManager.moveMenuSelection(-1);
-        } else if (value > 0) {
-            CompanionDisplayManager.moveMenuSelection(1);
         }
     }
 
@@ -3862,6 +4167,52 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         return handleMotionEvent(view, event);
     }
 
+    /**
+     * Watches every touch for the swipe in from the right edge ({@link EdgeSwipe}), ahead of the
+     * views: the stream gets each event as before, and loses only a gesture that has already
+     * become the swipe, which it sees end in a cancel.
+     */
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent ev) {
+        if (edgeSwipe != null) {
+            int action = ev.getActionMasked();
+            boolean armed = action == MotionEvent.ACTION_DOWN && isEdgeSwipeArmed(ev.getX(), ev.getY());
+            switch (edgeSwipe.onTouch(action, ev.getX(), ev.getY(),
+                    getWindow().getDecorView().getWidth(), armed)) {
+                case CLAIM:
+                    MotionEvent cancel = MotionEvent.obtain(ev);
+                    cancel.setAction(MotionEvent.ACTION_CANCEL);
+                    super.dispatchTouchEvent(cancel);
+                    cancel.recycle();
+                    showGameMenu(null);
+                    return true;
+                case SWALLOW:
+                    return true;
+                default:
+                    break;
+            }
+        }
+        return super.dispatchTouchEvent(ev);
+    }
+
+    /**
+     * The edge opens the side panel when the handle is offered (see updateControlsHandle) and the
+     * panel is closed. A touch on the handle is left to it: it opens the panel itself. Not while
+     * the on-screen controller is up: its right-hand buttons (RT, B) sit in the edge's band, and
+     * a press sliding off one inwards would open the panel instead.
+     */
+    private boolean isEdgeSwipeArmed(float x, float y) {
+        if (controlsHandle == null || controlsHandle.getVisibility() != View.VISIBLE
+                || (controlsPanel != null && controlsPanel.isOpen())
+                || isVirtualControllerShown()) {
+            return false;
+        }
+        int[] at = new int[2];
+        controlsHandle.getLocationInWindow(at);
+        return !(x >= at[0] && x < at[0] + controlsHandle.getWidth()
+                && y >= at[1] && y < at[1] + controlsHandle.getHeight());
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     @Override
     public boolean onTouch(View view, MotionEvent event) {
@@ -3914,8 +4265,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private long lastReconnectedAtMs;   // when a reconnect last brought the stream back, 0 = never
     private DecoderParking decoderParking;
     private boolean reconnectStatusShown;
-    private CharSequence notificationTextBeforeReconnect;
-    private int notificationVisibilityBeforeReconnect;
     private ConnectivityManager.NetworkCallback reconnectNetworkCallback;
     private final Random reconnectRandom = new Random();
 
@@ -3947,19 +4296,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
     }
 
-    // The reconnect status borrows the notification overlay that otherwise says the connection is
-    // poor; whatever that had to say comes back when the status goes.
+    // The reconnect status takes the HUD's line over, shown even with the numbers switched off;
+    // the numbers (or nothing) come back when it goes. PiP still hides it, like the rest.
     private void showReconnectStatus(String text) {
-        if (!reconnectStatusShown) {
-            reconnectStatusShown = true;
-            notificationTextBeforeReconnect = notificationOverlayView.getText();
-            notificationVisibilityBeforeReconnect = requestedNotificationOverlayVisibility;
-        }
-        notificationOverlayView.setText(text);
-        requestedNotificationOverlayVisibility = View.VISIBLE;
-        if (!isHidingOverlays) {
-            notificationOverlayView.setVisibility(View.VISIBLE);
-        }
+        reconnectStatusShown = true;
+        streamHud.setStatus(text);
     }
 
     private void hideReconnectStatus() {
@@ -3967,11 +4308,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             return;
         }
         reconnectStatusShown = false;
-        notificationOverlayView.setText(notificationTextBeforeReconnect);
-        requestedNotificationOverlayVisibility = notificationVisibilityBeforeReconnect;
-        if (!isHidingOverlays) {
-            notificationOverlayView.setVisibility(requestedNotificationOverlayVisibility);
-        }
+        streamHud.setStatus(null);
     }
 
     // Android's view of the network: a loss explains a socket error that comes with it, and a
@@ -4167,7 +4504,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         endReconnect();
         // A "poor connection" warning belonged to the dead connection. The new one starts out
         // okay and only reports a change, so it would never take that warning down.
-        notificationVisibilityBeforeReconnect = View.GONE;
+        streamHud.setPoorConnection(false);
         hideReconnectStatus();
 
         // The host is running a new session that has never seen our controllers
@@ -4476,35 +4813,14 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                     return;
                 }
 
-                if (reconnectStatusShown) {
-                    // The reconnect status has the overlay; this is what it gives back
-                    if (connectionStatus == MoonBridge.CONN_STATUS_POOR) {
-                        notificationTextBeforeReconnect = getResources().getString(prefConfig.bitrate > 5000 ?
-                                R.string.slow_connection_msg : R.string.poor_connection_msg);
-                        notificationVisibilityBeforeReconnect = View.VISIBLE;
-                    }
-                    else if (connectionStatus == MoonBridge.CONN_STATUS_OKAY) {
-                        notificationVisibilityBeforeReconnect = View.GONE;
-                    }
-                    return;
-                }
-
+                // No text of its own any more: the host's verdict holds the HUD's dot at amber
+                // or worse until it says the link is okay again. The dot keeps the flag under a
+                // reconnect status too, so it is right again the moment the status goes.
                 if (connectionStatus == MoonBridge.CONN_STATUS_POOR) {
-                    if (prefConfig.bitrate > 5000) {
-                        notificationOverlayView.setText(getResources().getString(R.string.slow_connection_msg));
-                    }
-                    else {
-                        notificationOverlayView.setText(getResources().getString(R.string.poor_connection_msg));
-                    }
-
-                    requestedNotificationOverlayVisibility = View.VISIBLE;
+                    streamHud.setPoorConnection(true);
                 }
                 else if (connectionStatus == MoonBridge.CONN_STATUS_OKAY) {
-                    requestedNotificationOverlayVisibility = View.GONE;
-                }
-
-                if (!isHidingOverlays) {
-                    notificationOverlayView.setVisibility(requestedNotificationOverlayVisibility);
+                    streamHud.setPoorConnection(false);
                 }
             }
         });
@@ -4582,6 +4898,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
                 // The companion is showing a stream now, whether or not the panel is up to see it.
                 CompanionState.getInstance().enterStreaming();
+                // What its stats header and strip name: the game, the PC, the codec the host and
+                // the decoder settled on, and how long it has been going.
+                CompanionState.getInstance().setStreamSession(new CompanionState.StreamSession(
+                        appName, pcName, companionCodecLabel(decoderRenderer != null
+                                ? decoderRenderer.getActiveVideoFormat() : 0),
+                        streamStartUptimeMs));
 
                 startTelemetry();
 
@@ -4641,15 +4963,32 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     /**
-     * Start following the host's game telemetry, if it has any to give.
+     * Start following the host's game telemetry, if it has any to give and there is somewhere to
+     * show it.
      *
-     * Started unconditionally rather than behind a check: whether telemetry exists is a question
-     * only the host can answer, and it answers by refusing the request. Nothing is shown unless a
-     * game turns out to have both a profile on the host and a view installed here, so a host without
-     * telemetry costs one failed request per session.
+     * Telemetry is only drawn on the companion panel, so a device that can never show the panel
+     * (no second display, or the panel turned off in settings) does not start it: on a phone it
+     * would hold a connection and a thread open for the whole session to feed nothing.
+     *
+     * The gate deliberately checks the hardware and the setting, not
+     * {@link CompanionDisplayManager#isCompanionAvailable}: that one also asks whether our panel owns
+     * the screen right now, which changes mid-session when the user hides and re-shows the panel or a
+     * companion app borrows the screen. Telemetry starts once, at connect, so a panel that came back
+     * later would find nothing to draw. For the same reason the display is looked up whatever its
+     * power state: a bottom screen that is off or dozing at connect is still there to wake up.
+     * See {@link TelemetryGate}.
+     *
+     * Past the gate it is started without asking the host first: whether telemetry exists is a
+     * question only the host can answer, and it answers by refusing the request. Nothing is shown
+     * unless a game turns out to have both a profile on the host and a view installed here, so a host
+     * without telemetry costs one failed request per session.
      */
     private void startTelemetry() {
         if (httpConn == null || telemetryController != null) {
+            return;
+        }
+        if (!TelemetryGate.shouldStart(CompanionDisplayManager.isConfigured(this),
+                DisplayTargets.findCompanionHardwareId(this))) {
             return;
         }
         telemetryController = new TelemetryController(this, httpConn, CompanionState.getInstance());
@@ -5033,13 +5372,26 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
     }
 
+    // The root-only evdev mouse and keyboard report below on their own thread, and the
+    // on-screen keyboard's touchpad and mouse buttons come through mouseMove and
+    // mouseButtonEvent; none of it passes the activity's input paths, so while the controls are
+    // open it is dropped here. Releases still go out: the open let go of what was held (the
+    // buttons are kept in heldSideMouseButtons, the keys in heldHostKeys), and a second release
+    // does no harm.
+
     @Override
     public void mouseMove(int deltaX, int deltaY) {
+        if (controlsOpenForPads) {
+            return;
+        }
         conn.sendMouseMove((short) deltaX, (short) deltaY);
     }
 
     @Override
     public void mouseButtonEvent(int buttonId, boolean down) {
+        if (down && controlsOpenForPads) {
+            return;
+        }
         byte buttonIndex;
 
         switch (buttonId)
@@ -5064,26 +5416,43 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 return;
         }
 
-        if (down) {
-            conn.sendMouseButtonDown(buttonIndex);
-        }
-        else {
-            conn.sendMouseButtonUp(buttonIndex);
+        synchronized (sideInputLock) {
+            if (down) {
+                // Checked again under the lock: the open may have let go of the buttons since
+                if (controlsOpenForPads) {
+                    return;
+                }
+                conn.sendMouseButtonDown(buttonIndex);
+                heldSideMouseButtons |= HeldMouseButtons.of(buttonIndex);
+            }
+            else {
+                conn.sendMouseButtonUp(buttonIndex);
+                heldSideMouseButtons &= ~HeldMouseButtons.of(buttonIndex);
+            }
         }
     }
 
     @Override
     public void mouseVScroll(byte amount) {
+        if (controlsOpenForPads) {
+            return;
+        }
         conn.sendMouseScroll(amount);
     }
 
     @Override
     public void mouseHScroll(byte amount) {
+        if (controlsOpenForPads) {
+            return;
+        }
         conn.sendMouseHScroll(amount);
     }
 
     @Override
     public void keyboardEvent(boolean buttonDown, short keyCode) {
+        if (buttonDown && controlsOpenForPads) {
+            return;
+        }
         short keyMap = keyboardTranslator.translate(keyCode, 0, -1);
         if (keyMap != 0) {
             // handleSpecialKeys() takes the Android keycode
@@ -5092,10 +5461,18 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             }
 
             if (buttonDown) {
-                conn.sendKeyboardInput(keyMap, KeyboardPacket.KEY_DOWN, getModifierState(), (byte)0);
+                synchronized (sideInputLock) {
+                    // Checked again under the lock: the open may have let go of the keys since
+                    if (controlsOpenForPads) {
+                        return;
+                    }
+                    conn.sendKeyboardInput(keyMap, KeyboardPacket.KEY_DOWN, getModifierState(), (byte)0);
+                    heldHostKeys.add(keyMap);
+                }
             }
             else {
                 conn.sendKeyboardInput(keyMap, KeyboardPacket.KEY_UP, getModifierState(), (byte)0);
+                heldHostKeys.remove(keyMap);
             }
         }
     }
@@ -5117,27 +5494,20 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     @Override
-    public void onPerfUpdate(final String text, final PerfStats stats) {
+    public void onPerfUpdate(final PerfStats stats) {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                // Routed per update, so switching the panel on or off mid-stream moves the stats
-                // rather than stranding them where they were when the stream started.
-                boolean onCompanion = statsOnCompanion();
-                if (onCompanion) {
+                // Two independent readers, never one or the other: the HUD over the stream when
+                // it is on, and the companion panel whenever it can show them. Asked per update,
+                // so a panel hidden or handed back mid-stream picks the stats up within a second.
+                if (CompanionDisplayManager.isCompanionAvailable(Game.this)) {
                     CompanionState.getInstance().setStats(stats);
                 }
-                else if(prefConfig.enablePerfOverlayLite){
-                    performanceOverlayLite.setText(text);
-                }else{
-                    performanceOverlayBig.setText(text);
-                }
-
-                // The local overlay is the fallback for when the panel is not showing them, so it
-                // has to come and go with it.
-                if (statsVisible) {
-                    syncLocalPerfOverlay(!onCompanion);
-                }
+                // Bound even while the numbers are off, so the dot behind a reconnect status and
+                // the line shown the moment the HUD is switched on are both current.
+                streamHud.bind(stats);
+                controlsPanel.bindStats(stats);
             }
         });
     }
@@ -5172,6 +5542,13 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public void onBackPressed() {
+        // Open controls step back a page, or close from the first. Only a fallback: a Back key
+        // is taken by the router in handleKeyDown and handleKeyUp first, so this is for a Back
+        // that skipped the key path, such as a programmatic onBackPressed.
+        if (gameMenuCallbacks != null && gameMenuCallbacks.isMenuOpen()) {
+            navControls(ControlsSurface.Nav.BACK);
+            return;
+        }
         // While the connection scene is up, back cancels the connection and leaves — the
         // same escape the old cancelable spinner offered — rather than opening the menu.
         if (connectionOverlay != null && connectionOverlay.isShowing()) {
@@ -5287,21 +5664,14 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     /**
-     * Displays a dialog allowing the user to select a mouse input mode.
+     * The mouse modes the controls' Mouse mode page offers, by their index in
+     * {@code R.array.mouse_mode_names}.
      *
-     * Behavior:
-     * - On regular displays, all available mouse modes are shown.
-     * - On secondary displays (e.g. Samsung DeX), only a limited set of modes are allowed:
-     *   "Trackpad Natural", "Trackpad Gaming", and "Disabled".
-     * - An additional option to toggle the local mouse cursor is always included.
-     *
-     * When the user selects a mode:
-     * - If it's the toggle option, the local mouse cursor mode is toggled.
-     * - Otherwise, the selected mode is applied and saved to shared preferences.
-     *
-     * @param context The context to use to decide where to show the dialog.
+     * On a secondary display (e.g. Samsung DeX) only "Trackpad Natural", "Trackpad Gaming" and
+     * "Disabled" are offered: there is no touchscreen under the picture there to aim with. The
+     * local cursor's toggle is not a mode and is added by the page itself.
      */
-    public void selectMouseMode(Context context){
+    public List<StreamCapabilities.MouseMode> getMouseModes() {
         String[] allModes = getResources().getStringArray(R.array.mouse_mode_names);
 
         Set<String> allowedLabels = new HashSet<>(Arrays.asList(
@@ -5310,47 +5680,36 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 getString(R.string.mouse_mode_disabled)
         ));
 
-        List<MouseModeOption> options = new ArrayList<>();
-
+        List<StreamCapabilities.MouseMode> modes = new ArrayList<>();
         for (int i = 0; i < allModes.length; i++) {
-            String label = allModes[i];
-            boolean isAllowed = !isOnExternalDisplay() || allowedLabels.contains(label);
-            if (isAllowed) {
-                options.add(new MouseModeOption(i, label));
+            if (!isOnExternalDisplay() || allowedLabels.contains(allModes[i])) {
+                modes.add(new StreamCapabilities.MouseMode(i, allModes[i]));
             }
         }
+        return modes;
+    }
 
-        options.add(new MouseModeOption(-1, getString(R.string.toggle_local_mouse_cursor)));
+    /** The mode last applied, for the page's check; -1 before the first. */
+    public int getMouseModeIndex() {
+        return mouseModeIndex;
+    }
 
-        String[] labels = new String[options.size()];
-        for (int i = 0; i < options.size(); i++) {
-            labels[i] = options.get(i).label;
+    /**
+     * Apply a mode chosen on the Mouse mode page, and keep it for next time when the settings
+     * ask to remember it. Main thread only.
+     */
+    public void chooseMouseMode(int index) {
+        applyMouseMode(index);
+        if (prefConfig.rememberMouseMode) {
+            ProfilesManager.getInstance().getOverlayingSharedPreferences(this)
+                    .edit()
+                    .putString("mouse_mode_list", String.valueOf(index))
+                    .apply();
         }
-        final MouseModeOption[] optionArray = options.toArray(new MouseModeOption[0]);
-
-        new MaterialAlertDialogBuilder(context, R.style.ThemeOverlay_Zefiro_MaterialAlertDialog)
-                .setTitle(getString(R.string.game_menu_select_mouse_mode))
-                .setItems(labels, (dialog, which) -> {
-                    dialog.dismiss();
-                    MouseModeOption selected = optionArray[which];
-                    if (selected.index == -1) {
-                        toggleMouseLocalCursor();
-                    } else {
-                        applyMouseMode(selected.index);
-                        if (prefConfig.rememberMouseMode) {
-                            ProfilesManager.getInstance().getOverlayingSharedPreferences(this)
-                                    .edit()
-                                    .putString("mouse_mode_list", String.valueOf(selected.index))
-                                    .apply();
-                        }
-                    }
-                })
-                .create()
-                .show();
     }
 
     //本地鼠标光标切换
-    private void toggleMouseLocalCursor(){
+    public void toggleMouseLocalCursor(){
         if (!grabbedInput) {
             inputCaptureProvider.enableCapture();
             grabbedInput = true;
@@ -5364,6 +5723,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     private void applyMouseMode(int mode) {
+        mouseModeIndex = mode;
         switch (mode) {
             case 0: // Multi-touch
                 prefConfig.enableMultiTouchScreen = true;
@@ -5405,21 +5765,25 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         updateZoomButtonAppearance();
     }
 
+    /** Whether the HUD's numbers are on; the controls' Overlay tile shows it. */
+    public boolean isHudVisible() {
+        return hudVisible;
+    }
+
+    /** Whether the on-screen controller is up; the controls' Gamepad tile shows it. */
+    public boolean isVirtualControllerShown() {
+        return virtualController != null && prefConfig.onscreenController;
+    }
+
     public void toggleHUD() {
-        statsVisible = !statsVisible;
+        hudVisible = !hudVisible;
+        streamHud.setStatsShown(hudVisible);
 
+        // The HUD alone: the companion panel keeps its stats whichever way this goes, so the
+        // decoder only stops measuring when there is no panel either.
         if (decoderRenderer != null) {
-            decoderRenderer.setPerfStatsRequested(statsVisible);
+            decoderRenderer.setPerfStatsRequested(perfStatsWanted());
         }
-
-        // Switching off stops the updates, so drop the numbers already there: otherwise the panel
-        // would sit on a frozen snapshot. It stays on the streaming surface either way — the
-        // library spotlight belongs to a game that is not the one being played.
-        if (!statsVisible) {
-            CompanionState.getInstance().clearStats();
-        }
-
-        syncLocalPerfOverlay(statsVisible && !statsOnCompanion());
     }
 
     //切换触控灵敏度开关
@@ -5474,16 +5838,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
     }
 
-    private void updateFloatingButtonVisibility(boolean show) {
-        floatingMenuButton.setVisibility(show ? View.VISIBLE : View.GONE);
-    }
-
-    public void toggleFloatingButtonVisibility() {
-        if (floatingMenuButton != null) {
-            updateFloatingButtonVisibility(floatingMenuButton.getVisibility() == View.GONE);
-        }
-    }
-
 
     // 设置surfaceView的圆角 setSurfaceviewCorner(UiHelper.dpToPx(this,24));
     private void setSurfaceviewCorner(final float radius) {
@@ -5504,6 +5858,13 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public boolean handleCommitText(CharSequence text) {
+        // Taken and dropped while the controls are open, like the text of handleKeyMultiple: a
+        // soft keyboard left up types into the stream's editor, which keeps the focus under the
+        // panel in touch mode. Not handed back either, or the editor would turn it into key
+        // events.
+        if (isControlsTextBlocked()) {
+            return true;
+        }
         if (!prefConfig.enableCommitText || conn == null) {
             return false;
         }
@@ -5513,6 +5874,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public boolean handleDeleteSurroundingText(int beforeLength, int afterLength) {
+        // The keyboard's backspace, dropped while the controls are open as its text is
+        if (isControlsTextBlocked()) {
+            return true;
+        }
         if (!prefConfig.enableCommitText || conn == null) {
             return false;
         }
@@ -5525,6 +5890,20 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             }
         }
         return true;
+    }
+
+    /** Whether a soft keyboard's text must be kept from the host: some controls are open. */
+    private boolean isControlsTextBlocked() {
+        return isHostInputBlocked();
+    }
+
+    /**
+     * Drop the soft keyboard's text not yet sent: it goes out in chunks, and none of it may
+     * reach the host once the controls are open.
+     */
+    private void clearCommitTextQueue() {
+        commitTextHandler.removeCallbacks(flushCommitTextQueue);
+        commitTextQueue.clear();
     }
 
     private void enqueueCommitText(String text) {

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    One shelf of the Library home (library/ShelfAdapter): a label over a row of game tiles,
+    after the approved Shelves mock's .sect and .sh.
+
+    The link on the right ("See all · 12" on All games, "See all" on Recently played) is touch
+    only: a d-pad reaches the grid through the tile that ends All games, so the link is never one
+    more stop between two shelves. It keeps a 48dp touch target, which the label row's height
+    gives it. A compact window shows neither (ShelfAdapter.setLinkShown).
+
+    The space between two shelves is the home's (LibraryHomeFragment), not the row's: a row
+    padded at its foot would leave that space under the last shelf too.
+
+    The row's side padding is the gutter less half the gap between tiles, as in See all's grid:
+    each tile carries half the gap on every side, so the first cover lines up with the label.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:minHeight="@dimen/action_size"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/section_gutter"
+        android:paddingEnd="@dimen/section_gutter">
+
+        <TextView
+            android:id="@+id/shelfLabel"
+            style="@style/ShelfLabel"
+            tools:text="@string/library_all_games" />
+
+        <TextView
+            android:id="@+id/shelfLink"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/action_size"
+            android:layout_marginEnd="-8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="false"
+            android:gravity="center_vertical"
+            android:paddingStart="12dp"
+            android:paddingEnd="8dp"
+            android:singleLine="true"
+            android:textColor="@color/signal"
+            android:textSize="@dimen/shelf_link_size"
+            android:visibility="gone"
+            tools:text="See all · 12"
+            tools:visibility="visible" />
+
+    </LinearLayout>
+
+    <com.limelight.library.ShelfRecyclerView
+        android:id="@+id/shelfList"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clipToPadding="false"
+        android:paddingStart="@dimen/see_all_grid_padding"
+        android:paddingEnd="@dimen/see_all_grid_padding"
+        android:scrollbars="none" />
+
+</LinearLayout>

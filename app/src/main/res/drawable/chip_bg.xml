@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A chip, after the mocks' .chip: a dark pill, drawn 36dp tall inside its 48dp touch target
+    (the insets are the difference, as for @drawable/host_chip_bg). Selected, it takes the
+    signal's container, as the mocks' "on" chips do. The ring is the stop's: focus inline,
+    activated on the companion panel.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:exitFadeDuration="120">
+
+    <item android:state_pressed="true">
+        <inset
+            android:insetBottom="@dimen/chip_inset"
+            android:insetTop="@dimen/chip_inset">
+            <shape android:shape="rectangle">
+                <corners android:radius="@dimen/chip_corner" />
+                <solid android:color="@color/signal_wash" />
+                <stroke
+                    android:width="@dimen/tile_focus_stroke"
+                    android:color="@color/signal" />
+            </shape>
+        </inset>
+    </item>
+
+    <item android:state_focused="true" android:state_selected="true">
+        <inset
+            android:insetBottom="@dimen/chip_inset"
+            android:insetTop="@dimen/chip_inset">
+            <shape android:shape="rectangle">
+                <corners android:radius="@dimen/chip_corner" />
+                <solid android:color="@color/signal_container" />
+                <stroke
+                    android:width="@dimen/tile_focus_stroke"
+                    android:color="@color/signal" />
+            </shape>
+        </inset>
+    </item>
+
+    <item android:state_activated="true" android:state_selected="true">
+        <inset
+            android:insetBottom="@dimen/chip_inset"
+            android:insetTop="@dimen/chip_inset">
+            <shape android:shape="rectangle">
+                <corners android:radius="@dimen/chip_corner" />
+                <solid android:color="@color/signal_container" />
+                <stroke
+                    android:width="@dimen/tile_focus_stroke"
+                    android:color="@color/signal" />
+            </shape>
+        </inset>
+    </item>
+
+    <item android:state_focused="true">
+        <inset
+            android:insetBottom="@dimen/chip_inset"
+            android:insetTop="@dimen/chip_inset">
+            <shape android:shape="rectangle">
+                <corners android:radius="@dimen/chip_corner" />
+                <solid android:color="@color/surface" />
+                <stroke
+                    android:width="@dimen/tile_focus_stroke"
+                    android:color="@color/signal" />
+            </shape>
+        </inset>
+    </item>
+
+    <item android:state_activated="true">
+        <inset
+            android:insetBottom="@dimen/chip_inset"
+            android:insetTop="@dimen/chip_inset">
+            <shape android:shape="rectangle">
+                <corners android:radius="@dimen/chip_corner" />
+                <solid android:color="@color/surface" />
+                <stroke
+                    android:width="@dimen/tile_focus_stroke"
+                    android:color="@color/signal" />
+            </shape>
+        </inset>
+    </item>
+
+    <item android:state_selected="true">
+        <inset
+            android:insetBottom="@dimen/chip_inset"
+            android:insetTop="@dimen/chip_inset">
+            <shape android:shape="rectangle">
+                <corners android:radius="@dimen/chip_corner" />
+                <solid android:color="@color/signal_container" />
+            </shape>
+        </inset>
+    </item>
+
+    <item android:state_enabled="false">
+        <inset
+            android:insetBottom="@dimen/chip_inset"
+            android:insetTop="@dimen/chip_inset">
+            <shape android:shape="rectangle">
+                <corners android:radius="@dimen/chip_corner" />
+                <solid android:color="@color/surface_container_low" />
+            </shape>
+        </inset>
+    </item>
+
+    <item>
+        <inset
+            android:insetBottom="@dimen/chip_inset"
+            android:insetTop="@dimen/chip_inset">
+            <shape android:shape="rectangle">
+                <corners android:radius="@dimen/chip_corner" />
+                <solid android:color="@color/surface" />
+            </shape>
+        </inset>
+    </item>
+
+</selector>

@@ -67,10 +67,6 @@
     <string name="wol_fail">Échec de l\'envoi des paquets Wake-On-LAN</string>
 
     <!-- Unpair messages -->
-    <string name="unpairing">Désappariage…</string>
-    <string name="unpair_success">Désappairé avec succès</string>
-    <string name="unpair_fail">Échec du désappairage</string>
-    <string name="unpair_error">Le périphérique n\'est appareillé</string>
 
     <!-- Errors -->
     <string name="error_pc_offline">L\'ordinateur est hors ligne</string>
@@ -108,12 +104,9 @@
     <string name="searching_pc">Recherche de PC hôtes sur votre réseau local…\n\nAssurez-vous que Sunshine est en cours d\'exécution ou que GameStream est activé dans les paramètres GeForce Experience SHIELD.</string>
     <string name="yes">Oui</string>
     <string name="no">Non</string>
-    <string name="lost_connection">Connexion perdue avec le PC</string>
     <string name="title_details">Détails</string>
     <string name="help">Aide</string>
     <string name="delete_pc_msg">Êtes-vous sûr de vouloir supprimer ce PC ?</string>
-    <string name="slow_connection_msg">Connexion lente au PC\nRéduisez votre débit</string>
-    <string name="poor_connection_msg">Mauvaise connexion au PC</string>
     <string name="perf_overlay_streamdetails">Stream vidéo : %1$s %2$.2f FPS</string>
     <string name="perf_overlay_decoder">Décodeur : %1$s</string>
     <string name="perf_overlay_incomingfps">Fréquence d\'images entrantes du réseau : %1$.2f FPS</string>
@@ -137,8 +130,6 @@
     <string name="applist_menu_scut">Créer un raccourci</string>
     <string name="applist_menu_tv_channel">Ajouter à la liste de chaînes</string>
     <string name="applist_menu_hide_app">Cacher l\'application</string>
-    <string name="applist_refresh_title">Liste des applications</string>
-    <string name="applist_refresh_msg">Actualisation des applications…</string>
     <string name="applist_refresh_error_title">Erreur</string>
     <string name="applist_refresh_error_msg">Impossible d\'obtenir la liste des applications</string>
     <string name="applist_quit_app">Fermeture de</string>
@@ -173,7 +164,6 @@
     <string name="title_resolution_scale_factor">Facteur d\'échelle de la résolution</string>
     <string name="summary_resolution_scale_factor">La résolution de l\'écran virtuel demandée côté serveur sera multipliée par ce facteur. Le streaming résolution ne sera pas affecté.\nPar exemple, 120 % transformera 2000x1000 en 2400x1200.\nL\'utilisation d\'un facteur d\'échelle plus élevé améliorera la qualité de l\'image pour certains jeux.\nNécessite Apollo pour prendre effet.</string>
     <string name="resolution_prefix_native">Native</string>
-    <string name="resolution_prefix_native_fullscreen">Plein-écran natif</string>
     <string name="resolution_prefix_native_landscape">(Paysage)</string>
     <string name="resolution_prefix_native_portrait">(Portrait)</string>
     <string name="resolution_prefix_custom">Personnalisée</string>
@@ -253,10 +243,6 @@
     <string name="category_ui_settings">Paramètres de l\'interface utilisateur</string>
     <string name="title_checkbox_enable_pip">Activer le mode observateur Picture-in-Picture</string>
     <string name="summary_checkbox_enable_pip">Permet de visualiser le flux (sans le contrôler) tout en utilisant une autre application</string>
-    <string name="title_language_list">Langue</string>
-    <string name="summary_language_list">Langue à utiliser pour Artemis</string>
-    <string name="title_checkbox_small_icon_mode">Utiliser des petites icônes</string>
-    <string name="summary_checkbox_small_icon_mode">Des icônes plus petites permettent d\'afficher plus d\'applications en même temps</string>
 
     <string name="category_host_settings">Paramètres de l\'hôte</string>
     <string name="title_checkbox_enable_sops">Optimiser les paramètres du jeu</string>
@@ -332,22 +318,17 @@
     <string name="accessibility_description_text">Utilisé uniquement lorsque les raccourcis clavier physiques sont interceptés par le système. Dans certains systèmes, plusieurs raccourcis clavier sont définis et utilisés par le système Android, empêchant leur transmission au PC hôte. Artemis ne regardera pas votre saisie, ni ne collectera votre mot de passe, votre numéro de carte de crédit ou toute autre information personnelle.</string>
 
     <!-- In Game menu -->
-    <string name="game_menu_toggle_keyboard">Afficher le clavier logiciel</string>
-    <string name="game_menu_toggle_hud">Basculer l\'affichage des performances</string>
     <string name="game_menu_select_mouse_mode">Sélectionner le mode de la souris</string>
     <string name="game_menu_enable_zoom_mode">Activer le mode Zoom/Panoramique</string>
     <string name="game_menu_disable_zoom_mode">Désactiver le mode Zoom/Panoramique</string>
     <string name="game_menu_rotate_screen">Pivoter l\'écran</string>
     <string name="game_menu_toggle_keyboard_model">Basculer les touches spéciales</string>
-    <string name="game_menu_toggle_virtual_model">Basculer le contrôleur à l\'écran</string>
     <string name="game_menu_toggle_virtual_keyboard_model">Basculer le clavier virtuel complet</string>
     <string name="game_menu_switch_touch_sensitivity_model">Changer la sensibilité tactile</string>
     <string name="game_menu_toggle_mouse_on">Activer l\'émulation de la souris par la manette</string>
     <string name="game_menu_toggle_mouse_off">Désactiver l\'émulation de la souris par la manette</string>
     <string name="game_menu_disconnect">Déconnecter</string>
-    <string name="game_menu_cancel">Annuler</string>
     <string name="game_menu_task_manager">Ouvrir le gestionnaire des tâches</string>
-    <string name="game_menu_send_keys">Envoyer des touches spéciales</string>
     <string name="game_menu_send_keys_esc">ÉCHAP</string>
     <string name="game_menu_send_keys_f11">F11</string>
     <string name="game_menu_send_keys_alt_f4">Alt + F4</string>
@@ -370,12 +351,6 @@
     <string name="analogscroll_right">Stick analogique droit</string>
     <string name="analogscroll_left">Stick analogique gauche</string>
 
-    <string name="perf_overlay_lite_net">%1$dms</string>
-    <string name="perf_overlay_lite_dectime">%1$.2fms</string>
-    <string name="perf_overlay_lite_netdrops">%1$.2f%%</string>
-    <string name="perf_overlay_lite_streamdetails">%1$s</string>
-    <string name="perf_overlay_lite_fps">%1$.2f</string>
-    <string name="perf_overlay_lite_decoder">Décodeur : %1$s</string>
     <string name="title_import_keyboard_layout">Importer la disposition du clavier</string>
     <string name="title_export_keyboard_layout">Exporter la disposition du clavier</string>
     <string name="summary_import_keyboard_layout">Cela écrasera la disposition actuelle.</string>
@@ -394,10 +369,6 @@
     <string name="summary_checkbox_mouse_local_cursor">Le curseur physique de la souris par défaut sera capturé, cette option peut afficher le curseur du système Android</string>
     <string name="title_checkbox_onscreen_style_official">Skin officielle de la manette virtuelle</string>
     <string name="summary_checkbox_onscreen_style_official">Si vous aimez toujours l\'ancien style des boutons officiels de la manette virtuelle, vous pouvez sélectionner cette option.\nLes formes des boutons peuvent être carrées si vous avez sélectionné le bouton virtuel inférieur [Les boutons carrés sont des boutons carrés]</string>
-    <string name="title_checkbox_enable_perf_overlay_lite">Activer le mode Lite</string>
-    <string name="summary_checkbox_enable_perf_overlay_lite">Affiche des informations de performance simplifiées : Vitesse du réseau / Latence / Temps de décodage / Taux de perte de paquets / FPS</string>
-    <string name="title_checkbox_enable_perf_overlay_lite_dialog">Mode Lite cliquer pour afficher les options rapides</string>
-    <string name="summary_checkbox_enable_perf_overlay_lite_dialog">Remplace la logique du bouton retour, affiche le menu rapide du jeu.</string>
     <string name="title_virtual_trackpad_settings">Paramètres du trackpad virtuel</string>
     <string name="title_quit_dialog">Menu retour</string>
     <string name="summary_quit_dialog">Lorsqu\'il est activé, cliquer sur le bouton retour physique de l\'interface de streaming affichera les options associées !\nClavier logiciel, informations de performance, basculement du mode tactile, envoi de touches spéciales</string>
@@ -485,8 +456,6 @@
     <string name="summary_hide_clipboard_content">Marquer le contenu du presse-papiers distant comme informations sensibles</string>
     <string name="title_settings_misc">Divers</string>
     <string name="perf_overlay_lite_bandwidth">Bande passante</string>
-    <string name="perf_overlay_lite_network_decoding_delay">Délai de décodage/réseau</string>
-    <string name="perf_overlay_lite_packet_loss">Perte de paquets</string>
     <string name="quick_menu_title">Menu rapide</string>
     <string name="wrong_import_format">Mauvais format d\'importation, veuillez vérifier !</string>
     <string name="title_checkbox_gamepad_enable_battery_report">Activer le rapport d\'état de la batterie pour la manette</string>
@@ -550,10 +519,8 @@
     <string name="pref_import_success">Importation réussie !</string>
     <string name="pref_error_occurred">Une erreur s\'est produite : </string>
     <string name="pref_save_keyboard_profile">Enregistrer le profil OSK</string>
-    <string name="game_menu_advanced">Menu avancé</string>
     <string name="game_dialog_title_quit_confirm">Voulez-vous vraiment quitter ?</string>
     <string name="game_dialog_message_quit_confirm">Veuillez vous assurer que vous n\'avez aucune progression non enregistrée. La quittance de la session mettra fin à l\'application en cours d\'exécution.</string>
-    <string name="game_menu_quit_session">Quitter la session</string>
     <string name="game_menu_server_cmd">Commandes du serveur</string>
     <string name="game_menu_fetch_clipboard">Récupérer le presse-papiers</string>
     <string name="game_menu_upload_clipboard">Télécharger le presse-papiers</string>
@@ -577,12 +544,6 @@
     <string name="error_msg_timeout">Délai de connexion dépassé</string>
     <string name="permission_launch_app">Lancer les applications</string>
     <string name="permission_sync_clipboard">Synchroniser le presse-papiers</string>
-    <string name="searchpreference_search">Rechercher…</string>
-    <string name="searchpreference_clear">Effacer</string>
-    <string name="searchpreference_history_entry">Entrée de l\'historique</string>
-    <string name="searchpreference_more">Plus</string>
-    <string name="searchpreference_clear_history">Effacer l\'historique</string>
-    <string name="searchpreference_no_results">Aucun résultat</string>
     <string name="title_enable_commit_text">Activer la saisie commit-text (gestes/voix)</string>
     <string name="summary_enable_commit_text">Transfère le texte multi-caractères des claviers virtuels (saisie gestuelle, suggestions, dictée vocale). Peut perturber les jeux qui attendent des frappes une par une.</string>
     <string name="title_show_overlay_zoom_toggle_button">Afficher le bouton de bascule du zoom de superposition</string>

@@ -44,6 +44,8 @@ import com.limelight.nvstream.input.ControllerPacket;
 import com.limelight.nvstream.input.MouseButtonPacket;
 import com.limelight.nvstream.jni.MoonBridge;
 import com.limelight.preferences.PreferenceConfiguration;
+import com.limelight.stream.ControlsInputRouter;
+import com.limelight.stream.ControlsSurface;
 import com.limelight.ui.GameGestures;
 import com.limelight.utils.Vector2d;
 
@@ -53,6 +55,7 @@ import org.cgutman.shieldcontrollerextensions.SceManager;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -129,6 +132,15 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
     private final Handler backgroundThreadHandler;
     private boolean hasGameController;
     private boolean stopped = false;
+    // Every controller packet goes out under this, the USB driver's threads' and the main
+    // thread's alike, so whether the controls are open is read and acted on as one step: a
+    // packet either leaves before the open's neutral state or is neutral itself.
+    private final Object hostPacketLock = new Object();
+    // The default context (the on-screen controller's, and unknown devices') has had a packet
+    // of its own sent. It always counts as player 1, so until then the open and the close leave
+    // it alone: a packet for it would bring a pad the user never touched up at the host.
+    // Under hostPacketLock.
+    private boolean defaultContextUsed;
 
     private final PreferenceConfiguration prefConfig;
     private short currentControllers, initialControllers;
@@ -290,6 +302,130 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         }
 
         deviceVibrator.cancel();
+    }
+
+    /**
+     * Let go of everything every pad holds, at the host: buttons up, sticks and triggers centred.
+     * For when the pads stop reaching the host mid-press (the in-stream controls open and take
+     * them), so nothing held at that moment stays held in the game until the next touch of it.
+     * The pads' own state is cleared too, so the first input after is measured from rest.
+     * Main thread only, like the input it cuts off.
+     */
+    public void sendNeutralState() {
+        if (stopped) {
+            return;
+        }
+        for (int i = 0; i < inputDeviceContexts.size(); i++) {
+            InputDeviceContext context = inputDeviceContexts.valueAt(i);
+            neutralize(context);
+            liftTouchpad(context);
+        }
+        for (int i = 0; i < usbDeviceContexts.size(); i++) {
+            neutralize(usbDeviceContexts.valueAt(i));
+        }
+        neutralize(defaultContext);
+
+        // A gyro's last reading stays in force at the host until the next one, and none goes out
+        // while the controls are open: a pad turning as they opened would keep turning a
+        // gyro-aimed camera. Stilled as disableSensors does it; the accelerometer is left as it
+        // is, to keep the pad's attitude. Under the packet lock, so a USB-driver pad's reading
+        // that passed its check just before the open cannot land after this.
+        synchronized (hostPacketLock) {
+            for (int i = 0; i < inputDeviceContexts.size(); i++) {
+                stillGyro(inputDeviceContexts.valueAt(i));
+            }
+            for (int i = 0; i < usbDeviceContexts.size(); i++) {
+                stillGyro(usbDeviceContexts.valueAt(i));
+            }
+        }
+    }
+
+    private void stillGyro(InputDeviceContext context) {
+        boolean gyroReported = context.gyroListener != null
+                || (context instanceof UsbDeviceContext && ((UsbDeviceContext) context).gyroReported);
+        if (!gyroReported) {
+            return;
+        }
+        conn.sendControllerMotionEvent((byte) context.controllerNumber, MoonBridge.LI_MOTION_TYPE_GYRO, 0.f, 0.f, 0.f);
+    }
+
+    private void neutralize(GenericControllerContext context) {
+        if (!context.assignedControllerNumber || !isInUse(context)) {
+            return;
+        }
+        // Only the buttons are forgotten: their key-ups go to the controls now, so a button
+        // held through the close must not come back pressed. The sticks and triggers keep their
+        // values, which resendPads sends on close; zeroing them here would leave a trigger held
+        // through the menu centred at the host until it moved.
+        context.inputMap = 0;
+        // Sent whether or not the pad looks held: a USB-driver pad's thread may have sent a live
+        // packet a moment ago that this thread cannot be sure it sees. Being sent while the
+        // controls are open, the packet is neutral whatever the pads hold (see
+        // sendControllerInputPacket).
+        sendControllerInputPacket(context);
+    }
+
+    /**
+     * A finger on a framework pad's touchpad as the controls open: the host lets go of every
+     * touch on it, and the rest of that touch is dropped, so the host never sees it move or
+     * lift without having seen it come down.
+     */
+    private void liftTouchpad(InputDeviceContext context) {
+        if (!context.assignedControllerNumber || context.touchpadXRange == null
+                || context.touchpadYRange == null || prefConfig.gamepadTouchpadAsMouse) {
+            return;
+        }
+        conn.sendControllerTouchEvent((byte) context.controllerNumber,
+                MoonBridge.LI_TOUCH_EVENT_CANCEL_ALL, 0, 0, 0, 0);
+        context.touchpadStaleUntilDown = true;
+    }
+
+    /**
+     * The in-stream controls have shut: send each pad's latest state. A USB-driver pad reports
+     * on its own thread and kept its state, unsent, while they were open; a framework pad's
+     * sticks and triggers were kept by {@link #handleMotionEvent} as the controls took its
+     * events, and the on-screen controller's by {@link #reportOscState}. None may report again
+     * until something changes, and the host was last told they were at rest, so a stick held
+     * through the close would otherwise stay centred in the game. Main thread; the USB pads'
+     * own threads send alongside, as they do with {@link #sendNeutralState()}.
+     */
+    public void resendPads() {
+        if (stopped) {
+            return;
+        }
+        for (int i = 0; i < inputDeviceContexts.size(); i++) {
+            GenericControllerContext context = inputDeviceContexts.valueAt(i);
+            if (context.assignedControllerNumber) {
+                sendControllerInputPacket(context);
+            }
+        }
+        for (int i = 0; i < usbDeviceContexts.size(); i++) {
+            GenericControllerContext context = usbDeviceContexts.valueAt(i);
+            if (context.assignedControllerNumber) {
+                sendControllerInputPacket(context);
+            }
+        }
+        // The on-screen controller too, once in use: also when first touched while the
+        // controls were open, so it holds something but has sent nothing yet
+        if (isInUse(defaultContext) || isHeld(defaultContext)) {
+            sendControllerInputPacket(defaultContext);
+        }
+    }
+
+    // Every pad of its own is in use; the default context only once it has sent something
+    private boolean isInUse(GenericControllerContext context) {
+        if (context != defaultContext) {
+            return true;
+        }
+        synchronized (hostPacketLock) {
+            return defaultContextUsed;
+        }
+    }
+
+    private static boolean isHeld(GenericControllerContext context) {
+        return context.inputMap != 0 || context.leftTrigger != 0 || context.rightTrigger != 0
+                || context.leftStickX != 0 || context.leftStickY != 0
+                || context.rightStickX != 0 || context.rightStickY != 0;
     }
 
     // After a reconnect the host is running a new session that has never heard of our
@@ -1260,7 +1396,16 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
     }
 
     private void sendControllerInputPacket(GenericControllerContext originalContext) {
+        synchronized (hostPacketLock) {
+            sendControllerInputPacketLocked(originalContext);
+        }
+    }
+
+    private void sendControllerInputPacketLocked(GenericControllerContext originalContext) {
         assignControllerNumberIfNeeded(originalContext);
+        if (originalContext == defaultContext) {
+            defaultContextUsed = true;
+        }
 
         // Take the context's controller number and fuse all inputs with the same number
         short controllerNumber = originalContext.controllerNumber;
@@ -1311,6 +1456,20 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
             leftStickY |= maxByMagnitude(leftStickY, defaultContext.leftStickY);
             rightStickX |= maxByMagnitude(rightStickX, defaultContext.rightStickX);
             rightStickY |= maxByMagnitude(rightStickY, defaultContext.rightStickY);
+        }
+
+        // Nothing a pad holds reaches the host while the in-stream controls are open, whoever
+        // sends: a context that shares this controller number may be keeping a USB-driver
+        // pad's live sticks for the close, and a USB report that passed its own check just
+        // before the open must not land after the neutral state with what it read.
+        if (gestures.isControlsOpen()) {
+            inputMap = 0;
+            leftTrigger = 0;
+            rightTrigger = 0;
+            leftStickX = 0;
+            leftStickY = 0;
+            rightStickX = 0;
+            rightStickY = 0;
         }
 
         if (originalContext.mouseEmulationActive) {
@@ -1818,6 +1977,14 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
             }
         }
 
+        // The controls have the pad: its sticks and triggers are kept for the close, which
+        // sends them, and the hat is theirs, so it holds no d-pad then.
+        if (gestures.isControlsOpen()) {
+            context.inputMap &= ~(ControllerPacket.UP_FLAG | ControllerPacket.DOWN_FLAG
+                    | ControllerPacket.LEFT_FLAG | ControllerPacket.RIGHT_FLAG);
+            return;
+        }
+
         sendControllerInputPacket(context);
     }
 
@@ -1854,6 +2021,26 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         InputDeviceContext context = inputDeviceContexts.get(event.getDeviceId());
         if (context == null) {
             return false;
+        }
+
+        // While the controls are open the touchpad, its click included, is taken and dropped:
+        // handed back, it would move the host's mouse instead. A touch begun or still down then
+        // stays dropped until the next one starts after the close.
+        if (gestures.isControlsOpen()) {
+            if (event.getSource() == InputDevice.SOURCE_TOUCHPAD) {
+                context.touchpadStaleUntilDown = true;
+            }
+            return true;
+        }
+        if (context.touchpadStaleUntilDown && event.getSource() == InputDevice.SOURCE_TOUCHPAD) {
+            if (event.getActionMasked() != MotionEvent.ACTION_DOWN
+                    && event.getActionMasked() != MotionEvent.ACTION_BUTTON_PRESS
+                    && event.getActionMasked() != MotionEvent.ACTION_BUTTON_RELEASE) {
+                return true;
+            }
+            if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                context.touchpadStaleUntilDown = false;
+            }
         }
 
         // When we're working with a mouse source instead of a touchpad, we're quite limited in
@@ -2322,6 +2509,22 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
 
             @Override
             public void onSensorChanged(SensorEvent sensorEvent) {
+                // Checked and sent as one step, under the packet lock: a reading that would land
+                // after the open's still gyro (see sendNeutralState) is dropped instead.
+                synchronized (hostPacketLock) {
+                    onSensorChangedLocked(sensorEvent);
+                }
+            }
+
+            private void onSensorChangedLocked(SensorEvent sensorEvent) {
+                // The pad's (or the device's) motion is the game's, and the game is not being
+                // played while the controls are open, as for a USB-driver pad. The first reading
+                // after the close always goes out, whatever was last sent.
+                if (gestures.isControlsOpen()) {
+                    Arrays.fill(lastValues, Float.NaN);
+                    return;
+                }
+
                 // Android will invoke our callback any time we get a new reading,
                 // even if the values are the same as last time. Don't report a
                 // duplicate set of values to save bandwidth.
@@ -3002,15 +3205,29 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
 
         defaultContext.inputMap = buttonFlags;
 
+        // The on-screen controller is not played while the controls are open: a finger held on
+        // it as they opened, or one on it under the companion panel's menu, sends nothing. What
+        // it holds is kept, unsent, for resendPads at the close: a finger held still on a stick
+        // through it reports nothing new.
+        if (gestures.isControlsOpen()) {
+            return;
+        }
+
         sendControllerInputPacket(defaultContext);
     }
 
+    /**
+     * The USB driver's pads report here, on their own input thread, and never pass through the
+     * activity's key and motion paths that hand input to the open in-stream controls. So the
+     * same is done here: while the controls are open the report drives them, and its state is
+     * kept but not sent; {@link #resendPads()} sends it once they shut.
+     */
     @Override
     public void reportControllerState(int controllerId, int buttonFlags,
                                       float leftStickX, float leftStickY,
                                       float rightStickX, float rightStickY,
                                       float leftTrigger, float rightTrigger) {
-        GenericControllerContext context = usbDeviceContexts.get(controllerId);
+        UsbDeviceContext context = usbDeviceContexts.get(controllerId);
         if (context == null) {
             return;
         }
@@ -3018,6 +3235,10 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         Vector2d leftStickVector = populateCachedVector(leftStickX, leftStickY);
 
         handleDeadZone(leftStickVector, context.leftStickDeadzoneRadius);
+
+        // Read now: the right stick reuses the same cached vector. Positive is right and down.
+        float navStickX = leftStickVector.getX();
+        float navStickY = leftStickVector.getY();
 
         context.leftStickX = (short) (leftStickVector.getX() * 0x7FFE);
         context.leftStickY = (short) (-leftStickVector.getY() * 0x7FFE);
@@ -3039,19 +3260,42 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         context.leftTrigger = (byte)(leftTrigger * 0xFF);
         context.rightTrigger = (byte)(rightTrigger * 0xFF);
 
-        context.inputMap = buttonFlags;
+        if (gestures.isControlsOpen()) {
+            // Every held button belongs to the controls; the sticks and triggers are kept for
+            // the packet that goes out when they shut.
+            context.inputMap = 0;
+            for (ControlsSurface.Nav nav : context.controlsReports.whileOpen(
+                    buttonFlags, navStickX, navStickY)) {
+                gestures.onControlsNav(nav);
+            }
+            return;
+        }
+
+        context.inputMap = context.controlsReports.forHost(buttonFlags);
 
         sendControllerInputPacket(context);
     }
 
     @Override
     public void reportControllerMotion(int controllerId, byte motionType, float motionX, float motionY, float motionZ) {
-        GenericControllerContext context = usbDeviceContexts.get(controllerId);
+        UsbDeviceContext context = usbDeviceContexts.get(controllerId);
         if (context == null) {
             return;
         }
+        // Under the packet lock, like the pad's state: a reading that passed the check must not
+        // land after the open's still gyro (see sendNeutralState).
+        synchronized (hostPacketLock) {
+            // The pad's gyro is the game's, and the game is not being played while the controls
+            // are open.
+            if (gestures.isControlsOpen()) {
+                return;
+            }
+            if (motionType == MoonBridge.LI_MOTION_TYPE_GYRO) {
+                context.gyroReported = true;
+            }
 
-        conn.sendControllerMotionEvent((byte)context.controllerNumber, motionType, motionX, motionY, motionZ);
+            conn.sendControllerMotionEvent((byte)context.controllerNumber, motionType, motionX, motionY, motionZ);
+        }
     }
 
     @Override
@@ -3109,6 +3353,16 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
             @Override
             public void run() {
                 if (!mouseEmulationActive) {
+                    return;
+                }
+
+                // While the in-stream controls are open the sticks drive them, not the host's
+                // mouse. The pad keeps its live stick values in this context for the close (a
+                // USB-driver pad from its reports, a framework pad from the events the controls
+                // take), so the ticks go on and send nothing until then; the first one after
+                // moves the mouse from wherever the sticks are by that time.
+                if (gestures.isControlsOpen()) {
+                    mainThreadHandler.postDelayed(this, mouseEmulationReportPeriod);
                     return;
                 }
 
@@ -3203,6 +3457,9 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         InputDevice.MotionRange touchpadXRange;
         InputDevice.MotionRange touchpadYRange;
         InputDevice.MotionRange touchpadPressureRange;
+        // The touch on the touchpad was cut off by the controls: the host has let go of it, so
+        // the rest of it is dropped until a finger comes down anew. Main thread.
+        boolean touchpadStaleUntilDown;
 
         public boolean isNonStandardDualShock4;
         public boolean usesLinuxGamepadStandardFaceButtons;
@@ -3488,6 +3745,12 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
 
     class UsbDeviceContext extends InputDeviceContext {
         public AbstractController device;
+        // This pad's input while the in-stream controls are open; its input thread only.
+        public final ControlsInputRouter.PadReports controlsReports =
+                new ControlsInputRouter.PadReports();
+        // The pad has sent the host a gyro reading, so opening the controls must still it.
+        // Under hostPacketLock.
+        public boolean gyroReported;
 
 //        @Override
 //        public void destroy() {

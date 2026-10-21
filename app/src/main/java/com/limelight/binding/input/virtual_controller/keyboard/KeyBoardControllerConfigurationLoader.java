@@ -16,6 +16,7 @@ import android.widget.Toast;
 
 import androidx.preference.PreferenceManager;
 
+import com.limelight.Game;
 import com.limelight.GameMenu;
 import com.limelight.LimeLog;
 import com.limelight.R;
@@ -216,6 +217,25 @@ public class KeyBoardControllerConfigurationLoader {
         return button;
     }
 
+    /**
+     * Whether the in-stream controls are open, so a combo key pressed under the companion
+     * panel's menu sends nothing. Its release still goes out: harmless when the press did not.
+     */
+    private static boolean isControlsOpen() {
+        return Game.instance != null && Game.instance.isControlsOpen();
+    }
+
+    /**
+     * Send a combo key to the host, and have the game note it as held or let go of: opening the
+     * controls releases the keys held then, a combo held or latched down included.
+     */
+    private static void sendComboKey(NvConnection conn, short key, byte keyDirection, byte modifier) {
+        conn.sendKeyboardInput(key, keyDirection, modifier, (byte) 0);
+        if (Game.instance != null) {
+            Game.instance.noteHostKey(key, keyDirection == KeyboardPacket.KEY_DOWN);
+        }
+    }
+
     public static KeyBoardDigitalButton createCustomButton(
             String elementId,
             final short[] keys,
@@ -239,11 +259,14 @@ public class KeyBoardControllerConfigurationLoader {
                         button.setSticky(false);
                         return;
                     }
+                    if (isControlsOpen()) {
+                        return;
+                    }
 
                     final byte[] modifier = {(byte) 0};
 
                     for (short key : keys) {
-                        conn.sendKeyboardInput(key, KeyboardPacket.KEY_DOWN, modifier[0], (byte) 0);
+                        sendComboKey(conn, key, KeyboardPacket.KEY_DOWN, modifier[0]);
 
                         modifier[0] |= getModifier(key);
                     }
@@ -265,7 +288,7 @@ public class KeyBoardControllerConfigurationLoader {
 
                     for (int i = keys.length - 1; i >= 0; i--) {
                         modifier[0] &= (byte) ~getModifier(keys[i]);
-                        conn.sendKeyboardInput(keys[i], KeyboardPacket.KEY_UP, modifier[0], (byte) 0);
+                        sendComboKey(conn, keys[i], KeyboardPacket.KEY_UP, modifier[0]);
                     }
                 }
             });
@@ -276,10 +299,13 @@ public class KeyBoardControllerConfigurationLoader {
                 @Override
                 public void onClick() {
                     controller.vibrate(KeyEvent.ACTION_DOWN);
+                    if (isControlsOpen()) {
+                        return;
+                    }
                     // Press keys down
                     modifier[0] = 0;
                     for (short key : keys) {
-                        conn.sendKeyboardInput(key, KeyboardPacket.KEY_DOWN, modifier[0], (byte) 0);
+                        sendComboKey(conn, key, KeyboardPacket.KEY_DOWN, modifier[0]);
                         modifier[0] |= getModifier(key);
                     }
                 }
@@ -296,7 +322,7 @@ public class KeyBoardControllerConfigurationLoader {
                     for (int i = keys.length - 1; i >= 0; i--) {
                         short key = keys[i];
                         modifier[0] &= (byte) ~getModifier(key);
-                        conn.sendKeyboardInput(key, KeyboardPacket.KEY_UP, modifier[0], (byte) 0);
+                        sendComboKey(conn, key, KeyboardPacket.KEY_UP, modifier[0]);
                     }
                 }
             });

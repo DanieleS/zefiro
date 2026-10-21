@@ -32,10 +32,6 @@
     <string name="wol_waking_msg">Poate dura puțin până PC-ul pornește. Dacă nu pornește, verifică dacă este configurat corect pentru Wake-On-LAN.</string>
     <string name="wol_fail">Nu s-au putut trimite pachetele Wake-On-LAN</string>
     <!-- Unpair messages -->
-    <string name="unpairing">Desperecherechere…</string>
-    <string name="unpair_success">Desperecherechere efectuată cu succes</string>
-    <string name="unpair_fail">Desperecherea a eșuat</string>
-    <string name="unpair_error">Dispozitivul nu este împerecheat</string>
     <!-- Errors -->
     <string name="error_pc_offline">PC-ul este inaccesibil</string>
     <string name="error_manager_not_running">Serviciul ComputerManager nu este pornit. Te rugăm să aștepți câteva secunde sau să repornești aplicația.</string>
@@ -68,12 +64,9 @@
         Asigură-te ca GameStream este activat în setările Geforce Experience SHIELD.</string>
     <string name="yes">Da</string>
     <string name="no">Nu</string>
-    <string name="lost_connection">S-a pierdut conexiunea catre PC</string>
     <string name="title_details">Detalii</string>
     <string name="help">Ajutor</string>
     <string name="delete_pc_msg">Sigur dorești să ștergi acest PC?</string>
-    <string name="slow_connection_msg">Conexiune inceată catre PC\nRedu rata de biți</string>
-    <string name="poor_connection_msg">Conexiune slabă catre PC</string>
     <string name="perf_overlay_decoder">Decodor: %1$s</string>
     <string name="perf_overlay_incomingfps">Rata cadrelor primite din rețea: %1$.2f FPS</string>
     <string name="perf_overlay_renderingfps">Rata de afisare a cadrelor: %1$.2f FPS</string>
@@ -88,8 +81,6 @@
     <string name="applist_menu_details">Vezi detalii</string>
     <string name="applist_menu_scut">Creează o scurtătură</string>
     <string name="applist_menu_tv_channel">Adaugă la canal</string>
-    <string name="applist_refresh_title">Lista de aplicații</string>
-    <string name="applist_refresh_msg">Reîmprospătare aplicații…</string>
     <string name="applist_refresh_error_title">Eroare</string>
     <string name="applist_refresh_error_msg">Nu s-a putut obține lista de aplicații</string>
     <string name="applist_quit_app">Închidere în curs</string>
@@ -154,10 +145,6 @@
     <string name="dialog_title_osc_opacity">Modifică opacitatea</string>
     <string name="suffix_osc_opacity">%</string>
     <string name="category_ui_settings">Setari UI</string>
-    <string name="title_language_list">Limba (Language)</string>
-    <string name="summary_language_list">Limba folosită de către Moonlight</string>
-    <string name="title_checkbox_small_icon_mode">Folosește iconițe mici</string>
-    <string name="summary_checkbox_small_icon_mode">Iconițele folosite în grile vor fi mici pentru a încăpea mai multe odata</string>
     <string name="category_host_settings">Setările PC-ului gazdă</string>
     <string name="title_checkbox_enable_sops">Optimizarea setărilor de joc</string>
     <string name="summary_checkbox_enable_sops">Permite GFE să modifice setările jocurilor pentru experiența optimă</string>

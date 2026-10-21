@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A setting's choice, after Settings_C's .opt: no fill at rest, the signal's container on the
+    entry in effect (selected), the wash under a finger. On the companion panel it is never a
+    d-pad stop (Settings keeps the d-pad on the main screen); in a list setting's dialog on the
+    main screen (SettingsListDialog) it is, and focus wears the stops' signal ring over the fill.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:exitFadeDuration="120">
+
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/stop_corner" />
+            <solid android:color="@color/signal_wash" />
+        </shape>
+    </item>
+
+    <item android:state_focused="true" android:state_selected="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/stop_corner" />
+            <solid android:color="@color/signal_container" />
+            <stroke
+                android:width="@dimen/tile_focus_stroke"
+                android:color="@color/signal" />
+        </shape>
+    </item>
+
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/stop_corner" />
+            <solid android:color="@color/surface" />
+            <stroke
+                android:width="@dimen/tile_focus_stroke"
+                android:color="@color/signal" />
+        </shape>
+    </item>
+
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/stop_corner" />
+            <solid android:color="@color/signal_container" />
+        </shape>
+    </item>
+
+    <item android:drawable="@android:color/transparent" />
+
+</selector>

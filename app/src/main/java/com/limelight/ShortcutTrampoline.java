@@ -1,7 +1,5 @@
 package com.limelight;
 
-import static com.limelight.utils.ServerHelper.getSecondaryDisplay;
-
 import android.app.Activity;
 import android.app.Service;
 import android.content.ComponentName;
@@ -17,11 +15,14 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.limelight.computers.ComputerDatabaseManager;
 import com.limelight.computers.ComputerManagerListener;
 import com.limelight.computers.ComputerManagerService;
+import com.limelight.library.LibraryIntents;
+import com.limelight.main.MainActivity;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.NvApp;
 import com.limelight.nvstream.http.NvHTTP;
 import com.limelight.nvstream.http.PairingManager;
 import com.limelight.nvstream.wol.WakeOnLanSender;
+import com.limelight.utils.AppLaunchHistory;
 import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.utils.CacheHelper;
 import com.limelight.utils.Dialog;
@@ -56,6 +57,18 @@ public class ShortcutTrampoline extends AppCompatActivity {
 
     private ComputerManagerService.ComputerManagerBinder managerBinder;
 
+    // The listener this trampoline added, so leaving removes that one alone. A library or PC list
+    // open underneath keeps its own updates. Written on the binder thread, read in onStop.
+    private volatile ComputerManagerListener pollingListener;
+
+    // The worker thread adds the listener while onStop may be removing it on main. Removing one
+    // that is not added yet does nothing, and a listener added after that would stay in the
+    // service's set (keeping polling alive and holding this finished activity) until every
+    // client unbinds. So onStop raises this flag under the lock, and the worker checks it
+    // before adding and again after, undoing its own add if the stop came in between.
+    private final Object pollingListenerLock = new Object();
+    private boolean stopped; // guarded by pollingListenerLock
+
     private static final String TAG = "ShortcutTrampoline";
 
     private final ServiceConnection serviceConnection = new ServiceConnection() {
@@ -74,7 +87,7 @@ public class ShortcutTrampoline extends AppCompatActivity {
                     managerBinder = localBinder;
 
                     // Get the computer object
-                    computer = managerBinder.getComputer(uuidString);
+                    computer = localBinder.getComputer(uuidString);
 
                     if (computer == null) {
                         Dialog.displayDialog(ShortcutTrampoline.this,
@@ -95,11 +108,12 @@ public class ShortcutTrampoline extends AppCompatActivity {
                         return;
                     }
 
-                    // Force CMS to repoll this machine
-                    managerBinder.invalidateStateForComputer(computer.uuid);
+                    // Force CMS to repoll this machine. The local copy again: onStop on main
+                    // can null the field at any point while this thread runs.
+                    localBinder.invalidateStateForComputer(computer.uuid);
 
                     // Start polling
-                    managerBinder.startPolling(new ComputerManagerListener() {
+                    final ComputerManagerListener listener = new ComputerManagerListener() {
                         @Override
                         public void notifyComputerUpdated(final ComputerDetails details) {
                             // Don't care about other computers
@@ -114,8 +128,11 @@ public class ShortcutTrampoline extends AppCompatActivity {
                                     WakeOnLanSender.sendWolPacket(computer);
 
                                     // If we sent at least one WoL packet, reset the computer state
-                                    // to force ComputerManager to poll it again.
-                                    managerBinder.invalidateStateForComputer(computer.uuid);
+                                    // to force ComputerManager to poll it again. localBinder, not
+                                    // the field: this runs on the worker (the initial report of an
+                                    // add racing onStop) or a polling thread, and onStop may have
+                                    // nulled the field by then.
+                                    localBinder.invalidateStateForComputer(computer.uuid);
                                     return;
                                 } catch (IOException e) {
                                     // If we got an exception, we couldn't send a single WoL packet,
@@ -147,6 +164,9 @@ public class ShortcutTrampoline extends AppCompatActivity {
                                             if (app != null) {
                                                 if (details.runningGameId == 0 || details.runningGameId == app.getAppId() || Objects.equals(details.runningGameUUID, app.getAppUUID())) {
                                                     intentStack.add(ServerHelper.createStartIntent(ShortcutTrampoline.this, app, details, managerBinder, prefConfig.useVirtualDisplay));
+                                                    // As a launch from the library notes it, so
+                                                    // a pinned game reaches "Recently played".
+                                                    AppLaunchHistory.recordLaunch(ShortcutTrampoline.this, details, app);
 
                                                     // Close this activity
                                                     finish();
@@ -162,6 +182,7 @@ public class ShortcutTrampoline extends AppCompatActivity {
                                                         @Override
                                                         public void run() {
                                                             intentStack.add(startIntent);
+                                                            AppLaunchHistory.recordLaunch(ShortcutTrampoline.this, details, app);
 
                                                             // Close this activity
                                                             finish();
@@ -181,16 +202,14 @@ public class ShortcutTrampoline extends AppCompatActivity {
                                                 // Close this activity
                                                 finish();
 
-                                                // Add the PC view at the back (and clear the task)
-                                                Intent i;
-                                                i = new Intent(ShortcutTrampoline.this, PcView.class);
+                                                // The main screen at the back, in a task of
+                                                // its own, opening on this host's Library: it
+                                                // selects the host the UUID names.
+                                                Intent i = new Intent(ShortcutTrampoline.this, MainActivity.class);
                                                 i.setAction(Intent.ACTION_MAIN);
                                                 i.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
-                                                intentStack.add(i);
-
-                                                // Take this intent's data and create an intent to start the app view
-                                                i = new Intent(getIntent());
-                                                i.setClass(ShortcutTrampoline.this, AppView.class);
+                                                i.putExtra(LibraryIntents.EXTRA_UUID, details.uuid);
+                                                i.putExtra(LibraryIntents.EXTRA_NAME, details.name);
                                                 intentStack.add(i);
 
                                                 // If a game is running, we'll make the stream the top level activity
@@ -221,7 +240,7 @@ public class ShortcutTrampoline extends AppCompatActivity {
                                         // We don't want any more callbacks from now on, so go ahead
                                         // and unbind from the service
                                         if (managerBinder != null) {
-                                            managerBinder.stopPolling();
+                                            managerBinder.removePollingListener(pollingListener);
                                             unbindService(serviceConnection);
                                             managerBinder = null;
                                         }
@@ -229,7 +248,23 @@ public class ShortcutTrampoline extends AppCompatActivity {
                                 });
                             }
                         }
-                    });
+                    };
+                    synchronized (pollingListenerLock) {
+                        if (stopped) {
+                            return;
+                        }
+                        pollingListener = listener;
+                    }
+                    // Not under the lock: adding reports synchronously, and that report may run
+                    // a WoL send. localBinder, not the field, which onStop may have nulled.
+                    localBinder.addPollingListener(listener);
+                    boolean stoppedMeanwhile;
+                    synchronized (pollingListenerLock) {
+                        stoppedMeanwhile = stopped;
+                    }
+                    if (stoppedMeanwhile) {
+                        localBinder.removePollingListener(listener);
+                    }
                 }
             }.start();
         }
@@ -276,7 +311,7 @@ public class ShortcutTrampoline extends AppCompatActivity {
 
     protected boolean validateAppInput(String appUUID, String appIDStr, String appName) {
         if (appUUID == null && appIDStr == null && appName == null) {
-            // We're just going to the AppView
+            // No game named: just the host's library
             return false;
         }
 
@@ -437,10 +472,10 @@ public class ShortcutTrampoline extends AppCompatActivity {
         {
             // PC arguments, both are optional, but at least one must be provided
             if (hostUUID == null) {
-                hostUUID = getIntent().getStringExtra(AppView.UUID_EXTRA);
+                hostUUID = getIntent().getStringExtra(LibraryIntents.EXTRA_UUID);
             }
             if (hostName == null) {
-                hostName = getIntent().getStringExtra(AppView.NAME_EXTRA);
+                hostName = getIntent().getStringExtra(LibraryIntents.EXTRA_NAME);
             }
 
             // App arguments, all optional, but one must be provided in order to start an app
@@ -479,8 +514,8 @@ public class ShortcutTrampoline extends AppCompatActivity {
 
         uuidString = hostUUID;
 
-        // Set the AppView UUID intent
-        setIntent(new Intent(getIntent()).putExtra(AppView.UUID_EXTRA, uuidString));
+        // The UUID the host was found by, for the host path's hand-over to the main screen
+        setIntent(new Intent(getIntent()).putExtra(LibraryIntents.EXTRA_UUID, uuidString));
 
         if (validateAppInput(appUUID, appIDStr, appName)) {
             int appID = -1;
@@ -558,8 +593,13 @@ public class ShortcutTrampoline extends AppCompatActivity {
 
         Dialog.closeDialogs();
 
+        // From here on the worker no longer adds a listener, or takes back one it just added.
+        synchronized (pollingListenerLock) {
+            stopped = true;
+        }
+
         if (managerBinder != null) {
-            managerBinder.stopPolling();
+            managerBinder.removePollingListener(pollingListener);
             unbindService(serviceConnection);
             managerBinder = null;
         }

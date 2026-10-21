@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    One entry of a list setting on the companion panel (settings/SettingsChoicesRenderer), the
+    mock's .opt at panel scale: a radio, the entry's label and, where one is written, what it
+    does. Selected on the entry in effect (signal container, signal label, filled radio); setting
+    the row selected selects its children too. Compact, as the mock's, so a list of seven fits
+    over the hints: 44dp at least, still a touch target on the panel's large screen; never
+    focusable there. A list setting's dialog on the main screen (SettingsListDialog) draws its
+    choices with this row too, and makes each a stop.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="2dp"
+    android:background="@drawable/settings_choice_bg"
+    android:clickable="true"
+    android:focusable="false"
+    android:gravity="center_vertical"
+    android:minHeight="@dimen/settings_choice_min_height"
+    android:orientation="horizontal"
+    android:paddingStart="12dp"
+    android:paddingTop="5dp"
+    android:paddingEnd="12dp"
+    android:paddingBottom="5dp">
+
+    <View
+        android:id="@+id/companionChoiceRadio"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:background="@drawable/settings_choice_radio"
+        android:importantForAccessibility="no" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/companionChoiceLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-medium"
+            android:textColor="@color/settings_choice_label"
+            android:textSize="14sp"
+            tools:text="Balanced" />
+
+        <TextView
+            android:id="@+id/companionChoiceDescription"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:textColor="@color/content_muted"
+            android:textSize="12sp"
+            android:visibility="gone"
+            tools:text="Waits for the screen refresh. Smoother, a little slower."
+            tools:visibility="visible" />
+
+    </LinearLayout>
+
+</LinearLayout>

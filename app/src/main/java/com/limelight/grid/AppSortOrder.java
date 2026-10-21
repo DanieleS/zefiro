@@ -1,6 +1,5 @@
 package com.limelight.grid;
 
-import com.limelight.AppView;
 import com.limelight.R;
 import com.limelight.nvstream.http.AppMetadata;
 import com.limelight.nvstream.http.NvApp;
@@ -65,19 +64,23 @@ public enum AppSortOrder {
     }
 
     /**
+     * Ordered on the bare {@link NvApp} rather than on any screen's list item, so the same rule
+     * serves every list that shows games (the grid, the shelves, See all) without each one
+     * wrapping its items into another's type first.
+     *
      * @param metadata Playnite metadata keyed by upper-cased app UUID; empty on stock hosts.
      * @param history  this device's launch record; null when it is not available.
      */
-    public Comparator<AppView.AppObject> comparator(final Map<String, AppMetadata> metadata,
-                                                    final AppLaunchHistory history) {
+    public Comparator<NvApp> comparator(final Map<String, AppMetadata> metadata,
+                                        final AppLaunchHistory history) {
         switch (this) {
             case NAME:
                 return byName();
 
             case RECENT:
                 return (lhs, rhs) -> {
-                    long lTime = lastPlayed(metadata, history, lhs.app);
-                    long rTime = lastPlayed(metadata, history, rhs.app);
+                    long lTime = lastPlayed(lhs, metadata, history);
+                    long rTime = lastPlayed(rhs, metadata, history);
                     if (lTime == rTime) {
                         return compareNames(lhs, rhs);
                     }
@@ -91,8 +94,8 @@ public enum AppSortOrder {
 
             case RELEASE:
                 return (lhs, rhs) -> {
-                    String lDate = releaseDate(metadata, lhs.app);
-                    String rDate = releaseDate(metadata, rhs.app);
+                    String lDate = releaseDate(metadata, lhs);
+                    String rDate = releaseDate(metadata, rhs);
                     if (lDate.isEmpty() || rDate.isEmpty() || lDate.equals(rDate)) {
                         // One of them has no date to rank, or they share one: name decides.
                         if (lDate.isEmpty() != rDate.isEmpty()) {
@@ -107,8 +110,8 @@ public enum AppSortOrder {
 
             case SCORE:
                 return (lhs, rhs) -> {
-                    int lScore = communityScore(metadata, lhs.app);
-                    int rScore = communityScore(metadata, rhs.app);
+                    int lScore = communityScore(metadata, lhs);
+                    int rScore = communityScore(metadata, rhs);
                     if (lScore == rScore) {
                         return compareNames(lhs, rhs);
                     }
@@ -122,8 +125,8 @@ public enum AppSortOrder {
             case HOST:
             default:
                 return (lhs, rhs) -> {
-                    int lIndex = lhs.app.getAppIndex();
-                    int rIndex = rhs.app.getAppIndex();
+                    int lIndex = lhs.getAppIndex();
+                    int rIndex = rhs.getAppIndex();
                     if (lIndex == rIndex) {
                         return compareNames(lhs, rhs);
                     }
@@ -132,12 +135,12 @@ public enum AppSortOrder {
         }
     }
 
-    private static Comparator<AppView.AppObject> byName() {
+    private static Comparator<NvApp> byName() {
         return AppSortOrder::compareNames;
     }
 
-    private static int compareNames(AppView.AppObject lhs, AppView.AppObject rhs) {
-        return lhs.app.getAppName().toLowerCase().compareTo(rhs.app.getAppName().toLowerCase());
+    private static int compareNames(NvApp lhs, NvApp rhs) {
+        return lhs.getAppName().toLowerCase().compareTo(rhs.getAppName().toLowerCase());
     }
 
     private static AppMetadata metadataFor(Map<String, AppMetadata> metadata, NvApp app) {
@@ -148,12 +151,21 @@ public enum AppSortOrder {
         return metadata.get(uuid.toUpperCase());
     }
 
-    // When the game was last played, most-recent wins. Playnite's own figure leads because it sees
-    // sessions played at the PC itself; this device's launch record is the fallback for games the
-    // host does not date (a stock host, or a game Playnite does not track), and the later of the two
-    // wins where both exist so a launch from here is never hidden by a stale host timestamp.
-    private static long lastPlayed(Map<String, AppMetadata> metadata, AppLaunchHistory history,
-                                   NvApp app) {
+    /**
+     * When the game was last played, in milliseconds since the epoch, or 0 when it never was as far
+     * as anyone here knows. Public because "was it ever played" is also a filter, not only an
+     * order: a "Recently played" shelf must agree with {@link #RECENT} on which games qualify.
+     *
+     * <p>Most-recent wins. Playnite's own figure leads because it sees sessions played at the PC
+     * itself; this device's launch record is the fallback for games the host does not date (a stock
+     * host, or a game Playnite does not track), and the later of the two wins where both exist so a
+     * launch from here is never hidden by a stale host timestamp.
+     *
+     * @param metadata Playnite metadata keyed by upper-cased app UUID; may be null or empty.
+     * @param history  this device's launch record; may be null.
+     */
+    public static long lastPlayed(NvApp app, Map<String, AppMetadata> metadata,
+                                  AppLaunchHistory history) {
         AppMetadata meta = metadataFor(metadata, app);
         long hostTime = meta == null ? 0 : meta.getLastPlayedEpochMillis();
         long localTime = history == null ? 0 : history.getLastPlayed(app);

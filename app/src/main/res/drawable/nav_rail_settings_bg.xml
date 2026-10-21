@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The rail's Settings button: @drawable/nav_item_focus_ring, plus the rail's active indicator
+    while it is activated (Settings on screen), since the button stands in for a rail item and a
+    selected one sits on the signal's container. The indicator is the rail's 40dp rounded square,
+    inset from the rail cell (72dp by 56dp) the button fills; the focus ring keeps the items' inset.
+-->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="@color/signal_wash">
+
+    <item>
+        <selector android:exitFadeDuration="120">
+
+            <item android:state_activated="true" android:state_focused="true">
+                <layer-list>
+                    <item
+                        android:bottom="@dimen/nav_rail_settings_indicator_inset_vertical"
+                        android:left="@dimen/nav_rail_settings_indicator_inset"
+                        android:right="@dimen/nav_rail_settings_indicator_inset"
+                        android:top="@dimen/nav_rail_settings_indicator_inset_vertical">
+                        <shape android:shape="rectangle">
+                            <corners android:radius="@dimen/nav_rail_indicator_corner" />
+                            <solid android:color="@color/signal_container" />
+                        </shape>
+                    </item>
+                    <item
+                        android:bottom="@dimen/nav_item_focus_inset_vertical"
+                        android:left="@dimen/nav_item_focus_inset"
+                        android:right="@dimen/nav_item_focus_inset"
+                        android:top="@dimen/nav_item_focus_inset_vertical">
+                        <shape android:shape="rectangle">
+                            <corners android:radius="@dimen/nav_item_focus_corner" />
+                            <solid android:color="@android:color/transparent" />
+                            <stroke
+                                android:width="@dimen/tile_focus_stroke"
+                                android:color="@color/signal" />
+                        </shape>
+                    </item>
+                </layer-list>
+            </item>
+
+            <item android:state_focused="true">
+                <inset
+                    android:insetLeft="@dimen/nav_item_focus_inset"
+                    android:insetRight="@dimen/nav_item_focus_inset"
+                    android:insetTop="@dimen/nav_item_focus_inset_vertical"
+                    android:insetBottom="@dimen/nav_item_focus_inset_vertical">
+                    <shape android:shape="rectangle">
+                        <corners android:radius="@dimen/nav_item_focus_corner" />
+                        <solid android:color="@android:color/transparent" />
+                        <stroke
+                            android:width="@dimen/tile_focus_stroke"
+                            android:color="@color/signal" />
+                    </shape>
+                </inset>
+            </item>
+
+            <item android:state_activated="true">
+                <inset
+                    android:insetLeft="@dimen/nav_rail_settings_indicator_inset"
+                    android:insetRight="@dimen/nav_rail_settings_indicator_inset"
+                    android:insetTop="@dimen/nav_rail_settings_indicator_inset_vertical"
+                    android:insetBottom="@dimen/nav_rail_settings_indicator_inset_vertical">
+                    <shape android:shape="rectangle">
+                        <corners android:radius="@dimen/nav_rail_indicator_corner" />
+                        <solid android:color="@color/signal_container" />
+                    </shape>
+                </inset>
+            </item>
+
+            <item android:drawable="@android:color/transparent" />
+
+        </selector>
+    </item>
+
+    <item android:id="@android:id/mask">
+        <inset
+            android:insetLeft="@dimen/nav_item_focus_inset"
+            android:insetRight="@dimen/nav_item_focus_inset"
+            android:insetTop="@dimen/nav_item_focus_inset_vertical"
+            android:insetBottom="@dimen/nav_item_focus_inset_vertical">
+            <shape android:shape="rectangle">
+                <corners android:radius="@dimen/nav_item_focus_corner" />
+                <solid android:color="@android:color/white" />
+            </shape>
+        </inset>
+    </item>
+
+</ripple>

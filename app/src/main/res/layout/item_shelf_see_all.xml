@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The tile that ends the All games shelf (library/ShelfRecyclerView sizes it like the games
+    beside it): the d-pad's way to See all, since the header's link is touch only. It takes the
+    tiles' focus ring as its foreground, on the same rounded bounds.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="@drawable/shelf_see_all_tile"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="@drawable/tile_focus_ring">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:padding="8dp">
+
+        <ImageView
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_chevron_right"
+            android:tint="@color/signal" />
+
+        <TextView
+            android:id="@+id/shelfSeeAllLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center"
+            android:maxLines="2"
+            android:textColor="@color/content_primary"
+            android:textSize="13sp"
+            tools:text="See all · 12" />
+
+    </LinearLayout>
+
+</FrameLayout>
