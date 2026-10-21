@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    One achievement in a game's list (stats/AchievementsBlockView): its icon, its name with NEW
-    after it when the unlock is from the last twelve hours, its description, then when it was
-    unlocked (with its gamerscore) and its rarity; on the right, the share of players who have
-    it. A hidden one that is still locked shows only that it exists, until it is selected.
+    One achievement in a game's list (stats/AchievementsBlockView), two lines as in the mock: its
+    icon; its name with NEW after it when the unlock is from the last twelve hours, over its
+    description; on the right, when it was unlocked (with its gamerscore) over its rarity band
+    and the share of players who have it. A hidden one that is still locked shows only that it
+    exists, a lock in place of its icon, until it is selected.
 
     The row is a stop (@drawable/stop_bg): focused inline, activated on the companion panel. A
     locked row is dimmed by its content, never by the row, so the ring stays at full strength.
@@ -94,32 +95,45 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
+            android:ellipsize="end"
             android:lineSpacingMultiplier="1.15"
+            android:maxLines="2"
             android:textColor="@color/content_muted"
             android:textSize="13sp"
             tools:text="Catch every kind of fish in the world." />
 
-        <LinearLayout
-            android:layout_width="match_parent"
+    </LinearLayout>
+
+    <!-- The right-hand column: when (and its gamerscore) over the rarity and the share. -->
+    <LinearLayout
+        android:id="@+id/achievementSide"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:gravity="end"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/achievementWhen"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
+            android:singleLine="true"
+            android:textColor="@color/content_primary"
+            android:textSize="12sp"
+            tools:text="2 October · 30 G" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
             android:gravity="center_vertical"
             android:orientation="horizontal">
-
-            <TextView
-                android:id="@+id/achievementWhen"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="10dp"
-                android:singleLine="true"
-                android:textColor="@color/content_primary"
-                android:textSize="12sp"
-                tools:text="2 October · 30 G" />
 
             <TextView
                 android:id="@+id/achievementRarity"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
                 android:background="@drawable/stats_chip_bg"
                 android:fontFamily="sans-serif-medium"
                 android:paddingStart="6dp"
@@ -131,19 +145,18 @@
                 android:textSize="11sp"
                 tools:text="Rare" />
 
+            <TextView
+                android:id="@+id/achievementPercent"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:singleLine="true"
+                android:textColor="@color/content_muted"
+                android:textSize="12sp"
+                tools:text="8.7%" />
+
         </LinearLayout>
 
     </LinearLayout>
-
-    <TextView
-        android:id="@+id/achievementPercent"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="10dp"
-        android:fontFamily="monospace"
-        android:singleLine="true"
-        android:textColor="@color/content_muted"
-        android:textSize="12sp"
-        tools:text="8.7%" />
 
 </LinearLayout>

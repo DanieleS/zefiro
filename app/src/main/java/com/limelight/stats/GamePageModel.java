@@ -20,23 +20,36 @@ import java.util.List;
  * <h3>Figures</h3>
  *
  * Sessions exist only where the GameActivity extension recorded them; Playnite's totals always
- * do. So the figures count sessions when there are some, and fall back to Playnite's launches
- * otherwise, without the bars (there are no weeks without sessions):
+ * do. The total is always Playnite's, and the two figures beside it must come from the same
+ * source: sessions only while GameActivity saw (nearly) all of that time, Playnite's launches
+ * otherwise. A game GameActivity began following late would else read "6h 50m · 21 sessions ·
+ * 2 min per session", the total from one source and the sessions from the other. The bars are
+ * GameActivity's weeks and say so ("Last 12 weeks"), so they stay whenever there are sessions:
  *
  * <pre>
- *   activity and sessions &gt; 0   total · sessions · per session   + 12-week bars
- *   otherwise                    total · launches · per launch    (per launch hidden at 0)
- *   no play time                 no figures at all
+ *   sessions &gt; 0, tracked time covers the total   total · sessions · per session   + bars
+ *   sessions &gt; 0, tracked time falls short         total · launches · per launch    + bars
+ *   no sessions                                      total · launches · per launch
+ *   no play time                                     no figures at all
  * </pre>
+ *
+ * (per launch is hidden at 0 launches; with sessions but no launch counted, the sessions stay.)
  *
  * <h3>Buttons and chips</h3>
  *
  * The chips are the actions sheet's rows ({@link GameActionsSheet#itemsFor}) minus what the
  * buttons already do (start, resume, quit) and minus the row that opened this page (Stats), in
  * the sheet's order. So the sheet's rules carry over unchanged: Hide is missing while the game
- * runs, the companion app only where there is a second screen. A game the library does not list
- * (a statistics row for a game outside the catalogue) gets neither buttons nor chips: there is
- * nothing to start and nothing to act on.
+ * runs, the companion app only where there is a second screen. The start in the other display
+ * stays a chip (Play starts in the preferred one); a start in a virtual display only when the
+ * host has one to give. A game the library does not list (a statistics row for a game outside
+ * the catalogue) gets neither buttons nor chips: there is nothing to start and nothing to act on.
+ *
+ * <h3>One screen or two</h3>
+ *
+ * Where the lower half goes ({@link #bottom}) follows whether the companion panel is showing,
+ * and is decided again each time it comes or goes, from the same answer: the page keeps its
+ * data, filter and focus, only the lower half moves.
  */
 public final class GamePageModel {
 
@@ -142,7 +155,55 @@ public final class GamePageModel {
         NONE
     }
 
+    /** What the companion panel shows of the page: nothing (no panel), or one of three pages. */
+    public enum Bottom {
+        /** No panel: the achievements are inline, under the game, and the chips stay on top. */
+        NONE,
+        /** Asked, not answered yet, or failed: one status row, the retry when it failed. */
+        STATUS,
+        /** The game's achievements. */
+        LIST,
+        /** No achievements tracked: the actions as big rows, and the chips leave the top. */
+        ACTIONS
+    }
+
+    // A tracked total this close to Playnite's is the same time: the host rounds the average.
+    private static final double TRACKED_SHARE = 0.9;
+
     private GamePageModel() {
+    }
+
+    /**
+     * The panel's page for this answer, or {@link Bottom#NONE} while no panel is showing.
+     *
+     * @param panelShowing {@code CompanionDisplayManager.panelShowing()} now
+     */
+    @NonNull
+    public static Bottom bottom(boolean panelShowing, @Nullable GamePageData d) {
+        if (!panelShowing) {
+            return Bottom.NONE;
+        }
+        if (d == null || d.state == GamePageData.State.LOADING) {
+            return Bottom.STATUS;
+        }
+        if (d.hasAchievements()) {
+            return Bottom.LIST;
+        }
+        // Not reached for the achievements: the retry, not a claim that there are none.
+        if (d.state == GamePageData.State.FAILED || d.achievementsFailed) {
+            return Bottom.STATUS;
+        }
+        return Bottom.ACTIONS;
+    }
+
+    /** Whether the chips are drawn on the page itself: not while the panel lists them as rows. */
+    public static boolean chipsOnTop(@NonNull Bottom bottom) {
+        return bottom != Bottom.ACTIONS;
+    }
+
+    /** Whether the achievements block is drawn inline: only with no panel to draw them. */
+    public static boolean achievementsInline(@NonNull Bottom bottom) {
+        return bottom == Bottom.NONE;
     }
 
     /** The figures for a game's statistics, or null when there is no play time to show. */
@@ -151,14 +212,23 @@ public final class GamePageModel {
         if (s == null || s.getPlaytimeSeconds() <= 0) {
             return null;
         }
-        // Without GameActivity the host reports no sessions; a stray count is not trusted either.
-        if (s.hasActivity() && s.getSessions() > 0) {
-            return new Figures(s.getPlaytimeSeconds(), Unit.SESSIONS, s.getSessions(),
-                    s.getAverageSeconds(), s.getWeeks());
-        }
+        long total = s.getPlaytimeSeconds();
         long launches = s.getPlayCount();
-        return new Figures(s.getPlaytimeSeconds(), Unit.LAUNCHES, launches,
-                launches > 0 ? s.getPlaytimeSeconds() / launches : -1, null);
+        // Without GameActivity the host reports no sessions; a stray count is not trusted either.
+        boolean sessions = s.hasActivity() && s.getSessions() > 0;
+        long[] weeks = sessions ? s.getWeeks() : null;
+        if (sessions && (launches <= 0 || tracksTheTotal(s))) {
+            return new Figures(total, Unit.SESSIONS, s.getSessions(), s.getAverageSeconds(), weeks);
+        }
+        return new Figures(total, Unit.LAUNCHES, launches,
+                launches > 0 ? total / launches : -1, weeks);
+    }
+
+    // Whether GameActivity's sessions add up to (nearly) Playnite's total: then counting them
+    // beside it, and dividing by them, describes the same time.
+    private static boolean tracksTheTotal(@NonNull GameStats s) {
+        double tracked = (double) s.getSessions() * s.getAverageSeconds();
+        return tracked >= TRACKED_SHARE * s.getPlaytimeSeconds();
     }
 
     /**
@@ -230,15 +300,24 @@ public final class GamePageModel {
         return app.running ? Primary.RESUME_QUIT : Primary.PLAY;
     }
 
-    /** The chips, in the sheet's order; none for a game the library does not list. */
+    /**
+     * The chips, in the sheet's order; none for a game the library does not list.
+     *
+     * @param virtualDisplay whether the host can start a game in a virtual display, without
+     *                       which "Start in virtual display" is not offered
+     */
     @NonNull
     public static List<GameActionsSheet.Item> chips(@Nullable LibraryApp app,
-                                                   @NonNull GameActionsSheet.State state) {
+                                                   @NonNull GameActionsSheet.State state,
+                                                   boolean virtualDisplay) {
         if (app == null) {
             return Collections.emptyList();
         }
         List<GameActionsSheet.Item> chips = new ArrayList<>();
         for (GameActionsSheet.Item item : GameActionsSheet.itemsFor(app, state)) {
+            if (item == GameActionsSheet.Item.START_VIRTUAL_DISPLAY && !virtualDisplay) {
+                continue;
+            }
             if (!isPrimary(item) && item != GameActionsSheet.Item.STATS) {
                 chips.add(item);
             }
@@ -246,11 +325,42 @@ public final class GamePageModel {
         return Collections.unmodifiableList(chips);
     }
 
-    // What the buttons beside the cover already offer, in one form or another.
+    /**
+     * The line of metadata under the title: "2023 · RPG · Sabotage Studio", the year, up to
+     * three genres and the first developer, only the parts the host has. Empty for none. No
+     * score: a bare percentage there reads as nothing in particular.
+     */
+    @NonNull
+    public static String metaLine(@Nullable String year, @Nullable List<String> genres,
+                                  @Nullable List<String> developers) {
+        List<String> parts = new ArrayList<>(3);
+        if (year != null && !year.isEmpty()) {
+            parts.add(year);
+        }
+        if (genres != null && !genres.isEmpty()) {
+            parts.add(join(", ", genres.subList(0, Math.min(3, genres.size()))));
+        }
+        if (developers != null && !developers.isEmpty() && !developers.get(0).isEmpty()) {
+            parts.add(developers.get(0));
+        }
+        return join(" · ", parts);
+    }
+
+    private static String join(String separator, List<String> parts) {
+        StringBuilder out = new StringBuilder();
+        for (String part : parts) {
+            if (out.length() > 0) {
+                out.append(separator);
+            }
+            out.append(part);
+        }
+        return out.toString();
+    }
+
+    // What the buttons beside the cover already offer, in one form or another. A start in the
+    // other display is not: Play starts in the preferred one, so that stays a chip.
     private static boolean isPrimary(GameActionsSheet.Item item) {
         switch (item) {
-            case START_PRIMARY_DISPLAY:
-            case START_VIRTUAL_DISPLAY:
             case RESUME:
             case QUIT:
             case QUIT_AND_START:

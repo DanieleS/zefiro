@@ -75,7 +75,13 @@
 
             </LinearLayout>
 
-            <FrameLayout
+            <!--
+                The game's row over its backdrop. The backdrop and its scrim span the row by
+                their edges, never by their own size: in a frame, wrapped to its content, a
+                match_parent picture is measured at its bitmap's height first, and a tall
+                background made the hero a screen high, with everything else under it.
+            -->
+            <RelativeLayout
                 android:id="@+id/gamePageHero"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
@@ -83,7 +89,9 @@
                 <ImageView
                     android:id="@+id/gamePageBackdrop"
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_alignTop="@+id/gamePageTop"
+                    android:layout_alignBottom="@+id/gamePageTop"
                     android:importantForAccessibility="no"
                     android:scaleType="centerCrop"
                     android:visibility="gone" />
@@ -91,7 +99,9 @@
                 <View
                     android:id="@+id/gamePageScrim"
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_alignTop="@+id/gamePageTop"
+                    android:layout_alignBottom="@+id/gamePageTop"
                     android:background="@drawable/hero_scrim"
                     android:visibility="gone" />
 
@@ -410,23 +420,18 @@
 
                             </LinearLayout>
 
-                            <HorizontalScrollView
-                                android:id="@+id/gamePageChipsScroll"
+                            <!-- Wrapped onto more lines as the width needs, as the mock's
+                                 flex-wrap row: no chip is ever cut at the edge. A ChipGroup for
+                                 its flow layout only; the chips are the plain stops below. -->
+                            <com.google.android.material.chip.ChipGroup
+                                android:id="@+id/gamePageChips"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="6dp"
-                                android:clipToPadding="false"
-                                android:overScrollMode="never"
-                                android:scrollbars="none"
-                                android:visibility="gone">
-
-                                <LinearLayout
-                                    android:id="@+id/gamePageChips"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:orientation="horizontal" />
-
-                            </HorizontalScrollView>
+                                android:visibility="gone"
+                                app:chipSpacingHorizontal="0dp"
+                                app:chipSpacingVertical="0dp"
+                                app:singleLine="false" />
 
                             <!-- R2 and L2 between this screen and what is below it; d-pad first only. -->
                             <com.limelight.ui.GamepadHintsView
@@ -441,7 +446,7 @@
 
                 </LinearLayout>
 
-            </FrameLayout>
+            </RelativeLayout>
 
             <com.limelight.stats.AchievementsBlockView
                 android:id="@+id/gamePageAchievements"

@@ -356,7 +356,11 @@ public class AchievementsBlockView extends LinearLayout {
         TextView share = row.findViewById(R.id.achievementPercent);
 
         icon.setClipToOutline(true);
-        if (session != null) {
+        if (masked) {
+            // A lock until revealed: the picture would give away what the name keeps back. The
+            // tag goes too, so a load of the row's earlier achievement does not land over it.
+            AchievementIcons.showMasked(icon);
+        } else if (session != null) {
             AchievementIcons.load(icon, a, session);
         } else {
             icon.setImageDrawable(null);
@@ -365,8 +369,10 @@ public class AchievementsBlockView extends LinearLayout {
         float alpha = a.isUnlocked() ? 1f : 0.75f;
         icon.setAlpha(alpha);
         content.setAlpha(alpha);
-        share.setAlpha(alpha);
-        row.findViewById(R.id.achievementLock).setVisibility(a.isUnlocked() ? GONE : VISIBLE);
+        row.findViewById(R.id.achievementSide).setAlpha(alpha);
+        // The icon is the lock already for a masked one.
+        row.findViewById(R.id.achievementLock).setVisibility(a.isUnlocked() || masked
+                ? GONE : VISIBLE);
         isNew.setVisibility(fresh ? VISIBLE : GONE);
 
         if (masked) {

@@ -15,9 +15,11 @@ import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.TimeZone;
 
+import static com.limelight.nvstream.http.TestGameStats.achievements;
 import static com.limelight.nvstream.http.TestGameStats.json;
 import static com.limelight.nvstream.http.TestGameStats.stats;
 import static org.junit.Assert.assertArrayEquals;
@@ -160,6 +162,27 @@ public class GamePageModelTest {
     }
 
     @Test
+    public void sessionsCoveringOnlyPartOfTheTotal_countLaunches_keepingTheBars() {
+        // Sea of Stars: 6h 50m in Playnite, 21 sessions of 2 min since GameActivity came.
+        GameStats s = stats(json("activity", true, "playtime_seconds", 24_600L, "play_count", 40,
+                "sessions", 21, "average_seconds", 120L, "weeks", new JSONArray()));
+        GamePageModel.Figures f = GamePageModel.figures(s);
+
+        assertEquals(GamePageModel.Unit.LAUNCHES, f.unit);
+        assertEquals(24_600L, f.totalSeconds);
+        assertEquals(40, f.count);
+        assertEquals(24_600L / 40, f.averageSeconds);
+        assertTrue(f.showsBars());
+    }
+
+    @Test
+    public void sessionsWithoutAnyLaunchCounted_stayInSessions() {
+        GameStats s = stats(json("activity", true, "playtime_seconds", 24_600L, "play_count", 0,
+                "sessions", 21, "average_seconds", 120L));
+        assertEquals(GamePageModel.Unit.SESSIONS, GamePageModel.figures(s).unit);
+    }
+
+    @Test
     public void noLaunches_hidesTheAverage() {
         GamePageModel.Figures f = GamePageModel.figures(launchesOnly(0, null));
         assertEquals(-1, f.averageSeconds);
@@ -235,18 +258,30 @@ public class GamePageModelTest {
 
     @Test
     public void chips_areTheSheetsRows_minusWhatTheButtonsDo_andStats() {
-        List<Item> idle = GamePageModel.chips(game(1, false, false), state(0, true));
-        assertEquals(Arrays.asList(Item.HIDE, Item.COMPANION_APP, Item.DETAILS,
-                Item.PIN_SHORTCUT, Item.EXPORT_LAUNCHER), idle);
+        List<Item> idle = GamePageModel.chips(game(1, false, false), state(0, true), true);
+        assertEquals(Arrays.asList(Item.START_VIRTUAL_DISPLAY, Item.HIDE, Item.COMPANION_APP,
+                Item.DETAILS, Item.PIN_SHORTCUT, Item.EXPORT_LAUNCHER), idle);
 
-        List<Item> another = GamePageModel.chips(game(1, false, false), state(2, false));
+        List<Item> another = GamePageModel.chips(game(1, false, false), state(2, false), true);
         assertArrayEquals(new Item[]{Item.HIDE, Item.DETAILS, Item.PIN_SHORTCUT,
                 Item.EXPORT_LAUNCHER}, another.toArray());
     }
 
     @Test
+    public void chips_offerAVirtualDisplay_onlyWhereTheHostHasOne() {
+        List<Item> without = GamePageModel.chips(game(1, false, false), state(0, false), false);
+        assertFalse(without.contains(Item.START_VIRTUAL_DISPLAY));
+        assertEquals(Item.HIDE, without.get(0));
+
+        // Preferring the virtual display, Play starts there: the chip is the primary display.
+        State preferVirtual = new State(0, true, false, true, true);
+        List<Item> other = GamePageModel.chips(game(1, false, false), preferVirtual, false);
+        assertEquals(Item.START_PRIMARY_DISPLAY, other.get(0));
+    }
+
+    @Test
     public void chips_haveNoHide_whileTheGameRuns() {
-        List<Item> running = GamePageModel.chips(game(1, true, false), state(1, true));
+        List<Item> running = GamePageModel.chips(game(1, true, false), state(1, true), true);
         assertFalse(running.contains(Item.HIDE));
         assertEquals(Arrays.asList(Item.COMPANION_APP, Item.DETAILS, Item.PIN_SHORTCUT,
                 Item.EXPORT_LAUNCHER), running);
@@ -255,6 +290,69 @@ public class GamePageModelTest {
     @Test
     public void notInTheLibrary_noButtonsNoChips() {
         assertEquals(GamePageModel.Primary.NONE, GamePageModel.primary(null));
-        assertTrue(GamePageModel.chips(null, state(0, true)).isEmpty());
+        assertTrue(GamePageModel.chips(null, state(0, true), true).isEmpty());
+    }
+
+    // --- Metadata ---
+
+    @Test
+    public void metaLine_yearGenresStudio_withoutTheScore() {
+        assertEquals("2023 · RPG · Sabotage Studio", GamePageModel.metaLine("2023",
+                Arrays.asList("RPG"), Arrays.asList("Sabotage Studio", "Other")));
+        assertEquals("2016 · Shooter, Simulator, Adventure", GamePageModel.metaLine("2016",
+                Arrays.asList("Shooter", "Simulator", "Adventure", "Survival"), null));
+    }
+
+    @Test
+    public void metaLine_leavesNoGapForAMissingPart() {
+        assertEquals("Hello Games", GamePageModel.metaLine("",
+                Collections.<String>emptyList(), Arrays.asList("Hello Games")));
+        assertEquals("", GamePageModel.metaLine(null, null, null));
+    }
+
+    // --- One screen or two ---
+
+    @Test
+    public void noPanel_everythingInline_whateverTheAnswer() {
+        for (GamePageData d : Arrays.asList(null, GamePageData.loading(), withAchievements(),
+                GamePageData.from(null, null, false, false), GamePageData.unreachable())) {
+            GamePageModel.Bottom bottom = GamePageModel.bottom(false, d);
+            assertEquals(GamePageModel.Bottom.NONE, bottom);
+            assertTrue(GamePageModel.achievementsInline(bottom));
+            assertTrue(GamePageModel.chipsOnTop(bottom));
+        }
+    }
+
+    @Test
+    public void panel_takesTheLowerHalf_byTheAnswer() {
+        assertEquals(GamePageModel.Bottom.STATUS, GamePageModel.bottom(true, null));
+        assertEquals(GamePageModel.Bottom.STATUS, GamePageModel.bottom(true, GamePageData.loading()));
+        assertEquals(GamePageModel.Bottom.STATUS, GamePageModel.bottom(true, GamePageData.unreachable()));
+        assertEquals(GamePageModel.Bottom.LIST, GamePageModel.bottom(true, withAchievements()));
+        GamePageModel.Bottom none = GamePageModel.bottom(true, GamePageData.from(null, null, false, false));
+        assertEquals(GamePageModel.Bottom.ACTIONS, none);
+        assertFalse(GamePageModel.chipsOnTop(none));
+        assertFalse(GamePageModel.achievementsInline(GamePageModel.bottom(true, withAchievements())));
+    }
+
+    @Test
+    public void thePanelGoingAndComing_movesOnlyTheLowerHalf() {
+        // The user turns the Thor's lower screen off and on again over the same answer: the
+        // achievements come up inline and go back down, the chips come up for a game without.
+        GamePageData list = withAchievements();
+        GamePageData nothing = GamePageData.from(null, null, false, false);
+        boolean[] panel = {true, false, true};
+        GamePageModel.Bottom[] listWay = {GamePageModel.Bottom.LIST, GamePageModel.Bottom.NONE,
+                GamePageModel.Bottom.LIST};
+        boolean[] chipsWay = {false, true, false};
+        for (int i = 0; i < panel.length; i++) {
+            assertEquals(listWay[i], GamePageModel.bottom(panel[i], list));
+            assertEquals(chipsWay[i], GamePageModel.chipsOnTop(GamePageModel.bottom(panel[i], nothing)));
+        }
+    }
+
+    private static GamePageData withAchievements() {
+        return GamePageData.from(null, achievements(json("total", 2, "unlocked", 1)),
+                false, false);
     }
 }

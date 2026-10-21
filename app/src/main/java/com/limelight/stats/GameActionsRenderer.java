@@ -9,6 +9,7 @@ import android.widget.TextView;
 
 import androidx.annotation.DrawableRes;
 import androidx.annotation.NonNull;
+import androidx.annotation.StringRes;
 
 import com.limelight.R;
 import com.limelight.companion.CompanionPage;
@@ -80,6 +81,30 @@ final class GameActionsRenderer implements CompanionPageRenderer {
             row.findViewById(R.id.companionActionCheck).setVisibility(
                     item == GameActionsSheet.Item.HIDE && page.hidden ? View.VISIBLE : View.GONE);
             rows.addView(row);
+        }
+    }
+
+    /**
+     * Each action's words on a game's page, chips and rows alike, in the mock's sentence case
+     * ("Hide from the library", "Export launcher file"); the actions sheet keeps its own.
+     */
+    @StringRes
+    static int labelOf(@NonNull GameActionsSheet.Item item) {
+        switch (item) {
+            case START_VIRTUAL_DISPLAY:
+                return R.string.game_page_action_start_vdisplay;
+            case START_PRIMARY_DISPLAY:
+                return R.string.game_page_action_start_primary;
+            case HIDE:
+                return R.string.game_page_action_hide;
+            case DETAILS:
+                return R.string.game_page_action_details;
+            case PIN_SHORTCUT:
+                return R.string.game_page_action_shortcut;
+            case EXPORT_LAUNCHER:
+                return R.string.game_page_action_export;
+            default:
+                return item.label;
         }
     }
 
