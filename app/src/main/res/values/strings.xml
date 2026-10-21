@@ -1149,4 +1149,14 @@
     <string name="game_page_percent">%1$s%%</string>
     <string name="game_page_no_achievements">No achievements tracked for this game</string>
     <string name="game_page_no_achievements_detail">SuccessStory doesn\'t follow %1$s.</string>
+
+    <!-- Screens T4: the game page's lower half on the companion panel. -->
+    <!-- The gamepad hint for R2 while the d-pad is up top, for a game with no achievements:
+         R2 goes down to its actions, on the companion panel. -->
+    <string name="game_page_hint_actions">Actions</string>
+    <!-- The gamepad hint while the d-pad is on the companion panel; %1$s is the button L2 goes
+         back to: "Resume" or "Play". -->
+    <string name="game_page_hint_below">Focus is on the lower screen; L2 brings it back to %1$s</string>
+    <!-- As game_page_hint_below, for a game with neither Resume nor Play (not in the library). -->
+    <string name="game_page_hint_below_up">Focus is on the lower screen; L2 brings it back up</string>
 </resources>

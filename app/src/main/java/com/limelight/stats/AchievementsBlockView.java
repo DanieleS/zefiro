@@ -46,7 +46,18 @@ import java.util.Set;
  *                      and A or a tap on it asks again ({@link Listener#onRetry})
  * </pre>
  *
- * Inline, on the main screen, the segments and rows take real focus. Main thread only.
+ * <h3>Two screens</h3>
+ *
+ * <pre>
+ *   inline   on the main screen, in the page's one scroll: the segments, the rows and the
+ *            failed row take real focus, and the list is as tall as its rows
+ *   panel    on the companion panel ({@link #setInline}), drawn by GameAchievementsRenderer:
+ *            nothing is focusable, the d-pad's place is the virtual focus
+ *            ({@link #setVirtualFocus}, drawn as state_activated), the header and the filter
+ *            stay put and the list scrolls under them in the space left
+ * </pre>
+ *
+ * Main thread only.
  */
 public class AchievementsBlockView extends LinearLayout {
 
@@ -80,6 +91,7 @@ public class AchievementsBlockView extends LinearLayout {
     private Listener listener;
     @Nullable
     private HostSession session;
+    private boolean inline = true;
 
     public AchievementsBlockView(Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
@@ -118,6 +130,83 @@ public class AchievementsBlockView extends LinearLayout {
 
     public void setListener(@Nullable Listener listener) {
         this.listener = listener;
+    }
+
+    /**
+     * Inline on the main screen, or drawn on the companion panel (see the class comment). On the
+     * panel the block is meant to fill its parent, so the list can take the height left.
+     */
+    public void setInline(boolean inline) {
+        if (this.inline == inline) {
+            return;
+        }
+        this.inline = inline;
+        filterView.setInline(inline);
+        failed.setFocusable(inline);
+        // Inline, everything wraps and the page's scroll moves it; on the panel, the list alone
+        // scrolls, in what the header and the filter leave of the block's height.
+        LayoutParams trackedLp = (LayoutParams) tracked.getLayoutParams();
+        trackedLp.height = inline ? LayoutParams.WRAP_CONTENT : 0;
+        trackedLp.weight = inline ? 0 : 1;
+        tracked.setLayoutParams(trackedLp);
+        LayoutParams listLp = (LayoutParams) list.getLayoutParams();
+        listLp.height = inline ? LayoutParams.WRAP_CONTENT : 0;
+        listLp.weight = inline ? 0 : 1;
+        list.setLayoutParams(listLp);
+        list.setNestedScrollingEnabled(!inline);
+        if (inline) {
+            adapter.focusedRow = RecyclerView.NO_POSITION;
+            filterView.setVirtualFocus(SegmentedControlView.NO_FOCUS);
+            failed.setActivated(false);
+        }
+        adapter.notifyDataSetChanged();
+    }
+
+    /**
+     * On the panel: where the d-pad is, ringed, and kept in view. At most one of the two is
+     * set; the other is -1 (both for none).
+     *
+     * @param segment the filter segment the d-pad is on, or -1
+     * @param row     the row the d-pad is on, as a position in the filtered list, or -1
+     */
+    public void setVirtualFocus(int segment, int row) {
+        if (inline) {
+            return;
+        }
+        filterView.setVirtualFocus(segment >= 0 ? segment : SegmentedControlView.NO_FOCUS);
+        int next = row >= 0 && row < adapter.items.size() ? row : RecyclerView.NO_POSITION;
+        int previous = adapter.focusedRow;
+        if (next == previous) {
+            return;
+        }
+        adapter.focusedRow = next;
+        // The rows on screen are marked here; one scrolled in later is marked by its bind.
+        markRow(previous, false);
+        if (next != RecyclerView.NO_POSITION) {
+            markRow(next, true);
+            list.scrollToPosition(next);
+        }
+    }
+
+    private void markRow(int position, boolean activated) {
+        if (position == RecyclerView.NO_POSITION) {
+            return;
+        }
+        RecyclerView.ViewHolder holder = list.findViewHolderForAdapterPosition(position);
+        if (holder != null) {
+            holder.itemView.setActivated(activated);
+        }
+    }
+
+    /** A row's position in the list as filtered now, or -1 when it is not in it. */
+    public int positionOf(@NonNull Achievement achievement) {
+        List<Achievement> items = adapter.items;
+        for (int i = 0; i < items.size(); i++) {
+            if (items.get(i) == achievement) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     /** Where the icons come from: the host the achievements belong to. */
@@ -334,8 +423,20 @@ public class AchievementsBlockView extends LinearLayout {
         private Set<String> revealed = Collections.emptySet();
         private long nowMillis;
 
+        // The row the panel's d-pad is on, or NO_POSITION; always NO_POSITION inline.
+        private int focusedRow = RecyclerView.NO_POSITION;
+
         void set(List<Achievement> items, AchievementFilter.Filter filter, Set<String> revealed,
                  long nowMillis) {
+            if (items.equals(this.items) && filter == this.filter
+                    && revealed.equals(this.revealed) && nowMillis == this.nowMillis) {
+                // The panel binds again for every move of its d-pad: the same rows are not
+                // bound again for it, which would reload every icon on screen.
+                return;
+            }
+            if (!items.equals(this.items)) {
+                focusedRow = RecyclerView.NO_POSITION;
+            }
             this.items = items;
             this.filter = filter;
             this.revealed = revealed;
@@ -354,6 +455,8 @@ public class AchievementsBlockView extends LinearLayout {
         public void onBindViewHolder(@NonNull Holder holder, int position) {
             Achievement a = items.get(position);
             holder.achievement = a;
+            holder.itemView.setFocusable(inline);
+            holder.itemView.setActivated(!inline && position == focusedRow);
             bindRow(holder.itemView, a, AchievementFilter.isMasked(a, revealed),
                     AchievementFilter.isNew(a, nowMillis), session, text);
         }

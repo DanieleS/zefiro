@@ -1,5 +1,6 @@
 package com.limelight.main;
 
+import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -29,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.BiConsumer;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -360,6 +362,56 @@ public class PanelFocusTest {
 
         assertNull(pages.page);
         assertEquals(PanelFocus.Zone.TOP, focus.zone());
+    }
+
+    @Test
+    public void triggersPulledOnTheirAxesMoveTheDpadDownAndBackUp() {
+        // As the main screen does: a trigger's edge becomes an L2 or R2 key-down for the
+        // section, which offers it to PanelFocus first and then binds it itself.
+        TriggerEdges edges = new TriggerEdges();
+        List<Integer> sectionKeys = new ArrayList<>();
+        BiConsumer<Float, Float> axes = (left, right) -> {
+            int e = edges.onAxes(left, right);
+            if ((e & TriggerEdges.L2_DOWN) != 0) {
+                offerTrigger(KeyEvent.KEYCODE_BUTTON_L2, sectionKeys);
+            }
+            if ((e & TriggerEdges.R2_DOWN) != 0) {
+                offerTrigger(KeyEvent.KEYCODE_BUTTON_R2, sectionKeys);
+            }
+        };
+
+        axes.accept(0f, 0.8f);
+        assertEquals(Arrays.asList(KeyEvent.KEYCODE_BUTTON_R2), sectionKeys);
+        assertEquals(PanelFocus.Zone.BOTTOM, focus.zone());
+        assertFalse("the top's ring goes", top.isFocused());
+        assertEquals(100, pages.page.focusedStop());
+
+        // Held, then let go part of the way: no second press.
+        axes.accept(0f, 1f);
+        axes.accept(0f, 0.4f);
+        assertEquals(1, sectionKeys.size());
+
+        axes.accept(0f, 0f);
+        axes.accept(0.9f, 0f);
+        assertEquals(Arrays.asList(KeyEvent.KEYCODE_BUTTON_R2, KeyEvent.KEYCODE_BUTTON_L2),
+                sectionKeys);
+        assertEquals(PanelFocus.Zone.TOP, focus.zone());
+        assertTrue("L2 gives the ring back", top.isFocused());
+        assertEquals(CompanionPage.NO_STOP, pages.page.focusedStop());
+    }
+
+    // The section's key handling for the triggers, as a game page does it: PanelFocus does not
+    // take L2 or R2 even with the d-pad on the page, so they always reach the section.
+    private void offerTrigger(int code, List<Integer> seen) {
+        KeyEvent press = new KeyEvent(0, 0, KeyEvent.ACTION_DOWN, code, 0, 0, 1, 0, 0,
+                InputDevice.SOURCE_GAMEPAD);
+        assertFalse(focus.onKey(press));
+        seen.add(code);
+        if (code == KeyEvent.KEYCODE_BUTTON_R2) {
+            focus.enterBottom(100);
+        } else {
+            focus.leaveBottom(true);
+        }
     }
 
     // ViewRootImpl tells the observer when the window enters touch mode; a test has no touches

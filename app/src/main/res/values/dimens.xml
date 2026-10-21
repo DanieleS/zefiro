@@ -226,5 +226,7 @@
     <dimen name="game_page_bars_height">52dp</dimen>
     <dimen name="game_page_block_gap">20dp</dimen>
     <dimen name="achievement_icon_size">40dp</dimen>
+    <!-- Screens T4: a game's actions as rows on the companion panel, the mock's big rows. -->
+    <dimen name="companion_action_row_height">56dp</dimen>
 
 </resources>

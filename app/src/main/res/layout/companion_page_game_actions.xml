@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A game's actions on the companion panel (stats/GameActionsRenderer), for a game without
+    achievements, after the approved GamePage_B mock: the card saying SuccessStory does not
+    follow it, the game's name as a caption, then one big row per action. The rows are filled
+    in by the renderer (companion_page_game_action_row).
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/companionActionsScroll"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface_deep"
+    android:clipToPadding="false"
+    android:overScrollMode="never"
+    android:paddingStart="12dp"
+    android:paddingTop="14dp"
+    android:paddingEnd="12dp"
+    android:paddingBottom="14dp"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/game_page_card_bg"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="14dp">
+
+            <ImageView
+                android:layout_width="@dimen/achievement_icon_size"
+                android:layout_height="@dimen/achievement_icon_size"
+                android:background="@drawable/stats_icon_bg"
+                android:importantForAccessibility="no"
+                android:scaleType="center"
+                android:src="@drawable/ic_trophy"
+                android:tint="@color/content_muted" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="@string/game_page_no_achievements"
+                    android:textColor="@color/content_primary"
+                    android:textSize="15sp" />
+
+                <TextView
+                    android:id="@+id/companionActionsDetail"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:textColor="@color/content_muted"
+                    android:textSize="13sp"
+                    tools:text="SuccessStory doesn't follow Turing Complete." />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/companionActionsTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:layout_marginTop="14dp"
+            android:layout_marginBottom="6dp"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif-medium"
+            android:letterSpacing="0.14"
+            android:singleLine="true"
+            android:textAllCaps="true"
+            android:textColor="@color/content_muted"
+            android:textSize="12sp"
+            tools:text="Turing Complete" />
+
+        <LinearLayout
+            android:id="@+id/companionActionsRows"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+    </LinearLayout>
+
+</ScrollView>

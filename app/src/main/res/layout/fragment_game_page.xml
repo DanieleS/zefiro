@@ -14,424 +14,444 @@
       [Resume]   status | figures                [Resume            ] [Quit game]
       [Quit  ]   weeks                           status | figures
                  chips                           weeks
-      achievements                               chips
+      hints                                      chips
+      achievements                               hints
                                                  achievements
+
+    With the companion panel showing, the achievements (or, for a game without any, the chips)
+    move to the panel, and this screen keeps the game. The scroll sits in a frame so the panel's
+    virtual focus (main/PanelFocus) can add its focus sink beside it: a scroll view takes one
+    child only, and the sink outside it means the d-pad on the panel never scrolls this screen.
 -->
-<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/gamePageScroll"
+    android:id="@+id/gamePageRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/surface_deep"
-    android:fillViewport="true"
-    android:scrollbars="none">
+    android:background="@color/surface_deep">
 
-    <LinearLayout
-        android:id="@+id/gamePageColumn"
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/gamePageScroll"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingStart="@dimen/section_gutter"
-        android:paddingEnd="@dimen/section_gutter"
-        android:paddingBottom="24dp">
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        android:scrollbars="none">
 
-        <!-- The arrow is for touch; the d-pad has B. -->
         <LinearLayout
+            android:id="@+id/gamePageColumn"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="-8dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:orientation="vertical"
+            android:paddingStart="@dimen/section_gutter"
+            android:paddingEnd="@dimen/section_gutter"
+            android:paddingBottom="24dp">
 
-            <ImageButton
-                android:id="@+id/gamePageBack"
-                style="@style/HeaderAction"
-                android:contentDescription="@string/library_back"
-                android:focusable="false"
-                android:src="@drawable/ic_arrow_back" />
-
-            <TextView
-                android:id="@+id/gamePageOrigin"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:ellipsize="end"
-                android:singleLine="true"
-                android:textColor="@color/content_muted"
-                android:textSize="13sp"
-                tools:text="Stats · This month" />
-
-        </LinearLayout>
-
-        <FrameLayout
-            android:id="@+id/gamePageHero"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <ImageView
-                android:id="@+id/gamePageBackdrop"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:importantForAccessibility="no"
-                android:scaleType="centerCrop"
-                android:visibility="gone" />
-
-            <View
-                android:id="@+id/gamePageScrim"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="@drawable/hero_scrim"
-                android:visibility="gone" />
-
+            <!-- The arrow is for touch; the d-pad has B. -->
             <LinearLayout
-                android:id="@+id/gamePageTop"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:baselineAligned="false"
-                android:orientation="horizontal"
-                android:paddingTop="4dp"
-                android:paddingBottom="4dp">
+                android:layout_marginStart="-8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-                <LinearLayout
-                    android:id="@+id/gamePageCoverColumn"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical">
+                <ImageButton
+                    android:id="@+id/gamePageBack"
+                    style="@style/HeaderAction"
+                    android:contentDescription="@string/library_back"
+                    android:focusable="false"
+                    android:src="@drawable/ic_arrow_back" />
 
-                    <FrameLayout
-                        android:id="@+id/gamePageCoverFrame"
-                        android:layout_width="@dimen/game_page_cover_width"
-                        android:layout_height="@dimen/game_page_cover_height">
-
-                        <ImageView
-                            android:id="@+id/gamePageCover"
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            android:background="@drawable/stats_icon_bg"
-                            android:importantForAccessibility="no"
-                            android:scaleType="centerCrop" />
-
-                        <TextView
-                            android:id="@+id/gamePageBadge"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_margin="6dp"
-                            android:background="@drawable/game_page_badge_bg"
-                            android:letterSpacing="0.06"
-                            android:paddingStart="5dp"
-                            android:paddingTop="1dp"
-                            android:paddingEnd="5dp"
-                            android:paddingBottom="1dp"
-                            android:text="@string/game_page_running"
-                            android:textAllCaps="true"
-                            android:textColor="@color/on_status_online"
-                            android:textSize="10sp"
-                            android:textStyle="bold"
-                            android:visibility="gone" />
-
-                    </FrameLayout>
-
-                    <LinearLayout
-                        android:id="@+id/gamePageButtons"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        android:orientation="vertical">
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/gamePagePrimary"
-                            style="@style/Widget.Zefiro.PrimaryButton"
-                            android:layout_width="match_parent"
-                            android:ellipsize="end"
-                            android:maxLines="1"
-                            android:paddingStart="16dp"
-                            android:paddingEnd="16dp"
-                            android:text="@string/game_page_play"
-                            app:icon="@drawable/ic_resume"
-                            app:iconGravity="textStart"
-                            app:iconPadding="6dp"
-                            app:iconSize="16dp" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/gamePageQuit"
-                            style="@style/Widget.Zefiro.DangerButton"
-                            android:layout_width="match_parent"
-                            android:layout_marginTop="8dp"
-                            android:ellipsize="end"
-                            android:maxLines="1"
-                            android:paddingStart="16dp"
-                            android:paddingEnd="16dp"
-                            android:text="@string/library_quit_game"
-                            android:visibility="gone"
-                            app:icon="@drawable/ic_stop"
-                            app:iconGravity="textStart"
-                            app:iconPadding="6dp"
-                            app:iconSize="14dp" />
-
-                    </LinearLayout>
-
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/gamePageInfo"
+                <TextView
+                    android:id="@+id/gamePageOrigin"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="@dimen/game_page_column_gap"
                     android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:id="@+id/gamePageTag"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:drawableStart="@drawable/game_page_dot"
-                        android:drawablePadding="6dp"
-                        android:ellipsize="end"
-                        android:gravity="center_vertical"
-                        android:letterSpacing="0.12"
-                        android:singleLine="true"
-                        android:textAllCaps="true"
-                        android:textColor="@color/content_secondary"
-                        android:textSize="11sp"
-                        android:textStyle="bold"
-                        tools:text="Running on PC Davide" />
-
-                    <TextView
-                        android:id="@+id/gamePageTitle"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:ellipsize="end"
-                        android:maxLines="2"
-                        android:textColor="@color/content_primary"
-                        android:textSize="@dimen/game_page_title_size"
-                        android:textStyle="bold"
-                        tools:text="Sea of Stars" />
-
-                    <!-- Compact only: the PC on a line of its own. -->
-                    <TextView
-                        android:id="@+id/gamePageHost"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:ellipsize="end"
-                        android:singleLine="true"
-                        android:textColor="@color/content_secondary"
-                        android:textSize="13sp"
-                        android:visibility="gone"
-                        tools:text="PC Davide · Online" />
-
-                    <TextView
-                        android:id="@+id/gamePageMeta"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:textColor="@color/content_secondary"
-                        android:textSize="13sp"
-                        android:visibility="gone"
-                        tools:text="2023 · RPG · session before this: yesterday, 2h 05m" />
-
-                    <LinearLayout
-                        android:id="@+id/gamePageBody"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:orientation="vertical">
-
-                        <!-- Loading, failed (a stop: A or a tap retries), or nothing yet. -->
-                        <LinearLayout
-                            android:id="@+id/gamePageStatus"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:background="@drawable/stop_bg"
-                            android:gravity="center_vertical"
-                            android:minHeight="@dimen/action_size"
-                            android:orientation="horizontal"
-                            android:paddingStart="10dp"
-                            android:paddingTop="8dp"
-                            android:paddingEnd="10dp"
-                            android:paddingBottom="8dp"
-                            android:visibility="gone">
-
-                            <ProgressBar
-                                android:id="@+id/gamePageStatusProgress"
-                                android:layout_width="18dp"
-                                android:layout_height="18dp"
-                                android:layout_marginEnd="10dp"
-                                android:indeterminateTint="@color/signal" />
-
-                            <LinearLayout
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:orientation="vertical">
-
-                                <TextView
-                                    android:id="@+id/gamePageStatusText"
-                                    android:layout_width="match_parent"
-                                    android:layout_height="wrap_content"
-                                    android:textColor="@color/content_secondary"
-                                    android:textSize="14sp"
-                                    tools:text="Loading…" />
-
-                                <TextView
-                                    android:id="@+id/gamePageStatusHint"
-                                    android:layout_width="match_parent"
-                                    android:layout_height="wrap_content"
-                                    android:layout_marginTop="2dp"
-                                    android:text="@string/game_page_retry"
-                                    android:textColor="@color/content_muted"
-                                    android:textSize="12sp"
-                                    android:visibility="gone" />
-
-                            </LinearLayout>
-
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:id="@+id/gamePageFigures"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:baselineAligned="false"
-                            android:orientation="horizontal"
-                            android:visibility="gone">
-
-                            <LinearLayout style="@style/GamePageFigureCard">
-
-                                <TextView
-                                    android:id="@+id/gamePageTotal"
-                                    style="@style/GamePageFigure"
-                                    tools:text="38h 20m" />
-
-                                <TextView
-                                    style="@style/GamePageCap"
-                                    android:text="@string/game_stats_total" />
-
-                            </LinearLayout>
-
-                            <LinearLayout
-                                style="@style/GamePageFigureCard"
-                                android:layout_marginStart="8dp">
-
-                                <TextView
-                                    android:id="@+id/gamePageCount"
-                                    style="@style/GamePageFigure"
-                                    tools:text="27" />
-
-                                <TextView
-                                    android:id="@+id/gamePageCountLabel"
-                                    style="@style/GamePageCap"
-                                    tools:text="sessions" />
-
-                            </LinearLayout>
-
-                            <LinearLayout
-                                android:id="@+id/gamePageAverageBlock"
-                                style="@style/GamePageFigureCard"
-                                android:layout_marginStart="8dp">
-
-                                <TextView
-                                    android:id="@+id/gamePageAverage"
-                                    style="@style/GamePageFigure"
-                                    tools:text="1h 25m" />
-
-                                <TextView
-                                    android:id="@+id/gamePageAverageLabel"
-                                    style="@style/GamePageCap"
-                                    tools:text="per session" />
-
-                            </LinearLayout>
-
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:id="@+id/gamePageWeeks"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:background="@drawable/game_page_card_bg"
-                            android:baselineAligned="false"
-                            android:gravity="bottom"
-                            android:orientation="horizontal"
-                            android:paddingStart="14dp"
-                            android:paddingTop="10dp"
-                            android:paddingEnd="14dp"
-                            android:paddingBottom="10dp"
-                            android:visibility="gone">
-
-                            <LinearLayout
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_gravity="center_vertical"
-                                android:minWidth="96dp"
-                                android:orientation="vertical">
-
-                                <TextView
-                                    android:id="@+id/gamePageThisWeek"
-                                    style="@style/GamePageFigure"
-                                    android:textColor="@color/signal"
-                                    tools:text="4h 10m" />
-
-                                <TextView
-                                    style="@style/GamePageCap"
-                                    android:text="@string/game_page_this_week" />
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_marginTop="4dp"
-                                    android:singleLine="true"
-                                    android:text="@string/game_stats_last_12_weeks"
-                                    android:textColor="@color/content_muted"
-                                    android:textSize="12sp" />
-
-                            </LinearLayout>
-
-                            <com.limelight.stats.StatsBarsView
-                                android:id="@+id/gamePageBars"
-                                android:layout_width="0dp"
-                                android:layout_height="@dimen/game_page_bars_height"
-                                android:layout_marginStart="14dp"
-                                android:layout_weight="1"
-                                android:contentDescription="@string/game_stats_last_12_weeks"
-                                android:focusable="false" />
-
-                        </LinearLayout>
-
-                        <HorizontalScrollView
-                            android:id="@+id/gamePageChipsScroll"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
-                            android:clipToPadding="false"
-                            android:overScrollMode="never"
-                            android:scrollbars="none"
-                            android:visibility="gone">
-
-                            <LinearLayout
-                                android:id="@+id/gamePageChips"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:orientation="horizontal" />
-
-                        </HorizontalScrollView>
-
-                    </LinearLayout>
-
-                </LinearLayout>
+                    android:ellipsize="end"
+                    android:singleLine="true"
+                    android:textColor="@color/content_muted"
+                    android:textSize="13sp"
+                    tools:text="Stats · This month" />
 
             </LinearLayout>
 
-        </FrameLayout>
+            <FrameLayout
+                android:id="@+id/gamePageHero"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
 
-        <com.limelight.stats.AchievementsBlockView
-            android:id="@+id/gamePageAchievements"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/game_page_block_gap"
-            android:visibility="gone" />
+                <ImageView
+                    android:id="@+id/gamePageBackdrop"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:importantForAccessibility="no"
+                    android:scaleType="centerCrop"
+                    android:visibility="gone" />
 
-    </LinearLayout>
+                <View
+                    android:id="@+id/gamePageScrim"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/hero_scrim"
+                    android:visibility="gone" />
 
-</androidx.core.widget.NestedScrollView>
+                <LinearLayout
+                    android:id="@+id/gamePageTop"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:baselineAligned="false"
+                    android:orientation="horizontal"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="4dp">
+
+                    <LinearLayout
+                        android:id="@+id/gamePageCoverColumn"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <FrameLayout
+                            android:id="@+id/gamePageCoverFrame"
+                            android:layout_width="@dimen/game_page_cover_width"
+                            android:layout_height="@dimen/game_page_cover_height">
+
+                            <ImageView
+                                android:id="@+id/gamePageCover"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:background="@drawable/stats_icon_bg"
+                                android:importantForAccessibility="no"
+                                android:scaleType="centerCrop" />
+
+                            <TextView
+                                android:id="@+id/gamePageBadge"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_margin="6dp"
+                                android:background="@drawable/game_page_badge_bg"
+                                android:letterSpacing="0.06"
+                                android:paddingStart="5dp"
+                                android:paddingTop="1dp"
+                                android:paddingEnd="5dp"
+                                android:paddingBottom="1dp"
+                                android:text="@string/game_page_running"
+                                android:textAllCaps="true"
+                                android:textColor="@color/on_status_online"
+                                android:textSize="10sp"
+                                android:textStyle="bold"
+                                android:visibility="gone" />
+
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:id="@+id/gamePageButtons"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
+                            android:orientation="vertical">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/gamePagePrimary"
+                                style="@style/Widget.Zefiro.PrimaryButton"
+                                android:layout_width="match_parent"
+                                android:ellipsize="end"
+                                android:maxLines="1"
+                                android:paddingStart="16dp"
+                                android:paddingEnd="16dp"
+                                android:text="@string/game_page_play"
+                                app:icon="@drawable/ic_resume"
+                                app:iconGravity="textStart"
+                                app:iconPadding="6dp"
+                                app:iconSize="16dp" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/gamePageQuit"
+                                style="@style/Widget.Zefiro.DangerButton"
+                                android:layout_width="match_parent"
+                                android:layout_marginTop="8dp"
+                                android:ellipsize="end"
+                                android:maxLines="1"
+                                android:paddingStart="16dp"
+                                android:paddingEnd="16dp"
+                                android:text="@string/library_quit_game"
+                                android:visibility="gone"
+                                app:icon="@drawable/ic_stop"
+                                app:iconGravity="textStart"
+                                app:iconPadding="6dp"
+                                app:iconSize="14dp" />
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/gamePageInfo"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/game_page_column_gap"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/gamePageTag"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:drawableStart="@drawable/game_page_dot"
+                            android:drawablePadding="6dp"
+                            android:ellipsize="end"
+                            android:gravity="center_vertical"
+                            android:letterSpacing="0.12"
+                            android:singleLine="true"
+                            android:textAllCaps="true"
+                            android:textColor="@color/content_secondary"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            tools:text="Running on PC Davide" />
+
+                        <TextView
+                            android:id="@+id/gamePageTitle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:ellipsize="end"
+                            android:maxLines="2"
+                            android:textColor="@color/content_primary"
+                            android:textSize="@dimen/game_page_title_size"
+                            android:textStyle="bold"
+                            tools:text="Sea of Stars" />
+
+                        <!-- Compact only: the PC on a line of its own. -->
+                        <TextView
+                            android:id="@+id/gamePageHost"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:ellipsize="end"
+                            android:singleLine="true"
+                            android:textColor="@color/content_secondary"
+                            android:textSize="13sp"
+                            android:visibility="gone"
+                            tools:text="PC Davide · Online" />
+
+                        <TextView
+                            android:id="@+id/gamePageMeta"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:textColor="@color/content_secondary"
+                            android:textSize="13sp"
+                            android:visibility="gone"
+                            tools:text="2023 · RPG · session before this: yesterday, 2h 05m" />
+
+                        <LinearLayout
+                            android:id="@+id/gamePageBody"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:orientation="vertical">
+
+                            <!-- Loading, failed (a stop: A or a tap retries), or nothing yet. -->
+                            <LinearLayout
+                                android:id="@+id/gamePageStatus"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/stop_bg"
+                                android:gravity="center_vertical"
+                                android:minHeight="@dimen/action_size"
+                                android:orientation="horizontal"
+                                android:paddingStart="10dp"
+                                android:paddingTop="8dp"
+                                android:paddingEnd="10dp"
+                                android:paddingBottom="8dp"
+                                android:visibility="gone">
+
+                                <ProgressBar
+                                    android:id="@+id/gamePageStatusProgress"
+                                    android:layout_width="18dp"
+                                    android:layout_height="18dp"
+                                    android:layout_marginEnd="10dp"
+                                    android:indeterminateTint="@color/signal" />
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        android:id="@+id/gamePageStatusText"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:textColor="@color/content_secondary"
+                                        android:textSize="14sp"
+                                        tools:text="Loading…" />
+
+                                    <TextView
+                                        android:id="@+id/gamePageStatusHint"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="2dp"
+                                        android:text="@string/game_page_retry"
+                                        android:textColor="@color/content_muted"
+                                        android:textSize="12sp"
+                                        android:visibility="gone" />
+
+                                </LinearLayout>
+
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:id="@+id/gamePageFigures"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:baselineAligned="false"
+                                android:orientation="horizontal"
+                                android:visibility="gone">
+
+                                <LinearLayout style="@style/GamePageFigureCard">
+
+                                    <TextView
+                                        android:id="@+id/gamePageTotal"
+                                        style="@style/GamePageFigure"
+                                        tools:text="38h 20m" />
+
+                                    <TextView
+                                        style="@style/GamePageCap"
+                                        android:text="@string/game_stats_total" />
+
+                                </LinearLayout>
+
+                                <LinearLayout
+                                    style="@style/GamePageFigureCard"
+                                    android:layout_marginStart="8dp">
+
+                                    <TextView
+                                        android:id="@+id/gamePageCount"
+                                        style="@style/GamePageFigure"
+                                        tools:text="27" />
+
+                                    <TextView
+                                        android:id="@+id/gamePageCountLabel"
+                                        style="@style/GamePageCap"
+                                        tools:text="sessions" />
+
+                                </LinearLayout>
+
+                                <LinearLayout
+                                    android:id="@+id/gamePageAverageBlock"
+                                    style="@style/GamePageFigureCard"
+                                    android:layout_marginStart="8dp">
+
+                                    <TextView
+                                        android:id="@+id/gamePageAverage"
+                                        style="@style/GamePageFigure"
+                                        tools:text="1h 25m" />
+
+                                    <TextView
+                                        android:id="@+id/gamePageAverageLabel"
+                                        style="@style/GamePageCap"
+                                        tools:text="per session" />
+
+                                </LinearLayout>
+
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:id="@+id/gamePageWeeks"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                android:background="@drawable/game_page_card_bg"
+                                android:baselineAligned="false"
+                                android:gravity="bottom"
+                                android:orientation="horizontal"
+                                android:paddingStart="14dp"
+                                android:paddingTop="10dp"
+                                android:paddingEnd="14dp"
+                                android:paddingBottom="10dp"
+                                android:visibility="gone">
+
+                                <LinearLayout
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center_vertical"
+                                    android:minWidth="96dp"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        android:id="@+id/gamePageThisWeek"
+                                        style="@style/GamePageFigure"
+                                        android:textColor="@color/signal"
+                                        tools:text="4h 10m" />
+
+                                    <TextView
+                                        style="@style/GamePageCap"
+                                        android:text="@string/game_page_this_week" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="4dp"
+                                        android:singleLine="true"
+                                        android:text="@string/game_stats_last_12_weeks"
+                                        android:textColor="@color/content_muted"
+                                        android:textSize="12sp" />
+
+                                </LinearLayout>
+
+                                <com.limelight.stats.StatsBarsView
+                                    android:id="@+id/gamePageBars"
+                                    android:layout_width="0dp"
+                                    android:layout_height="@dimen/game_page_bars_height"
+                                    android:layout_marginStart="14dp"
+                                    android:layout_weight="1"
+                                    android:contentDescription="@string/game_stats_last_12_weeks"
+                                    android:focusable="false" />
+
+                            </LinearLayout>
+
+                            <HorizontalScrollView
+                                android:id="@+id/gamePageChipsScroll"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="6dp"
+                                android:clipToPadding="false"
+                                android:overScrollMode="never"
+                                android:scrollbars="none"
+                                android:visibility="gone">
+
+                                <LinearLayout
+                                    android:id="@+id/gamePageChips"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal" />
+
+                            </HorizontalScrollView>
+
+                            <!-- R2 and L2 between this screen and what is below it; d-pad first only. -->
+                            <com.limelight.ui.GamepadHintsView
+                                android:id="@+id/gamePageHints"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="10dp" />
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+            </FrameLayout>
+
+            <com.limelight.stats.AchievementsBlockView
+                android:id="@+id/gamePageAchievements"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/game_page_block_gap"
+                android:visibility="gone" />
+
+        </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+</FrameLayout>

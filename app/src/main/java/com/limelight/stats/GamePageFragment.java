@@ -25,6 +25,8 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.google.android.material.button.MaterialButton;
 import com.limelight.R;
+import com.limelight.companion.CompanionDisplayManager;
+import com.limelight.companion.CompanionPage;
 import com.limelight.companion.CompanionState;
 import com.limelight.computers.HostEntry;
 import com.limelight.computers.HostLibrary;
@@ -34,14 +36,19 @@ import com.limelight.grid.assets.CachedAppAssetLoader;
 import com.limelight.library.GameActionsSheet;
 import com.limelight.library.LibraryApp;
 import com.limelight.main.MainHost;
+import com.limelight.main.PageFocus;
+import com.limelight.main.PanelFocus;
 import com.limelight.main.SectionFocus;
 import com.limelight.main.SectionKeys;
 import com.limelight.main.StackedSectionFragment;
 import com.limelight.main.WindowClass;
 import com.limelight.nvstream.http.Achievement;
 import com.limelight.nvstream.http.ComputerDetails;
+import com.limelight.ui.GamepadHintsView;
 import com.limelight.ui.TitleCardDrawable;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -85,13 +92,36 @@ import java.util.Objects;
  * their retry row). An answer or a snapshot that hides the focused view puts the d-pad back on
  * that first stop rather than leave it to the framework, which would hand it to the rail. R2
  * drops it onto the achievements (the first row, or the filter when the list is empty), L2
- * brings it back up, Y opens the game's actions sheet. While the page is on top, the companion
- * panel shows the game ({@code gameFocus().focusGame}).
+ * brings it back up, Y opens the game's actions sheet. The panel's spotlight follows the page's
+ * game ({@code gameFocus().focusGame}); while a page of this screen is on the panel, the page
+ * is drawn instead.
+ *
+ * <h3>Two screens</h3>
+ *
+ * Whether the lower half is here or on the companion panel follows
+ * {@link CompanionDisplayManager#panelShowing()}, never the device:
+ *
+ * <pre>
+ *   inline (no panel)   the achievements block under the game, real focus; R2 and L2 move it
+ *   split (panel)       the block is gone here; the panel draws a page of this screen's:
+ *                         the game has achievements    GameAchievementsPage (the list)
+ *                         not answered yet / failed    GameAchievementsPage (one status row)
+ *                         none tracked, or nothing     GameActionsPage, and the chips leave
+ *                                                      this screen for it
+ *                       R2 takes the d-pad down there (PanelFocus: this window keeps the keys,
+ *                       a sink holds focus, the panel rings the stop), L2 brings it back to
+ *                       Resume or Play, B or up off the filter back to where it was
+ * </pre>
+ *
+ * The panel's page is published while this screen is the one shown on its section, and taken
+ * off when it is hidden (another screen pushed over it, the section left) or its view goes. Taps
+ * on the panel act as A would there, without moving the d-pad between screens.
  *
  * Main thread only; every callback checks that the view still exists.
  */
 public class GamePageFragment extends Fragment implements SectionKeys, SectionFocus,
-        StackedSectionFragment.SectionHiddenListener, AchievementsBlockView.Listener {
+        StackedSectionFragment.SectionHiddenListener, AchievementsBlockView.Listener,
+        PanelFocus.Owner {
 
     /** The page's tag on a section's stack: one game page per stack. */
     public static final String TAG = "stack:gamePage";
@@ -113,6 +143,15 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
     private HostLibrary library;
     @Nullable
     private GamePageData data;
+    // When the answer shown came: what NEW is judged against on the panel, fixed per answer so
+    // the page published for every d-pad move is the same value but for its stop.
+    private long dataAt;
+
+    // Whether the companion panel is showing, and so has this screen's lower half (see the
+    // class comment); the d-pad's place there.
+    private boolean split;
+    @Nullable
+    private PanelFocus panelFocus;
 
     // The cover: which game and art version it was asked for, and whether it shows the art.
     @Nullable
@@ -177,6 +216,7 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
     private View chipsScroll;
     private LinearLayout chips;
     private AchievementsBlockView achievements;
+    private GamepadHintsView hints;
 
     public GamePageFragment() {
     }
@@ -262,6 +302,7 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
         chipsScroll = view.findViewById(R.id.gamePageChipsScroll);
         chips = view.findViewById(R.id.gamePageChips);
         achievements = view.findViewById(R.id.gamePageAchievements);
+        hints = view.findViewById(R.id.gamePageHints);
 
         cover.setClipToOutline(true);
         bars.setCompact(true);
@@ -282,6 +323,14 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
             }
         });
         achievements.setListener(this);
+
+        // Before the first draw, so a panel already on does not show the block here for a frame.
+        split = Boolean.TRUE.equals(CompanionDisplayManager.panelShowing().getValue());
+        // Before this screen's own observer: when the panel goes, PanelFocus brings the d-pad
+        // back up first, and onPanelShowing then lays the block out here.
+        panelFocus = PanelFocus.attach(this, (ViewGroup) view, this);
+        CompanionDisplayManager.panelShowing().observe(getViewLifecycleOwner(),
+                this::onPanelShowing);
 
         applyWindow();
         installLayout(view);
@@ -323,6 +372,8 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
         if (model.data().getValue() == null) {
             load(false);
         }
+        publishPage();
+        updateHints();
     }
 
     @Override
@@ -357,6 +408,8 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
         }
         drawnChips = null;
         compactApplied = null;
+        // Its view lifecycle has ended: it has taken the page off the panel already.
+        panelFocus = null;
         if (isRemoving()) {
             reportRootFocus();
         }
@@ -372,8 +425,16 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
         }
     }
 
+    /** Another screen pushed over this one on its stack, or popped off it. */
+    @Override
+    public void onHiddenChanged(boolean hidden) {
+        super.onHiddenChanged(hidden);
+        onShownChanged(hidden);
+    }
+
     @Override
     public void onSectionHiddenChanged(boolean hidden) {
+        onShownChanged(hidden);
         if (!hidden && isAdded() && getView() != null) {
             reportFocus();
             // Back from another section, perhaps after a stream: ask again, quietly.
@@ -462,6 +523,9 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
         renderCover();
         renderBackdrop();
         refocusIfTaken(hadFocus);
+        // The title and the actions are the panel's too.
+        publishPage();
+        updateHints();
     }
 
     // Running is green, as on the badge; blue is kept for focus.
@@ -568,6 +632,7 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
                 ? host.launchController().companionLabel(app.app) : null;
         if (items.equals(drawnChips) && hidden == drawnHidden
                 && Objects.equals(companion, drawnCompanionLabel)) {
+            applyChipsVisibility();
             return;
         }
         int focusedIndex = -1;
@@ -596,12 +661,22 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
             });
             chips.addView(chip);
         }
-        chipsScroll.setVisibility(items.isEmpty() ? View.GONE : View.VISIBLE);
-        if (focusedIndex >= 0 && chips.getChildCount() > 0) {
+        applyChipsVisibility();
+        if (focusedIndex >= 0 && chipsScroll.getVisibility() == View.VISIBLE
+                && chips.getChildCount() > 0) {
             chips.getChildAt(Math.min(focusedIndex, chips.getChildCount() - 1)).requestFocus();
         } else if (focusedIndex >= 0) {
             placeFocusIfLost();
         }
+    }
+
+    /**
+     * The chip row shows while it has chips, unless the panel shows them as its rows: a game
+     * without achievements on a split page ({@link BottomKind#ACTIONS}).
+     */
+    private void applyChipsVisibility() {
+        boolean shown = chips.getChildCount() > 0 && bottomKind() != BottomKind.ACTIONS;
+        chipsScroll.setVisibility(shown ? View.VISIBLE : View.GONE);
     }
 
     /**
@@ -689,6 +764,9 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
         // The swap below can hide the focused view (the status row, a row of the list); see
         // renderGame for why that is caught here rather than by placeFocusIfLost.
         boolean hadFocus = root.hasFocus();
+        if (d != data) {
+            dataAt = System.currentTimeMillis();
+        }
         data = d;
         switch (d.state) {
             case LOADING:
@@ -710,9 +788,13 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
                 break;
         }
         renderMeta();
+        // Whether the chips are the panel's depends on whether the game has achievements.
+        applyChipsVisibility();
         if (!refocusIfTaken(hadFocus)) {
             placeFocusIfLost();
         }
+        publishPage();
+        updateHints();
     }
 
     /**
@@ -781,7 +863,8 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
 
     private void renderAchievements() {
         GamePageData d = data;
-        if (d == null || d.state != GamePageData.State.READY) {
+        if (split || d == null || d.state != GamePageData.State.READY) {
+            // Split, the panel has them.
             achievements.setVisibility(View.GONE);
             return;
         }
@@ -805,12 +888,22 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
         }
         model.setFilter(filter);
         renderAchievements();
+        if (panelFocus != null && panelFocus.zone() == PanelFocus.Zone.BOTTOM) {
+            // A d-pad on a row now names another achievement: it moves up to the filter.
+            int stop = GameAchievementsPage.focusAfterFilter(panelFocus.focusedStop(), filter);
+            if (stop != panelFocus.focusedStop()) {
+                panelFocus.enterBottom(stop);
+                return;
+            }
+        }
+        publishPage();
     }
 
     @Override
     public void onRevealRequested(@NonNull Achievement achievement) {
         if (model.reveal(achievement.getId())) {
             achievements.refresh(achievement);
+            publishPage();
         }
     }
 
@@ -836,9 +929,16 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
         if (!isAdded() || getView() == null || event.getAction() != KeyEvent.ACTION_DOWN) {
             return false;
         }
+        // On the panel, the d-pad, A and B are the page's.
+        if (panelFocus != null && panelFocus.onKey(event)) {
+            return true;
+        }
         boolean first = event.getRepeatCount() == 0;
         switch (event.getKeyCode()) {
             case KeyEvent.KEYCODE_BUTTON_R2: {
+                if (split) {
+                    return dropToPanel(first);
+                }
                 View target = achievements.firstStop();
                 if (target == null) {
                     return false;
@@ -849,6 +949,12 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
                 return true;
             }
             case KeyEvent.KEYCODE_BUTTON_L2: {
+                if (panelFocus != null && panelFocus.zone() == PanelFocus.Zone.BOTTOM) {
+                    if (first) {
+                        riseFromPanel();
+                    }
+                    return true;
+                }
                 View target = topStop();
                 if (target == null) {
                     return false;
@@ -874,6 +980,248 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
         }
     }
 
+    // --- The companion panel ---
+
+    /** What the panel shows of this page: nothing (no panel), or one of three pages. */
+    private enum BottomKind { NONE, STATUS, LIST, ACTIONS }
+
+    // From the answer alone (see the class comment): the panel's page and the chips' place
+    // follow it.
+    @NonNull
+    private BottomKind bottomKind() {
+        if (!split) {
+            return BottomKind.NONE;
+        }
+        GamePageData d = data;
+        if (d == null || d.state == GamePageData.State.LOADING) {
+            return BottomKind.STATUS;
+        }
+        if (d.hasAchievements()) {
+            return BottomKind.LIST;
+        }
+        // Not reached for the achievements: the retry, not a claim that there are none.
+        if (d.state == GamePageData.State.FAILED || d.achievementsFailed) {
+            return BottomKind.STATUS;
+        }
+        return BottomKind.ACTIONS;
+    }
+
+    @Nullable
+    @Override
+    public CompanionPage bottomPage() {
+        GamePageData d = data;
+        String name = gameName();
+        switch (bottomKind()) {
+            case STATUS:
+                return d == null || d.state == GamePageData.State.LOADING
+                        ? GameAchievementsPage.loading(name) : GameAchievementsPage.failed(name);
+            case LIST:
+                if (d == null || d.achievements == null) {
+                    return null;
+                }
+                return GameAchievementsPage.list(name, d.achievements, model.filter(),
+                        model.revealed(), session(), dataAt);
+            case ACTIONS:
+                return actionsPage(name);
+            case NONE:
+            default:
+                return null;
+        }
+    }
+
+    // The chips, as the panel's rows: the same actions, labels and Hide's check.
+    private GameActionsPage actionsPage(String name) {
+        List<GameActionsSheet.Item> items = drawnChips != null ? drawnChips
+                : Collections.<GameActionsSheet.Item>emptyList();
+        List<String> labels = new ArrayList<>(items.size());
+        for (GameActionsSheet.Item item : items) {
+            labels.add(item == GameActionsSheet.Item.COMPANION_APP && drawnCompanionLabel != null
+                    ? drawnCompanionLabel : getString(item.label));
+        }
+        return new GameActionsPage(name, items, labels, drawnHidden);
+    }
+
+    @NonNull
+    @Override
+    public PageFocus bottomStops() {
+        CompanionPage page = bottomPage();
+        if (page instanceof GameAchievementsPage) {
+            return ((GameAchievementsPage) page).stops();
+        }
+        if (page instanceof GameActionsPage) {
+            return ((GameActionsPage) page).stops();
+        }
+        return new PageFocus(Collections.<int[]>emptyList());
+    }
+
+    /** Where R2 lands on the panel, or {@link PageFocus#STAY} when the page has no stop. */
+    private int entryStop() {
+        CompanionPage page = bottomPage();
+        if (page instanceof GameAchievementsPage) {
+            return ((GameAchievementsPage) page).entryStop();
+        }
+        if (page instanceof GameActionsPage) {
+            return ((GameActionsPage) page).entryStop();
+        }
+        return PageFocus.STAY;
+    }
+
+    // R2, split: down onto the page's first row. Consumed while there is a page to go to, even
+    // when it has no stop yet, so the trigger does not fall through to anything else.
+    private boolean dropToPanel(boolean first) {
+        if (panelFocus == null || bottomPage() == null) {
+            return false;
+        }
+        int stop = entryStop();
+        if (first && stop >= 0) {
+            panelFocus.enterBottom(stop);
+            updateHints();
+        }
+        return true;
+    }
+
+    // L2 from the panel: back to Resume or Play, as L2 does inline, whatever the d-pad left.
+    private void riseFromPanel() {
+        if (panelFocus == null) {
+            return;
+        }
+        panelFocus.leaveBottom(true);
+        View target = topStop();
+        if (target != null && !target.hasFocus()) {
+            target.requestFocus();
+        }
+    }
+
+    /** Hands the page as it stands to the panel, while split and this screen is shown. */
+    private void publishPage() {
+        if (panelFocus == null || !isAdded() || getView() == null) {
+            return;
+        }
+        if (!split) {
+            panelFocus.clear();
+        } else if (!StackedSectionFragment.isHiddenInSection(this)) {
+            panelFocus.publish();
+        }
+    }
+
+    // Hidden on its stack or with its section: the panel is the screen shown now's. Shown again:
+    // the page goes back.
+    private void onShownChanged(boolean hidden) {
+        if (panelFocus == null || getView() == null) {
+            return;
+        }
+        if (hidden) {
+            panelFocus.onSectionHidden();
+        } else {
+            publishPage();
+        }
+        updateHints();
+    }
+
+    /** The panel came or went: the lower half moves between it and this screen. */
+    private void onPanelShowing(@Nullable Boolean showing) {
+        boolean next = Boolean.TRUE.equals(showing);
+        if (next == split || getView() == null) {
+            return;
+        }
+        boolean hadFocus = root.hasFocus();
+        split = next;
+        renderAchievements();
+        applyChipsVisibility();
+        publishPage();
+        if (!refocusIfTaken(hadFocus)) {
+            placeFocusIfLost();
+        }
+        updateHints();
+    }
+
+    @Override
+    public void onPageTap(int stopId) {
+        act(stopId);
+    }
+
+    @Override
+    public void onActivate(int stop) {
+        act(stop);
+    }
+
+    // A or a tap on a stop of the page on the panel: what the same stop does inline.
+    private void act(int stop) {
+        if (getView() == null) {
+            return;
+        }
+        CompanionPage page = bottomPage();
+        if (page instanceof GameAchievementsPage) {
+            GameAchievementsPage achievementsPage = (GameAchievementsPage) page;
+            AchievementFilter.Filter filter = GameAchievementsPage.filterAt(stop);
+            if (filter != null) {
+                onFilterChosen(filter);
+            } else if (stop == GameAchievementsPage.STOP_STATUS) {
+                if (achievementsPage.mode == GameAchievementsPage.Mode.FAILED) {
+                    load(false);
+                }
+            } else {
+                Achievement a = achievementsPage.rowAt(stop);
+                if (a != null && AchievementFilter.isMasked(a, model.revealed())) {
+                    onRevealRequested(a);
+                }
+            }
+        } else if (page instanceof GameActionsPage) {
+            GameActionsSheet.Item item = ((GameActionsPage) page).itemAt(stop);
+            LibraryApp shown = app;
+            if (item != null && shown != null) {
+                host.launchController().runAction(item, shown);
+            }
+        }
+    }
+
+    @Override
+    public void onExit(@NonNull PageFocus.Nav direction) {
+        // Up off the page's first row is back up to this screen; off the last row, nowhere.
+        if (direction == PageFocus.Nav.UP && panelFocus != null) {
+            panelFocus.leaveBottom(true);
+        }
+    }
+
+    @Override
+    public void onBottomLeft(boolean restored) {
+        // Not given back (the panel went, the view the d-pad came from went): onto the first
+        // stop, unless a touch took it up, which leaves focus to the touch.
+        if (!restored && isOnScreen() && !root.isInTouchMode()) {
+            View target = initialTarget();
+            if (target != null) {
+                target.requestFocus();
+            }
+        }
+        updateHints();
+    }
+
+    /**
+     * The gamepad hints: where R2 goes from up here, or, with the d-pad on the panel, that it is
+     * there and how L2 comes back. None when there is nowhere to go.
+     */
+    private void updateHints() {
+        if (hints == null || getView() == null) {
+            return;
+        }
+        if (panelFocus != null && panelFocus.zone() == PanelFocus.Zone.BOTTOM) {
+            View back = topStop();
+            String label = back == primary
+                    ? getString(R.string.game_page_hint_below, primary.getText())
+                    : getString(R.string.game_page_hint_below_up);
+            hints.setHints(new GamepadHintsView.Hint(label, "R2", "L2"));
+            return;
+        }
+        boolean below = split ? entryStop() >= 0 : achievements.firstStop() != null;
+        if (!below) {
+            hints.setHints();
+            return;
+        }
+        String label = getString(bottomKind() == BottomKind.ACTIONS
+                ? R.string.game_page_hint_actions : R.string.stats_achievements);
+        hints.setHints(new GamepadHintsView.Hint(label, "R2"));
+    }
+
     // --- Focus ---
 
     @Nullable
@@ -882,7 +1230,9 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
         if (!isAdded() || getView() == null) {
             return null;
         }
-        if (lastFocused != null && lastFocused.isShown() && isInside(lastFocused)) {
+        // Focusable too: the panel's focus sink, which the d-pad leaves unfocusable behind it.
+        if (lastFocused != null && lastFocused.isShown() && lastFocused.isFocusable()
+                && isInside(lastFocused)) {
             return lastFocused;
         }
         return initialTarget();
