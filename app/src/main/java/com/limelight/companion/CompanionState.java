@@ -165,6 +165,7 @@ public class CompanionState {
             // view (if it has one), and a view that crashed this time is given another chance.
             statsOverTelemetry = false;
             crashedTelemetryView = null;
+            hostLatencySeen = false;
             streamSession = null;
             // The main screen starts again before the finished game's activity is destroyed, so
             // its browsing (and page) usually arrived while this still said STREAMING: held, not
@@ -192,7 +193,21 @@ public class CompanionState {
 
     public void setStats(PerfStats stats) {
         this.stats = stats;
+        if (stats != null && stats.hasHostProcessingLatency) {
+            hostLatencySeen = true;
+        }
         notifyChanged();
+    }
+
+    /**
+     * Whether the host has reported its own latency at least once this stream, so the stats keep
+     * a Host tile for the rest of it. Held here, fed by every second of stats, rather than learnt
+     * by whichever panel is up: a panel built again mid-stream (the second screen gone and back)
+     * would otherwise start without it and cut the grid without Host until the host sent one
+     * more, which a host showing an idle screen may never do.
+     */
+    public boolean hasSeenHostLatency() {
+        return hostLatencySeen;
     }
 
     public PerfStats getStats() {
@@ -261,6 +276,9 @@ public class CompanionState {
     /** A view whose renderer died, so it is not loaded again this stream; null when none has. */
     private String crashedTelemetryView;
 
+    /** See {@link #hasSeenHostLatency()}. */
+    private boolean hostLatencySeen;
+
     public boolean isStatsOverTelemetry() {
         return statsOverTelemetry;
     }
@@ -300,6 +318,11 @@ public class CompanionState {
     public void setStreamSession(StreamSession session) {
         if (Objects.equals(streamSession, session)) {
             return;
+        }
+        // Another stream (a new start, not just a codec learnt): its host has said nothing yet.
+        if (streamSession == null || session == null
+                || streamSession.startUptimeMs != session.startUptimeMs) {
+            hostLatencySeen = false;
         }
         streamSession = session;
         notifyChanged();

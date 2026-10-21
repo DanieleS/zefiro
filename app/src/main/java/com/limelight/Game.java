@@ -66,6 +66,7 @@ import com.limelight.ui.GameGestures;
 import com.limelight.stream.ControlsInputRouter;
 import com.limelight.stream.ControlsSurface;
 import com.limelight.stream.EdgeHandleView;
+import com.limelight.stream.EdgeSwipe;
 import com.limelight.stream.StreamCapabilities;
 import com.limelight.stream.StreamControlsPanel;
 import com.limelight.stream.StreamHud;
@@ -256,6 +257,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
      */
     private StreamControlsPanel controlsPanel;
     private EdgeHandleView controlsHandle;
+    /** The swipe in from anywhere along the right edge, the handle's own band aside. */
+    private EdgeSwipe edgeSwipe;
     /**
      * While any in-stream controls surface is open (the side panel, the companion panel's sheet,
      * the external display's sheet), the pad and the keys go to it through this and never reach
@@ -671,20 +674,17 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
 
 
-        if (
-                prefConfig.videoScaleMode == PreferenceConfiguration.ScaleMode.STRETCH ||
-                        shouldIgnoreInsetsForResolution(displayWidth, displayHeight)
-        ) {
-            // Allow the activity to layout under notches if the fill-screen option
-            // was turned on by the user or it's a full-screen native resolution
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                getWindow().getAttributes().layoutInDisplayCutoutMode =
-                        WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS;
-            }
-            else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                getWindow().getAttributes().layoutInDisplayCutoutMode =
-                        WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
-            }
+        // The window runs under the cutout, edge to edge, whatever the resolution: the stream
+        // view is fitted to the stream's aspect and centred in the whole screen. Kept out of
+        // the cutout, a landscape window with one on its long edge lost a band that the video
+        // then sat below, off centre. The side panel keeps its rows clear of the cutout itself.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            getWindow().getAttributes().layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS;
+        }
+        else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            getWindow().getAttributes().layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
         }
 
         //光标是否显示
@@ -753,6 +753,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         streamHud = findViewById(R.id.streamHud);
         controlsPanel = findViewById(R.id.controlsPanel);
         controlsHandle = findViewById(R.id.controlsHandle);
+        // As wide as the handle's touch zone, and as far as the handle's own swipe goes.
+        edgeSwipe = new EdgeSwipe(UiHelper.dpToPx(this, 24), UiHelper.dpToPx(this, 16));
 
         inputCaptureProvider = InputCaptureManager.getInputCaptureProvider(this, this);
 
@@ -850,6 +852,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                         ? () -> coverConn.getBoxArt(coverApp)
                         : null,
                 appName, pcName);
+        // The same cover, small, beside the title in the side panel's header.
+        controlsPanel.setCover(boxArt);
 
         if (appId == StreamConfiguration.INVALID_APP_ID) {
             finish();
@@ -1493,6 +1497,14 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         // Set requested orientation for possible new screen size
         setPreferredOrientationForActivity();
 
+        // A new window shape (a rotation, a resize, the Thor's screen swapped for a phone's)
+        // reaches here instead of relaunching us, which would end the stream: fit the stream
+        // view to the new window, centred, and hide the bars the change may have brought back.
+        if (streamContainer != null) {
+            streamContainer.requestLayout();
+        }
+        hideSystemUi(50);
+
         if (virtualController != null) {
             // Refresh layout of OSC for possible new screen size
             virtualController.refreshLayout();
@@ -1944,26 +1956,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private boolean isRefreshRateGoodMatch(float refreshRate) {
         return refreshRate >= prefConfig.fps &&
                 Math.round(refreshRate) % prefConfig.fps <= 3;
-    }
-
-    private boolean shouldIgnoreInsetsForResolution(int width, int height) {
-        // Never ignore insets for non-native resolutions
-        if (!PreferenceConfiguration.isNativeResolution(width, height)) {
-            return false;
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Display display = getActiveDisplay(Game.this, prefConfig);
-            for (Display.Mode candidate : display.getSupportedModes()) {
-                // Ignore insets if this is an exact match for the display resolution
-                if ((width == candidate.getPhysicalWidth() && height == candidate.getPhysicalHeight()) ||
-                        (height == candidate.getPhysicalWidth() && width == candidate.getPhysicalHeight())) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
     }
 
     private boolean mayReduceRefreshRate() {
@@ -4106,6 +4098,49 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     @Override
     public boolean onGenericMotion(View view, MotionEvent event) {
         return handleMotionEvent(view, event);
+    }
+
+    /**
+     * Watches every touch for the swipe in from the right edge ({@link EdgeSwipe}), ahead of the
+     * views: the stream gets each event as before, and loses only a gesture that has already
+     * become the swipe, which it sees end in a cancel.
+     */
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent ev) {
+        if (edgeSwipe != null) {
+            int action = ev.getActionMasked();
+            boolean armed = action == MotionEvent.ACTION_DOWN && isEdgeSwipeArmed(ev.getX(), ev.getY());
+            switch (edgeSwipe.onTouch(action, ev.getX(), ev.getY(),
+                    getWindow().getDecorView().getWidth(), armed)) {
+                case CLAIM:
+                    MotionEvent cancel = MotionEvent.obtain(ev);
+                    cancel.setAction(MotionEvent.ACTION_CANCEL);
+                    super.dispatchTouchEvent(cancel);
+                    cancel.recycle();
+                    showGameMenu(null);
+                    return true;
+                case SWALLOW:
+                    return true;
+                default:
+                    break;
+            }
+        }
+        return super.dispatchTouchEvent(ev);
+    }
+
+    /**
+     * The edge opens the side panel when the handle is offered (see updateControlsHandle) and the
+     * panel is closed. A touch on the handle is left to it: it opens the panel itself.
+     */
+    private boolean isEdgeSwipeArmed(float x, float y) {
+        if (controlsHandle == null || controlsHandle.getVisibility() != View.VISIBLE
+                || (controlsPanel != null && controlsPanel.isOpen())) {
+            return false;
+        }
+        int[] at = new int[2];
+        controlsHandle.getLocationInWindow(at);
+        return !(x >= at[0] && x < at[0] + controlsHandle.getWidth()
+                && y >= at[1] && y < at[1] + controlsHandle.getHeight());
     }
 
     @SuppressLint("ClickableViewAccessibility")

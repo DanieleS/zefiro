@@ -216,7 +216,7 @@
     <dimen name="companion_play_height">60dp</dimen>
     <!-- The streaming surface: the stats grid's margin and gaps, the strip under it (taller than
          its 48dp controls so their pills have air), and the controls sheet's margin. -->
-    <dimen name="companion_stats_padding">16dp</dimen>
+    <dimen name="companion_stats_padding">12dp</dimen>
     <dimen name="companion_stat_gap">8dp</dimen>
     <dimen name="companion_stat_corner">10dp</dimen>
     <dimen name="companion_strip_height">56dp</dimen>
@@ -240,6 +240,12 @@
     <dimen name="controls_tile_height">56dp</dimen>
     <dimen name="controls_tile_corner">12dp</dimen>
     <dimen name="controls_tile_gap">6dp</dimen>
+    <!-- The list rows and the two ends as tight as the mock draws them (as tall as each other),
+         so a landscape phone fits the whole first page; the rows scroll where it still does not.
+         The header's box art at the mock's 22 x 29. -->
+    <dimen name="controls_panel_row_height">40dp</dimen>
+    <dimen name="controls_panel_cover_width">22dp</dimen>
+    <dimen name="controls_panel_cover_height">29dp</dimen>
 
     <!--
         The stop ring, chips, pills, segmented controls and gamepad hints shared by the Stats,

@@ -6,6 +6,8 @@ import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 
+import com.limelight.binding.video.PerfStats;
+
 import org.junit.Before;
 import org.junit.Test;
 
@@ -564,5 +566,38 @@ public class CompanionStateTest {
 
         state.setOwner(CompanionState.Owner.PANEL);
         assertSame(page, state.getPage());
+    }
+
+    @Test
+    public void aHostThatReportedItsLatencyKeepsItsTileForTheWholeStream() {
+        // Remembered by the state, not by a panel: the second screen can go and come back
+        // mid-stream, and the new panel must cut the same grid.
+        state.enterStreaming();
+        state.setStreamSession(new CompanionState.StreamSession("Hades", "PC", null, 1000));
+        assertFalse(state.hasSeenHostLatency());
+        state.setStats(stats(true));
+        state.setStats(stats(false));
+        assertTrue(state.hasSeenHostLatency());
+
+        // The codec learnt later is the same stream.
+        state.setStreamSession(new CompanionState.StreamSession("Hades", "PC", "HEVC", 1000));
+        assertTrue(state.hasSeenHostLatency());
+
+        state.leaveStreaming();
+        assertFalse(state.hasSeenHostLatency());
+    }
+
+    @Test
+    public void aNewStreamStartsWithoutTheHostTile() {
+        state.enterStreaming();
+        state.setStreamSession(new CompanionState.StreamSession("Hades", "PC", null, 1000));
+        state.setStats(stats(true));
+        state.setStreamSession(new CompanionState.StreamSession("Hades", "PC", null, 5000));
+        assertFalse(state.hasSeenHostLatency());
+    }
+
+    private static PerfStats stats(boolean hostLatency) {
+        return new PerfStats(1920, 1080, "c2.test", 60f, 60f, 60f, 0f, 20000f, 8, 1, 2f,
+                hostLatency, 1f, 1f, 1f);
     }
 }

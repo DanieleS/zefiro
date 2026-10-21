@@ -198,9 +198,13 @@
                 <data android:scheme="art" />
             </intent-filter>
         </activity>
+        <!-- The stream handles every change of window shape itself (Game#onConfigurationChanged):
+             a relaunch would end the session, since onStop always stops the connection and
+             finishes. Density and colour mode included, which change with the window when a
+             display is resized or the stream moves between screens. -->
         <activity
             android:name=".Game"
-            android:configChanges="mcc|mnc|locale|touchscreen|keyboard|keyboardHidden|navigation|screenLayout|fontScale|uiMode|orientation|screenSize|smallestScreenSize|layoutDirection"
+            android:configChanges="mcc|mnc|locale|touchscreen|keyboard|keyboardHidden|navigation|screenLayout|fontScale|uiMode|orientation|screenSize|smallestScreenSize|layoutDirection|density|colorMode"
             android:noHistory="true"
             android:supportsPictureInPicture="true"
             android:resizeableActivity="true"
