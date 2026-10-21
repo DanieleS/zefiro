@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Resume on the running card (companion_pc_details), the mock's .act.pri: a signal pill. A
+    signal ring would vanish against a signal fill, so the d-pad's place (state_activated, the
+    panel's virtual focus) draws the 2dp signal ring outside the pill, with a gap of the card's
+    own colour between them. The pill is inset the same in every state, so focus never resizes it.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:exitFadeDuration="120">
+
+    <item android:state_pressed="true">
+        <layer-list>
+            <item>
+                <shape android:shape="rectangle">
+                    <corners android:radius="@dimen/pill_corner" />
+                    <stroke
+                        android:width="@dimen/tile_focus_stroke"
+                        android:color="@color/signal" />
+                </shape>
+            </item>
+            <item
+                android:bottom="@dimen/pc_details_ring_gap"
+                android:left="@dimen/pc_details_ring_gap"
+                android:right="@dimen/pc_details_ring_gap"
+                android:top="@dimen/pc_details_ring_gap">
+                <shape android:shape="rectangle">
+                    <corners android:radius="@dimen/pill_corner" />
+                    <solid android:color="@color/signal_wash" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+
+    <item android:state_activated="true">
+        <layer-list>
+            <item>
+                <shape android:shape="rectangle">
+                    <corners android:radius="@dimen/pill_corner" />
+                    <stroke
+                        android:width="@dimen/tile_focus_stroke"
+                        android:color="@color/signal" />
+                </shape>
+            </item>
+            <item
+                android:bottom="@dimen/pc_details_ring_gap"
+                android:left="@dimen/pc_details_ring_gap"
+                android:right="@dimen/pc_details_ring_gap"
+                android:top="@dimen/pc_details_ring_gap">
+                <shape android:shape="rectangle">
+                    <corners android:radius="@dimen/pill_corner" />
+                    <solid android:color="@color/signal" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+
+    <item>
+        <inset
+            android:insetBottom="@dimen/pc_details_ring_gap"
+            android:insetLeft="@dimen/pc_details_ring_gap"
+            android:insetRight="@dimen/pc_details_ring_gap"
+            android:insetTop="@dimen/pc_details_ring_gap">
+            <shape android:shape="rectangle">
+                <corners android:radius="@dimen/pill_corner" />
+                <solid android:color="@color/signal" />
+            </shape>
+        </inset>
+    </item>
+
+</selector>

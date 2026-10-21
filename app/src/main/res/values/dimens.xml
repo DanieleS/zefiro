@@ -260,4 +260,14 @@
     <!-- A search result: a 56dp row at least, as the list's rows are 48dp at least. -->
     <dimen name="settings_result_min_height">56dp</dimen>
 
+    <!-- Screens P3: the focused PC on the companion panel (companion_pc_details). -->
+    <dimen name="pc_details_card_corner">12dp</dimen>
+    <!-- The running game's cover, a portrait box art. -->
+    <dimen name="pc_details_cover_width">40dp</dimen>
+    <dimen name="pc_details_cover_height">54dp</dimen>
+    <!-- Resume and Quit on the running card: 48dp to touch, and the gap a focus ring needs. -->
+    <dimen name="pc_details_button_height">48dp</dimen>
+    <dimen name="pc_details_ring_gap">3dp</dimen>
+    <dimen name="pc_details_gap">8dp</dimen>
+
 </resources>

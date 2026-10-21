@@ -1361,4 +1361,17 @@
     <!-- The PCs grid's gamepad hints: what A and Y do on the focused tile. -->
     <string name="pcs_hint_library">Library</string>
     <string name="pcs_hint_actions">Actions</string>
+
+    <!-- Screens P3: the focused PC on the Thor bottom screen -->
+    <!-- The facts grid's labels, under each value. -->
+    <string name="pcs_fact_address">Address</string>
+    <string name="pcs_fact_connection">Connection</string>
+    <string name="pcs_fact_games">Games</string>
+    <!-- The running card's second button: quits the game the PC is in. -->
+    <string name="pcs_running_quit">Quit</string>
+    <!-- The PCs grid's gamepad hints with the bottom screen on: Y takes the d-pad down there;
+         then A and B, while it is there. -->
+    <string name="pcs_hint_actions_below">Actions below</string>
+    <string name="pcs_hint_select">Select</string>
+    <string name="pcs_hint_back">Back</string>
 </resources>

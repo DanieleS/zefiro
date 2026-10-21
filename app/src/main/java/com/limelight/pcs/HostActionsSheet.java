@@ -21,8 +21,10 @@ import java.util.List;
 
 /**
  * Everything that can be done to one host, as a {@link MenuSheet}: the PCs section's long-press,
- * its Y button, a tile's overflow button, and a tap on a tile that has nothing better to do (an
- * offline host).
+ * its Y button without a companion panel, a tile's overflow button, and a tap on a tile that has
+ * nothing better to do (an offline host). With the panel, the same rows are the focused PC's page
+ * there ({@link PcDetailsPage}), built from the same {@link #itemsFor} and run through the same
+ * {@link #run}.
  *
  * <p>It replaces {@code PcView}'s context menu, with the same items under the same conditions, so
  * nothing a user could do to a PC is lost in the move. Unpair is still not offered: PcView defined
@@ -202,7 +204,11 @@ public final class HostActionsSheet {
         }
     }
 
-    private static void run(HostActions actions, Item item, HostEntry host) {
+    /**
+     * Runs one row's action on the host, as a tap on the row does. The focused PC's page on the
+     * companion panel runs its stops through here too, so a row does the same on either screen.
+     */
+    static void run(@NonNull HostActions actions, @NonNull Item item, @NonNull HostEntry host) {
         ComputerDetails details = host.details;
         switch (item) {
             case WAKE:

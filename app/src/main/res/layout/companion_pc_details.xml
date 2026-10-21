@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The focused PC on the companion panel (pcs/PcDetailsRenderer), after the approved Pcs_A mock's
+    bottom screen: the PC's state and name, the facts the client has about it (Address,
+    Connection, Games, each only when known), the game it is in with Resume and Quit, then every
+    one of its actions, two to a row. The facts and the rows are filled in by the renderer
+    (companion_pc_fact, companion_pc_action_row).
+
+    Nothing here is focusable: the panel's window never takes focus, and the d-pad's place is
+    drawn activated. Every stop is clickable, for touch.
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/pcDetailsScroll"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface_deep"
+    android:clipToPadding="false"
+    android:overScrollMode="never"
+    android:paddingStart="12dp"
+    android:paddingTop="14dp"
+    android:paddingEnd="12dp"
+    android:paddingBottom="14dp"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- The state as a dot, the name and the state in words, and the "Focused" caption. -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp">
+
+            <View
+                android:id="@+id/pcDetailsDot"
+                android:layout_width="@dimen/pc_status_dot"
+                android:layout_height="@dimen/pc_status_dot"
+                android:background="@drawable/pc_status_dot" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/pcDetailsName"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:fontFamily="sans-serif-medium"
+                    android:singleLine="true"
+                    android:textColor="@color/content_primary"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    tools:text="PC Davide Apollo" />
+
+                <TextView
+                    android:id="@+id/pcDetailsStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="1dp"
+                    android:ellipsize="end"
+                    android:singleLine="true"
+                    android:textColor="@color/content_secondary"
+                    android:textSize="13sp"
+                    tools:text="Playing · Sea of Stars" />
+
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.12"
+                android:text="@string/companion_focused"
+                android:textAllCaps="true"
+                android:textColor="@color/content_muted"
+                android:textSize="11sp" />
+
+        </LinearLayout>
+
+        <!-- Up to three equal columns (Address, Connection, Games), value over label; gone when
+             nothing is known. -->
+        <LinearLayout
+            android:id="@+id/pcDetailsFacts"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/pc_details_gap"
+            android:background="@drawable/pc_details_card_bg"
+            android:baselineAligned="false"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingTop="10dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="10dp" />
+
+        <!-- The game the PC is in; gone while it is idle. -->
+        <LinearLayout
+            android:id="@+id/pcDetailsRunning"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/pc_details_gap"
+            android:background="@drawable/pc_running_card_bg"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="8dp">
+
+            <ImageView
+                android:id="@+id/pcDetailsCover"
+                android:layout_width="@dimen/pc_details_cover_width"
+                android:layout_height="@dimen/pc_details_cover_height"
+                android:background="@drawable/pc_running_cover_bg"
+                android:importantForAccessibility="no"
+                android:scaleType="center"
+                android:src="@drawable/ic_computer" />
+
+            <TextView
+                android:id="@+id/pcDetailsRunningTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="2"
+                android:textColor="@color/content_primary"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                tools:text="Sea of Stars" />
+
+            <TextView
+                android:id="@+id/pcDetailsResume"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/pc_details_button_height"
+                android:background="@drawable/pc_running_resume_bg"
+                android:clickable="true"
+                android:drawablePadding="6dp"
+                android:focusable="false"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="center"
+                android:minWidth="@dimen/pc_details_button_height"
+                android:paddingStart="16dp"
+                android:paddingEnd="18dp"
+                android:singleLine="true"
+                android:text="@string/pcview_action_resume"
+                android:textColor="@color/on_signal"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/pcDetailsQuit"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/pc_details_button_height"
+                android:layout_marginStart="2dp"
+                android:background="@drawable/pc_running_quit_bg"
+                android:clickable="true"
+                android:focusable="false"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="center"
+                android:minWidth="@dimen/pc_details_button_height"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:singleLine="true"
+                android:text="@string/pcs_running_quit"
+                android:textColor="@color/danger"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <!-- The actions, two to a row (companion_pc_action_row), in the sheet's order. -->
+        <LinearLayout
+            android:id="@+id/pcDetailsActions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/pc_details_gap"
+            android:orientation="vertical" />
+
+    </LinearLayout>
+
+</ScrollView>

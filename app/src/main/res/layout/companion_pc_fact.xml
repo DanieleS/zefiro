@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    One cell of the focused PC's facts on the companion panel (pcs/PcDetailsRenderer), the mock's
+    .kv cell: the value in mono over its label in small capitals. The renderer keeps a share of the
+    row for every fact a PC can have, so a cell's width never depends on how many are shown.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_weight="1"
+    android:orientation="vertical"
+    android:paddingEnd="8dp">
+
+    <TextView
+        android:id="@+id/pcFactValue"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:fontFamily="monospace"
+        android:singleLine="true"
+        android:textColor="@color/content_primary"
+        android:textSize="14sp"
+        tools:text="172.31.80.1" />
+
+    <TextView
+        android:id="@+id/pcFactLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:ellipsize="end"
+        android:letterSpacing="0.06"
+        android:singleLine="true"
+        android:textAllCaps="true"
+        android:textColor="@color/content_muted"
+        android:textSize="11sp"
+        tools:text="Address" />
+
+</LinearLayout>

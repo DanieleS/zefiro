@@ -3,6 +3,7 @@ package com.limelight.pcs;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Configuration;
+import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -19,9 +20,13 @@ import androidx.recyclerview.widget.SimpleItemAnimator;
 
 import com.google.android.material.button.MaterialButton;
 import com.limelight.R;
+import com.limelight.companion.CompanionDisplayManager;
+import com.limelight.companion.CompanionPage;
 import com.limelight.computers.HostEntry;
 import com.limelight.grid.AutofitGridLayoutManager;
 import com.limelight.main.MainHost;
+import com.limelight.main.PageFocus;
+import com.limelight.main.PanelFocus;
 import com.limelight.main.Section;
 import com.limelight.main.SectionFocus;
 import com.limelight.main.SectionKeys;
@@ -32,7 +37,9 @@ import com.limelight.preferences.AddComputerManually;
 import com.limelight.ui.GamepadHintsView;
 import com.limelight.utils.UiHelper;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * The PCs section: every host the computer manager knows, one tile each in a grid, and the way
@@ -49,7 +56,10 @@ import java.util.List;
  *                      online, not paired ──▶ pair
  *                      otherwise (offline, checking) ──▶ the host's actions sheet
  *   X / the button     the tile's own action (Resume, Wake, Pair), when it has one
- *   Y / long-press     the host's actions sheet, centred (a bottom sheet in a compact window)
+ *   Y / R2             with the companion panel, the d-pad goes down to the PC's page there;
+ *                      without it, Y opens the host's actions sheet, centred (a bottom sheet in
+ *                      a compact window)
+ *   long-press         the host's actions sheet
  *   ⋮ (touch only)     the same sheet, dropped from the button in a wide window
  * </pre>
  *
@@ -75,9 +85,35 @@ import java.util.List;
  * move to another view ends the wait. A tile that goes with its host (deleted) takes focus with
  * it; the grid hands it to a neighbour, or the section puts it back where it starts.
  *
+ * <h3>The companion panel</h3>
+ *
+ * While the panel is up ({@link CompanionDisplayManager#panelShowing()}) and this section is on
+ * screen, the panel shows the focused PC ({@link PcDetailsPage}): its facts, the game it is in,
+ * and every action of its sheet as a big touch row. The tiles stay up here; the page is their
+ * lower half.
+ *
+ * <pre>
+ *   a host tile focused ──▶ its page (rebuilt on every poll; an unchanged one is not sent)
+ *   Add PC focused, or no host ──▶ no page: the panel's idle hosts surface
+ *   focus on the rail ──▶ the page stays
+ *
+ *   Y / R2 on a tile ──▶ PanelFocus: the d-pad on the page, the tile's ring gone meanwhile
+ *        │  d-pad moves, A acts, a tap acts without moving it
+ *        ▼
+ *   B, L2, UP off the first row ──▶ back on the tile
+ * </pre>
+ *
+ * A stop is resolved against the page as it stands, never the one the d-pad went down on, so a
+ * poll that reshapes the page (the PC went offline) cannot run the wrong row. An action that
+ * covers the screen (a pairing dialog, Delete's confirmation, a stream) first brings the d-pad
+ * up, so the dialog gets the keys and focus is back on the tile afterwards. The section hidden,
+ * the panel gone, or the view destroyed take the page off, and the panel goes back to what the
+ * section shown now reports.
+ *
  * Main thread only; every callback checks that the view still exists.
  */
-public class PcsFragment extends Fragment implements SectionKeys, SectionFocus, HostTileAdapter.Listener {
+public class PcsFragment extends Fragment
+        implements SectionKeys, SectionFocus, HostTileAdapter.Listener, PanelFocus.Owner {
 
     private MainHost host;
 
@@ -115,6 +151,22 @@ public class PcsFragment extends Fragment implements SectionKeys, SectionFocus, 
     // Initial focus went to the Add PC tile (or the chip) only for want of a host tile; hand it
     // on when one arrives.
     private boolean focusAwaitingCards;
+
+    // The companion panel is up: the focused PC's details go there.
+    private boolean split;
+    @Nullable
+    private PanelFocus panelFocus;
+    @Nullable
+    private RunningCovers covers;
+    // The hosts as last published, for the page: the grid's own list lags a diff behind.
+    @NonNull
+    private List<HostEntry> hostsNow = Collections.emptyList();
+    // The host whose page the panel shows: the tile focused last, until Add PC takes focus.
+    @Nullable
+    private String pageUuid;
+    // That page as it stands, focus aside; null with no panel or no host to show.
+    @Nullable
+    private PcDetailsPage page;
 
     public PcsFragment() {
     }
@@ -167,9 +219,7 @@ public class PcsFragment extends Fragment implements SectionKeys, SectionFocus, 
         addButton.setOnClickListener(v -> startAddComputer());
         addButton.setOnFocusChangeListener((v, hasFocus) -> {
             if (hasFocus) {
-                // Not a PC of its own: the companion panel goes back to the selected one.
-                host.gameFocus().focusHost(null);
-                updateHints();
+                onAddFocused();
             }
         });
 
@@ -201,6 +251,16 @@ public class PcsFragment extends Fragment implements SectionKeys, SectionFocus, 
         }
 
         applyWindow();
+
+        covers = new RunningCovers(requireContext(), this::refreshPage);
+        // Before the first publish, so a panel already on gets the page with the first hosts.
+        split = Boolean.TRUE.equals(CompanionDisplayManager.panelShowing().getValue());
+        // Before this screen's own observer: when the panel goes, PanelFocus brings the d-pad
+        // back up first, and onPanelShowing then takes the page off.
+        panelFocus = PanelFocus.attach(this, (ViewGroup) view, this);
+        CompanionDisplayManager.panelShowing().observe(getViewLifecycleOwner(),
+                this::onPanelShowing);
+
         host.hostRepository().getHosts().observe(getViewLifecycleOwner(), this::onHosts);
     }
 
@@ -213,10 +273,18 @@ public class PcsFragment extends Fragment implements SectionKeys, SectionFocus, 
     @Override
     public void onHiddenChanged(boolean hidden) {
         super.onHiddenChanged(hidden);
-        if (!hidden) {
-            // A pad plugged in while another section was showing still gets its letter.
-            refreshGamepad();
+        if (hidden) {
+            // The panel is the section shown now's: the d-pad comes up and the page goes.
+            if (panelFocus != null && getView() != null) {
+                panelFocus.onSectionHidden();
+            }
+            return;
         }
+        // A pad plugged in while another section was showing still gets its letter.
+        refreshGamepad();
+        // The focused tile's page goes back on the panel, as it stands now.
+        publishPage();
+        updateHints();
     }
 
     @Override
@@ -240,6 +308,16 @@ public class PcsFragment extends Fragment implements SectionKeys, SectionFocus, 
         if (list != null) {
             list.setAdapter(null);
         }
+        if (covers != null) {
+            covers.release();
+            covers = null;
+        }
+        // Its view lifecycle has ended: PanelFocus has taken the page off the panel already.
+        panelFocus = null;
+        page = null;
+        pageUuid = null;
+        // The fragment outlives its view (a hidden section): let the hosts' bitmaps go.
+        hostsNow = Collections.emptyList();
         list = null;
         empty = null;
         looking = null;
@@ -264,7 +342,11 @@ public class PcsFragment extends Fragment implements SectionKeys, SectionFocus, 
         empty.setVisibility(none ? View.VISIBLE : View.GONE);
         looking.setVisibility(none ? View.GONE : View.VISIBLE);
         renderSubtitle(hosts);
+        hostsNow = none ? Collections.<HostEntry>emptyList() : hosts;
         adapter.submitList(hosts, this::onListCommitted);
+        // The focused PC's page follows its polls. A host gone (deleted) has no page: the d-pad
+        // comes up onto its tile, and the grid's commit then hands focus on as for any deletion.
+        refreshPage();
     }
 
     /** "3 saved · 1 online": online is online and paired, the hosts that can be played on now. */
@@ -351,10 +433,18 @@ public class PcsFragment extends Fragment implements SectionKeys, SectionFocus, 
 
     @Override
     public void onCardFocused(@NonNull HostEntry entry) {
+        if (entry.details.uuid != null && entryFor(entry.details.uuid) == null) {
+            // The tile of a host just deleted, given focus back by the d-pad leaving its page
+            // before the grid's diff lands: the commit moves focus on, and the companion is not
+            // pointed at a PC that is gone meanwhile.
+            return;
+        }
         lastFocusedUuid = entry.details.uuid;
         lastFocusedAdd = false;
         // The companion panel follows the tile, whichever PC is selected.
         host.gameFocus().focusHost(entry.details.uuid);
+        pageUuid = entry.details.uuid;
+        refreshPage();
         updateHints();
     }
 
@@ -370,8 +460,15 @@ public class PcsFragment extends Fragment implements SectionKeys, SectionFocus, 
         }
         lastFocusedUuid = null;
         lastFocusedAdd = true;
-        // Not a PC of its own: the companion panel goes back to the selected one.
+        onAddFocused();
+    }
+
+    // The Add PC tile or chip: not a PC of its own, so the companion panel goes back to the
+    // selected one, on its idle hosts surface.
+    private void onAddFocused() {
         host.gameFocus().focusHost(null);
+        pageUuid = null;
+        refreshPage();
         updateHints();
     }
 
@@ -387,20 +484,42 @@ public class PcsFragment extends Fragment implements SectionKeys, SectionFocus, 
 
     @Override
     public boolean onSectionKey(KeyEvent event) {
-        if (!isAdded() || getView() == null || event.getRepeatCount() != 0) {
+        if (!isAdded() || getView() == null) {
+            return false;
+        }
+        // On the panel, the d-pad, A and B are the page's, held d-pad repeats included.
+        if (panelFocus != null && panelFocus.onKey(event)) {
+            return true;
+        }
+        if (event.getRepeatCount() != 0) {
             return false;
         }
         int code = event.getKeyCode();
-        if (code != KeyEvent.KEYCODE_BUTTON_X && code != KeyEvent.KEYCODE_BUTTON_Y) {
+        if (code == KeyEvent.KEYCODE_BUTTON_L2) {
+            if (isBelow()) {
+                panelFocus.leaveBottom(true);
+                return true;
+            }
+            return false;
+        }
+        if (code != KeyEvent.KEYCODE_BUTTON_X && code != KeyEvent.KEYCODE_BUTTON_Y
+                && code != KeyEvent.KEYCODE_BUTTON_R2) {
             return false;
         }
         HostEntry focused = focusedEntry();
         if (focused == null) {
             return false;
         }
-        if (code == KeyEvent.KEYCODE_BUTTON_Y) {
-            showActions(focused, null);
-            return true;
+        if (code == KeyEvent.KEYCODE_BUTTON_Y || code == KeyEvent.KEYCODE_BUTTON_R2) {
+            if (dropToPanel(focused)) {
+                return true;
+            }
+            // No panel: Y is the sheet, as it has always been; R2 has nowhere to go.
+            if (code == KeyEvent.KEYCODE_BUTTON_Y) {
+                showActions(focused, null);
+                return true;
+            }
+            return false;
         }
         int action = HostTileBinder.actionFor(focused);
         if (action == HostTileBinder.ACTION_NONE) {
@@ -425,11 +544,16 @@ public class PcsFragment extends Fragment implements SectionKeys, SectionFocus, 
 
     /**
      * What the pad does on what has focus: on a host tile, A (Library, Pair or the actions, as
-     * {@link #onCardClicked} decides), X when the tile has an action, and Y; on Add PC, A. Left
-     * as they are while focus is outside the section.
+     * {@link #onCardClicked} decides), X when the tile has an action, and Y; on Add PC, A; with
+     * the d-pad on the panel, A and B. Left as they are while focus is outside the section.
      */
     private void updateHints() {
         if (hints == null || getActivity() == null) {
+            return;
+        }
+        if (isBelow()) {
+            hints.setHints(new GamepadHintsView.Hint(getString(R.string.pcs_hint_select), "A"),
+                    new GamepadHintsView.Hint(getString(R.string.pcs_hint_back), "B"));
             return;
         }
         HostEntry focused = focusedEntry();
@@ -454,7 +578,9 @@ public class PcsFragment extends Fragment implements SectionKeys, SectionFocus, 
             a = R.string.pcs_hint_actions;
         }
         GamepadHintsView.Hint first = new GamepadHintsView.Hint(getString(a), "A");
-        GamepadHintsView.Hint last = new GamepadHintsView.Hint(getString(R.string.pcs_hint_actions), "Y");
+        // With the panel, Y takes the d-pad down to the PC's actions there.
+        GamepadHintsView.Hint last = new GamepadHintsView.Hint(getString(split
+                ? R.string.pcs_hint_actions_below : R.string.pcs_hint_actions), "Y");
         int action = HostTileBinder.actionFor(entry);
         if (action == HostTileBinder.ACTION_NONE) {
             return new GamepadHintsView.Hint[]{first, last};
@@ -462,6 +588,182 @@ public class PcsFragment extends Fragment implements SectionKeys, SectionFocus, 
         GamepadHintsView.Hint x = new GamepadHintsView.Hint(
                 getString(HostTileBinder.actionLabel(action)), "X");
         return new GamepadHintsView.Hint[]{first, x, last};
+    }
+
+    // --- The companion panel ---
+
+    /** Whether the d-pad is down on the panel's page. */
+    private boolean isBelow() {
+        return panelFocus != null && panelFocus.zone() == PanelFocus.Zone.BOTTOM;
+    }
+
+    /** The panel came or went: the focused PC's page goes to it, or comes off. */
+    private void onPanelShowing(@Nullable Boolean showing) {
+        boolean next = Boolean.TRUE.equals(showing);
+        if (next == split || getView() == null) {
+            return;
+        }
+        split = next;
+        refreshPage();
+        updateHints();
+    }
+
+    /**
+     * Builds the focused PC's page again from the hosts as they stand, and hands it to the panel
+     * when it changed. A poll that changed nothing the page shows sends nothing.
+     */
+    private void refreshPage() {
+        if (getView() == null) {
+            return;
+        }
+        PcDetailsPage next = buildPage();
+        if (Objects.equals(next, page)) {
+            return;
+        }
+        page = next;
+        publishPage();
+    }
+
+    @Nullable
+    private PcDetailsPage buildPage() {
+        if (!split || pageUuid == null || covers == null) {
+            return null;
+        }
+        HostEntry entry = entryFor(pageUuid);
+        if (entry == null) {
+            return null;
+        }
+        Bitmap art = null;
+        if (HostStatus.kind(entry.details) == HostStatus.Kind.PLAYING) {
+            // The cover once read; until then, or for a game without one, the hero image.
+            art = covers.coverFor(entry);
+            if (art == null) {
+                art = entry.runningBackground;
+            }
+        }
+        return PcDetailsPage.of(requireContext(), entry, art);
+    }
+
+    /**
+     * Hands the page as it stands to the panel, while split and this section is shown; takes it
+     * off when not split, or when there is no host to show (the panel goes back to its idle
+     * hosts surface).
+     */
+    private void publishPage() {
+        if (panelFocus == null || !isAdded() || getView() == null) {
+            return;
+        }
+        if (!split) {
+            panelFocus.clear();
+            return;
+        }
+        if (isHidden()) {
+            return;
+        }
+        panelFocus.publish();
+    }
+
+    @Nullable
+    private HostEntry entryFor(@NonNull String uuid) {
+        for (HostEntry entry : hostsNow) {
+            if (uuid.equals(entry.details.uuid)) {
+                return entry;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Y or R2 on a host tile, with the panel up: down onto its page's first stop.
+     *
+     * @return whether the d-pad went down; false without a panel, so Y opens the sheet
+     */
+    private boolean dropToPanel(@NonNull HostEntry focused) {
+        if (!split || panelFocus == null) {
+            return false;
+        }
+        if (page == null || !page.uuid.equals(focused.details.uuid)) {
+            // The focus report has not landed yet: the page is the focused tile's.
+            pageUuid = focused.details.uuid;
+            refreshPage();
+        }
+        PcDetailsPage shown = page;
+        if (shown == null) {
+            return false;
+        }
+        int stop = shown.entryStop();
+        if (stop < 0 || !panelFocus.enterBottom(stop)) {
+            return false;
+        }
+        updateHints();
+        return true;
+    }
+
+    @Nullable
+    @Override
+    public CompanionPage bottomPage() {
+        return page;
+    }
+
+    @NonNull
+    @Override
+    public PageFocus bottomStops() {
+        PcDetailsPage shown = page;
+        return shown != null ? shown.stops() : new PageFocus(Collections.<int[]>emptyList());
+    }
+
+    @Override
+    public void onExit(@NonNull PageFocus.Nav direction) {
+        // Up off the first row is back up to the tile; off the last row (Delete PC), nowhere.
+        if (direction == PageFocus.Nav.UP && panelFocus != null) {
+            panelFocus.leaveBottom(true);
+        }
+    }
+
+    @Override
+    public void onActivate(int stop) {
+        act(stop);
+    }
+
+    @Override
+    public void onPageTap(int stopId) {
+        act(stopId);
+    }
+
+    /**
+     * A or a tap on a stop: the row's action, on the host the page shows now. A stop the page no
+     * longer has (it was reshaped by a poll) does nothing. Anything but Wake, which only says
+     * so in a toast, covers this screen with a dialog, another section or a stream, so the
+     * d-pad comes back up first: the dialog gets the keys, and focus is on the tile afterwards.
+     */
+    private void act(int stop) {
+        if (!isAdded() || getView() == null) {
+            return;
+        }
+        PcDetailsPage shown = page;
+        if (shown == null) {
+            return;
+        }
+        HostActionsSheet.Item item = shown.itemAt(stop);
+        HostEntry entry = entryFor(shown.uuid);
+        if (item == null || entry == null) {
+            return;
+        }
+        if (item != HostActionsSheet.Item.WAKE && panelFocus != null) {
+            panelFocus.leaveBottom(true);
+        }
+        HostActionsSheet.run(host.hostActions(), item, entry);
+    }
+
+    @Override
+    public void onBottomLeft(boolean restored) {
+        // Not given back (the panel went, the tile went): onto the tile it left, else where the
+        // section starts; a touch that took the d-pad up leaves focus to the touch.
+        View view = getView();
+        if (!restored && isAdded() && view != null && !isHidden() && !view.isInTouchMode()) {
+            requestInitialFocus();
+        }
+        updateHints();
     }
 
     // --- Focus ---
