@@ -23,20 +23,20 @@ import com.limelight.R;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * The Settings section's header ({@code view_settings_header}): the search field, the pinned
- * card, the chips and the sticky label. It draws what {@link SettingsSectionFragment} hands it
+ * card and the chips. It draws what {@link SettingsSectionFragment} hands it
  * and reports what the user picks; it decides nothing about settings itself.
  *
  * <h3>Two states</h3>
  *
  * <pre>
  *   at rest    the field as a button ("Search 144 settings…"), the card, the chips as jumps to
- *              the sections (Pinned first), "{n} changed", the sticky label
+ *              the sections (Pinned first), "{n} changed" (none: not shown)
  *   searching  back, the query and clear; no card; the chips as the results' filters ("All 8",
- *              one per section with matches, "Changed"); "Also showing matches for …"
+ *              one per section with matches, "Changed 2" while any match has changed); "Also
+ *              showing matches for …"
  * </pre>
  *
  * <h3>Rebuilt only on change</h3>
@@ -129,12 +129,12 @@ final class SettingsHeader {
     private final LinearLayout chips;
     private final TextView changedChip;
     private final TextView alsoMatches;
-    private final TextView sticky;
 
     private boolean wide;
-    // Whether the screen is driven by a pad (MainHost.isDpadFirst): the glyphs name its buttons,
-    // and a phone held in the hand has none to name.
+    // Whether a gamepad is connected: the glyphs name its buttons, and a screen without one (a
+    // phone in the hand, the Thor's emulator) has none to name.
     private boolean glyphs;
+    private int changedCount;
     private boolean searching;
     // Set while the query is written from code, so the watcher does not report it back.
     private boolean settingQuery;
@@ -174,10 +174,11 @@ final class SettingsHeader {
         chips = root.findViewById(R.id.settingsChips);
         changedChip = root.findViewById(R.id.settingsChangedChip);
         alsoMatches = root.findViewById(R.id.settingsAlsoMatches);
-        sticky = root.findViewById(R.id.settingsSticky);
 
         // The mocks' glyphs: Y searches, LB and RB jump between the chips.
         ((TextView) searchGlyph).setText("Y");
+        // A key on the field, not of its colour: the hint's own key is the field's surface.
+        searchGlyph.setBackgroundResource(R.drawable.settings_search_key_bg);
         ((TextView) prevGlyph).setText("LB");
         ((TextView) nextGlyph).setText("RB");
 
@@ -268,7 +269,7 @@ final class SettingsHeader {
 
     /**
      * Lays the header out for a wide window (the Thor) or a compact one (a phone), with the
-     * gamepad glyphs (Y, LB, RB) only where a pad drives the screen.
+     * gamepad glyphs (Y, LB, RB) only while a gamepad is connected.
      */
     void setWide(boolean wide, boolean glyphs) {
         this.wide = wide;
@@ -299,8 +300,7 @@ final class SettingsHeader {
         boolean chipGlyphs = wide && glyphs && !searching;
         prevGlyph.setVisibility(chipGlyphs ? View.VISIBLE : View.GONE);
         nextGlyph.setVisibility(chipGlyphs ? View.VISIBLE : View.GONE);
-        changedChip.setVisibility(wide && !searching ? View.VISIBLE : View.GONE);
-        sticky.setVisibility(wide && !searching ? View.VISIBLE : View.GONE);
+        changedChip.setVisibility(wide && !searching && changedCount > 0 ? View.VISIBLE : View.GONE);
     }
 
     // --- At rest ---
@@ -326,6 +326,10 @@ final class SettingsHeader {
         profileSubtitle.setText(context.getString(R.string.settings_profile_subtitle, changed));
         profilePin.setContentDescription(context.getString(R.string.settings_pin_profile) + ", " + name);
         changedChip.setText(context.getString(R.string.settings_changed_count, changed));
+        if (changedCount != changed) {
+            changedCount = changed;
+            applyState();
+        }
 
         bindPins(pinsShown);
         if (!searching) {
@@ -495,8 +499,14 @@ final class SettingsHeader {
 
     // --- Filters (searching) ---
 
-    /** The chips as the results' filters, with the query's counts; {@code selected} is on. */
-    void bindFilters(@NonNull SettingsSearch.Result result, @NonNull SettingsSearch.Filter selected) {
+    /**
+     * The chips as the results' filters, with the query's counts; {@code selected} is on.
+     *
+     * @param changed how many of the query's matches have changed: the Changed chip's count,
+     *                and no chip at none unless it is the filter in force
+     */
+    void bindFilters(@NonNull SettingsSearch.Result result, @NonNull SettingsSearch.Filter selected,
+                     int changed) {
         Context context = root.getContext();
         List<SettingsSearch.Filter> next = new ArrayList<>();
         List<CharSequence> labels = new ArrayList<>();
@@ -515,8 +525,11 @@ final class SettingsHeader {
             labels.add(context.getString(R.string.settings_filter_count,
                     shortTitle(context, selected.sectionId, null), 0));
         }
-        next.add(SettingsSearch.Filter.CHANGED);
-        labels.add(context.getString(R.string.settings_filter_changed));
+        if (changed > 0 || selected.changedOnly) {
+            next.add(SettingsSearch.Filter.CHANGED);
+            labels.add(context.getString(R.string.settings_filter_count,
+                    context.getString(R.string.settings_filter_changed), changed));
+        }
 
         if (chipsAreFilters && next.equals(filters) && chips.getChildCount() == next.size()) {
             for (int i = 0; i < next.size(); i++) {
@@ -582,14 +595,6 @@ final class SettingsHeader {
     @Nullable
     View chipAt(int index) {
         return index >= 0 && index < chips.getChildCount() ? chips.getChildAt(index) : null;
-    }
-
-    // --- Sticky label ---
-
-    void setSticky(@Nullable CharSequence text) {
-        if (!Objects.equals(sticky.getText().toString(), text != null ? text.toString() : "")) {
-            sticky.setText(text);
-        }
     }
 
     // --- Query ---

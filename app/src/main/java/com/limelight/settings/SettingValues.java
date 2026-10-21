@@ -1,15 +1,18 @@
 package com.limelight.settings;
 
+import android.content.Context;
 import android.text.TextUtils;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.StringRes;
 import androidx.preference.EditTextPreference;
 import androidx.preference.ListPreference;
 import androidx.preference.Preference;
 import androidx.preference.TwoStatePreference;
 
 import com.limelight.R;
+import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.preferences.SeekBarPreference;
 import com.limelight.preferences.WebLauncherPreference;
 
@@ -33,9 +36,7 @@ public final class SettingValues {
             return ((ListPreference) preference).getEntry();
         }
         if (preference instanceof EditTextPreference) {
-            String text = ((EditTextPreference) preference).getText();
-            return TextUtils.isEmpty(text)
-                    ? preference.getContext().getString(R.string.settings_value_not_set) : text;
+            return textValue(preference, ((EditTextPreference) preference).getText());
         }
         if (preference instanceof SeekBarPreference) {
             return ((SeekBarPreference) preference).getDisplayValue();
@@ -68,11 +69,36 @@ public final class SettingValues {
             return ((SeekBarPreference) preference).formatValue(((Number) value).intValue());
         }
         if (preference instanceof EditTextPreference) {
-            String text = String.valueOf(value);
-            return text.isEmpty()
-                    ? preference.getContext().getString(R.string.settings_value_not_set) : text;
+            return textValue(preference, String.valueOf(value));
         }
         return null;
+    }
+
+    /**
+     * A typed value as its row shows it: with its unit where the setting has one ("20 Mbps",
+     * "59.94 Hz"), as a slider's value is; "Not set" for none.
+     */
+    @NonNull
+    private static CharSequence textValue(@NonNull Preference preference, @Nullable String text) {
+        Context context = preference.getContext();
+        if (TextUtils.isEmpty(text)) {
+            return context.getString(R.string.settings_value_not_set);
+        }
+        int unit = unitOf(preference.getKey());
+        return unit != 0 ? context.getString(R.string.settings_value_with_unit, text,
+                context.getString(unit)) : text;
+    }
+
+    // The unit a typed setting is entered in, as its dialog asks for it; 0 for none.
+    @StringRes
+    private static int unitOf(@Nullable String key) {
+        if (PreferenceConfiguration.CUSTOM_BITRATE_PREF_STRING.equals(key)) {
+            return R.string.suffix_seekbar_bitrate_mbps;
+        }
+        if (PreferenceConfiguration.CUSTOM_REFRESH_RATE_PREF_STRING.equals(key)) {
+            return R.string.settings_unit_hz;
+        }
+        return 0;
     }
 
     /** A switch's state in words, for where the switch itself is not drawn (the pinned card). */

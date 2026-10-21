@@ -1,18 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     The Settings section's header, after Settings_C: the search field, the pinned card, the jump
-    chips and, in a wide window, the sticky label of the row in focus. One instance, bound by
-    SettingsHeader; SettingsSectionFragment hangs it above the list in a wide window, and makes
-    it the list's first item in a compact one, where it scrolls away as the phone mock does.
+    chips. One instance, bound by SettingsHeader; SettingsSectionFragment hangs it above the list
+    on the Thor, and makes it the list's first item on a phone, in either orientation, where it
+    scrolls away as the phone mock does. The sticky label of the section in view is the
+    section's own (fragment_settings), so it stays when the header scrolls away.
 
     Searching, the same header turns into the search bar (back, the query, clear), the chips into
     the results' filters, and the card goes.
 
     Which parts a window shows (SettingsHeader.setWide):
-      wide     Y glyph on the field, the profile as the card's first pin, LB / RB around the
-               chips, "{n} changed", the sticky label
-      compact  the profile as a row with Switch above five value pills, no glyphs, no sticky
-               label, no Pinned chip (the card is right above the chips)
+      wide     the profile as the card's first pin, "{n} changed" (hidden at none), and with
+               a gamepad connected the Y glyph on the field and LB / RB around the chips
+      compact  the profile as a row with Switch above five value pills, no glyphs, no Pinned
+               chip (the card is right above the chips)
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -24,7 +25,7 @@
     android:paddingStart="@dimen/section_gutter"
     android:paddingTop="@dimen/section_header_padding_top"
     android:paddingEnd="@dimen/section_gutter"
-    android:paddingBottom="4dp">
+    android:paddingBottom="2dp">
 
     <!-- At rest: the field is a button that starts a search, as the mocks draw it. -->
     <LinearLayout
@@ -356,21 +357,5 @@
         android:textColor="@color/content_muted"
         android:textSize="13sp"
         android:visibility="gone" />
-
-    <!-- Wide: where the row in focus is, "VIDEO · FRAME PACING · 8 OF 34". -->
-    <TextView
-        android:id="@+id/settingsSticky"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:ellipsize="end"
-        android:letterSpacing="0.14"
-        android:paddingStart="@dimen/settings_row_padding"
-        android:paddingEnd="@dimen/settings_row_padding"
-        android:singleLine="true"
-        android:textAllCaps="true"
-        android:textColor="@color/content_muted"
-        android:textSize="11sp"
-        android:textStyle="bold" />
 
 </LinearLayout>

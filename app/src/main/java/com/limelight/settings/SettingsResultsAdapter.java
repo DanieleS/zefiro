@@ -96,13 +96,17 @@ final class SettingsResultsAdapter extends RecyclerView.Adapter<SettingsResultsA
 
     private final Host host;
     private List<Item> items = Collections.emptyList();
+    // The query the items answer: its words are marked in the titles.
+    @Nullable
+    private String query;
 
     SettingsResultsAdapter(@NonNull Host host) {
         this.host = host;
     }
 
-    void submit(@NonNull List<Item> next) {
+    void submit(@NonNull List<Item> next, @Nullable String query) {
         items = Collections.unmodifiableList(new ArrayList<>(next));
+        this.query = query;
         notifyDataSetChanged();
     }
 
@@ -127,6 +131,17 @@ final class SettingsResultsAdapter extends RecyclerView.Adapter<SettingsResultsA
             }
         }
         return RecyclerView.NO_POSITION;
+    }
+
+    /** The key of the first result row, or null when there is none. */
+    @Nullable
+    String firstKey() {
+        for (Item item : items) {
+            if (item.type == TYPE_ROW) {
+                return item.key;
+            }
+        }
+        return null;
     }
 
     /** The first position a d-pad can stop on, or {@link RecyclerView#NO_POSITION}. */
@@ -197,7 +212,8 @@ final class SettingsResultsAdapter extends RecyclerView.Adapter<SettingsResultsA
             // The list is being rebuilt; the next refresh binds the row again.
             return;
         }
-        SettingRowBinder.bindResult(holder.itemView, preference, item.text, defaults, host.prefs());
+        SettingRowBinder.bindResult(holder.itemView, preference, item.text, defaults, host.prefs(),
+                query);
         holder.itemView.setOnClickListener(v -> host.onResultClicked(key));
         holder.itemView.setOnLongClickListener(v -> host.onResultLongPressed(key, v));
     }

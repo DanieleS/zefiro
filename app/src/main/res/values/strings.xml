@@ -1278,8 +1278,10 @@
     <string name="settings_filter_all">All</string>
     <string name="settings_filter_changed">Changed</string>
     <string name="settings_filter_count">%1$s %2$d</string>
-    <!-- Wide windows: where the row in focus is, "VIDEO · FRAME PACING · 8 OF 34". -->
-    <string name="settings_sticky">%1$s · %2$s · %3$d of %4$d</string>
+    <!-- The sticky label: where the row in focus is in its section, "FRAME PACING · 8 OF 34"
+         beside "VIDEO" (upper-cased by the label). -->
+    <string name="settings_sticky_place">%1$s · %2$d of %3$d</string>
+    <string name="settings_sticky_place_plain">%1$d of %2$d</string>
     <!-- Search results. -->
     <string name="settings_also_matches">Also showing matches for %1$s</string>
     <string name="settings_breadcrumb">%1$s › %2$s</string>
@@ -1292,6 +1294,14 @@
     <string name="settings_row_pin">Pin to top</string>
     <string name="settings_row_unpin">Unpin</string>
     <string name="settings_pins_full">Up to %1$d settings can be pinned</string>
+    <!-- A typed value with its unit ("20 Mbps"), and the units typed settings are entered in. -->
+    <string name="settings_value_with_unit">%1$s %2$s</string>
+    <string name="settings_unit_hz">Hz</string>
+    <!-- The codec as the pinned card names it, short. -->
+    <string name="settings_codec_auto">Auto</string>
+    <string name="settings_codec_av1">AV1</string>
+    <string name="settings_codec_hevc">HEVC</string>
+    <string name="settings_codec_h264">H.264</string>
 
     <!-- Screens T9: Settings on the Thor bottom screen, the choices. -->
     <!-- The caption over a list setting's choices: "VIDEO · CHOICES" (drawn in caps). -->

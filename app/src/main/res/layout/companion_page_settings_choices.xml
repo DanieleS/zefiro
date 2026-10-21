@@ -73,13 +73,17 @@
         tools:text="Needs Enable rumble"
         tools:visibility="visible" />
 
+    <!-- The edges fade where there is more to scroll to: a list longer than the panel says so
+         rather than ending at the hints as if cut. -->
     <ScrollView
         android:id="@+id/companionSettingsScroll"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_marginTop="8dp"
         android:layout_weight="1"
+        android:fadingEdgeLength="24dp"
         android:overScrollMode="never"
+        android:requiresFadingEdge="vertical"
         android:scrollbars="none">
 
         <LinearLayout

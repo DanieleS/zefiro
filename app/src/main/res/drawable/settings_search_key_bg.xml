@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The Y glyph on the Settings search field: a key one step lighter than the field it sits on
+    (surface_container), which the hint's own key would vanish into, as the mock's .k on .srch.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="@dimen/key_glyph_corner" />
+    <solid android:color="@color/surface_container_highest" />
+</shape>
