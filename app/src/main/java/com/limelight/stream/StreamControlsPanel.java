@@ -4,6 +4,9 @@ import android.content.Context;
 import android.content.res.ColorStateList;
 import android.content.res.Configuration;
 import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Outline;
 import android.os.Build;
 import android.os.SystemClock;
 import android.util.AttributeSet;
@@ -14,6 +17,7 @@ import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewOutlineProvider;
 import android.view.WindowInsets;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -26,10 +30,14 @@ import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import androidx.core.content.ContextCompat;
 
+import com.limelight.LimeLog;
 import com.limelight.R;
 import com.limelight.binding.video.PerfStats;
+import com.limelight.grid.assets.DiskAssetLoader;
 import com.limelight.stats.StatsFormat;
 import com.limelight.stats.StatsText;
+
+import java.io.File;
 
 /**
  * The phone's in-stream controls: a panel on the right edge of the stream, over a scrim, after
@@ -52,12 +60,14 @@ import com.limelight.stats.StatsText;
  *   any other      header · ‹ page title · its rows (or why there are none)
  * </pre>
  *
+ * Only the rows scroll: the header, the tiles and the two ends stay put, so on a landscape
+ * phone too short for the whole first page the last row is a scroll away rather than cut off.
+ *
  * Every page, the Mouse mode and the empty Server commands included, is drawn here: nothing
  * opens a window of its own over the stream.
  *
- * <p>The mock's header also has a small box-art thumbnail beside the title. It is left out on
- * purpose for now: the header is text only, and the thumbnail is a separate follow-up. The mock's
- * muted trailing value on some rows (Bitrate "80 Mbps · adaptive") is not a column of its own
+ * <p>The header's box art is the library's cached cover, read when the panel first opens; a
+ * game with none cached has a header of text alone, as before. The mock's muted trailing value on some rows (Bitrate "80 Mbps · adaptive") is not a column of its own
  * either: a row ends in a chevron or a check, and the value, where one matters, is in the label
  * ("Bitrate: 80 Mbps (adaptive)", from {@link StreamActions}).
  *
@@ -81,11 +91,14 @@ public class StreamControlsPanel extends FrameLayout implements ControlsSurface 
     private final TextView title;
     private final TextView subtitle;
     private final TextView statsLine;
+    private final ImageView cover;
+    private final LinearLayout tiles;
     private final ScrollView scroll;
     private final LinearLayout page;
     private final LinearLayout danger;
     private final LayoutInflater inflater;
     private final int sheetPadding;
+    private final int rowHeight;
 
     @Nullable
     private Pages pages;
@@ -95,6 +108,11 @@ public class StreamControlsPanel extends FrameLayout implements ControlsSurface 
     @Nullable
     private String hostName;
     private long streamStartUptimeMs;
+    /** Where the library caches this game's cover; null when there is no telling. */
+    @Nullable
+    private File coverFile;
+    /** Whether the cover was read (or is being read), so it is read once a stream. */
+    private boolean coverAsked;
     @Nullable
     private PerfStats stats;
     private long statsUptimeMs;
@@ -121,10 +139,23 @@ public class StreamControlsPanel extends FrameLayout implements ControlsSurface 
         title = findViewById(R.id.controlsTitle);
         subtitle = findViewById(R.id.controlsSubtitle);
         statsLine = findViewById(R.id.controlsStats);
+        cover = findViewById(R.id.controlsCover);
+        tiles = findViewById(R.id.controlsTiles);
         scroll = findViewById(R.id.controlsScroll);
         page = findViewById(R.id.controlsPage);
         danger = findViewById(R.id.controlsDanger);
         sheetPadding = getResources().getDimensionPixelSize(R.dimen.controls_panel_padding);
+        rowHeight = getResources().getDimensionPixelSize(R.dimen.controls_panel_row_height);
+
+        // The mock's 4dp corners on the box art.
+        final float coverCorner = dp(4);
+        cover.setOutlineProvider(new ViewOutlineProvider() {
+            @Override
+            public void getOutline(View view, Outline outline) {
+                outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), coverCorner);
+            }
+        });
+        cover.setClipToOutline(true);
 
         // A tap on the game around the panel closes it, as a tap outside any sheet does.
         scrim.setOnClickListener(v -> close());
@@ -142,6 +173,16 @@ public class StreamControlsPanel extends FrameLayout implements ControlsSurface 
         this.gameName = gameName;
         this.hostName = hostName;
         renderHeader();
+    }
+
+    /**
+     * The library's cached cover for the game, shown beside the title once the file is there.
+     * Read when the panel opens, not now: a launch that skipped the library has the connection
+     * scene fetch the art into this file, which is done by the time anyone opens the panel.
+     */
+    public void setCover(@Nullable File boxArt) {
+        coverFile = boxArt;
+        coverAsked = false;
     }
 
     /** When the stream started (uptime), for the header's session length; 0 while unknown. */
@@ -301,6 +342,7 @@ public class StreamControlsPanel extends FrameLayout implements ControlsSurface 
             stats = null;
         }
         renderHeader();
+        loadCover();
         setVisibility(VISIBLE);
         scheduleSessionTick();
 
@@ -319,9 +361,44 @@ public class StreamControlsPanel extends FrameLayout implements ControlsSurface 
         removeCallbacks(sessionTick);
         sheet.setTranslationX(0);
         scrim.setAlpha(1f);
+        tiles.removeAllViews();
         page.removeAllViews();
         danger.removeAllViews();
         setVisibility(GONE);
+    }
+
+    /** Decode the cover off the main thread, at the header's size, the first time it is wanted. */
+    private void loadCover() {
+        final File file = coverFile;
+        if (coverAsked || file == null || !file.exists()) {
+            // Not there yet: asked again at the next opening.
+            return;
+        }
+        coverAsked = true;
+        final int width = getResources().getDimensionPixelSize(R.dimen.controls_panel_cover_width);
+        final int height = getResources().getDimensionPixelSize(R.dimen.controls_panel_cover_height);
+        new Thread(() -> {
+            Bitmap bmp = null;
+            try {
+                BitmapFactory.Options bounds = new BitmapFactory.Options();
+                bounds.inJustDecodeBounds = true;
+                BitmapFactory.decodeFile(file.getPath(), bounds);
+                BitmapFactory.Options options = new BitmapFactory.Options();
+                options.inSampleSize = DiskAssetLoader.calculateInSampleSize(bounds, width, height);
+                bmp = BitmapFactory.decodeFile(file.getPath(), options);
+            } catch (RuntimeException | OutOfMemoryError e) {
+                // No art is a cosmetic loss; the header still names the game.
+                LimeLog.info("Controls cover decode failed: " + e.getMessage());
+            }
+            if (bmp == null) {
+                return;
+            }
+            final Bitmap art = bmp;
+            post(() -> {
+                cover.setImageBitmap(art);
+                cover.setVisibility(VISIBLE);
+            });
+        }, "ControlsCoverDecode").start();
     }
 
     private void onSessionTick() {
@@ -369,6 +446,7 @@ public class StreamControlsPanel extends FrameLayout implements ControlsSurface 
 
     private void renderPage(@NonNull StreamAction shown, boolean root) {
         show();
+        tiles.removeAllViews();
         page.removeAllViews();
         danger.removeAllViews();
         Resources res = getResources();
@@ -383,20 +461,11 @@ public class StreamControlsPanel extends FrameLayout implements ControlsSurface 
             back.setOnClickListener(v -> back());
         }
 
-        LinearLayout tiles = null;
         boolean afterRow = false;
         if (shown.children != null) {
             for (StreamAction child : shown.children) {
                 switch (child.group) {
                     case TILE:
-                        if (tiles == null) {
-                            tiles = new LinearLayout(getContext());
-                            tiles.setOrientation(LinearLayout.HORIZONTAL);
-                            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                                    LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
-                            lp.bottomMargin = dp(8);
-                            page.addView(tiles, lp);
-                        }
                         addTile(tiles, child);
                         break;
                     case DANGER:
@@ -417,6 +486,7 @@ public class StreamControlsPanel extends FrameLayout implements ControlsSurface 
         if (shown.children == null || shown.children.isEmpty()) {
             addEmpty(shown);
         }
+        tiles.setVisibility(tiles.getChildCount() > 0 ? VISIBLE : GONE);
         danger.setVisibility(danger.getChildCount() > 0 ? VISIBLE : GONE);
 
         scroll.scrollTo(0, 0);
@@ -471,6 +541,9 @@ public class StreamControlsPanel extends FrameLayout implements ControlsSurface 
     private View addRow(ViewGroup parent, CharSequence text, int iconRes, int trailingRes,
                         @Nullable ColorStateList trailingTint) {
         View row = inflater.inflate(R.layout.item_controls_row, parent, false);
+        // Tighter than the shared row (the Thor sheet's), as the mock draws the panel's list.
+        row.setMinimumHeight(rowHeight);
+        ((ViewGroup.MarginLayoutParams) row.getLayoutParams()).bottomMargin = 0;
         ((TextView) row.findViewById(R.id.controlsRowLabel)).setText(text);
         if (iconRes != 0) {
             ImageView icon = row.findViewById(R.id.controlsRowIcon);
@@ -501,8 +574,7 @@ public class StreamControlsPanel extends FrameLayout implements ControlsSurface 
         button.setFocusable(true);
         button.setOnClickListener(v -> pages.choose(action));
 
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0,
-                getResources().getDimensionPixelSize(R.dimen.menu_row_min_height), 1f);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, rowHeight, 1f);
         if (danger.getChildCount() > 0) {
             lp.leftMargin = getResources().getDimensionPixelSize(R.dimen.controls_tile_gap);
         }
@@ -551,7 +623,10 @@ public class StreamControlsPanel extends FrameLayout implements ControlsSurface 
      * {@link #takeFocus}.
      */
     private void focusFirst(boolean fromNav) {
-        View first = firstFocusable(page);
+        View first = firstFocusable(tiles);
+        if (first == null) {
+            first = firstFocusable(page);
+        }
         if (first == null) {
             first = firstFocusable(danger);
         }

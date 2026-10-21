@@ -28,13 +28,15 @@ import java.util.Collections;
  * The view is the touch zone (24 x 120dp, set by the layout) and the pill is drawn inside it, so
  * the zone is easy to hit while the mark stays small. Every touch that lands outside the zone
  * reaches the stream exactly as before; inside it, the handle takes the whole gesture, which is
- * the price of having one at all.
+ * the price of having one at all. A swipe in from the rest of the edge opens the panel too: the
+ * game watches for it ({@link EdgeSwipe}) without taking the touches that are not one.
  *
  * <h3>Edge gestures</h3>
  *
  * With gesture navigation, a swipe in from the side is the system's Back, and it would win. On
  * API 29 and later the zone is excluded from the system's gestures; before that only the tap is
- * dependable.
+ * dependable. The rest of the edge is left to the system: it honours at most 200dp of exclusion
+ * per edge, so with gesture navigation the swipe elsewhere along the edge may still be Back.
  *
  * <p>Main thread only, like any view.
  */

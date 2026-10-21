@@ -174,8 +174,6 @@ public class CompanionPresentation extends android.app.Presentation
     private View deviceTile;
     /** Which tiles the grid was last cut for, a bit each, so a steady stream re-lays nothing. */
     private int laidOutTiles = -1;
-    /** The stream whose host has reported its own latency at least once: its tile stays. */
-    private long hostLatencySeenFor = -1;
     private TextView resolutionView;
     private TextView fpsView;
     private TextView latencyView;
@@ -716,15 +714,12 @@ public class CompanionPresentation extends android.app.Presentation
         float deviceC = deviceTemperatureC(context);
         deviceView.setText(Float.isNaN(deviceC) ? none
                 : context.getString(R.string.companion_value_celsius, deviceC));
-        long streamStart = session != null ? session.startUptimeMs : 0;
-        if (stats != null && stats.hasHostProcessingLatency) {
-            hostLatencySeenFor = streamStart;
-        }
         // Host only from a host that reports its own latency: most never do, and a tile reading
         // a dash for a whole stream is a tile that is not there. Once seen it stays for the
-        // stream, a dash in a second that had no frame to time, so the grid does not jump.
+        // stream, a dash in a second that had no frame to time, so the grid does not jump; the
+        // state remembers it, so a panel built again mid-stream cuts the same grid as before.
         // Device only where the device says (its battery's sensor, which needs no permission).
-        layoutStatTiles(hostLatencySeenFor == streamStart, !Float.isNaN(deviceC));
+        layoutStatTiles(state.hasSeenHostLatency(), !Float.isNaN(deviceC));
 
         if (stats == null) {
             for (TextView value : new TextView[]{resolutionView, fpsView, latencyView,

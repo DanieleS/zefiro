@@ -265,8 +265,8 @@
 
             <!--
                 The stats: the game over "PC · play time", the codec and its HDR state beside,
-                then the tiles. Centred in the room above the strip, as one block, rather than
-                hung from the top over an empty half. The tiles are listed flat here and laid
+                then the tiles. Hung from the top of the room above the strip, as the mock draws
+                it, so the grid starts where the eye does. The tiles are listed flat here and laid
                 out in rows in code (CompanionPresentation#layoutStatTiles): Host and Device
                 show only while something measures them, and the rows are re-cut so the grid is
                 full, three or four across, never a gap where a tile went.
@@ -275,7 +275,7 @@
                 android:id="@+id/companionStats"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:gravity="center_vertical"
+                android:gravity="top"
                 android:orientation="vertical"
                 android:paddingStart="@dimen/companion_stats_padding"
                 android:paddingTop="@dimen/companion_stats_padding"
