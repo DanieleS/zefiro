@@ -1156,8 +1156,12 @@
     <string name="stats_unlocked_count">%1$s unlocked</string>
     <!-- The header's crumb on a year: "Year 2026 › pick a month". -->
     <string name="stats_crumb_pick">pick a month</string>
-    <!-- The tooltip's action over a year's month, after the A glyph. -->
+    <!-- The tooltip's action over a year's month: after the A glyph with a pad, before a
+         chevron by touch. -->
     <string name="stats_tooltip_open">Open</string>
+    <!-- Under a chart whose first bars predate GameActivity's first session: "No session data
+         before October" on a year, "No session data before 9 October" on a week or a month. -->
+    <string name="stats_no_data_before">No session data before %1$s</string>
     <!-- The climb chip before a month's name, back to its year; spoken. -->
     <string name="stats_climb_a11y">Back to %1$s</string>
     <!-- The strip under the chart: "Most played in 2026". -->

@@ -111,6 +111,11 @@
     <dimen name="stats_gutter">24dp</dimen>
     <!-- The label beside the strip's covers in a wide window, as the mock's left column. -->
     <dimen name="stats_strip_label_width">120dp</dimen>
+    <!-- The chart: its height inline, and the bounds it moves within to fit the window (see
+         StatsFormat.chartHeight). -->
+    <dimen name="stats_chart_height">200dp</dimen>
+    <dimen name="stats_chart_min_height">112dp</dimen>
+    <dimen name="stats_chart_max_height">380dp</dimen>
 
     <!--
         The main screen's navigation. The rail is narrow and icon-only, as in the mocks: on the

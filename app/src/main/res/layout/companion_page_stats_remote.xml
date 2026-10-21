@@ -146,13 +146,16 @@
     </LinearLayout>
 
     <!-- Fills what the remote and the totals leave, so the totals keep to the bottom even
-         without rows. -->
+         without rows. Its edges fade while there are rows beyond them, the cue that the list
+         goes on under the totals (or back up under the tabs). -->
     <ScrollView
         android:id="@+id/companionStatsScroll"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
+        android:fadingEdgeLength="40dp"
         android:overScrollMode="never"
+        android:requiresFadingEdge="vertical"
         android:scrollbars="none">
 
         <LinearLayout

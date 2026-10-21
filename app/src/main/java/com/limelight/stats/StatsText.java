@@ -139,6 +139,21 @@ public class StatsText implements StatsFormat.Words {
     }
 
     /**
+     * Under a chart whose first bars come before GameActivity's first session: "No session data
+     * before October" on a year, "… before 9 October" on a week or a month.
+     */
+    public String trackingNote(AppStats s) {
+        Calendar since = Iso8601.parseDay(s.getTrackingSince());
+        if (since == null) {
+            return "";
+        }
+        String when = AppStats.RANGE_YEAR.equals(s.getRange())
+                ? format(since.getTime(), "MMMM")
+                : format(since.getTime(), "dMMMM");
+        return res.getString(R.string.stats_no_data_before, when);
+    }
+
+    /**
      * What to say instead of a period's figures: that GameActivity is missing, or that its
      * sessions start after this period.
      */
