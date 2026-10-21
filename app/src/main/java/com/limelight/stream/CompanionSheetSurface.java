@@ -13,8 +13,9 @@ import java.util.List;
 
 /**
  * The controls as a sheet on the companion panel, on the Thor's bottom screen, after the approved
- * StreamTelemetry mock: the four tiles in a row, the list rows under them, then Disconnect and
- * Quit game. The game on the top screen stays whole; nothing is drawn over it.
+ * Stream and StreamTelemetry mocks: eight tiles in two rows of four, then Disconnect and Quit
+ * game ({@link StreamActions#compact}). The game on the top screen stays whole; nothing is drawn
+ * over it.
  *
  * <p>The panel's window takes no focus; Game steers the gamepad into the sheet while it is up and
  * hands the moves here as {@link Nav}, which the panel walks in two dimensions along
@@ -27,6 +28,12 @@ public final class CompanionSheetSurface extends PagedSurface {
     public CompanionSheetSurface(@NonNull Resources res, @NonNull Callbacks callbacks) {
         super(callbacks);
         this.res = res;
+    }
+
+    @NonNull
+    @Override
+    protected StreamAction arrange(@NonNull StreamAction tree) {
+        return StreamActions.compact(tree);
     }
 
     @Override

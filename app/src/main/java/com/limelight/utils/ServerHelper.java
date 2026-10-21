@@ -8,7 +8,9 @@ import android.os.Build;
 import android.view.Display;
 import android.widget.Toast;
 
+import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
+import androidx.annotation.VisibleForTesting;
 
 import com.limelight.Game;
 import com.limelight.LimeLog;
@@ -28,9 +30,11 @@ import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.StringReader;
 import java.net.UnknownHostException;
 import java.security.cert.CertificateEncodingException;
 import java.util.ArrayList;
+import java.util.List;
 
 public class ServerHelper {
     public static final String CONNECTION_TEST_SERVER = "android.conntest.moonlight-stream.org";
@@ -145,6 +149,49 @@ public class ServerHelper {
         }
 
         return gameIntent;
+    }
+
+    /**
+     * The name the PC's cached app list gives this game, for a launch that came without one (a
+     * PC shortcut rejoining the running game, a link or launcher file naming only the ids), so
+     * the stream is titled by its game everywhere it shows; null when the cache has no such app.
+     * Reads a small file: called once per stream, as the shortcut path already does.
+     */
+    @Nullable
+    public static String cachedAppName(Context context, @Nullable String pcUuid,
+                                       @Nullable String appUuid, int appId) {
+        if (pcUuid == null) {
+            return null;
+        }
+        try {
+            String raw = CacheHelper.readInputStreamToString(
+                    CacheHelper.openCacheFileForInput(context.getCacheDir(), "applist", pcUuid));
+            return raw.isEmpty() ? null
+                    : appNameIn(NvHTTP.getAppListByReader(new StringReader(raw)), appUuid, appId);
+        } catch (IOException | XmlPullParserException e) {
+            return null;
+        }
+    }
+
+    /** The name of the app with this UUID, or else this id, in the list; null for neither. */
+    @Nullable
+    @VisibleForTesting
+    static String appNameIn(List<NvApp> apps, @Nullable String appUuid, int appId) {
+        if (appUuid != null && !appUuid.isEmpty()) {
+            for (NvApp app : apps) {
+                if (appUuid.equalsIgnoreCase(app.getAppUUID()) && app.getAppName() != null) {
+                    return app.getAppName();
+                }
+            }
+        }
+        if (appId > 0) {
+            for (NvApp app : apps) {
+                if (app.getAppId() == appId && app.getAppName() != null) {
+                    return app.getAppName();
+                }
+            }
+        }
+        return null;
     }
 
     @RequiresApi(api = Build.VERSION_CODES.O)

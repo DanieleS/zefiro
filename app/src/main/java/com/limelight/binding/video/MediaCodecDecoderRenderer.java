@@ -234,6 +234,9 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     private String minDecodeTimeFullLog = "";
 
     private long lastNetDataNum;
+    // When lastNetDataNum was read, so the traffic is divided by the time it took: a window
+    // flips on a frame's arrival, and a still screen sends few, stretching one over seconds.
+    private long lastNetDataUptimeMs;
     private final LinkedBlockingQueue<Integer> outputBufferQueue = new LinkedBlockingQueue<>();
     private static final int OUTPUT_BUFFER_QUEUE_LIMIT = 2;
     private long lastRenderedFrameTimeNanos;
@@ -2100,12 +2103,15 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         long netData = TrafficStatsHelper.getPackageRxBytes(Process.myUid())
                 + TrafficStatsHelper.getPackageTxBytes(Process.myUid());
         long previous = lastNetDataNum;
+        long previousUptimeMs = lastNetDataUptimeMs;
+        long nowMs = SystemClock.uptimeMillis();
         lastNetDataNum = netData;
+        lastNetDataUptimeMs = nowMs;
 
-        if (previous == 0) {
+        if (previous == 0 || nowMs <= previousUptimeMs) {
             return PerfStats.BANDWIDTH_UNAVAILABLE;
         }
-        return (netData - previous) / 1024f;
+        return (netData - previous) / 1024f / ((nowMs - previousUptimeMs) / 1000f);
     }
 
     @SuppressWarnings("deprecation")

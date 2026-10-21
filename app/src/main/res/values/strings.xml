@@ -779,10 +779,11 @@
 
     <string name="title_enable_companion_display">Companion Screen (Beta)</string>
     <string name="summary_enable_companion_display">Show a companion surface on the secondary screen while the app is open. Ignored when Fully External Display Mode is enabled.</string>
-    <!-- The companion panel's stats while streaming: "Hades II · Taverna" over "HEVC · HDR",
-         then nine tiles, each a number over its name. -->
-    <string name="companion_stats_title">%1$s · %2$s</string>
+    <!-- The companion panel's stats while streaming: the game over "Taverna · 12 min", with
+         "HEVC · HDR" (or "· SDR") beside, then up to nine tiles, each a number over its name. -->
+    <string name="companion_stats_subtitle">%1$s · %2$s</string>
     <string name="companion_codec_hdr">%1$s · HDR</string>
+    <string name="companion_codec_sdr">%1$s · SDR</string>
     <string name="companion_stat_resolution">Resolution</string>
     <string name="companion_stat_fps">FPS</string>
     <string name="companion_label_latency">Latency</string>
@@ -797,8 +798,7 @@
     <string name="companion_value_ms_whole">%1$d ms</string>
     <string name="companion_value_ms">%1$.1f ms</string>
     <string name="companion_value_percent">%1$.2f%%</string>
-    <string name="companion_value_mbps">%1$.1f M/s</string>
-    <string name="companion_value_kbps">%1$.0f K/s</string>
+    <string name="companion_value_celsius">%1$.0f °C</string>
     <string name="companion_value_unavailable">—</string>
     <!-- The strip under the panel's view or stats: its stats button ("120 FPS · 8 ms"), as a
          screen reader says it by what a tap will do, and the button back to the game's view. -->
@@ -980,6 +980,12 @@
     <string name="stream_action_overlay">Overlay</string>
     <string name="stream_action_special_keys">Special keys</string>
     <string name="stream_action_more">More</string>
+    <!-- The Thor controls sheet's tiles for what the side panel lists as rows. -->
+    <string name="stream_action_screenshot">Screenshot</string>
+    <string name="stream_action_save_replay">Save 30 s</string>
+    <string name="stream_action_bitrate">Bitrate</string>
+    <string name="stream_action_clipboard">Clipboard</string>
+    <string name="stream_action_keys">Keys</string>
     <!-- The in-stream side panel's header and its edge handle. -->
     <string name="stream_controls_open">Open stream controls</string>
     <string name="stream_controls_back">Back</string>
@@ -988,7 +994,9 @@
     <!-- The stream mode: a line count runs into the rate ("1080p60"), a name is spaced ("4K 120"). -->
     <string name="stream_controls_mode_lines">%1$s%2$d</string>
     <string name="stream_controls_mode_named">%1$s %2$d</string>
-    <string name="stream_controls_stats">%1$s · %2$d ms · %3$d Mb</string>
+    <string name="stream_controls_stats">%1$s · %2$d ms · %3$s</string>
+    <!-- The measured bitrate, everywhere it shows (stream/StreamRate). -->
+    <string name="stream_value_mbps">%1$s Mbps</string>
     <string name="stream_controls_stats_no_bandwidth">%1$s · %2$d ms</string>
     <string name="toast_bitrate_set">Bitrate set to %1$s Mbps</string>
     <string name="toast_bitrate_failed">Couldn\'t change the bitrate to %1$s Mbps</string>

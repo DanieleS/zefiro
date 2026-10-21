@@ -172,6 +172,19 @@ public class StreamControlsPanel extends FrameLayout implements ControlsSurface 
     }
 
     @Override
+    public void openAt(@NonNull StreamAction tree, @Nullable StreamAction.Id page) {
+        if (pages != null) {
+            pages.openAt(tree, page);
+        }
+    }
+
+    @Nullable
+    @Override
+    public StreamAction shownPage() {
+        return pages != null ? pages.shownPage() : null;
+    }
+
+    @Override
     public void back() {
         if (pages != null) {
             pages.back();
@@ -593,14 +606,15 @@ public class StreamControlsPanel extends FrameLayout implements ControlsSurface 
     }
 
     /**
-     * "1080p60 · 8 ms · 80 Mb": what the stream is, how far away, how much. Also the companion
-     * controls sheet's header, so the two surfaces describe a stream the same way.
+     * "1080p60 · 8 ms · 80 Mbps": what the stream is, how far away, how much. Also the companion
+     * controls sheet's header, so the two surfaces describe a stream the same way, and the rate
+     * as {@link StreamRate} writes it everywhere.
      */
     public static String statsText(Resources res, PerfStats stats) {
         String mode = modeLabel(res, stats.width, stats.height, Math.round(stats.totalFps));
         if (stats.hasBandwidth()) {
             return res.getString(R.string.stream_controls_stats, mode,
-                    stats.networkLatencyMs, Math.round(stats.bandwidthKbps / 1000f));
+                    stats.networkLatencyMs, StreamRate.mbps(res, stats));
         }
         return res.getString(R.string.stream_controls_stats_no_bandwidth, mode,
                 stats.networkLatencyMs);

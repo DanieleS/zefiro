@@ -264,14 +264,18 @@
                 android:visibility="gone" />
 
             <!--
-                The stats: "Game · Host" over the codec, then nine tiles, three across. The
-                device temperature tile keeps its cell but is hidden while nothing measures it,
-                so the grid does not reflow around a gap that may later be filled.
+                The stats: the game over "PC · play time", the codec and its HDR state beside,
+                then the tiles. Centred in the room above the strip, as one block, rather than
+                hung from the top over an empty half. The tiles are listed flat here and laid
+                out in rows in code (CompanionPresentation#layoutStatTiles): Host and Device
+                show only while something measures them, and the rows are re-cut so the grid is
+                full, three or four across, never a gap where a tile went.
             -->
             <LinearLayout
                 android:id="@+id/companionStats"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
+                android:gravity="center_vertical"
                 android:orientation="vertical"
                 android:paddingStart="@dimen/companion_stats_padding"
                 android:paddingTop="@dimen/companion_stats_padding"
@@ -286,16 +290,32 @@
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
-                    <TextView
-                        android:id="@+id/companionStatsTitle"
+                    <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:ellipsize="end"
-                        android:singleLine="true"
-                        android:textColor="@color/content_primary"
-                        android:textSize="16sp"
-                        android:textStyle="bold" />
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/companionStatsTitle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="end"
+                            android:singleLine="true"
+                            android:textColor="@color/content_primary"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/companionStatsSubtitle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:ellipsize="end"
+                            android:singleLine="true"
+                            android:textColor="@color/content_muted"
+                            android:textSize="12sp" />
+                    </LinearLayout>
 
                     <TextView
                         android:id="@+id/companionStatsCodec"
@@ -308,9 +328,15 @@
                         android:textSize="12sp" />
                 </LinearLayout>
 
-                <LinearLayout style="@style/CompanionStatRow">
+                <LinearLayout
+                    android:id="@+id/companionStatsGrid"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
 
-                    <LinearLayout style="@style/CompanionStatTile">
+                    <LinearLayout
+                        android:id="@+id/companionStatResolutionTile"
+                        style="@style/CompanionStatTile">
                         <TextView
                             android:id="@+id/companionStatResolution"
                             style="@style/CompanionStatValue" />
@@ -320,8 +346,8 @@
                     </LinearLayout>
 
                     <LinearLayout
-                        style="@style/CompanionStatTile"
-                        android:layout_marginStart="@dimen/companion_stat_gap">
+                        android:id="@+id/companionStatFpsTile"
+                        style="@style/CompanionStatTile">
                         <TextView
                             android:id="@+id/companionStatFps"
                             style="@style/CompanionStatValue" />
@@ -331,8 +357,8 @@
                     </LinearLayout>
 
                     <LinearLayout
-                        style="@style/CompanionStatTile"
-                        android:layout_marginStart="@dimen/companion_stat_gap">
+                        android:id="@+id/companionStatLatencyTile"
+                        style="@style/CompanionStatTile">
                         <TextView
                             android:id="@+id/companionStatLatency"
                             style="@style/CompanionStatValue" />
@@ -340,11 +366,10 @@
                             style="@style/CompanionStatLabel"
                             android:text="@string/companion_label_latency" />
                     </LinearLayout>
-                </LinearLayout>
 
-                <LinearLayout style="@style/CompanionStatRow">
-
-                    <LinearLayout style="@style/CompanionStatTile">
+                    <LinearLayout
+                        android:id="@+id/companionStatDecodeTile"
+                        style="@style/CompanionStatTile">
                         <TextView
                             android:id="@+id/companionStatDecode"
                             style="@style/CompanionStatValue" />
@@ -354,8 +379,8 @@
                     </LinearLayout>
 
                     <LinearLayout
-                        style="@style/CompanionStatTile"
-                        android:layout_marginStart="@dimen/companion_stat_gap">
+                        android:id="@+id/companionStatHostTile"
+                        style="@style/CompanionStatTile">
                         <TextView
                             android:id="@+id/companionStatHost"
                             style="@style/CompanionStatValue" />
@@ -365,8 +390,8 @@
                     </LinearLayout>
 
                     <LinearLayout
-                        style="@style/CompanionStatTile"
-                        android:layout_marginStart="@dimen/companion_stat_gap">
+                        android:id="@+id/companionStatLossTile"
+                        style="@style/CompanionStatTile">
                         <TextView
                             android:id="@+id/companionStatLoss"
                             style="@style/CompanionStatValue" />
@@ -374,11 +399,10 @@
                             style="@style/CompanionStatLabel"
                             android:text="@string/companion_label_loss" />
                     </LinearLayout>
-                </LinearLayout>
 
-                <LinearLayout style="@style/CompanionStatRow">
-
-                    <LinearLayout style="@style/CompanionStatTile">
+                    <LinearLayout
+                        android:id="@+id/companionStatBitrateTile"
+                        style="@style/CompanionStatTile">
                         <TextView
                             android:id="@+id/companionStatBitrate"
                             style="@style/CompanionStatValue" />
@@ -388,8 +412,8 @@
                     </LinearLayout>
 
                     <LinearLayout
-                        style="@style/CompanionStatTile"
-                        android:layout_marginStart="@dimen/companion_stat_gap">
+                        android:id="@+id/companionStatDroppedTile"
+                        style="@style/CompanionStatTile">
                         <TextView
                             android:id="@+id/companionStatDropped"
                             style="@style/CompanionStatValue" />
@@ -398,12 +422,9 @@
                             android:text="@string/companion_stat_dropped" />
                     </LinearLayout>
 
-                    <!-- No source for it yet: INVISIBLE, not GONE, so the row keeps three cells. -->
                     <LinearLayout
                         android:id="@+id/companionStatDeviceTile"
-                        style="@style/CompanionStatTile"
-                        android:layout_marginStart="@dimen/companion_stat_gap"
-                        android:visibility="invisible">
+                        style="@style/CompanionStatTile">
                         <TextView
                             android:id="@+id/companionStatDevice"
                             style="@style/CompanionStatValue" />
@@ -411,8 +432,8 @@
                             style="@style/CompanionStatLabel"
                             android:text="@string/companion_stat_device" />
                     </LinearLayout>
-                </LinearLayout>
 
+                </LinearLayout>
             </LinearLayout>
 
         </FrameLayout>
@@ -573,7 +594,7 @@
         The rows are walked by the gamepad, routed over from the Game activity: this window holds
         no input focus of its own, so the entry the pad is on is marked selected rather than
         focused, and wears the same ring (@drawable/companion_sheet_tile_bg and its siblings).
-        Built in code for each page: the tile row and the list rows in the scroll, the session's
+        Built in code for each page: the tile rows and any list rows in the scroll, the session's
         two ends under it, always in sight.
     -->
     <FrameLayout

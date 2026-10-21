@@ -34,7 +34,10 @@ import java.util.List;
  *   [Disconnect] [Quit game]                   LEFT / RIGHT along the row
  * </pre>
  *
- * Moving between two rows of several cells keeps the place along the row (tiles to the danger row
+ * A sheet that draws its tiles in rows of a fixed width ({@link #of(List, int)}, the Thor sheet's
+ * two rows of four) has its run of tiles cut the same way, so UP and DOWN move between them.
+ *
+ * <p>Moving between two rows of several cells keeps the place along the row (tiles to the danger row
  * on a page without a list); into a row of several from a single cell lands on its first. Nothing
  * wraps: at an edge a move stays where it is, which on a pad reads as "that's the end".
  */
@@ -50,9 +53,21 @@ public final class ControlsGrid {
         this.rows = rows;
     }
 
+    /** The Thor sheet's tiles per row, after the approved Stream mock. */
+    public static final int SHEET_TILES_PER_ROW = 4;
+
     /** The table for a page whose entries, in drawing order, are in these groups. */
     @NonNull
     public static ControlsGrid of(@NonNull List<StreamAction.Group> groups) {
+        return of(groups, Integer.MAX_VALUE);
+    }
+
+    /**
+     * The same, for a surface that wraps a run of tiles every {@code tilesPerRow} tiles; the
+     * danger row is never wrapped.
+     */
+    @NonNull
+    public static ControlsGrid of(@NonNull List<StreamAction.Group> groups, int tilesPerRow) {
         int[] rowOf = new int[groups.size()];
         List<int[]> rows = new ArrayList<>();
         int i = 0;
@@ -60,7 +75,9 @@ public final class ControlsGrid {
             StreamAction.Group group = groups.get(i);
             int end = i + 1;
             if (spansRow(group)) {
-                while (end < groups.size() && groups.get(end) == group) {
+                int limit = group == StreamAction.Group.TILE ? Math.max(1, tilesPerRow)
+                        : Integer.MAX_VALUE;
+                while (end < groups.size() && groups.get(end) == group && end - i < limit) {
                     end++;
                 }
             }

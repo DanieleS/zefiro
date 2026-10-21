@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The Thor controls sheet's Clipboard tile: a clipboard with its clip, stroked like the mock's
+    icons. White, so whoever shows it tints it.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <path
+        android:pathData="M7,5L17,5A2,2 0,0 1,19 7L19,19A2,2 0,0 1,17 21L7,21A2,2 0,0 1,5 19L5,7A2,2 0,0 1,7 5Z"
+        android:strokeWidth="2"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent" />
+    <path
+        android:pathData="M8,3L16,3A1,1 0,0 1,17 4L17,6A1,1 0,0 1,16 7L8,7A1,1 0,0 1,7 6L7,4A1,1 0,0 1,8 3Z"
+        android:strokeWidth="2"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="@android:color/transparent" />
+</vector>

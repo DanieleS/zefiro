@@ -1,8 +1,10 @@
 package com.limelight.stream;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import java.util.ArrayDeque;
+import java.util.List;
 
 /**
  * The page stack every {@link ControlsSurface} shares, so each surface only has to draw a page
@@ -14,6 +16,7 @@ import java.util.ArrayDeque;
  *   back()          [root]              render(root)
  *   back()          []                  dismissView(), onClosed()
  *   activate(leaf)  []                  dismissView(), onClosed(), then the router runs it
+ *   openAt(root, p) [root, …, p]        render(p)    (no onPageOpening: the page was open)
  * </pre>
  */
 abstract class PagedSurface implements ControlsSurface {
@@ -31,10 +34,39 @@ abstract class PagedSurface implements ControlsSurface {
     /** Take the surface down without touching the stack. */
     protected abstract void dismissView();
 
+    /** The tree as this surface lays it out; as built, unless a surface arranges its own. */
+    @NonNull
+    protected StreamAction arrange(@NonNull StreamAction tree) {
+        return tree;
+    }
+
     @Override
     public void open(@NonNull StreamAction tree) {
         pages.clear();
-        show(tree);
+        show(arrange(tree));
+    }
+
+    @Override
+    public void openAt(@NonNull StreamAction tree, @Nullable StreamAction.Id page) {
+        StreamAction arranged = arrange(tree);
+        List<StreamAction> path = page != null ? arranged.pathTo(page) : null;
+        if (path == null) {
+            open(tree);
+            return;
+        }
+        // Pushed without asking onPageOpening again: each was already let open once, and asking
+        // would repeat what it said then (the special keys' toast).
+        pages.clear();
+        for (StreamAction step : path) {
+            pages.push(step);
+        }
+        render(pages.peek());
+    }
+
+    @Nullable
+    @Override
+    public StreamAction shownPage() {
+        return pages.peek();
     }
 
     @Override

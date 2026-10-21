@@ -38,8 +38,9 @@ public class StreamControlsPanelTest {
 
     @Test
     public void statsLineCarriesFpsLatencyAndBitrate() {
-        assertEquals("4K 120 · 8 ms · 80 Mb",
-                StreamControlsPanel.statsText(res(), stats(3840, 2160, 119.9f, 80400f, 8)));
+        // 9766 KB/s is 80 Mbps: the decoder measures kilobytes, the line says megabits
+        assertEquals("4K 120 · 8 ms · 80 Mbps",
+                StreamControlsPanel.statsText(res(), stats(3840, 2160, 119.9f, 9766f, 8)));
         assertEquals("1080p60 · 12 ms",
                 StreamControlsPanel.statsText(res(), stats(1920, 1080, 60f,
                         PerfStats.BANDWIDTH_UNAVAILABLE, 12)));

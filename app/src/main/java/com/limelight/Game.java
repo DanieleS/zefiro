@@ -438,6 +438,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         boolean isMenuOpen();
         /** Steer the open menu; returns whether it took the input. */
         boolean onNav(ControlsSurface.Nav nav);
+        /** The companion panel came or went: move open controls to where they now belong. */
+        void onPanelShowingChanged(boolean showing);
     }
 
     public GameMenuCallbacks gameMenuCallbacks;
@@ -800,13 +802,21 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         appName = Game.this.getIntent().getStringExtra(EXTRA_APP_NAME);
         pcName = Game.this.getIntent().getStringExtra(EXTRA_PC_NAME);
-        controlsPanel.setSession(appName, pcName);
 
         host = Game.this.getIntent().getStringExtra(EXTRA_HOST);
         port = Game.this.getIntent().getIntExtra(EXTRA_PORT, NvHTTP.DEFAULT_HTTP_PORT);
         httpsPort = Game.this.getIntent().getIntExtra(EXTRA_HTTPS_PORT, 0); // 0 is treated as unknown
         appUUID = Game.this.getIntent().getStringExtra(EXTRA_APP_UUID);
         appId = Game.this.getIntent().getIntExtra(EXTRA_APP_ID, StreamConfiguration.INVALID_APP_ID);
+        if (appName == null || appName.isEmpty()) {
+            // A launch that named the game by its ids alone (a PC shortcut rejoining it, a link):
+            // the PC's cached list knows the name, and every surface titles the stream by it,
+            // the PC's name staying the subtitle. Without it the controls fell back to a
+            // generic title and the stats to the PC alone, flipping between runs.
+            appName = ServerHelper.cachedAppName(this, getIntent().getStringExtra(EXTRA_PC_UUID),
+                    appUUID, appId);
+        }
+        controlsPanel.setSession(appName, pcName);
         uniqueId = Game.this.getIntent().getStringExtra(EXTRA_UNIQUEID);
         vDisplay = Game.this.getIntent().getBooleanExtra(EXTRA_VDISPLAY, false);
         serverCommands = Game.this.getIntent().getStringArrayListExtra(EXTRA_SERVER_COMMANDS);
@@ -888,7 +898,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         // health dot measures against.
         hudVisible = prefConfig.enablePerfOverlay;
         streamHud.setStatsShown(hudVisible);
-        streamHud.setTargetFps(prefConfig.fps);
 
         // Kept for createDecoderRenderer(), which also builds the decoder of each reconnect attempt
         decoderNetworkMetered = connMgr.isActiveNetworkMetered();
@@ -1175,8 +1184,14 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         CompanionDisplayManager.setMenuOpenedListener(this::reclaimGamepadFocus);
         CompanionDisplayManager.setMenuClosedListener(this::onControlsClosed);
         // The panel can come and go mid-stream (powered off, hidden, borrowed by an app); the
-        // edge handle follows it, so the controls are offered in exactly one place.
-        CompanionDisplayManager.panelShowing().observe(this, showing -> updateControlsHandle());
+        // edge handle follows it, so the controls are offered in exactly one place, and controls
+        // open at that moment move across on the page they were on.
+        CompanionDisplayManager.panelShowing().observe(this, showing -> {
+            updateControlsHandle();
+            if (gameMenuCallbacks != null) {
+                gameMenuCallbacks.onPanelShowingChanged(Boolean.TRUE.equals(showing));
+            }
+        });
 
         textFocusKeyboard = new TextFocusKeyboard(new TextFocusKeyboard.Keyboards() {
             @Override
@@ -1897,8 +1912,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         if ("UNKNOWN".equals(name)) {
             return null;
         }
-        return (videoFormat & MoonBridge.VIDEO_FORMAT_MASK_10BIT) != 0
-                ? getString(R.string.companion_codec_hdr, name) : name;
+        // Said either way, as the mock's "HEVC · HDR": a bare codec left HDR's state unsaid.
+        return getString((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_10BIT) != 0
+                ? R.string.companion_codec_hdr : R.string.companion_codec_sdr, name);
     }
 
     /** The phone's controls, for GameMenu to draw on. */
@@ -4784,7 +4800,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 CompanionState.getInstance().setStreamSession(new CompanionState.StreamSession(
                         appName, pcName, companionCodecLabel(decoderRenderer != null
                                 ? decoderRenderer.getActiveVideoFormat() : 0),
-                        streamStartUptimeMs, prefConfig.fps));
+                        streamStartUptimeMs));
 
                 startTelemetry();
 

@@ -8,6 +8,7 @@ import android.view.ContextThemeWrapper;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.limelight.binding.input.GameInputDevice;
@@ -16,6 +17,7 @@ import com.limelight.companion.CompanionDisplayManager;
 import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.stream.CompanionSheetSurface;
 import com.limelight.stream.ControlsInputRouter;
+import com.limelight.stream.ControlsPlacement;
 import com.limelight.stream.ControlsSurface;
 import com.limelight.stream.MenuSheetSurface;
 import com.limelight.stream.StreamAction;
@@ -42,9 +44,11 @@ import java.util.List;
  *   otherwise                                 the side panel, over the game
  * </pre>
  *
- * Chosen again on every open, since the companion panel can come and go mid-stream. While the
- * panel shows, the controls are only ever drawn there: Game hides the side panel's edge handle
- * too, so the top screen is the game and the HUD and nothing else.
+ * Chosen again on every open ({@link ControlsPlacement}), since the companion panel can come and
+ * go mid-stream. While the panel shows, the controls are only ever drawn there: Game hides the
+ * side panel's edge handle too, so the top screen is the game and the HUD and nothing else. When
+ * the panel comes or goes while they are open, they move across on the page they were on
+ * ({@link #onPanelShowingChanged}), rather than closing under the user's thumb.
  *
  * <h3>Open and closed</h3>
  *
@@ -124,9 +128,8 @@ public class GameMenu implements Game.GameMenuCallbacks, ControlsSurface.Callbac
         captureTool = prefs.captureTool;
         caps = capture(prefs);
 
-        boolean overGame = dialogScreenContext == game;
-        ControlsSurface surface = overGame && CompanionDisplayManager.isShowing()
-                ? companionSurface : mainSurface;
+        ControlsSurface surface = surfaceOf(ControlsPlacement.surfaceFor(
+                dialogScreenContext == game, CompanionDisplayManager.isShowing()));
         activeSurface = surface;
         surface.open(StreamActions.build(caps));
         if (surface.isOpen()) {
@@ -134,6 +137,57 @@ public class GameMenu implements Game.GameMenuCallbacks, ControlsSurface.Callbac
         } else {
             activeSurface = null;
         }
+    }
+
+    /**
+     * The companion panel came or went. Open controls move to the surface that now holds them, on
+     * the page they were on, so turning the Thor's lower screen off with the sheet up leaves the
+     * same page on the side panel, and turning it on again sends it back down. Main thread only.
+     *
+     * <p>Heard before the panel's own report that its sheet closed (CompanionDisplayManager
+     * publishes the change first), so the page is still known here, and Game, told of that close,
+     * finds the controls open again and keeps the host's input held.
+     */
+    @Override
+    public void onPanelShowingChanged(boolean showing) {
+        ControlsSurface from = activeSurface;
+        ControlsPlacement.Surface target = ControlsPlacement.moveTo(placeOf(from),
+                dialogScreenContext == game, showing);
+        if (from == null || target == null) {
+            return;
+        }
+        StreamAction page = from.shownPage();
+        if (page == null) {
+            return;
+        }
+        ControlsSurface to = surfaceOf(target);
+        PreferenceConfiguration prefs = PreferenceConfiguration.readPreferences(game);
+        captureTool = prefs.captureTool;
+        // Built afresh: the companion's own entry reads "show" or "hide" by whether it shows.
+        caps = capture(prefs);
+        activeSurface = to;
+        to.openAt(StreamActions.build(caps), page.id);
+        // Only now, so its close finds the controls still open and hands nothing back to the host.
+        from.close();
+        if (to.isOpen()) {
+            game.onControlsOpened();
+        } else {
+            activeSurface = null;
+            game.onControlsClosed();
+        }
+    }
+
+    private ControlsSurface surfaceOf(ControlsPlacement.Surface place) {
+        return place == ControlsPlacement.Surface.COMPANION ? companionSurface : mainSurface;
+    }
+
+    @Nullable
+    private ControlsPlacement.Surface placeOf(@Nullable ControlsSurface surface) {
+        if (surface == null) {
+            return null;
+        }
+        return surface == companionSurface ? ControlsPlacement.Surface.COMPANION
+                : ControlsPlacement.Surface.MAIN;
     }
 
     private StreamCapabilities capture(PreferenceConfiguration prefs) {

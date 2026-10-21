@@ -590,16 +590,12 @@ public class CompanionState {
         public final String codec;
         /** {@code SystemClock.uptimeMillis()} when the stream started; 0 while unknown. */
         public final long startUptimeMs;
-        /** The frame rate the stream was asked for, for the health dot; 0 when unknown. */
-        public final float targetFps;
 
-        public StreamSession(String game, String host, String codec, long startUptimeMs,
-                             float targetFps) {
+        public StreamSession(String game, String host, String codec, long startUptimeMs) {
             this.game = game;
             this.host = host;
             this.codec = codec;
             this.startUptimeMs = startUptimeMs;
-            this.targetFps = targetFps;
         }
 
         @Override
@@ -612,7 +608,6 @@ public class CompanionState {
             }
             StreamSession that = (StreamSession) o;
             return startUptimeMs == that.startUptimeMs
-                    && Float.compare(targetFps, that.targetFps) == 0
                     && Objects.equals(game, that.game)
                     && Objects.equals(host, that.host)
                     && Objects.equals(codec, that.codec);
@@ -620,7 +615,7 @@ public class CompanionState {
 
         @Override
         public int hashCode() {
-            return Objects.hash(game, host, codec, startUptimeMs, targetFps);
+            return Objects.hash(game, host, codec, startUptimeMs);
         }
 
         @Override
