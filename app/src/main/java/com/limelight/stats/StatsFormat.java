@@ -166,15 +166,20 @@ public final class StatsFormat {
      * the strip, so the chart takes whatever height the strip leaves, up to {@code max}. Inline,
      * the lower half follows on the same scroll, so the chart keeps its {@code standard} height
      * and only gives way in a short window, so the strip still shows under it. Never below
-     * {@code min}, where the bars would stop reading; the page scrolls from there.
+     * {@code min}, where the bars would stop reading, nor below two fifths of the viewport (up
+     * to its usual height), so a short window keeps a chart worth the name; the page scrolls
+     * from there.
      *
      * @param room the scroll's visible height, less everything from its top to the end of the
      *             strip other than the chart
+     * @param viewport the scroll's visible height
      * @param split whether the companion panel is showing
      */
-    public static int chartHeight(int room, boolean split, int min, int standard, int max) {
+    public static int chartHeight(int room, int viewport, boolean split, int min, int standard,
+                                  int max) {
         int upper = split ? max : standard;
-        return Math.max(min, Math.min(upper, room));
+        int floor = Math.max(min, Math.min(upper, viewport * 2 / 5));
+        return Math.max(floor, Math.min(upper, room));
     }
 
     /**

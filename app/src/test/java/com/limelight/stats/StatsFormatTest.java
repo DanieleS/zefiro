@@ -129,31 +129,42 @@ public class StatsFormatTest {
     @Test
     public void splitTheChartGrowsIntoTheRoomLeft() {
         // The panel has the lower half: the chart takes what the strip leaves, up to the max.
-        assertEquals(300, StatsFormat.chartHeight(300, true, 112, 200, 380));
-        assertEquals(380, StatsFormat.chartHeight(900, true, 112, 200, 380));
+        assertEquals(300, StatsFormat.chartHeight(300, 0, true, 112, 200, 380));
+        assertEquals(380, StatsFormat.chartHeight(900, 0, true, 112, 200, 380));
     }
 
     @Test
     public void inlineTheChartOnlyGivesWayInAShortWindow() {
         // The lower half follows on the scroll: no growing, only shrinking for the strip.
-        assertEquals(200, StatsFormat.chartHeight(900, false, 112, 200, 380));
-        assertEquals(150, StatsFormat.chartHeight(150, false, 112, 200, 380));
+        assertEquals(200, StatsFormat.chartHeight(900, 0, false, 112, 200, 380));
+        assertEquals(150, StatsFormat.chartHeight(150, 0, false, 112, 200, 380));
     }
 
     @Test
     public void switchingThePanelReFitsTheSameRoom() {
         // The panel turned off and on with the page up: the same room, laid out for each.
         int room = 320;
-        int split = StatsFormat.chartHeight(room, true, 112, 200, 380);
-        int inline = StatsFormat.chartHeight(room, false, 112, 200, 380);
+        int split = StatsFormat.chartHeight(room, 0, true, 112, 200, 380);
+        int inline = StatsFormat.chartHeight(room, 0, false, 112, 200, 380);
         assertEquals(320, split);
         assertEquals(200, inline);
-        assertEquals(split, StatsFormat.chartHeight(room, true, 112, 200, 380));
+        assertEquals(split, StatsFormat.chartHeight(room, 0, true, 112, 200, 380));
+    }
+
+    @Test
+    public void aShortWindowKeepsTwoFifthsOfItsViewportForTheChart() {
+        // A phone on its side: little room left, but the chart keeps 40% of the 400 shown and
+        // the strip scrolls in under it.
+        assertEquals(160, StatsFormat.chartHeight(120, 400, false, 112, 200, 380));
+        // Never past its usual height for that, in a tall window.
+        assertEquals(200, StatsFormat.chartHeight(150, 900, false, 112, 200, 380));
+        // Room enough: the floor does not matter.
+        assertEquals(200, StatsFormat.chartHeight(300, 400, false, 112, 200, 380));
     }
 
     @Test
     public void theChartNeverShrinksPastReading() {
-        assertEquals(112, StatsFormat.chartHeight(40, true, 112, 200, 380));
-        assertEquals(112, StatsFormat.chartHeight(-50, false, 112, 200, 380));
+        assertEquals(112, StatsFormat.chartHeight(40, 0, true, 112, 200, 380));
+        assertEquals(112, StatsFormat.chartHeight(-50, 0, false, 112, 200, 380));
     }
 }

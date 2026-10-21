@@ -115,8 +115,8 @@
     <dimen name="stats_card_corner">14dp</dimen>
     <dimen name="stats_max_width">1100dp</dimen>
     <dimen name="stats_gutter">24dp</dimen>
-    <!-- The label beside the strip's covers in a wide window, as the mock's left column. -->
-    <dimen name="stats_strip_label_width">120dp</dimen>
+    <!-- Week / Month / Year on the header line, in a wide window without the panel. -->
+    <dimen name="stats_header_ranges_width">216dp</dimen>
     <!-- The chart: its height inline, and the bounds it moves within to fit the window (see
          StatsFormat.chartHeight). -->
     <dimen name="stats_chart_height">200dp</dimen>
