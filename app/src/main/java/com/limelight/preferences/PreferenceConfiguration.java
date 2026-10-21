@@ -168,7 +168,7 @@ public class PreferenceConfiguration {
     // so it stays available even with the panel switched off. Harmless until a game is assigned
     // one, and invisible on single-screen devices, so it is on by default.
     private static final boolean DEFAULT_ENABLE_COMPANION_APP = true;
-    private static final boolean DEFAULT_USE_VIRTUAL_DISPLAY = false;
+    private static final boolean DEFAULT_USE_VIRTUAL_DISPLAY = true;
     private static final String DEFAULT_VIDEO_SCALE_MODE = "fit";
     private static final boolean DEFAULT_AUTO_INVERT_VIDEO_RESOLUTION = true;
     private static final int DEFAULT_RESOLUTION_SCALE_FACTOR = 100;
