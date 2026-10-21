@@ -104,7 +104,10 @@ import java.util.concurrent.RejectedExecutionException;
  * <pre>
  *   inline (no panel)   everything here: the remote (Week / Month / Year and the period row),
  *                       the summary, the chart, the strip, then the lower half (the latest
- *                       unlocks, the games to pick up again, the library's totals)
+ *                       unlocks, the games to pick up again, the library's totals), in one
+ *                       scroll. In a wide window the crumb says the period already, so the
+ *                       period row goes and the range and the period buttons sit on the
+ *                       header line ({@link #placeRemote}), leaving the height to the chart
  *   split (panel)       here the header, the summary, the chart and the strip; the panel draws
  *                       the remote, the lists behind two tabs, the totals and the pad's hints
  *                       ({@link StatsRemotePage}). Untracked, the lists stay here, where the
@@ -115,8 +118,10 @@ import java.util.concurrent.RejectedExecutionException;
  * The window's width, never the device, decides the rest: the host chip or text, the crumb, and
  * the strip's row of five cards or five-column grid of covers. The chart's height follows the
  * window's height and the split ({@link #fitChart}): split, it grows into what the strip leaves;
- * in a short window it shrinks so the strip still shows. A panel turned on or off while the page
- * is up re-lays all of this out on the spot, keeping the period, the picked bar and the tab.
+ * in a short window it shrinks so the strip still shows, though never below two fifths of what
+ * the scroll shows, the page scrolling to the strip from there. A panel turned on or off while
+ * the page is up re-lays all of this out on the spot, keeping the period, the picked bar and the
+ * tab.
  *
  * <h3>Two screens, one focus</h3>
  *
@@ -175,6 +180,8 @@ public class StatsFragment extends Fragment
     // Whether the companion panel is showing, and so has this screen's lower half (see the
     // class comment).
     private boolean split;
+    // Whether the range and the period buttons are on the header line (see placeRemote).
+    private boolean remoteInHeader;
     @Nullable
     private PanelFocus panelFocus;
     // The panel's tab the user chose; drawn while its list has rows (see StatsRemotePage).
@@ -198,8 +205,10 @@ public class StatsFragment extends Fragment
     private View crumb;
     private View crumbTag;
     private TextView crumbText;
+    private LinearLayout headerRemote;
     private View contentView;
-    private View remoteView;
+    private LinearLayout remoteView;
+    private LinearLayout periodRow;
     private SegmentedControlView ranges;
     private View climbView;
     private TextView climbLabel;
@@ -223,8 +232,7 @@ public class StatsFragment extends Fragment
     private TextView trackingNote;
     private View scrollView;
     private View stripSection;
-    private LinearLayout stripRow;
-    private View stripLabel;
+    private LinearLayout stripLabel;
     private TextView stripTitle;
     private TextView stripSubtitle;
     private LinearLayout stripList;
@@ -283,9 +291,14 @@ public class StatsFragment extends Fragment
         crumb = view.findViewById(R.id.statsCrumb);
         crumbTag = view.findViewById(R.id.statsCrumbTag);
         crumbText = view.findViewById(R.id.statsCrumbText);
+        // A month's crumb ("‹ 2026 / October") climbs to its year by touch, as B does.
+        crumb.setOnClickListener(v -> climb());
+        crumb.setClickable(false);
+        headerRemote = view.findViewById(R.id.statsHeaderRemote);
         contentView = view.findViewById(R.id.statsContent);
 
         remoteView = view.findViewById(R.id.statsRemote);
+        periodRow = view.findViewById(R.id.statsPeriodRow);
         ranges = view.findViewById(R.id.statsRanges);
         ranges.setSegments(getString(R.string.stats_range_week),
                 getString(R.string.stats_range_month), getString(R.string.stats_range_year));
@@ -321,7 +334,6 @@ public class StatsFragment extends Fragment
         scrollView = view.findViewById(R.id.statsScroll);
 
         stripSection = view.findViewById(R.id.statsStrip);
-        stripRow = view.findViewById(R.id.statsStripRow);
         stripLabel = view.findViewById(R.id.statsStripLabel);
         stripTitle = view.findViewById(R.id.statsStripTitle);
         stripSubtitle = view.findViewById(R.id.statsStripSubtitle);
@@ -395,6 +407,8 @@ public class StatsFragment extends Fragment
         boundLibrary = null;
         drawn = null;
         compactApplied = null;
+        // A new view starts with the buttons in the remote, as inflated.
+        remoteInHeader = false;
         root = null;
         super.onDestroyView();
     }
@@ -561,7 +575,8 @@ public class StatsFragment extends Fragment
      * Fits the chart to the window ({@link StatsFormat#chartHeight}): with the panel showing it
      * takes the height the strip leaves on this screen, so the Thor's top is not half empty;
      * inline it keeps its height and only gives way in a short window (a phone on its side), so
-     * the strip still shows under it.
+     * the strip still shows under it, down to two fifths of what the scroll shows, where the
+     * strip goes below the fold instead.
      */
     private void fitChart() {
         if (getView() == null || trackedView.getVisibility() != View.VISIBLE
@@ -573,7 +588,7 @@ public class StatsFragment extends Fragment
                 - (isCompact() ? scrollView.getPaddingBottom() : 0) - dp(16);
         int topPart = contentView.getTop() + bodyView.getTop() + trackedView.getBottom();
         int room = viewport - (topPart - chart.getHeight());
-        int height = StatsFormat.chartHeight(room, split,
+        int height = StatsFormat.chartHeight(room, viewport, split,
                 getResources().getDimensionPixelSize(R.dimen.stats_chart_min_height),
                 getResources().getDimensionPixelSize(R.dimen.stats_chart_height),
                 getResources().getDimensionPixelSize(R.dimen.stats_chart_max_height));
@@ -597,10 +612,12 @@ public class StatsFragment extends Fragment
 
     /**
      * Arranges the views for the window's class: in a compact window the host is a chip and the
-     * crumb goes (the period row says the same), the summary stacks, and the strip's label sits
-     * over a five-column grid of covers; in a wide one the host is text beside the title, the
-     * crumb is shown, and the label stands beside a row of five cards. Does nothing when the
-     * class has not changed; redraws the page when it has, since the strip's cards differ.
+     * crumb goes (the period row says the same), the summary stacks, and the strip's caption
+     * goes under its title, over a five-column grid of covers; in a wide one the host is text
+     * beside the title, the crumb is shown (and, without the panel, the remote's buttons beside
+     * it), and the strip's caption follows its title on one line, over a row of five cards. Does
+     * nothing when the class has not changed; redraws the page when it has, since the strip's
+     * cards differ.
      */
     private void applyWindow() {
         boolean compact = isCompact();
@@ -608,6 +625,7 @@ public class StatsFragment extends Fragment
             return;
         }
         compactApplied = compact;
+        placeRemote();
         // Invisible rather than gone, so it still pushes the chip to the header's end.
         hostNameView.setVisibility(compact ? View.INVISIBLE : View.VISIBLE);
         hostChip.setVisibility(compact ? View.VISIBLE : View.GONE);
@@ -621,20 +639,68 @@ public class StatsFragment extends Fragment
         detail.topMargin = compact ? dp(4) : 0;
         summaryDetail.setLayoutParams(detail);
 
-        stripRow.setOrientation(compact ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
-        LinearLayout.LayoutParams label = (LinearLayout.LayoutParams) stripLabel.getLayoutParams();
-        label.width = compact ? ViewGroup.LayoutParams.MATCH_PARENT
-                : getResources().getDimensionPixelSize(R.dimen.stats_strip_label_width);
-        label.setMarginEnd(compact ? 0 : dp(12));
-        label.bottomMargin = compact ? dp(8) : 0;
-        stripLabel.setLayoutParams(label);
-        LinearLayout.LayoutParams list = (LinearLayout.LayoutParams) stripList.getLayoutParams();
-        list.width = compact ? ViewGroup.LayoutParams.MATCH_PARENT : 0;
-        list.weight = compact ? 0 : 1;
-        stripList.setLayoutParams(list);
+        stripLabel.setOrientation(compact ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams caption = (LinearLayout.LayoutParams) stripSubtitle.getLayoutParams();
+        caption.setMarginStart(compact ? 0 : dp(8));
+        caption.topMargin = compact ? dp(3) : 0;
+        stripSubtitle.setLayoutParams(caption);
 
         if (drawn != null) {
             bind(drawn, false, false);
+        }
+    }
+
+    /**
+     * Where the range and the period buttons go. Inline in a wide window they move up onto the
+     * header line beside the crumb, which says the period (and climbs from a month) already, and
+     * the period row goes: the remote then costs the page no height of its own, which a short
+     * window (a phone on its side, the Thor's top screen alone) needs for the chart. Compact,
+     * where the crumb is gone, the remote stays over the page with its period row; split, it is
+     * on the panel. The views move rather than being copied, so the choice, the bounds and focus
+     * are the same ones either way.
+     */
+    private void placeRemote() {
+        boolean inHeader = !split && !isCompact();
+        if (inHeader == remoteInHeader) {
+            remoteView.setVisibility(split || inHeader ? View.GONE : View.VISIBLE);
+            return;
+        }
+        remoteInHeader = inHeader;
+        // Taken before anything moves or hides: either lets focus go.
+        View focused = root != null ? root.findFocus() : null;
+        View[] moved = {ranges, previousView, nextView};
+        for (View v : moved) {
+            ((ViewGroup) v.getParent()).removeView(v);
+        }
+        int button = getResources().getDimensionPixelSize(R.dimen.action_size);
+        LinearLayout.LayoutParams rangeParams;
+        LinearLayout.LayoutParams previousParams = new LinearLayout.LayoutParams(button, button);
+        LinearLayout.LayoutParams nextParams = new LinearLayout.LayoutParams(button, button);
+        nextParams.setMarginStart(dp(6));
+        if (inHeader) {
+            rangeParams = new LinearLayout.LayoutParams(getResources().getDimensionPixelSize(
+                    R.dimen.stats_header_ranges_width), ViewGroup.LayoutParams.WRAP_CONTENT);
+            rangeParams.setMarginStart(dp(12));
+            previousParams.setMarginStart(dp(8));
+            headerRemote.addView(ranges, rangeParams);
+            headerRemote.addView(previousView, previousParams);
+            headerRemote.addView(nextView, nextParams);
+        } else {
+            rangeParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+            remoteView.addView(ranges, 0, rangeParams);
+            periodRow.addView(previousView, previousParams);
+            periodRow.addView(nextView, nextParams);
+        }
+        headerRemote.setVisibility(inHeader ? View.VISIBLE : View.GONE);
+        remoteView.setVisibility(split || inHeader ? View.GONE : View.VISIBLE);
+        // The crumb's "Year" tag says what the range control beside it says.
+        if (drawn != null) {
+            bindPeriod(drawn);
+        }
+        // A moved view lost focus on the way: it comes back to the same one.
+        if (focused != null && !focused.isFocused() && focused.isShown()) {
+            focused.requestFocus();
         }
     }
 
@@ -1024,13 +1090,15 @@ public class StatsFragment extends Fragment
         }
     }
 
-    // The period's title in the remote, and the crumb: "Year 2026 › pick a month", "‹ 2026 / October".
+    // The period's title in the remote, and the crumb: "Year 2026 › pick a month" (without the
+    // tag while the range control is beside it), "‹ 2026 / October", which a tap climbs.
     private void bindPeriod(AppStats s) {
         periodTitle.setText(text.periodShortTitle(s));
 
         SpannableStringBuilder line = new SpannableStringBuilder();
         boolean year = AppStats.RANGE_YEAR.equals(s.getRange());
-        crumbTag.setVisibility(year ? View.VISIBLE : View.GONE);
+        crumbTag.setVisibility(year && !remoteInHeader ? View.VISIBLE : View.GONE);
+        crumb.setClickable(false);
         if (year) {
             appendStrong(line, text.periodTitle(s));
             line.append("  ›  ").append(getString(R.string.stats_crumb_pick));
@@ -1039,6 +1107,7 @@ public class StatsFragment extends Fragment
                     StatsDrill.yearOf(s.getOffset(), s.getToday())[0], s.getToday());
             if (calendarYear >= 0) {
                 line.append("‹ ").append(String.valueOf(calendarYear)).append(" / ");
+                crumb.setClickable(true);
             }
             appendStrong(line, text.periodShortTitle(s));
         } else {
@@ -1134,9 +1203,11 @@ public class StatsFragment extends Fragment
     }
 
     /**
-     * The page's own most played, at most five: a row of cards with their share of the period
-     * in a wide window, a grid of covers in a compact one. A tracked period without play says
-     * so in its place.
+     * The page's own most played, at most five, each with its name on one line: a row of cards
+     * with their share of the period in a wide window, a grid of covers in a compact one. A
+     * tracked period without play says so in its place; one with play but no game to show (the
+     * host leaves out a game its library no longer lists) shows neither, rather than say nothing
+     * was played over bars that say otherwise.
      */
     private void bindStrip(AppStats s) {
         stripList.removeAllViews();
@@ -1151,8 +1222,9 @@ public class StatsFragment extends Fragment
         }
         String phrase = text.periodPhrase(s);
         if (top.isEmpty()) {
+            boolean played = StatsFormat.countsAsPlayed(s.getTotalSeconds());
             stripSection.setVisibility(View.GONE);
-            nothingPlayed.setVisibility(View.VISIBLE);
+            nothingPlayed.setVisibility(played ? View.GONE : View.VISIBLE);
             nothingPlayed.setText(getString(R.string.stats_nothing_played, phrase));
             return;
         }
@@ -1170,6 +1242,7 @@ public class StatsFragment extends Fragment
             View card = inflater.inflate(compact ? R.layout.item_stats_strip_cover
                     : R.layout.item_stats_strip_card, stripList, false);
             String hours = text.duration(g.getSeconds());
+            ((TextView) card.findViewById(R.id.statsStripName)).setText(g.getName());
             ((TextView) card.findViewById(R.id.statsStripHours)).setText(hours);
             TextView share = card.findViewById(R.id.statsStripShare);
             if (share != null) {
@@ -1346,11 +1419,11 @@ public class StatsFragment extends Fragment
         }
     }
 
-    // What split changes that a page's bind does not redo: the remote's place, and whether the
-    // untracked message is a stop (it stands for the remote, which is on the panel), padded for
-    // its ring only then, so it sits flush with the column inline.
+    // What split changes that a page's bind does not redo: the remote's place (placeRemote), and
+    // whether the untracked message is a stop (it stands for the remote, which is on the panel),
+    // padded for its ring only then, so it sits flush with the column inline.
     private void applySplit() {
-        remoteView.setVisibility(split ? View.GONE : View.VISIBLE);
+        placeRemote();
         untrackedView.setFocusable(split);
         int ring = split ? dp(8) : 0;
         untrackedView.setPadding(ring, ring, ring, ring);

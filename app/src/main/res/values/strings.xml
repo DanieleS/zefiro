@@ -1182,8 +1182,8 @@
     <string name="stats_climb_a11y">Back to %1$s</string>
     <!-- The strip under the chart: "Most played in 2026". -->
     <string name="stats_most_played">Most played %1$s</string>
-    <!-- Under it: "top 5 of the 9 games played, share of the year". -->
-    <string name="stats_strip_top_of">top %1$d of the %2$d games played, %3$s</string>
+    <!-- Beside it, on one line: "Top 5 of 27 · share of the year". -->
+    <string name="stats_strip_top_of">Top %1$d of %2$d · %3$s</string>
     <string name="stats_strip_share_week">share of the week</string>
     <string name="stats_strip_share_month">share of the month</string>
     <string name="stats_strip_share_year">share of the year</string>

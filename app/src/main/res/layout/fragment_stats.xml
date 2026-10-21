@@ -4,12 +4,16 @@
     chart is the page and the way around it. One centred column a d-pad walks top to bottom:
 
       header      "Stats", the host (a chip that opens the host sheet in a compact window, plain
-                  text in a wide one) and, in a wide window, the crumb ("Year 2026 › pick a month")
+                  text in a wide one) and, in a wide window, the crumb ("Year 2026 › pick a month"),
+                  which a tap on a month climbs to its year
       remote      Week / Month / Year, then the period row: the climb chip back to the year (a
-                  month only), the period, previous and next
+                  month only), the period, previous and next. In a wide window without the panel
+                  the crumb already says the period: Week / Month / Year and previous and next
+                  move up onto the header line (statsHeaderRemote) and the period row goes, so
+                  the chart keeps the height a short window (a phone on its side) has
       summary     what was played in the period, against the period before, sessions and unlocks
       chart       the bars; the picked one carries the tooltip
-      strip       the period's own most played, up to five covers
+      strip       the period's own most played, up to five covers, under a one-line head
       lower half  the latest unlocks, the games to pick up again and the library's four totals
 
     The remote and the lower half are their own containers because the companion panel takes
@@ -69,13 +73,16 @@
             android:textSize="13sp"
             tools:text="Taverna" />
 
-        <!-- Wide only: where the period sits, and what A does on a year. -->
+        <!-- Wide only: where the period sits, and what A does on a year. On a month a tap
+             climbs to its year, as B does (set in code). -->
         <LinearLayout
             android:id="@+id/statsCrumb"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="12dp"
+            android:clickable="false"
             android:gravity="center_vertical"
+            android:minHeight="@dimen/action_size"
             android:orientation="horizontal">
 
             <TextView
@@ -103,6 +110,16 @@
                 tools:text="2026 › pick a month" />
 
         </LinearLayout>
+
+        <!-- Wide and without the panel only: the remote's range and period buttons, moved here
+             from statsRemote in code. -->
+        <LinearLayout
+            android:id="@+id/statsHeaderRemote"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone" />
 
         <!-- Compact only: the host chip, as the Library's, opening the host sheet. -->
         <LinearLayout
@@ -436,8 +453,10 @@
                             android:visibility="gone"
                             tools:text="No session data before October" />
 
-                        <!-- The period's own most played: a label beside five cards (wide), or
-                             over five covers (compact). -->
+                        <!-- The period's own most played: a head, then five cards (wide) or
+                             five covers (compact). The head is one line in a wide window, the
+                             caption beside the title; in a compact one the caption goes under
+                             it, still on one line. -->
                         <LinearLayout
                             android:id="@+id/statsStrip"
                             android:layout_width="match_parent"
@@ -452,23 +471,21 @@
                                 android:background="@color/surface" />
 
                             <LinearLayout
-                                android:id="@+id/statsStripRow"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:orientation="horizontal"
+                                android:orientation="vertical"
                                 android:paddingTop="10dp">
 
                                 <LinearLayout
                                     android:id="@+id/statsStripLabel"
-                                    android:layout_width="@dimen/stats_strip_label_width"
+                                    android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
-                                    android:layout_marginEnd="12dp"
-                                    android:orientation="vertical">
+                                    android:layout_marginBottom="8dp"
+                                    android:orientation="horizontal">
 
                                     <TextView
                                         android:id="@+id/statsStripTitle"
                                         style="@style/StatsEyebrow"
-                                        android:singleLine="false"
                                         android:textColor="@color/signal"
                                         tools:text="Most played in 2026" />
 
@@ -476,19 +493,19 @@
                                         android:id="@+id/statsStripSubtitle"
                                         android:layout_width="wrap_content"
                                         android:layout_height="wrap_content"
-                                        android:layout_marginTop="3dp"
-                                        android:lineSpacingMultiplier="1.2"
+                                        android:layout_marginStart="8dp"
+                                        android:ellipsize="end"
+                                        android:singleLine="true"
                                         android:textColor="@color/content_secondary"
                                         android:textSize="12sp"
-                                        tools:text="top 5 of the 9 games played, share of the year" />
+                                        tools:text="Top 5 of 27 · share of the year" />
 
                                 </LinearLayout>
 
                                 <LinearLayout
                                     android:id="@+id/statsStripList"
-                                    android:layout_width="0dp"
+                                    android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
-                                    android:layout_weight="1"
                                     android:baselineAligned="false"
                                     android:orientation="horizontal"
                                     android:weightSum="5" />

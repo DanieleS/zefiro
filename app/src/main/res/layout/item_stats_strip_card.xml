@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     One of the period's most played, in a wide window's strip (stats/StatsFragment): its cover,
-    its time and its share of the period, as the Stats mock's row of five. A stop: focus or a
+    its name on one line, its time and its share of the period, as the Stats mock's row of five. A stop: focus or a
     tap opens the game's page.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -32,6 +32,18 @@
         android:layout_weight="1"
         android:orientation="vertical"
         android:paddingTop="2dp">
+
+        <TextView
+            android:id="@+id/statsStripName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="2dp"
+            android:ellipsize="end"
+            android:importantForAccessibility="no"
+            android:singleLine="true"
+            android:textColor="@color/content_secondary"
+            android:textSize="12sp"
+            tools:text="Final Fantasy VII Rebirth" />
 
         <TextView
             android:id="@+id/statsStripHours"
