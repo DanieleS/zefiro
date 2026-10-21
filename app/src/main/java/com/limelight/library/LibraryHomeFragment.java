@@ -604,6 +604,12 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
             placed = target.requestFocus();
         }
         placedFocus = placed ? target : null;
+        if (placed && hero != null && hero.contains(target) && list != null) {
+            // The hero is the first row: the page starts at its top, title and all. Focus only
+            // scrolls far enough to show Resume, and a shelf focused before the hero arrived
+            // has the list anchored on it, the rows above pushed off the top.
+            list.scrollToPosition(0);
+        }
         return placed;
     }
 

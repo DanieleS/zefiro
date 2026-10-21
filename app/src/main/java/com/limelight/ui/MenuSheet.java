@@ -324,8 +324,16 @@ public class MenuSheet {
         return popup;
     }
 
-    // Land the gamepad on the first action, which in two columns is the left one's top.
+    /**
+     * Land the gamepad on the first action, which in two columns is the left one's top. Once
+     * the panel is attached: before, a touch-opened menu cannot leave touch mode for it, and
+     * the window hands its first focus out on its own.
+     */
     private void focusFirstRow(View panel) {
+        panel.post(() -> focusFirstRowNow(panel));
+    }
+
+    private void focusFirstRowNow(View panel) {
         LinearLayout container = panel.findViewById(R.id.menuSheetItems);
         ViewGroup rows = isTwoColumns(panel) && container.getChildCount() > 0
                 ? (ViewGroup) container.getChildAt(0) : container;
@@ -422,6 +430,9 @@ public class MenuSheet {
 
         MaxHeightScrollView scroll = panel.findViewById(R.id.menuSheetScroll);
         scroll.setMaxHeightPx(room);
+        // A scroll view makes itself focusable, and one that takes focus wears the default
+        // highlight over every row instead of a row's ring; the rows are the only stops.
+        scroll.setFocusable(false);
         return panel;
     }
 

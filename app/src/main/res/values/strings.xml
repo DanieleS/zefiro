@@ -25,16 +25,16 @@
     <string name="pcview_menu_header_online">Online</string>
     <string name="pcview_menu_header_offline">Offline</string>
     <string name="pcview_menu_header_unknown">Refreshing</string>
-    <string name="pcview_menu_app_list">View All Apps</string>
-    <string name="pcview_menu_pair_pc">Legacy Pair</string>
-    <string name="pcview_menu_pair_pc_otp">OTP Pair</string>
+    <string name="pcview_menu_app_list">View all apps</string>
+    <string name="pcview_menu_pair_pc">Legacy pair</string>
+    <string name="pcview_menu_pair_pc_otp">OTP pair</string>
     <string name="pcview_menu_unpair_pc">Unpair</string>
-    <string name="pcview_menu_send_wol">Send Wake-On-LAN request</string>
+    <string name="pcview_menu_send_wol">Send Wake-on-LAN request</string>
     <string name="pcview_menu_delete_pc">Delete PC</string>
-    <string name="pcview_menu_test_network">Test Network Connection</string>
-    <string name="pcview_menu_details">View Details</string>
+    <string name="pcview_menu_test_network">Test network connection</string>
+    <string name="pcview_menu_details">View details</string>
     <string name="pcview_menu_eol">NVIDIA GameStream End-of-Service</string>
-    <string name="pcview_menu_open_management_page">Go to Server Config</string>
+    <string name="pcview_menu_open_management_page">Go to server config</string>
     <string name="pcview_error_no_management_url">Cannot open server config page, cannot find server address.</string>
 
     <!-- What a PC card says about its host, and the one action it offers. -->
