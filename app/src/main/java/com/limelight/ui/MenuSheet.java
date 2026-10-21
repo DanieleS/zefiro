@@ -1,7 +1,9 @@
 package com.limelight.ui;
 
+import android.app.Activity;
 import android.app.Dialog;
 import android.content.Context;
+import android.content.ContextWrapper;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Rect;
@@ -25,6 +27,9 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
@@ -61,6 +66,13 @@ import java.util.List;
  * The title can carry a second line of facts about what the menu acts on
  * ({@link #setSubtitle}), and a row that destroys something is drawn in the danger tone
  * ({@link #addDanger}), focus ring included, so it never looks like one more ordinary row.
+ *
+ * <h3>Short windows</h3>
+ *
+ * A menu that would not fit the window's height in one column can lay its rows out in two
+ * ({@link #setColumnsWhenShort}), the first half down the left and the rest down the right, so
+ * a phone in landscape shows every row at once instead of a few and a fold. Over an immersive
+ * screen every home but the anchored one keeps the system bars hidden while it is up.
  */
 public class MenuSheet {
 
@@ -112,6 +124,8 @@ public class MenuSheet {
     private CharSequence title;
     private CharSequence subtitle;
     private final List<Item> items = new ArrayList<>();
+    private boolean columnsWhenShort;
+    private boolean focusFromTouch;
 
     public MenuSheet(Context context) {
         this.context = context;
@@ -128,6 +142,26 @@ public class MenuSheet {
      */
     public MenuSheet setSubtitle(@Nullable CharSequence subtitle) {
         this.subtitle = subtitle;
+        return this;
+    }
+
+    /**
+     * Two columns of rows where one would not fit the window's height (see the class comment).
+     * Only for plain rows: a menu with a row's own trailing stop keeps one column, since that
+     * stop is reached with RIGHT.
+     */
+    public MenuSheet setColumnsWhenShort(boolean columns) {
+        this.columnsWhenShort = columns;
+        return this;
+    }
+
+    /**
+     * Land focus on the first row even when the menu was opened by touch: a d-pad-first screen
+     * (a handheld with its pad), where the next press is the pad's and must start on a row that
+     * shows it is focused. Elsewhere a touch-opened menu shows no ring, as a tapped one should.
+     */
+    public MenuSheet setFocusFromTouch(boolean fromTouch) {
+        this.focusFromTouch = fromTouch;
         return this;
     }
 
@@ -189,18 +223,21 @@ public class MenuSheet {
         Dialog dialog = new Dialog(ctx, R.style.MenuSheetDialog);
         LayoutInflater inflater = LayoutInflater.from(dialog.getContext());
 
-        View panel = buildPanel(inflater, null, dialog::dismiss, null);
+        View panel = buildPanel(inflater, null, dialog::dismiss, null, 0);
         dialog.setContentView(panel);
 
         Window window = dialog.getWindow();
         if (window != null) {
             window.setBackgroundDrawableResource(android.R.color.transparent);
             WindowManager.LayoutParams lp = window.getAttributes();
-            lp.width = Math.min(widthCap(), (int) (screenWidth() * 0.92f));
+            // Two columns take two menus' width, so each keeps a row's room for its label.
+            lp.width = Math.min(isTwoColumns(panel) ? 2 * widthCap() : widthCap(),
+                    (int) (screenWidth() * 0.92f));
             lp.height = WindowManager.LayoutParams.WRAP_CONTENT;
             lp.gravity = Gravity.CENTER;
             window.setAttributes(lp);
             window.setDimAmount(0.6f);
+            matchSystemBars(ctx, window);
         }
 
         dialog.show();
@@ -220,7 +257,8 @@ public class MenuSheet {
 
         View sheet = inflater.inflate(R.layout.menu_sheet_bottom, null, false);
         ViewGroup body = sheet.findViewById(R.id.menuSheetBottomBody);
-        View panel = buildPanel(inflater, body, dialog::dismiss, null);
+        // The drag handle over the panel takes its height of the window too.
+        View panel = buildPanel(inflater, body, dialog::dismiss, null, dp(48));
         // The sheet is the surface here, painted and rounded by its own theme; the panel's
         // raised card inside it would be a second edge.
         panel.setBackground(null);
@@ -240,6 +278,7 @@ public class MenuSheet {
             return keyCode == KeyEvent.KEYCODE_BUTTON_B;
         });
 
+        matchSystemBars(ctx, dialog.getWindow());
         dialog.show();
         focusFirstRow(panel);
         return dialog;
@@ -255,7 +294,7 @@ public class MenuSheet {
         LayoutInflater inflater = LayoutInflater.from(ctx);
         final PopupWindow popup = new PopupWindow(ctx);
 
-        View panel = buildPanel(inflater, null, popup::dismiss, popup::dismiss);
+        View panel = buildPanel(inflater, null, popup::dismiss, popup::dismiss, 0);
         int margin = ctx.getResources().getDimensionPixelSize(R.dimen.menu_sheet_window_margin);
         int gap = ctx.getResources().getDimensionPixelSize(R.dimen.menu_sheet_anchor_gap);
 
@@ -285,20 +324,66 @@ public class MenuSheet {
         return popup;
     }
 
-    // Land the gamepad on the first action.
-    private static void focusFirstRow(View panel) {
+    // Land the gamepad on the first action, which in two columns is the left one's top.
+    private void focusFirstRow(View panel) {
         LinearLayout container = panel.findViewById(R.id.menuSheetItems);
-        if (container.getChildCount() > 0) {
-            container.getChildAt(0).requestFocus();
+        ViewGroup rows = isTwoColumns(panel) && container.getChildCount() > 0
+                ? (ViewGroup) container.getChildAt(0) : container;
+        if (rows.getChildCount() == 0) {
+            return;
         }
+        View first = rows.getChildAt(0);
+        if (focusFromTouch && first.isInTouchMode()) {
+            first.requestFocusFromTouch();
+        } else {
+            first.requestFocus();
+        }
+    }
+
+    /**
+     * A menu over an immersive screen keeps it immersive. A dialog is a window of its own, and
+     * the system bars follow the focused window: without this they come back while the menu is
+     * up, the clock drawn over the screen's rail and title.
+     */
+    private static void matchSystemBars(Context ctx, @Nullable Window window) {
+        Activity activity = activityOf(ctx);
+        if (activity == null || window == null) {
+            return;
+        }
+        WindowInsetsCompat insets = ViewCompat.getRootWindowInsets(activity.getWindow().getDecorView());
+        if (insets == null || insets.isVisible(WindowInsetsCompat.Type.statusBars())) {
+            return;
+        }
+        WindowInsetsControllerCompat controller =
+                WindowCompat.getInsetsController(window, window.getDecorView());
+        controller.setSystemBarsBehavior(
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+        controller.hide(WindowInsetsCompat.Type.systemBars());
+    }
+
+    @Nullable
+    private static Activity activityOf(Context ctx) {
+        for (Context c = ctx; c instanceof ContextWrapper; c = ((ContextWrapper) c).getBaseContext()) {
+            if (c instanceof Activity) {
+                return (Activity) c;
+            }
+        }
+        return null;
+    }
+
+    private static boolean isTwoColumns(View panel) {
+        LinearLayout container = panel.findViewById(R.id.menuSheetItems);
+        return container.getOrientation() == LinearLayout.HORIZONTAL;
     }
 
     /**
      * @param closeOnB when not null, B on any of the panel's views runs it; for the homes whose
      *                 window offers no key hook of its own (a popup)
+     * @param abovePx  what the menu's home draws over the panel (a sheet's drag handle), which
+     *                 the window's height has to hold too
      */
     private View buildPanel(LayoutInflater inflater, ViewGroup attachTo, Runnable dismiss,
-                            @Nullable Runnable closeOnB) {
+                            @Nullable Runnable closeOnB, int abovePx) {
         View panel = inflater.inflate(R.layout.menu_sheet, attachTo, false);
 
         TextView titleView = panel.findViewById(R.id.menuSheetTitle);
@@ -317,14 +402,71 @@ public class MenuSheet {
             titleView.setLayoutParams(lp);
         }
 
+        int room = rowsRoom(abovePx);
         LinearLayout container = panel.findViewById(R.id.menuSheetItems);
-        for (Item item : items) {
-            container.addView(buildRow(inflater, container, item, dismiss, closeOnB));
+        if (wantsTwoColumns(room)) {
+            // Down the left, then down the right: the order reads as one list still.
+            container.setOrientation(LinearLayout.HORIZONTAL);
+            int split = (items.size() + 1) / 2;
+            LinearLayout left = column(container, 0, dp(4));
+            LinearLayout right = column(container, dp(4), 0);
+            for (int i = 0; i < items.size(); i++) {
+                LinearLayout into = i < split ? left : right;
+                into.addView(buildRow(inflater, into, items.get(i), dismiss, closeOnB));
+            }
+        } else {
+            for (Item item : items) {
+                container.addView(buildRow(inflater, container, item, dismiss, closeOnB));
+            }
         }
 
         MaxHeightScrollView scroll = panel.findViewById(R.id.menuSheetScroll);
-        scroll.setMaxHeightPx((int) (screenHeight() * MAX_HEIGHT_FRACTION));
+        scroll.setMaxHeightPx(room);
         return panel;
+    }
+
+    /**
+     * How tall the rows may be before they scroll: a share of the window, less what is drawn
+     * around them (the panel's padding and header, and {@code abovePx}), so the whole menu fits
+     * on a short window rather than running off its foot.
+     */
+    private int rowsRoom(int abovePx) {
+        int around = abovePx + dp(14) + context.getResources()
+                .getDimensionPixelSize(R.dimen.menu_sheet_padding);
+        if (!TextUtils.isEmpty(title)) {
+            around += dp(28);
+        }
+        if (!TextUtils.isEmpty(subtitle)) {
+            around += dp(20);
+        }
+        int height = screenHeight();
+        return Math.max(dp(120), Math.min((int) (height * MAX_HEIGHT_FRACTION),
+                height - around - dp(24)));
+    }
+
+    // Whether the rows, one under the other, would not fit the room they have.
+    private boolean wantsTwoColumns(int room) {
+        if (!columnsWhenShort || items.size() < 4) {
+            return false;
+        }
+        for (Item item : items) {
+            if (item.trailingLabel != null) {
+                return false;
+            }
+        }
+        int row = context.getResources().getDimensionPixelSize(R.dimen.menu_row_min_height) + dp(2);
+        return items.size() * row > room;
+    }
+
+    private LinearLayout column(LinearLayout container, int startGap, int endGap) {
+        LinearLayout column = new LinearLayout(container.getContext());
+        column.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        lp.setMarginStart(startGap);
+        lp.setMarginEnd(endGap);
+        container.addView(column, lp);
+        return column;
     }
 
     private View buildRow(LayoutInflater inflater, ViewGroup container, Item item, Runnable dismiss,

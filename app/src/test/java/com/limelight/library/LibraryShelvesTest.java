@@ -131,4 +131,18 @@ public class LibraryShelvesTest {
         // An order picked by hand, host order included, is the user's: it stands.
         assertEquals(null, LibraryShelves.seeAllDefault(true, played));
     }
+
+    @Test
+    public void recentShelfIsLeftOutWhileItWouldBeMostlyEmpty() {
+        List<LibraryApp> three = Arrays.asList(app("A", 1, false), app("B", 2, false),
+                app("C", 3, false));
+        List<LibraryApp> four = new ArrayList<>(three);
+        four.add(app("D", 4, false));
+
+        assertTrue(LibraryShelves.recentShelf(three, 16).isEmpty());
+        assertEquals(four, LibraryShelves.recentShelf(four, 16));
+        // A small library played through is a full shelf, not a mostly empty one.
+        assertEquals(three, LibraryShelves.recentShelf(three, 3));
+        assertTrue(LibraryShelves.recentShelf(Collections.<LibraryApp>emptyList(), 0).isEmpty());
+    }
 }

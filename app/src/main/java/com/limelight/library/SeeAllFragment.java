@@ -63,7 +63,7 @@ import java.util.List;
  * <h3>Order</h3>
  *
  * The grid lists the games in the library's order, the one the sort sheet sets for every list of
- * the host. Opened from Recently played's "›" it lists them by when they were last played
+ * the host. Opened from Recently played's "See all" it lists them by when they were last played
  * instead, for as long as it is up ({@link #newInstance}), without touching the library's
  * order; picking an order in the sheet goes back to the library's. Until the user has picked an
  * order once, the grid also opens in recent order when there is a play history

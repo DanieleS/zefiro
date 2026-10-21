@@ -168,9 +168,12 @@ public final class HostActionsSheet {
     @NonNull
     public static MenuSheet build(@NonNull Context context, @NonNull HostEntry host,
                                   @NonNull HostActions actions) {
+        // Two columns where one would run past a short window's foot (a phone in landscape),
+        // so Delete PC, last, is on screen with the rest.
         MenuSheet sheet = new MenuSheet(context)
                 .setTitle(host.details.name)
-                .setSubtitle(subtitleFor(context, host));
+                .setSubtitle(subtitleFor(context, host))
+                .setColumnsWhenShort(true);
         for (final Item item : itemsFor(host.details)) {
             String label = context.getString(item.label);
             Runnable action = () -> run(actions, item, host);

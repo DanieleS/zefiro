@@ -38,6 +38,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.StringReader;
 import java.util.Collections;
 import java.util.Comparator;
@@ -219,6 +220,10 @@ public class HostLibrary {
     private static final long PROBE_RETRY_MIN_MS = 15_000;
     private static final long PROBE_RETRY_MAX_MS = 5 * 60_000;
 
+    // The cache file, beside "applist", holding the host's last /appmetadata answer with games
+    // in it; see readCachedMetadata.
+    private static final String METADATA_CACHE = "appmetadata";
+
     private final Context context;
     private final String hostUuid;
     private final CmsGateway gateway;
@@ -355,6 +360,7 @@ public class HostLibrary {
         // Launches are recorded on the launch path, which does not know this library exists.
         launchWatch = launchHistory.watch(this::onLaunchRecorded);
         runInBackground(this::readCachedList);
+        runInBackground(this::readCachedMetadata);
         // The covers cached by earlier visits tell the stand-in apart before any tile asks.
         queueFingerprint();
     }
@@ -719,6 +725,40 @@ public class HostLibrary {
         });
     }
 
+    // On the executor. The metadata the host last served, so what ranks on it (when each game
+    // was last played on the PC, above all) is there before the probe, and stays when the probe
+    // gets nothing: the host answers 404 for its fork endpoints while a session is held. Only
+    // fills a library that has none yet; the host's own answer is the newer one.
+    private void readCachedMetadata() {
+        final String raw;
+        try (InputStream in = CacheHelper.openCacheFileForInput(cacheDir, METADATA_CACHE, hostUuid)) {
+            raw = CacheHelper.readInputStreamToString(in);
+        } catch (IOException e) {
+            // Never answered: nothing to fill in.
+            return;
+        }
+        final Map<String, AppMetadata> cached = AppMetadata.parseAll(raw);
+        if (cached.isEmpty()) {
+            return;
+        }
+        main.execute(() -> {
+            if (closed || !metadata.isEmpty()) {
+                return;
+            }
+            metadata = Collections.unmodifiableMap(cached);
+            publish();
+        });
+    }
+
+    // On the executor. Kept as the host sent it, read back by readCachedMetadata.
+    private void writeCachedMetadata(String raw) {
+        try (OutputStream out = CacheHelper.openCacheFileForOutput(cacheDir, METADATA_CACHE, hostUuid)) {
+            CacheHelper.writeStringToOutputStream(out, raw);
+        } catch (IOException e) {
+            LimeLog.warning("Failed to cache app metadata: " + e.getMessage());
+        }
+    }
+
     /**
      * @param fromHost whether the list is the host's answer just now, as opposed to the copy
      *                 cached from the last visit. Only the host's answer is synced to the
@@ -898,6 +938,12 @@ public class HostLibrary {
      *
      * <p>Once per visit when it answers. When the request fails outright (a host still waking,
      * a TLS hiccup, a timeout) a later poll retries it after {@link #probeRetryDelayMs}.
+     *
+     * <p>An answer with nothing in it never replaces one with something: the host answers 404
+     * for both endpoints while it holds a session, and a library that dropped what it knew then
+     * would rank "Recently played" and See all on this device's launches alone until the next
+     * visit, a different order from one visit to the next. The last metadata with games in it is
+     * kept on disk too ({@link #readCachedMetadata}), and the last week of statistics in memory.
      */
     private void maybeStartProbe() {
         if (probeInFlight || probeAnswered || !haveList || host == null
@@ -918,7 +964,11 @@ public class HostLibrary {
             AppStats stats;
             try {
                 NvHTTP http = hostSession.http();
-                fetched = http.getAppMetadata();
+                String raw = http.getAppMetadataRaw();
+                fetched = AppMetadata.parseAll(raw);
+                if (!fetched.isEmpty()) {
+                    writeCachedMetadata(raw);
+                }
                 // Any failure here reads as "no statistics": the entries stay hidden.
                 try {
                     stats = http.getAppStats(AppStats.RANGE_WEEK, 0);
@@ -938,11 +988,13 @@ public class HostLibrary {
                 }
                 probeAnswered = true;
                 probeFailures = 0;
-                metadata = fetched == null
-                        ? Collections.<String, AppMetadata>emptyMap()
-                        : Collections.unmodifiableMap(fetched);
-                firstStatsPage = firstPage;
-                statsAvailable = firstPage != null;
+                if (!fetched.isEmpty()) {
+                    metadata = Collections.unmodifiableMap(fetched);
+                }
+                if (firstPage != null) {
+                    firstStatsPage = firstPage;
+                    statsAvailable = true;
+                }
                 // The orders that rank by metadata were sorting on nothing until now.
                 publish();
             });

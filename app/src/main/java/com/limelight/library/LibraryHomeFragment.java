@@ -46,7 +46,7 @@ import java.util.Objects;
  *                                                       (none on a short window, see below)
  *   HeroAdapter         the game the host is running: Running on … · Resume · Quit   (or none)
  *   StatePanelAdapter   offline, not paired, connecting, no games…                   (or none)
- *   ShelfAdapter        Recently played                              ›                (or none)
+ *   ShelfAdapter        Recently played                          See all              (or none)
  *   ShelfAdapter        All games                  See all · N   …  [See all · N]     (or none)
  * </pre>
  *
@@ -65,7 +65,9 @@ import java.util.Objects;
  *   compact window   Recently played a row, All games a three-column grid of two rows whose
  *                    last cell is "See all", so a phone in portrait shows it whole above the
  *                    bottom bar (the Shelves mock's phone frame has one row, and no such cell:
- *                    here it is the d-pad's way to the grid, as on the wide shelf)
+ *                    here it is the d-pad's way to the grid, as on the wide shelf). That cell
+ *                    is the one way to See all here: neither shelf's label carries a link, so
+ *                    the screen does not offer See all three times over
  * </pre>
  *
  * Like See all it reads the shared {@code HostRepository}'s snapshot, launches through the
@@ -79,7 +81,7 @@ import java.util.Objects;
  *   Resume / Quit game        the running game, resumed or quit (after a confirmation)
  *   the host chip, X          the host sheet (X is the Library's, see LibraryFragment)
  *   the "See all" tile/link   See all, pushed over this screen
- *   Recently played's "›"     See all in recent order (touch only)
+ *   Recently played's link    See all in recent order (touch only, wide windows)
  * </pre>
  *
  * <h3>Focus</h3>
@@ -408,6 +410,10 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
         if (!isAdded() || list == null || recent == null || all == null) {
             return;
         }
+        // Both shelves lead to See all from their label on a wide window; a compact one has the
+        // grid's last cell for that, and one way there is enough.
+        recent.setLinkShown(!isCompact());
+        all.setLinkShown(!isCompact());
         if (isCompact()) {
             recent.setShape(0, 0, 0);
             all.setShape(COMPACT_GRID_COLUMNS, COMPACT_GRID_ROWS, 0);
@@ -495,7 +501,8 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
         if (s != submittedSnapshot) {
             submittedSnapshot = s;
             if (mode == HostStatePanel.Mode.NONE && library != null) {
-                recent.submit(LibraryShelves.recent(apps, s.metadata, library.getLaunchHistory()), 0);
+                recent.submit(LibraryShelves.recentShelf(
+                        LibraryShelves.recent(apps, s.metadata, library.getLaunchHistory()), visible), 0);
                 all.submit(LibraryShelves.preview(apps, null), visible);
             } else {
                 recent.submit(Collections.<LibraryApp>emptyList(), 0);
@@ -665,7 +672,7 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
         }
     }
 
-    /** Recently played's "›": the whole grid, by when each game was last played. */
+    /** Recently played's "See all": the whole grid, by when each game was last played. */
     private void openSeeAllRecent() {
         LibraryFragment library = libraryFrame();
         if (library != null) {

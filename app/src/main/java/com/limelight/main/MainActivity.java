@@ -193,6 +193,8 @@ public class MainActivity extends AppCompatActivity
     private long companionReclaimUntil;
     @Nullable
     private Runnable achievementCheck;
+    // Whether this window has had a companion display to put its panel on; see isDpadFirst.
+    private boolean hadCompanionDisplay;
 
     // Key code to the down time of the press a section handled, so that press's key-up is
     // swallowed too. Keyed by the down time, not the code alone: when the handled press opens
@@ -319,6 +321,9 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onResume() {
         super.onResume();
+        // Posted: the window is shown again once this resume is through (on older releases only
+        // after onResume), and a page's owner asked again must be able to tell it is on screen.
+        getWindow().getDecorView().post(companionFeed::resume);
         checkAchievementsAfterStream();
     }
 
@@ -529,6 +534,12 @@ public class MainActivity extends AppCompatActivity
         }
         if (CompanionDisplayManager.isConfigured(this)
                 && DisplayTargets.findCompanionDisplay(this, windowDisplayId()) != null) {
+            hadCompanionDisplay = true;
+            return true;
+        }
+        if (hadCompanionDisplay) {
+            // The lower screen switched off or gone: the same handheld, its pad still under the
+            // thumbs, so its hints and first focus stay (PCs keeps "A Library · Y Actions").
             return true;
         }
         for (int id : InputDevice.getDeviceIds()) {

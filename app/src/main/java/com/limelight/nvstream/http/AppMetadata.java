@@ -1,5 +1,7 @@
 package com.limelight.nvstream.http;
 
+import com.limelight.LimeLog;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -8,8 +10,10 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.TimeZone;
 
 /**
@@ -46,6 +50,38 @@ public class AppMetadata {
         this.lastPlayed = lastPlayed;
         this.playtimeMinutes = playtimeMinutes;
         this.hasBackground = hasBackground;
+    }
+
+    /**
+     * Every app's metadata in an {@code /appmetadata} answer, keyed by upper-cased app UUID:
+     * empty for null (no answer) and for an answer that does not parse. Public, so a copy of the
+     * answer kept on disk reads back the same way the host's own does.
+     */
+    public static Map<String, AppMetadata> parseAll(String raw) {
+        Map<String, AppMetadata> metadata = new HashMap<>();
+        if (raw == null) {
+            return metadata;
+        }
+        try {
+            JSONArray apps = new JSONObject(raw).optJSONArray("apps");
+            if (apps == null) {
+                return metadata;
+            }
+            for (int i = 0; i < apps.length(); i++) {
+                JSONObject app = apps.optJSONObject(i);
+                if (app == null) {
+                    continue;
+                }
+                String uuid = app.optString("uuid", "");
+                if (uuid.isEmpty()) {
+                    continue;
+                }
+                metadata.put(uuid.toUpperCase(), fromJson(app));
+            }
+        } catch (Exception e) {
+            LimeLog.warning("Malformed app metadata: " + e.getMessage());
+        }
+        return metadata;
     }
 
     static AppMetadata fromJson(JSONObject obj) {

@@ -8,6 +8,7 @@ import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 
 import com.limelight.R;
+import com.limelight.main.MainHost;
 import com.limelight.ui.MenuSheet;
 
 import java.util.ArrayList;
@@ -162,7 +163,9 @@ public final class GameActionsSheet {
     public static MenuSheet build(@NonNull Context context, @NonNull LibraryApp app,
                                   @NonNull State state, @Nullable String companionLabel,
                                   @Nullable String hostName, @NonNull Runner runner) {
-        MenuSheet sheet = new MenuSheet(context).setTitle(app.app.getAppName());
+        // Up to ten rows: two columns on a phone in landscape rather than five and a fold.
+        MenuSheet sheet = new MenuSheet(context).setTitle(app.app.getAppName())
+                .setColumnsWhenShort(true);
         for (final Item item : sheetItemsFor(app, state)) {
             Runnable action = () -> runner.run(item, app);
             if (item == Item.START) {
@@ -179,11 +182,18 @@ public final class GameActionsSheet {
         return sheet;
     }
 
-    /** Builds and shows the sheet, centred and focused for the d-pad. */
+    /**
+     * Builds and shows the sheet, centred and focused for the d-pad: on its first row even when
+     * a long-press opened it, on a d-pad-first screen ({@link MainHost#isDpadFirst}), so the row
+     * the pad starts on shows its ring.
+     */
     @NonNull
     public static Dialog show(@NonNull Context context, @NonNull LibraryApp app,
                               @NonNull State state, @Nullable String companionLabel,
                               @Nullable String hostName, @NonNull Runner runner) {
-        return build(context, app, state, companionLabel, hostName, runner).showCentered(context);
+        boolean dpadFirst = context instanceof MainHost && ((MainHost) context).isDpadFirst();
+        return build(context, app, state, companionLabel, hostName, runner)
+                .setFocusFromTouch(dpadFirst)
+                .showCentered(context);
     }
 }

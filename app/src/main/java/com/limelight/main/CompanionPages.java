@@ -23,6 +23,19 @@ public interface CompanionPages {
     interface PageOwner {
         /** A stop on the owner's page was tapped on the panel. Main thread only. */
         void onPageTap(int stopId);
+
+        /**
+         * The main screen is back from a stream (or another app), and the owner took its page
+         * off while it was away: a screen behind a stream reads as off screen, so an owner that
+         * checks whether it is shown before it publishes clears its page then for no reason of
+         * its own. Publish the page as it stands now, or clear it for good.
+         *
+         * @return whether the owner did either; by default it does not, and the page it took
+         * off stays off, as asked
+         */
+        default boolean republishPage() {
+            return false;
+        }
     }
 
     /** Draws {@code page} on the panel for {@code owner}, replacing any other screen's page. */
