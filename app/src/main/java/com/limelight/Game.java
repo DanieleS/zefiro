@@ -893,9 +893,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             }
         }
 
-        // Settled before the decoder is built below, which asks perfStatsWanted() at once. The
-        // target is the rate the stream was negotiated at, which the frame rate rule of the
-        // health dot measures against.
+        // Settled before the decoder is built below, which asks perfStatsWanted() at once.
         hudVisible = prefConfig.enablePerfOverlay;
         streamHud.setStatsShown(hudVisible);
 

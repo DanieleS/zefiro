@@ -80,7 +80,6 @@ public final class LibraryShelves {
         return cap(visible, n);
     }
 
-    /** How many games "See all" leads to: every visible one. */
     /**
      * The order See all opens in when nothing asked for one: what was played last, while the
      * user has never picked an order and Recently played has something in it (the same history
@@ -94,6 +93,7 @@ public final class LibraryShelves {
         return !orderChosen && !recent.isEmpty() ? AppSortOrder.RECENT : null;
     }
 
+    /** How many games "See all" leads to: every visible one. */
     public static int visibleCount(List<LibraryApp> apps) {
         int count = 0;
         for (LibraryApp app : apps) {

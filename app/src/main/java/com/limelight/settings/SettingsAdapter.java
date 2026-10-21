@@ -106,6 +106,14 @@ public class SettingsAdapter extends PreferenceGroupAdapter {
         }
     }
 
+    // A row RecyclerView keeps in its cache comes back without a rebind, so it takes the current
+    // line count here rather than keeping the one it had when it left the screen.
+    @Override
+    public void onViewAttachedToWindow(@NonNull PreferenceViewHolder holder) {
+        super.onViewAttachedToWindow(holder);
+        applyLines(holder.itemView);
+    }
+
     private void applyLines(View row) {
         View summary = row.findViewById(android.R.id.summary);
         if (!(summary instanceof TextView) || !(row instanceof ViewGroup)) {
