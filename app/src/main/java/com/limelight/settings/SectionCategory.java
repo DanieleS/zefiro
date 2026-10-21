@@ -1,11 +1,14 @@
 package com.limelight.settings;
 
 import android.content.Context;
+import android.view.View;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.StringRes;
+import androidx.preference.Preference;
 import androidx.preference.PreferenceCategory;
+import androidx.preference.PreferenceGroup;
 import androidx.preference.PreferenceViewHolder;
 
 import com.limelight.R;
@@ -18,6 +21,10 @@ import com.limelight.R;
  * others, and a hidden row changing back to shown makes the adapter rebind this header, so the
  * number never disagrees with the rows under it. Rows keep the order they are added in, which
  * is the catalogue's; nothing collapses behind a "more".
+ *
+ * <p>The first section on screen sits close under the header: the gap above a section parts it
+ * from the rows before it, and the first has none. It then lines up with the Settings section's
+ * sticky label, which covers it at the list's top with the same words.
  */
 public class SectionCategory extends PreferenceCategory {
 
@@ -52,5 +59,30 @@ public class SectionCategory extends PreferenceCategory {
         if (count != null) {
             count.setText(String.valueOf(getVisibleCount()));
         }
+        View row = holder.itemView;
+        int top = row.getResources().getDimensionPixelSize(isFirstShown()
+                ? R.dimen.settings_sticky_padding_vertical : R.dimen.settings_category_top);
+        if (row.getPaddingTop() != top) {
+            row.setPaddingRelative(row.getPaddingStart(), top, row.getPaddingEnd(),
+                    row.getPaddingBottom());
+        }
+    }
+
+    // No section before this one is shown.
+    private boolean isFirstShown() {
+        PreferenceGroup parent = getParent();
+        if (parent == null) {
+            return true;
+        }
+        for (int i = 0; i < parent.getPreferenceCount(); i++) {
+            Preference p = parent.getPreference(i);
+            if (p == this) {
+                return true;
+            }
+            if (p.isVisible()) {
+                return false;
+            }
+        }
+        return true;
     }
 }

@@ -157,4 +157,27 @@ public class SettingsSearchTest {
 
         assertEquals(Collections.singletonList("checkbox_vibrate_osc"), keys(result));
     }
+
+    @Test
+    public void theQuerysWords_areMarkedInATitle_foldedAsTheSearchFolds() {
+        List<int[]> ranges = SettingsSearch.matchRanges("Enable Rumble", "rumble");
+        assertEquals(1, ranges.size());
+        assertEquals(7, ranges.get(0)[0]);
+        assertEquals(13, ranges.get(0)[1]);
+
+        // Accents and case fold; each word is marked wherever it is.
+        ranges = SettingsSearch.matchRanges("Vidéo bitrate on metered networks", "VIDEO metered");
+        assertEquals(2, ranges.size());
+        assertEquals(0, ranges.get(0)[0]);
+        assertEquals(5, ranges.get(0)[1]);
+        assertEquals(17, ranges.get(1)[0]);
+        assertEquals(24, ranges.get(1)[1]);
+    }
+
+    @Test
+    public void aSynonymsMatch_marksNothing() {
+        // "rumble" finds "Enable vibration" through a synonym; the title has no "rumble" in it.
+        assertTrue(SettingsSearch.matchRanges("Enable vibration", "rumble").isEmpty());
+        assertTrue(SettingsSearch.matchRanges("Enable vibration", "").isEmpty());
+    }
 }

@@ -3,7 +3,9 @@ package com.limelight.settings;
 import android.view.KeyEvent;
 import android.view.View;
 import android.widget.EditText;
+import android.widget.TextView;
 
+import androidx.fragment.app.Fragment;
 import androidx.lifecycle.MutableLiveData;
 import androidx.preference.ListPreference;
 import androidx.preference.Preference;
@@ -33,6 +35,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -239,5 +242,103 @@ public class SettingsPanelTest {
         setPanelShowing(false);
         SettingsListFixture.idle();
         assertNull(panelPage(section));
+    }
+
+    // The dialog a list row's click opened on top, or null.
+    private static Fragment dialogOf(StreamPreferencesFragment list) {
+        return list.getParentFragmentManager()
+                .findFragmentByTag("androidx.preference.PreferenceFragment.DIALOG");
+    }
+
+    @Test
+    public void aListRowsClick_bindsThePanel_andOpensItsDialogOnlyWhileThePanelIsOff()
+            throws Exception {
+        SettingsSectionFragment section = SettingsListFixture.section();
+        StreamPreferencesFragment list = list(section);
+        ListPreference pacing = list.findPreference("frame_pacing");
+        ListPreference fps = list.findPreference("list_fps");
+        assertNotNull(pacing);
+        assertNotNull(fps);
+        focusRow(list, "frame_pacing");
+
+        // The panel up: A on another list row spells it out below, and nothing covers the top.
+        fps.performClick();
+        SettingsListFixture.idle();
+        choicesOn(section, "list_fps");
+        assertNull("No dialog on top while the panel offers the choices", dialogOf(list));
+
+        // The lower screen switched off while Settings is up: the same click opens the dialog.
+        setPanelShowing(false);
+        SettingsListFixture.idle();
+        pacing.performClick();
+        SettingsListFixture.idle();
+        Fragment dialog = dialogOf(list);
+        assertTrue("The choices open on top: " + dialog, dialog instanceof SettingsListDialog);
+        ((SettingsListDialog) dialog).dismissNow();
+        SettingsListFixture.idle();
+
+        // And on again: back to the panel, the section never rebuilt.
+        setPanelShowing(true);
+        SettingsListFixture.idle();
+        pacing.performClick();
+        SettingsListFixture.idle();
+        choicesOn(section, "frame_pacing");
+        assertNull(dialogOf(list));
+        assertSame(list, list(section));
+    }
+
+    @Test
+    public void focusLeavingTheRows_putsTheRestingCardBack() throws Exception {
+        SettingsSectionFragment section = SettingsListFixture.section();
+        focusRow(list(section), "frame_pacing");
+        choicesOn(section, "frame_pacing");
+
+        View rail = section.requireActivity().findViewById(R.id.navRailSettings);
+        rail.setFocusableInTouchMode(true);
+        assertTrue(rail.requestFocus());
+        SettingsListFixture.idle();
+
+        assertTrue("The rail shows the essentials: " + panelPage(section),
+                panelPage(section) instanceof SettingsPinnedPage);
+    }
+
+    @Test
+    public void searching_theFieldSpellsOutTheFirstResult() throws Exception {
+        SettingsSectionFragment section = SettingsListFixture.section();
+        section.onSectionKey(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BUTTON_Y));
+        EditText field = section.requireView().findViewById(R.id.settingsSearchField);
+        field.setFocusableInTouchMode(true);
+        assertTrue(field.requestFocus());
+        field.setText("frame pacing");
+        SettingsListFixture.idle();
+
+        choicesOn(section, "frame_pacing");
+    }
+
+    @Test
+    public void theFocusedRowsDescription_isWholeOnlyWhileThePanelIsOff() throws Exception {
+        SettingsSectionFragment section = SettingsListFixture.section();
+        StreamPreferencesFragment list = list(section);
+        focusRow(list, "frame_pacing");
+        TextView summary = focusedSummary(list);
+        assertEquals("The panel shows it in full", 1, summary.getMaxLines());
+
+        setPanelShowing(false);
+        SettingsListFixture.idle();
+        assertEquals(SettingsLayout.ALL_LINES, focusedSummary(list).getMaxLines());
+
+        setPanelShowing(true);
+        SettingsListFixture.idle();
+        assertEquals(1, focusedSummary(list).getMaxLines());
+        // The row kept its focus through both switches.
+        assertTrue(list.getListView().hasFocus());
+    }
+
+    private static TextView focusedSummary(StreamPreferencesFragment list) {
+        View row = list.getListView().getFocusedChild();
+        assertNotNull("A row has focus", row);
+        TextView summary = row.findViewById(android.R.id.summary);
+        assertNotNull(summary);
+        return summary;
     }
 }

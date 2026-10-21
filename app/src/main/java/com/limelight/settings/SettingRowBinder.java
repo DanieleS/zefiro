@@ -2,6 +2,10 @@ package com.limelight.settings;
 
 import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.style.BackgroundColorSpan;
+import android.text.style.ForegroundColorSpan;
 import android.view.View;
 import android.widget.CompoundButton;
 import android.widget.TextView;
@@ -14,6 +18,8 @@ import androidx.preference.PreferenceManager;
 import androidx.preference.TwoStatePreference;
 
 import com.limelight.R;
+
+import java.util.List;
 
 /**
  * Draws a setting's row from its live {@link Preference}: the same value text, changed dot and
@@ -58,10 +64,12 @@ public final class SettingRowBinder {
      *
      * @param place where the setting lives, "Controllers › Rumble"; a disabled setting adds
      *              what it waits for, "Needs Enable rumble"
+     * @param query what was searched for: its words are marked in the title, as the mock's
+     *              "Enable <u>Rumble</u>"; null marks nothing
      */
     public static void bindResult(@NonNull View row, @NonNull Preference preference,
                                   @NonNull CharSequence place, @NonNull SettingsDefaults defaults,
-                                  @Nullable SharedPreferences prefs) {
+                                  @Nullable SharedPreferences prefs, @Nullable String query) {
         TextView title = row.findViewById(R.id.settingResultTitle);
         TextView where = row.findViewById(R.id.settingResultPlace);
         TextView value = row.findViewById(R.id.settingValue);
@@ -69,7 +77,7 @@ public final class SettingRowBinder {
         View external = row.findViewById(R.id.settingExternal);
         CompoundButton toggle = row.findViewById(R.id.settingResultSwitch);
 
-        title.setText(preference.getTitle());
+        title.setText(highlighted(row, preference.getTitle(), query));
         boolean enabled = preference.isEnabled();
         CharSequence needs = enabled ? null : dependencyTitle(preference);
         where.setText(needs == null ? place : row.getContext().getString(
@@ -90,6 +98,29 @@ public final class SettingRowBinder {
         value.setAlpha(alpha);
         toggle.setAlpha(alpha);
         toggle.setEnabled(enabled);
+    }
+
+    // The title with the query's words on the signal's container, in the signal.
+    @Nullable
+    private static CharSequence highlighted(@NonNull View row, @Nullable CharSequence title,
+                                            @Nullable String query) {
+        if (title == null || query == null) {
+            return title;
+        }
+        List<int[]> ranges = SettingsSearch.matchRanges(title.toString(), query);
+        if (ranges.isEmpty()) {
+            return title;
+        }
+        SpannableString marked = new SpannableString(title);
+        int fill = ContextCompat.getColor(row.getContext(), R.color.signal_container);
+        int ink = ContextCompat.getColor(row.getContext(), R.color.signal);
+        for (int[] range : ranges) {
+            marked.setSpan(new BackgroundColorSpan(fill), range[0], range[1],
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            marked.setSpan(new ForegroundColorSpan(ink), range[0], range[1],
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        return marked;
     }
 
     /** The title of the setting this one waits on, or null when it waits on none. */

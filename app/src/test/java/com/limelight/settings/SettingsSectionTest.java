@@ -6,6 +6,7 @@ import android.widget.EditText;
 import android.widget.TextView;
 
 import androidx.fragment.app.Fragment;
+import androidx.preference.EditTextPreference;
 import androidx.preference.ListPreference;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -164,5 +165,26 @@ public class SettingsSectionTest {
                 .findFragmentByTag(Section.SETTINGS.tag());
         assertSame(section, shown);
         assertTrue(section.isVisible());
+    }
+
+    @Test
+    public void typedValues_showTheirUnit() {
+        StreamPreferencesFragment list = list(SettingsListFixture.section());
+        EditTextPreference bitrate = list.findPreference("edit_diy_bitrate");
+        assertNotNull(bitrate);
+        bitrate.setText("20");
+        assertEquals("20 Mbps", String.valueOf(SettingValues.display(bitrate)));
+        bitrate.setText("");
+        assertEquals("Not set", String.valueOf(SettingValues.display(bitrate)));
+    }
+
+    @Test
+    @Config(qualifiers = "w800dp-h360dp-land")
+    public void aPhoneTurned_scrollsTheHeaderAwayToo() {
+        SettingsSectionFragment section = SettingsListFixture.section();
+        layOutRow(list(section), "list_resolution");
+        assertNotSame("A short window cannot keep the header",
+                section.requireView().findViewById(R.id.settingsHeaderSlot),
+                header(section).getParent());
     }
 }

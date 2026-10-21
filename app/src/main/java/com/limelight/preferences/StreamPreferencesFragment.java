@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.media.MediaCodecInfo;
 import android.net.Uri;
 import android.os.Build;
@@ -77,6 +78,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -99,6 +101,10 @@ import java.util.Map;
 public class StreamPreferencesFragment extends PreferenceFragmentCompat {
     private int nativeResolutionStartIndex = Integer.MAX_VALUE;
     private boolean nativeFramerateShown = false;
+
+    // The display's own resolutions offered as entries ("Native (2328x1080)"), by value, with
+    // their name before the size: relabelled as the window turns (relabelNativeResolutions).
+    private final Map<String, String> nativeResolutionNames = new LinkedHashMap<>();
 
     private PreferenceConfiguration prevPrefConfig;
 
@@ -170,9 +176,17 @@ public class StreamPreferencesFragment extends PreferenceFragmentCompat {
             }
         }
 
-        newName += " ("+nativeWidth+"x"+nativeHeight+")";
-
         String newValue = nativeWidth+"x"+nativeHeight;
+        // Always the landscape size, which a stream has; held upright, the screen's own size
+        // reads the other way round, so the label says which way it is meant.
+        boolean turnable = !is_custom && !PreferenceConfiguration.isSquarishScreen(nativeWidth, nativeHeight);
+        String baseName = newName;
+        if (turnable) {
+            newName = nativeResolutionLabel(newName, nativeWidth, nativeHeight);
+        }
+        else {
+            newName += " ("+nativeWidth+"x"+nativeHeight+")";
+        }
 
         // Check if the native resolution is already present
         for (CharSequence value : pref.getEntryValues()) {
@@ -185,7 +199,57 @@ public class StreamPreferencesFragment extends PreferenceFragmentCompat {
         if (pref.getEntryValues().length < nativeResolutionStartIndex) {
             nativeResolutionStartIndex = pref.getEntryValues().length;
         }
+        if (turnable) {
+            nativeResolutionNames.put(newValue, baseName);
+        }
         appendPreferenceEntry(pref, newName, newValue);
+    }
+
+    // "Native (2328x1080)", or held upright "Native (Landscape) (2328x1080)".
+    private String nativeResolutionLabel(String name, int width, int height) {
+        if (isPortraitWindow()) {
+            name += " " + getResources().getString(R.string.resolution_prefix_native_landscape);
+        }
+        return name + " (" + width + "x" + height + ")";
+    }
+
+    private boolean isPortraitWindow() {
+        return getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT;
+    }
+
+    /**
+     * Names the native resolutions again for the window's orientation now: a host that keeps
+     * this list across a rotation (the Settings section) calls it when the window turns, so an
+     * upright phone's entries say they are landscape and a turned one's do not.
+     */
+    public void relabelNativeResolutions() {
+        ListPreference pref = findPreference(PreferenceConfiguration.RESOLUTION_PREF_STRING);
+        if (pref == null || nativeResolutionNames.isEmpty() || getContext() == null) {
+            return;
+        }
+        CharSequence[] entries = pref.getEntries().clone();
+        CharSequence[] values = pref.getEntryValues();
+        boolean changed = false;
+        for (int i = 0; i < entries.length && i < values.length; i++) {
+            String value = values[i].toString();
+            String name = nativeResolutionNames.get(value);
+            String[] size = value.split("x");
+            if (name == null || size.length != 2) {
+                continue;
+            }
+            String label = nativeResolutionLabel(name, Integer.parseInt(size[0]),
+                    Integer.parseInt(size[1]));
+            if (!label.contentEquals(entries[i])) {
+                entries[i] = label;
+                changed = true;
+            }
+        }
+        if (changed) {
+            pref.setEntries(entries);
+            if (settingsAdapter != null) {
+                settingsAdapter.refreshKey(PreferenceConfiguration.RESOLUTION_PREF_STRING);
+            }
+        }
     }
 
     private void addNativeResolutionEntries(int nativeWidth, int nativeHeight, boolean insetsRemoved, boolean is_custom) {
@@ -357,6 +421,23 @@ public class StreamPreferencesFragment extends PreferenceFragmentCompat {
         /** The adapter for the rows above the settings; stable ids, as the settings' are. */
         @NonNull
         RecyclerView.Adapter<?> listHeaderAdapter();
+
+        /**
+         * The list's layout manager: the host's, so a row brought into view for focus can stop
+         * clear of what the host draws over the list.
+         */
+        @NonNull
+        RecyclerView.LayoutManager listLayoutManager(@NonNull Context context);
+    }
+
+    @NonNull
+    @Override
+    public RecyclerView.LayoutManager onCreateLayoutManager() {
+        Fragment parent = getParentFragment();
+        if (parent instanceof ListHeader) {
+            return ((ListHeader) parent).listLayoutManager(requireContext());
+        }
+        return super.onCreateLayoutManager();
     }
 
     /**

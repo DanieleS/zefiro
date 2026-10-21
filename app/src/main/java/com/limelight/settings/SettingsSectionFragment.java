@@ -5,10 +5,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
+import android.hardware.input.InputManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Parcelable;
 import android.text.TextUtils;
 import android.view.Display;
+import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -17,6 +20,7 @@ import android.view.ViewParent;
 import android.view.ViewTreeObserver;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.FrameLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -26,6 +30,7 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.preference.ListPreference;
 import androidx.preference.Preference;
+import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceGroup;
 import androidx.preference.PreferenceManager;
 import androidx.preference.PreferenceScreen;
@@ -75,19 +80,24 @@ import java.util.Set;
  * <h3>Layout</h3>
  *
  * <pre>
- *   wide (the Thor)          compact (a phone)               searching (either)
+ *   the Thor                 a phone, either way up          searching (either)
  *   ┌────────────────────┐   ┌────────────────────┐          ┌────────────────────┐
  *   │ header (fixed)     │   │ ┌ list ──────────┐ │          │ header: search bar │
  *   ├────────────────────┤   │ │ header (item 0)│ │          │         filters    │
- *   │ list               │   │ │ VIDEO 34       │ │          ├────────────────────┤
- *   │                    │   │ │ rows…          │ │          │ results            │
+ *   │ VIDEO 34 (sticky)  │   │ │ VIDEO 34       │ │          ├────────────────────┤
+ *   │ list               │   │ │ rows…          │ │          │ results            │
  *   └────────────────────┘   └─┴────────────────┴─┘          └────────────────────┘
  * </pre>
  *
  * There is one header view; {@link #placeHeader()} hangs it in the fixed slot or makes it the
- * list's first item ({@link SettingsHeaderAdapter}) as the window and the search mode require.
- * A row's position in the list is therefore the header's count plus the settings adapter's own
- * position ({@link #scrollToKey}).
+ * list's first item ({@link SettingsHeaderAdapter}) as the window and the search mode require
+ * ({@link SettingsLayout#headerInList}): a phone in landscape scrolls it away too, or it would
+ * take most of the height. A row's position in the list is therefore the header's count plus the
+ * settings adapter's own position ({@link #scrollToKey}).
+ *
+ * <p>Over the list's top, once the header is out of view, a slim sticky label names the section
+ * the rows under it are in ("VIDEO 34"), or where the focused row is ("VIDEO · FRAME PACING · 8 OF
+ * 34"). A section's own header row is hidden while it is under that label, which says the same.
  *
  * <h3>Keys</h3>
  *
@@ -114,20 +124,33 @@ import java.util.Set;
  *
  * While the panel is up ({@link CompanionDisplayManager#panelShowing()}) and this section is on
  * screen, the panel spells out the setting whose row has focus, in the list or among the results
- * ({@link SettingsChoicesPage}): a list's choices, a switch, a slider's − and +. Focus up in the
- * header shows the essentials instead ({@link SettingsPinnedPage}). The d-pad stays here, on the
- * main screen; the panel is touch only, and every tap on it acts through the live preference and
- * {@link SettingsEditor}, exactly as Left and Right on the row do. The page is built again from
- * the preference after every stored change, so it follows a value changed from either screen,
- * and a dependent enabled or disabled by it. Focus leaving the section (the rail) keeps the last
- * page; the section hidden takes it off, and the panel's browsing surface comes back.
+ * ({@link SettingsChoicesPage}): a list's choices, a switch, a slider's − and +. A or a tap on a
+ * list row binds the panel to that row instead of opening its dialog on top, as the mock has it;
+ * without the panel the dialog opens as before ({@link SettingsListDialog}). Searching, the field
+ * and the filters spell out the first result. Focus anywhere else, in the header at rest or out
+ * of the section (the rail), shows the essentials, the panel's resting card
+ * ({@link SettingsPinnedPage}). The d-pad stays here, on the main screen; the panel is touch
+ * only, and every tap on it acts through the live preference and {@link SettingsEditor}, exactly
+ * as Left and Right on the row do. The page is built again from the preference after every stored
+ * change, so it follows a value changed from either screen, and a dependent enabled or disabled
+ * by it. The section hidden takes the page off, and the panel's browsing surface comes back.
+ *
+ * <p>The panel can come and go while the section is up (the Thor's lower screen switched off and
+ * on): every choice that depends on it is made again as it changes, never once at creation. The
+ * rows' descriptions, the dialog or the panel for a list row, and the page itself follow it, and
+ * the focused row, the scroll, a search and its filter stay as they were.
+ *
+ * <p>A tap on the panel puts this window in touch mode too (touch mode is global up to Android
+ * 13), which takes focus off the row; the next d-pad press then gives focus to the window's
+ * default view. The row in focus is that default ({@code setFocusedByDefault}), so the press
+ * lands back on it rather than on the rail's first item.
  *
  * Main thread only; every callback checks that the view still exists.
  */
 public class SettingsSectionFragment extends Fragment
         implements SectionKeys, SectionFocus, SectionBack, SettingsHost,
         StreamPreferencesFragment.ListHeader, SettingsHeader.Listener, SettingsResultsAdapter.Host,
-        CompanionPages.PageOwner {
+        CompanionPages.PageOwner, PreferenceFragmentCompat.OnPreferenceDisplayDialogCallback {
 
     /** The tag the settings list is added under. */
     public static final String TAG_LIST = "settings:list";
@@ -135,6 +158,9 @@ public class SettingsSectionFragment extends Fragment
     private static final String KEY_COMPANION_DISPLAY = "checkbox_enable_companion_display";
     private static final String KEY_FULL_EX_DISPLAY = "checkbox_enable_fullexdisplay";
     private static final String KEY_HELP = "pref_help";
+    private static final String KEY_CODEC = "video_format";
+    // androidx's own tag for a preference's dialog, so only one is ever up.
+    private static final String DIALOG_TAG = "androidx.preference.PreferenceFragment.DIALOG";
 
     private MainHost host;
     private PinnedSettings pinned;
@@ -152,6 +178,12 @@ public class SettingsSectionFragment extends Fragment
     private RecyclerView results;
     @Nullable
     private SettingsResultsAdapter resultsAdapter;
+    @Nullable
+    private View sticky;
+    @Nullable
+    private TextView stickySection;
+    @Nullable
+    private TextView stickyDetail;
 
     // The list view this section is listening to, and the list fragment it belongs to; replaced
     // on every reload.
@@ -161,6 +193,8 @@ public class SettingsSectionFragment extends Fragment
     private StreamPreferencesFragment wiredFragment;
 
     private boolean wide;
+    // A wide window too short to keep the header fixed (a phone in landscape).
+    private boolean shortWindow;
     private boolean searching;
     @NonNull
     private SettingsSearch.Filter filter = SettingsSearch.Filter.ALL;
@@ -176,6 +210,9 @@ public class SettingsSectionFragment extends Fragment
     private String keyBeforeSearch;
     @Nullable
     private View viewBeforeSearch;
+    // Where the list was scrolled when a search began, to scroll it back when the search ends.
+    @Nullable
+    private Parcelable scrollBeforeSearch;
     // The row to focus once a reloaded list is up.
     @Nullable
     private String pendingFocusKey;
@@ -189,6 +226,10 @@ public class SettingsSectionFragment extends Fragment
     private String pageKey;
     @Nullable
     private CompanionPage page;
+
+    // The row the window's next d-pad press lands on after touch mode took focus off it.
+    @Nullable
+    private View defaultFocusRow;
 
     // Posted, not run, after a stored change: the change listener runs inside the preference's
     // own write, before it has redrawn and before its dependents have been enabled or disabled.
@@ -216,6 +257,44 @@ public class SettingsSectionFragment extends Fragment
         @Override
         public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
             updateOnChip();
+            updateSticky();
+        }
+    };
+
+    // A row rebound or the header moved in or out lays the list out without a scroll. Posted:
+    // the label is laid out itself as it comes and goes, which is not for the list's own pass.
+    private final Runnable stickyUpdate = this::updateSticky;
+    private final View.OnLayoutChangeListener listLaidOut =
+            (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+                v.removeCallbacks(stickyUpdate);
+                v.post(stickyUpdate);
+            };
+
+    // Touch mode takes focus off the rows (a tap here, or on the panel): the row the user was on
+    // becomes the window's default focus, which the next d-pad press goes to. Heard both ways,
+    // and on leaving before the window picks that view, so the mark is fresh whatever was
+    // scrolled meanwhile.
+    private final ViewTreeObserver.OnTouchModeChangeListener touchModeChange = inTouchMode -> {
+        if (isOnScreen()) {
+            markDefaultFocus(restoreFocusTarget());
+        }
+    };
+
+    // A gamepad connected or gone: the header's Y, LB and RB glyphs follow.
+    private final InputManager.InputDeviceListener padsChanged = new InputManager.InputDeviceListener() {
+        @Override
+        public void onInputDeviceAdded(int deviceId) {
+            applyGlyphs();
+        }
+
+        @Override
+        public void onInputDeviceRemoved(int deviceId) {
+            applyGlyphs();
+        }
+
+        @Override
+        public void onInputDeviceChanged(int deviceId) {
+            applyGlyphs();
         }
     };
 
@@ -264,13 +343,18 @@ public class SettingsSectionFragment extends Fragment
         headerSlot = view.findViewById(R.id.settingsHeaderSlot);
         listContainer = view.findViewById(R.id.settingsList);
         results = view.findViewById(R.id.settingsResults);
+        sticky = view.findViewById(R.id.settingsSticky);
+        stickySection = view.findViewById(R.id.settingsStickySection);
+        stickyDetail = view.findViewById(R.id.settingsStickyDetail);
 
         View headerView = LayoutInflater.from(view.getContext())
                 .inflate(R.layout.view_settings_header, headerSlot, false);
         header = new SettingsHeader(headerView, this);
         headerAdapter = new SettingsHeaderAdapter(headerView);
-        wide = WindowClass.from(getResources().getConfiguration().screenWidthDp) == WindowClass.WIDE;
-        header.setWide(wide, host.isDpadFirst());
+        Configuration config = getResources().getConfiguration();
+        wide = WindowClass.from(config.screenWidthDp) == WindowClass.WIDE;
+        shortWindow = WindowClass.isShortWide(config.screenWidthDp, config.screenHeightDp);
+        header.setWide(wide, gamepadConnected());
         // Before the list is made: its adapter asks for the header's at once.
         placeHeader();
 
@@ -294,12 +378,21 @@ public class SettingsSectionFragment extends Fragment
         prefs.registerOnSharedPreferenceChangeListener(storedChange);
         ProfilesManager.getInstance().addListener(profilesChanged);
         view.getViewTreeObserver().addOnGlobalFocusChangeListener(focusChange);
-        // The panel shown or hidden from the host sheet while this list is up: the companion
-        // row's title says what a click does, so it follows.
-        // It also decides whether the focused setting is spelled out down there.
+        view.getViewTreeObserver().addOnTouchModeChangeListener(touchModeChange);
+        InputManager input = ContextCompat.getSystemService(requireContext(), InputManager.class);
+        if (input != null) {
+            input.registerInputDeviceListener(padsChanged, null);
+        }
+        // The panel shown or hidden while this list is up: from the host sheet, or the Thor's
+        // lower screen switched off and on. The companion row's title says what a click does,
+        // so it follows; so do the count it is part of, the rows' description lines, where a
+        // list row's choices go (SettingsLayout) and whether the focused setting is spelled out
+        // down there. Nothing else moves: the row in focus, the scroll and a search stay.
         CompanionDisplayManager.panelShowing().observe(getViewLifecycleOwner(), showing -> {
-            refreshCompanionRow();
             panelUp = Boolean.TRUE.equals(showing);
+            refreshCompanionRow();
+            applyRowLines();
+            refreshHeader();
             publishPage();
         });
         previousDisplayPixelCount = displayPixelCount();
@@ -313,8 +406,14 @@ public class SettingsSectionFragment extends Fragment
             view.removeCallbacks(republish);
             if (view.getViewTreeObserver().isAlive()) {
                 view.getViewTreeObserver().removeOnGlobalFocusChangeListener(focusChange);
+                view.getViewTreeObserver().removeOnTouchModeChangeListener(touchModeChange);
             }
         }
+        InputManager input = ContextCompat.getSystemService(requireContext(), InputManager.class);
+        if (input != null) {
+            input.unregisterInputDeviceListener(padsChanged);
+        }
+        markDefaultFocus(null);
         clearPage();
         prefs.unregisterOnSharedPreferenceChangeListener(storedChange);
         ProfilesManager.getInstance().removeListener(profilesChanged);
@@ -329,6 +428,9 @@ public class SettingsSectionFragment extends Fragment
         listContainer = null;
         results = null;
         resultsAdapter = null;
+        sticky = null;
+        stickySection = null;
+        stickyDetail = null;
         viewBeforeSearch = null;
         super.onDestroyView();
     }
@@ -339,16 +441,16 @@ public class SettingsSectionFragment extends Fragment
         if (hidden) {
             // A keyboard left up over another section would type into nothing there.
             hideKeyboard();
+            // Another section's d-pad must not come back here after a tap.
+            markDefaultFocus(null);
             // The section shown now owns the panel; Settings' page must not linger over it.
             clearPage();
         } else {
             // What the settings activity did on resume: the companion may have been switched on
             // or off, shown or hidden, while another section was up.
             refreshCompanionRow();
-            if (header != null) {
-                // A pad may have been connected meanwhile.
-                header.setWide(wide, host.isDpadFirst());
-            }
+            // A pad may have been connected meanwhile.
+            applyGlyphs();
             refreshHeader();
             View view = getView();
             if (view != null) {
@@ -365,12 +467,20 @@ public class SettingsSectionFragment extends Fragment
             return;
         }
         boolean nextWide = WindowClass.from(newConfig.screenWidthDp) == WindowClass.WIDE;
-        if (nextWide != wide) {
+        boolean nextShort = WindowClass.isShortWide(newConfig.screenWidthDp, newConfig.screenHeightDp);
+        StreamPreferencesFragment list = list();
+        if (list != null && list.getPreferenceScreen() != null) {
+            // Turned: the native resolutions say which way round they are meant.
+            list.relabelNativeResolutions();
+        }
+        if (nextWide != wide || nextShort != shortWindow) {
             View focus = currentFocus();
             boolean headerHadFocus = header.contains(focus);
             wide = nextWide;
-            header.setWide(wide, host.isDpadFirst());
+            shortWindow = nextShort;
+            header.setWide(wide, gamepadConnected());
             placeHeader();
+            applyRowLines();
             refreshHeader();
             if (headerHadFocus) {
                 // Moved between the slot and the list, and focus did not come along.
@@ -425,6 +535,16 @@ public class SettingsSectionFragment extends Fragment
         return headerAdapter;
     }
 
+    @NonNull
+    @Override
+    public RecyclerView.LayoutManager listLayoutManager(@NonNull Context context) {
+        // A row focused at the top stops below the sticky label rather than under it.
+        return new SettingsLayoutManager(context, () -> {
+            View label = sticky;
+            return label != null && label.getVisibility() == View.VISIBLE ? label.getHeight() : 0;
+        });
+    }
+
     /** A list fragment's view is up: listen to it, and put back the focus a reload took. */
     private void wireList(@NonNull StreamPreferencesFragment fragment) {
         unwireList();
@@ -432,6 +552,7 @@ public class SettingsSectionFragment extends Fragment
         wiredFragment = fragment;
         wiredList = list;
         list.addOnScrollListener(listScrolled);
+        list.addOnLayoutChangeListener(listLaidOut);
         // A value changed in place rebinds its row; the change animation would swap the row's
         // view for a new one, and the d-pad would lose it on every Left and Right.
         noChangeAnimations(list);
@@ -439,6 +560,9 @@ public class SettingsSectionFragment extends Fragment
         if (adapter != null) {
             adapter.setRowLongPressListener(this::showRowMenu);
         }
+        applyRowLines();
+        // Before the header counts the rows: the list shows or hides it only when resumed.
+        refreshCompanionRow();
         refreshHeader();
         // A reloaded list has new preferences: the panel's page is built from them again.
         publishPage();
@@ -456,6 +580,8 @@ public class SettingsSectionFragment extends Fragment
         RecyclerView list = wiredList;
         if (list != null) {
             list.removeOnScrollListener(listScrolled);
+            list.removeOnLayoutChangeListener(listLaidOut);
+            list.removeCallbacks(stickyUpdate);
             RecyclerView.Adapter<?> adapter = list.getAdapter();
             if (adapter instanceof ConcatAdapter && headerAdapter != null) {
                 // The header's adapter outlives the list; left in the old list's adapter, it
@@ -476,15 +602,16 @@ public class SettingsSectionFragment extends Fragment
     }
 
     /**
-     * Hangs the header where the window and the mode want it: in the list as its first item in a
-     * compact window at rest, in the fixed slot otherwise.
+     * Hangs the header where the window and the mode want it ({@link SettingsLayout#headerInList}):
+     * in the list as its first item on a phone at rest, either way up, in the fixed slot
+     * otherwise.
      */
     private void placeHeader() {
         if (header == null || headerAdapter == null || headerSlot == null) {
             return;
         }
         View view = header.view();
-        boolean inList = !wide && !searching;
+        boolean inList = headerInList();
         if (inList) {
             if (view.getParent() == headerSlot) {
                 headerSlot.removeView(view);
@@ -500,6 +627,18 @@ public class SettingsSectionFragment extends Fragment
                 }
                 headerSlot.addView(view);
             }
+        }
+    }
+
+    private boolean headerInList() {
+        return SettingsLayout.headerInList(wide, shortWindow, searching);
+    }
+
+    /** The rows' description lines, for the window and the panel as they are now. */
+    private void applyRowLines() {
+        SettingsAdapter adapter = settingsAdapter();
+        if (adapter != null) {
+            adapter.setRowLines(wide, panelUp);
         }
     }
 
@@ -640,13 +779,14 @@ public class SettingsSectionFragment extends Fragment
         if (!isAdded() || getView() == null) {
             return;
         }
+        if (KEY_COMPANION_DISPLAY.equals(key) || KEY_FULL_EX_DISPLAY.equals(key)) {
+            // Before the header counts the rows: the companion row is one of them.
+            refreshCompanionRow();
+        }
         refreshHeader();
         if (searching && resultsAdapter != null) {
             // A result's value, a dependent's enabled state: read again from the preferences.
             resultsAdapter.refreshValues();
-        }
-        if (KEY_COMPANION_DISPLAY.equals(key) || KEY_FULL_EX_DISPLAY.equals(key)) {
-            refreshCompanionRow();
         }
         if (panelUp) {
             // Any key: a resolution step rewrites the bitrate, a switch enables its dependents.
@@ -688,6 +828,7 @@ public class SettingsSectionFragment extends Fragment
         header.bindRest(visible.size(), name.isEmpty() ? null : name, changed.size(), pins,
                 SettingsIndex.sectionsShown(screen, SettingsCatalog.get()));
         updateOnChip();
+        updateSticky();
     }
 
     private SettingsHeader.Pin pinFor(Preference p, boolean changed,
@@ -700,7 +841,12 @@ public class SettingsSectionFragment extends Fragment
             Object override = overrides.get(key);
             value = PreferenceConfiguration.BITRATE_PREF_STRING.equals(key) && !wide
                     && override instanceof Number
-                    ? mbps(((Number) override).intValue()) : SettingValues.displayFor(p, override);
+                    ? mbps(((Number) override).intValue())
+                    : KEY_CODEC.equals(key) && override != null
+                    ? codec(String.valueOf(override), SettingValues.displayFor(p, override))
+                    : SettingValues.displayFor(p, override);
+        } else if (KEY_CODEC.equals(key) && p instanceof ListPreference) {
+            value = codec(((ListPreference) p).getValue(), SettingValues.display(p));
         } else if (p instanceof TwoStatePreference) {
             value = SettingValues.onOff(p, ((TwoStatePreference) p).isChecked());
         } else if (PreferenceConfiguration.BITRATE_PREF_STRING.equals(key) && !wide
@@ -734,6 +880,27 @@ public class SettingsSectionFragment extends Fragment
         return p.getTitle() != null ? p.getTitle() : key;
     }
 
+    // The codec as the card names it, short: "Auto", "AV1", "HEVC", "H.264". The list's own
+    // entries ("Automatic (Recommended)", "Prefer HEVC") do not fit a fifth of the card.
+    @Nullable
+    private CharSequence codec(@Nullable String value, @Nullable CharSequence fallback) {
+        if (value == null) {
+            return fallback;
+        }
+        switch (value) {
+            case "auto":
+                return getString(R.string.settings_codec_auto);
+            case "forceav1":
+                return getString(R.string.settings_codec_av1);
+            case "forceh265":
+                return getString(R.string.settings_codec_hevc);
+            case "neverh265":
+                return getString(R.string.settings_codec_h264);
+            default:
+                return fallback;
+        }
+    }
+
     // "40", "40.5": a bitrate in Mbps without its unit, for the phone card.
     private static String mbps(int kbps) {
         return kbps % 1000 == 0 ? String.valueOf(kbps / 1000)
@@ -761,20 +928,102 @@ public class SettingsSectionFragment extends Fragment
         header.setOnSection(section);
     }
 
-    private void updateSticky(@NonNull Preference p) {
-        if (header == null) {
+    /**
+     * The sticky label over the list's top: shown at rest once the header is out of view, it
+     * names the section of the row passing under it, with the section's count, or, when the row
+     * in focus is in that section, where that row is ("FRAME PACING · 8 OF 34"). A section's own
+     * header row passing under the label is hidden, so the two never show the same name twice.
+     */
+    private void updateSticky() {
+        View label = sticky;
+        RecyclerView list = listView();
+        SettingsAdapter adapter = settingsAdapter();
+        if (label == null || stickySection == null || stickyDetail == null) {
             return;
         }
-        SectionCategory section = SettingsIndex.sectionOf(p);
-        int[] place = SettingsIndex.placeInSection(p);
-        SettingsCatalog.Subgroup subgroup = SettingsCatalog.get().subgroupOf(p.getKey());
-        if (section == null || place == null || section.getTitle() == null) {
-            header.setSticky(null);
+        boolean shown = !searching && list != null && adapter != null && !headerInView(list);
+        int edge = shown ? stickyHeight(label, list) : 0;
+        SectionCategory section = null;
+        int sectionTop = Integer.MAX_VALUE;
+        if (list != null && adapter != null) {
+            for (int i = 0; i < list.getChildCount(); i++) {
+                View child = list.getChildAt(i);
+                RecyclerView.ViewHolder holder = list.getChildViewHolder(child);
+                int position = holder.getBindingAdapter() == adapter
+                        ? holder.getBindingAdapterPosition() : RecyclerView.NO_POSITION;
+                Preference p = position != RecyclerView.NO_POSITION
+                        && position < adapter.getItemCount() ? adapter.getItem(position) : null;
+                if (p == null) {
+                    continue;
+                }
+                boolean sectionRow = p instanceof SectionCategory;
+                if (sectionRow) {
+                    child.setAlpha(shown && child.getTop() < edge ? 0f : 1f);
+                }
+                // The row the label's bottom edge crosses: the topmost still showing below it.
+                if (child.getBottom() > edge && child.getTop() < sectionTop) {
+                    SectionCategory of = sectionRow ? (SectionCategory) p : SettingsIndex.sectionOf(p);
+                    if (of != null) {
+                        section = of;
+                        sectionTop = child.getTop();
+                    }
+                }
+            }
+        }
+        if (!shown || section == null || section.getTitle() == null) {
+            label.setVisibility(View.GONE);
             return;
         }
-        String group = subgroup != null ? getString(subgroup.title) : "";
-        header.setSticky(getString(R.string.settings_sticky, section.getTitle(), group,
-                place[0], place[1]));
+        label.setVisibility(View.VISIBLE);
+        setIfChanged(stickySection, section.getTitle());
+        setIfChanged(stickyDetail, stickyDetail(section));
+    }
+
+    // Where the focused row is, when it is in the section the label names; else the count.
+    @NonNull
+    private CharSequence stickyDetail(@NonNull SectionCategory section) {
+        Preference focused = preferenceAt(currentFocus());
+        int[] place = focused != null && SettingsIndex.sectionOf(focused) == section
+                ? SettingsIndex.placeInSection(focused) : null;
+        if (place == null) {
+            return String.valueOf(section.getVisibleCount());
+        }
+        SettingsCatalog.Subgroup subgroup = SettingsCatalog.get().subgroupOf(focused.getKey());
+        return subgroup != null
+                ? getString(R.string.settings_sticky_place, getString(subgroup.title),
+                        place[0], place[1])
+                : getString(R.string.settings_sticky_place_plain, place[0], place[1]);
+    }
+
+    // Whether the list's own header item (a phone's search, card and chips) shows any of itself.
+    private boolean headerInView(@NonNull RecyclerView list) {
+        if (headerAdapter == null || !headerAdapter.isShown()) {
+            return false;
+        }
+        for (int i = 0; i < list.getChildCount(); i++) {
+            View child = list.getChildAt(i);
+            if (list.getChildViewHolder(child).getBindingAdapter() == headerAdapter
+                    && child.getBottom() > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // The label's height, measured if it has not been laid out yet (it was gone until now).
+    private static int stickyHeight(@NonNull View label, @NonNull RecyclerView list) {
+        if (label.getHeight() > 0) {
+            return label.getHeight();
+        }
+        label.measure(View.MeasureSpec.makeMeasureSpec(list.getWidth(), View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+        return label.getMeasuredHeight();
+    }
+
+    private static void setIfChanged(@NonNull TextView view, @NonNull CharSequence text) {
+        if (!TextUtils.equals(view.getText(), text)) {
+            view.setText(text);
+        }
     }
 
     // --- Focus ---
@@ -788,14 +1037,43 @@ public class SettingsSectionFragment extends Fragment
         Preference p = preferenceAt(focus);
         if (p != null && !searching) {
             lastFocusedKey = p.getKey();
-            updateSticky(p);
         }
         if (p != null) {
+            markDefaultFocus(rowOf(focus));
             showOnPanel(p.getKey());
-        } else if (header != null && header.contains(focus)) {
+        } else if (searching && header != null && header.contains(focus)) {
+            // Typing, or on a filter: the result the field stands for, the first.
+            showOnPanel(resultsAdapter != null ? resultsAdapter.firstKey() : null);
+        } else {
+            // The header at rest, the rail, the bottom bar: the panel's resting card.
             showOnPanel(null);
         }
-        // Anywhere else (the rail), the panel keeps the last setting.
+        updateSticky();
+    }
+
+    /**
+     * Makes a row the window's default focus, the view a d-pad press gives focus to once touch
+     * mode is over (see the class comment); null takes the mark off. Android 8 and later: before
+     * that there is no default to set, and the press goes where it always went.
+     */
+    private void markDefaultFocus(@Nullable View row) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || row == defaultFocusRow) {
+            return;
+        }
+        if (defaultFocusRow != null) {
+            defaultFocusRow.setFocusedByDefault(false);
+        }
+        defaultFocusRow = row;
+        if (row != null) {
+            row.setFocusedByDefault(true);
+        }
+    }
+
+    // The list or results row a focused view is, or is inside; null elsewhere.
+    @Nullable
+    private View rowOf(@NonNull View focus) {
+        RecyclerView list = searching ? results : listView();
+        return list != null && isWithin(focus, list) ? list.findContainingItemView(focus) : null;
     }
 
     @Nullable
@@ -1113,7 +1391,7 @@ public class SettingsSectionFragment extends Fragment
             return;
         }
         RecyclerView list = listView();
-        if (!wide && list != null) {
+        if (headerInList() && list != null) {
             // The card is the list's first item on a phone: back to the top for it.
             list.scrollToPosition(0);
             list.post(() -> {
@@ -1162,6 +1440,9 @@ public class SettingsSectionFragment extends Fragment
             Preference p = preferenceAt(focus);
             keyBeforeSearch = p != null ? p.getKey() : null;
             viewBeforeSearch = p == null ? focus : null;
+            RecyclerView list = listView();
+            scrollBeforeSearch = list != null && list.getLayoutManager() != null
+                    ? list.getLayoutManager().onSaveInstanceState() : null;
             searching = true;
             filter = SettingsSearch.Filter.ALL;
             header.setSearching(true);
@@ -1188,10 +1469,23 @@ public class SettingsSectionFragment extends Fragment
         filter = SettingsSearch.Filter.ALL;
         header.setSearching(false);
         header.resetChips();
-        resultsAdapter.submit(Collections.<SettingsResultsAdapter.Item>emptyList());
+        resultsAdapter.submit(Collections.<SettingsResultsAdapter.Item>emptyList(), null);
         results.setVisibility(View.GONE);
         listContainer.setVisibility(View.VISIBLE);
         placeHeader();
+        // The list as it was left, header and all, before anything is focused in it: on a
+        // phone the header was taken out and put back, and the rows would otherwise stay where
+        // the header's return pushed them, scrolled past it.
+        RecyclerView list = listView();
+        Parcelable scroll = scrollBeforeSearch;
+        scrollBeforeSearch = null;
+        if (list != null && list.getLayoutManager() != null) {
+            if (scroll != null) {
+                list.getLayoutManager().onRestoreInstanceState(scroll);
+            } else {
+                list.scrollToPosition(0);
+            }
+        }
         refreshHeader();
         host.backWorkChanged();
 
@@ -1225,7 +1519,10 @@ public class SettingsSectionFragment extends Fragment
         Set<String> changed = SettingsIndex.changedKeys(screen, adapter.getDefaults(), prefs);
         String query = header.query();
         SettingsSearch.Result result = search.search(query, filter, changed);
-        header.bindFilters(result, filter);
+        // Counted whatever the filter in force, for the Changed chip.
+        int changedMatches = filter.changedOnly ? result.total
+                : search.search(query, SettingsSearch.Filter.CHANGED, changed).total;
+        header.bindFilters(result, filter, changedMatches);
         header.setAlsoMatches(result.usedSynonyms.isEmpty() ? null
                 : TextUtils.join(", ", result.usedSynonyms));
 
@@ -1253,7 +1550,11 @@ public class SettingsSectionFragment extends Fragment
             }
         }
         boolean focusInResults = results.hasFocus();
-        resultsAdapter.submit(items);
+        resultsAdapter.submit(items, query);
+        if (header.contains(currentFocus())) {
+            // Still typing: the panel follows the first result as the query changes.
+            showOnPanel(resultsAdapter.firstKey());
+        }
         if (focusInResults) {
             // The focused row was filtered away and took focus with it: the field has it back.
             results.post(() -> {
@@ -1263,6 +1564,62 @@ public class SettingsSectionFragment extends Fragment
                 }
             });
         }
+    }
+
+    // --- A list row's choices ---
+
+    /**
+     * A list row's A or tap (in the list or among the results), as androidx asks before it opens
+     * the row's dialog. With the panel up the choices are already there, so the panel is bound
+     * to this row instead and nothing covers the main screen; without it, the choices open in
+     * {@link SettingsListDialog}. Decided at the click, from the panel as it is then.
+     */
+    @SuppressWarnings("deprecation") // androidx finds the dialog's preference by target fragment
+    @Override
+    public boolean onPreferenceDisplayDialog(@NonNull PreferenceFragmentCompat caller,
+                                             @NonNull Preference pref) {
+        String key = pref.getKey();
+        if (!(pref instanceof ListPreference) || key == null || !isAdded()) {
+            return false;
+        }
+        if (SettingsLayout.choicesOnPanel(panelUp, SettingsIndex.kindOf(pref))) {
+            hideKeyboard();
+            if (!searching) {
+                lastFocusedKey = key;
+            }
+            // A tap leaves the row unfocused in touch mode: the d-pad comes back to it.
+            markDefaultFocus(searching ? resultRowFor(key) : rowViewFor(key));
+            showOnPanel(key);
+            return true;
+        }
+        FragmentManager manager = caller.getParentFragmentManager();
+        if (manager.findFragmentByTag(DIALOG_TAG) != null || manager.isStateSaved()) {
+            return true;
+        }
+        SettingsListDialog dialog = SettingsListDialog.newInstance(key);
+        dialog.setTargetFragment(caller, 0);
+        dialog.show(manager, DIALOG_TAG);
+        return true;
+    }
+
+    // --- Glyphs ---
+
+    private void applyGlyphs() {
+        if (header != null) {
+            header.setWide(wide, gamepadConnected());
+        }
+    }
+
+    /** Whether a gamepad is connected, whose buttons the header's glyphs would name. */
+    private static boolean gamepadConnected() {
+        for (int id : InputDevice.getDeviceIds()) {
+            InputDevice device = InputDevice.getDevice(id);
+            if (device != null && !device.isVirtual()
+                    && (device.getSources() & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // --- Results ---

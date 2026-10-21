@@ -415,6 +415,63 @@ public final class SettingsSearch {
         return out.toString();
     }
 
+    /**
+     * Where the query's own words appear in a text, for drawing them highlighted in a result's
+     * title: {start, end} pairs into {@code text}, in order and never overlapping. Folded as the
+     * search folds ("rumble" marks "Rumble", "video" marks "Vidéo"); a word found only through a
+     * synonym is not in the text, so it marks nothing.
+     */
+    @NonNull
+    public static List<int[]> matchRanges(@NonNull String text, @Nullable String query) {
+        List<int[]> ranges = new ArrayList<>();
+        List<String> words = tokens(fold(query != null ? query : ""));
+        if (words.isEmpty() || text.isEmpty()) {
+            return ranges;
+        }
+        // The text folded a character at a time, each folded character remembering the one it
+        // came from, so a match in the folded text maps back onto the text as shown.
+        StringBuilder folded = new StringBuilder(text.length());
+        List<Integer> from = new ArrayList<>(text.length());
+        boolean space = true;
+        for (int i = 0; i < text.length(); i++) {
+            String one = Normalizer.normalize(String.valueOf(text.charAt(i)), Normalizer.Form.NFD)
+                    .replaceAll("\\p{M}+", "").toLowerCase(Locale.ROOT);
+            for (int k = 0; k < one.length(); k++) {
+                char c = one.charAt(k);
+                if (Character.isLetterOrDigit(c)) {
+                    folded.append(c);
+                    from.add(i);
+                    space = false;
+                } else if (!space) {
+                    folded.append(' ');
+                    from.add(i);
+                    space = true;
+                }
+            }
+        }
+        boolean[] marked = new boolean[text.length()];
+        String haystack = folded.toString();
+        for (String word : words) {
+            for (int at = haystack.indexOf(word); at >= 0; at = haystack.indexOf(word, at + 1)) {
+                int start = from.get(at);
+                int end = from.get(at + word.length() - 1);
+                for (int i = start; i <= end; i++) {
+                    marked[i] = true;
+                }
+            }
+        }
+        for (int i = 0; i < marked.length; i++) {
+            if (marked[i]) {
+                int start = i;
+                while (i < marked.length && marked[i]) {
+                    i++;
+                }
+                ranges.add(new int[]{start, i});
+            }
+        }
+        return ranges;
+    }
+
     /** A folded query's tokens: synonym phrases kept whole, the rest split into words. */
     @NonNull
     static List<String> tokens(@NonNull String folded) {

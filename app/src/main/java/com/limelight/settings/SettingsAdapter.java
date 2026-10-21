@@ -2,6 +2,7 @@ package com.limelight.settings;
 
 import android.content.SharedPreferences;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -28,6 +29,11 @@ import com.limelight.preferences.PreferenceConfiguration;
  * rebinds that row; a resolution or frame rate change also rebinds the bitrate, whose default
  * follows them. Rows inflated from another layout (a category header, the stock check box) have
  * none of these views and are left as they are.
+ *
+ * <p>A row's description is kept short, as the mocks' compact rows are ({@link SettingsLayout}):
+ * one line in a wide window, two in a compact one, and all of it on the focused row while no
+ * companion panel spells it out. The host says which ({@link #setRowLines}); the lines follow
+ * focus on the rows themselves, without a rebind.
  */
 public class SettingsAdapter extends PreferenceGroupAdapter {
 
@@ -36,6 +42,12 @@ public class SettingsAdapter extends PreferenceGroupAdapter {
     private final SharedPreferences prefs;
     @Nullable
     private RecyclerView recyclerView;
+
+    // What a row's description lines follow (SettingsLayout.summaryLines). A profile editor's
+    // list is never told: two lines, all of them on the focused row.
+    private boolean wideRows;
+    private boolean panelShowing;
+    private final View.OnFocusChangeListener linesFollowFocus = (row, hasFocus) -> applyLines(row);
 
     /**
      * @param prefs where the current resolution and frame rate are read for the bitrate's
@@ -69,6 +81,41 @@ public class SettingsAdapter extends PreferenceGroupAdapter {
     public void onBindViewHolder(@NonNull PreferenceViewHolder holder, int position) {
         super.onBindViewHolder(holder, position);
         bindExtras(holder, getItem(position));
+        if (holder.findViewById(android.R.id.summary) != null) {
+            holder.itemView.setOnFocusChangeListener(linesFollowFocus);
+            applyLines(holder.itemView);
+        }
+    }
+
+    /**
+     * How long the rows' descriptions are: a wide window's rows get one line, a compact one's
+     * two; the focused row gets all of it unless the panel shows it. Applied to the rows on
+     * screen at once, so the panel coming or going reshapes the focused row in place.
+     */
+    public void setRowLines(boolean wide, boolean panelShowing) {
+        if (wideRows == wide && this.panelShowing == panelShowing) {
+            return;
+        }
+        wideRows = wide;
+        this.panelShowing = panelShowing;
+        RecyclerView list = recyclerView;
+        if (list != null) {
+            for (int i = 0; i < list.getChildCount(); i++) {
+                applyLines(list.getChildAt(i));
+            }
+        }
+    }
+
+    private void applyLines(View row) {
+        View summary = row.findViewById(android.R.id.summary);
+        if (!(summary instanceof TextView) || !(row instanceof ViewGroup)) {
+            return;
+        }
+        int lines = SettingsLayout.summaryLines(wideRows, row.hasFocus(), panelShowing);
+        TextView text = (TextView) summary;
+        if (text.getMaxLines() != lines) {
+            text.setMaxLines(lines);
+        }
     }
 
     private void bindExtras(PreferenceViewHolder holder, @Nullable Preference preference) {
