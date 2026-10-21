@@ -11,6 +11,7 @@ import com.limelight.ProfilesActivity;
 import com.limelight.R;
 import com.limelight.TestLogSuppressor;
 import com.limelight.main.MainActivity;
+import com.limelight.preferences.StreamPreferencesFragment;
 import com.limelight.preferences.StreamSettings;
 
 import org.junit.Before;
@@ -71,7 +72,7 @@ public class ProfilesNavigationTest {
         StreamSettings settings = Robolectric.buildActivity(StreamSettings.class, settingsIntent)
                 .setup().get();
         Shadows.shadowOf(Looper.getMainLooper()).idle();
-        StreamSettings.SettingsFragment fragment = (StreamSettings.SettingsFragment)
+        StreamPreferencesFragment fragment = (StreamPreferencesFragment)
                 settings.getSupportFragmentManager().findFragmentById(R.id.stream_settings);
         assertNotNull("The settings list should be up", fragment);
         Preference profiles = fragment.findPreference("pref_profiles");

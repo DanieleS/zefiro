@@ -88,6 +88,12 @@
     <dimen name="settings_bar_height">56dp</dimen>
     <dimen name="settings_gutter">16dp</dimen>
     <dimen name="settings_category_top">20dp</dimen>
+    <!-- A row is a stop: inset from the edges so its focus ring shows, padded back out so its
+         text keeps the gutter (inset + padding = settings_gutter). -->
+    <dimen name="settings_row_inset">8dp</dimen>
+    <dimen name="settings_row_padding">8dp</dimen>
+    <!-- The widest a row's value grows before it ellipsizes, so the title keeps its room. -->
+    <dimen name="settings_value_max_width">160dp</dimen>
 
     <!-- Statistics: the cards, and the widest the screen grows to on a big display. -->
     <dimen name="stats_card_corner">14dp</dimen>

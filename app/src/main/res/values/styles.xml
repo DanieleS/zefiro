@@ -317,11 +317,11 @@
         <item name="preferenceCategoryStyle">@style/Preference.Category.Zefiro</item>
 
         <!-- Every row the settings screen actually uses. androidx picks the style per
-             preference type, so the layout has to be hung on each one; the types not
-             listed (checkBoxPreferenceStyle, which SmallIconCheckboxPreference rides on)
-             keep their own layout on purpose. -->
+             preference type, so the layout has to be hung on each one: a row left on the
+             stock layout would miss the value and changed dot the settings list binds. -->
         <item name="preferenceStyle">@style/Preference.Zefiro</item>
         <item name="switchPreferenceCompatStyle">@style/Preference.Zefiro.Switch</item>
+        <item name="checkBoxPreferenceStyle">@style/Preference.Zefiro.CheckBox</item>
         <item name="dialogPreferenceStyle">@style/Preference.Zefiro.Dialog</item>
         <item name="editTextPreferenceStyle">@style/Preference.Zefiro.EditText</item>
     </style>
@@ -338,6 +338,11 @@
     </style>
 
     <style name="Preference.Zefiro.Switch" parent="Preference.SwitchPreferenceCompat.Material">
+        <item name="android:layout">@layout/preference_zefiro</item>
+        <item name="iconSpaceReserved">false</item>
+    </style>
+
+    <style name="Preference.Zefiro.CheckBox" parent="Preference.CheckBoxPreference.Material">
         <item name="android:layout">@layout/preference_zefiro</item>
         <item name="iconSpaceReserved">false</item>
     </style>

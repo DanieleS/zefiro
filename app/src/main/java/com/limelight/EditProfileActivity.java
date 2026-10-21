@@ -20,7 +20,7 @@ import androidx.preference.PreferenceGroup;
 import androidx.preference.PreferenceManager;
 
 import com.limelight.preferences.PreferenceConfiguration;
-import com.limelight.preferences.StreamSettings;
+import com.limelight.preferences.StreamPreferencesFragment;
 import com.limelight.profiles.ProfilesManager;
 import com.limelight.profiles.SettingsProfile;
 import com.limelight.utils.UiHelper;
@@ -76,7 +76,7 @@ public class EditProfileActivity extends AppCompatActivity {
             inMemoryPrefs = new InMemorySharedPreferences(PreferenceManager.getDefaultSharedPreferences(this).getAll());
         }
 
-        prefsFragment = new ProfilePreferenceFragment(this, inMemoryPrefs);
+        prefsFragment = new ProfilePreferenceFragment();
 
         // Load preference fragment
         getSupportFragmentManager()
@@ -112,7 +112,7 @@ public class EditProfileActivity extends AppCompatActivity {
     }
 
     void reloadSettings() {
-        prefsFragment = new ProfilePreferenceFragment(this, prefsFragment.getPrefs());
+        prefsFragment = new ProfilePreferenceFragment();
         getSupportFragmentManager().beginTransaction().replace(
                 R.id.preferences_container, prefsFragment
         ).commitAllowingStateLoss();
@@ -194,7 +194,7 @@ public class EditProfileActivity extends AppCompatActivity {
         return inMemoryPrefs;
     }
 
-    public static class ProfilePreferenceFragment extends StreamSettings.SettingsFragment {
+    public static class ProfilePreferenceFragment extends StreamPreferencesFragment {
         private static class InMemoryPreferenceDataStore extends androidx.preference.PreferenceDataStore {
             private final SharedPreferences prefs;
             InMemoryPreferenceDataStore(SharedPreferences prefs) {
@@ -254,8 +254,11 @@ public class EditProfileActivity extends AppCompatActivity {
             return ((InMemoryPreferenceDataStore)getPreferenceManager().getPreferenceDataStore()).getPrefs();
         }
 
-        public ProfilePreferenceFragment(EditProfileActivity context, SharedPreferences prefs) {
-            super(PreferenceConfiguration.readPreferences(context, prefs));
+        // The list offers the profile's custom resolution and refresh rate, not the stored ones.
+        @Override
+        protected PreferenceConfiguration readPreviousConfig() {
+            EditProfileActivity act = (EditProfileActivity) requireActivity();
+            return PreferenceConfiguration.readPreferences(act, act.getInMemoryPrefs());
         }
 
         @NonNull
