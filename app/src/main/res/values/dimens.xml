@@ -93,14 +93,16 @@
     <dimen name="dialog_corner">24dp</dimen>
 
     <!--
-        The settings list, laid on the ground with the same 16dp gutter the rest of the app
-        keeps.
+        The settings list's text column: a row's text sits inside its focus ring, so the column
+        is the 16dp gutter the rest of the app keeps plus the row's padding, and the category
+        and section headers line up with it.
     -->
-    <dimen name="settings_gutter">16dp</dimen>
+    <dimen name="settings_gutter">24dp</dimen>
     <dimen name="settings_category_top">20dp</dimen>
-    <!-- A row is a stop: inset from the edges so its focus ring shows, padded back out so its
-         text keeps the gutter (inset + padding = settings_gutter). -->
-    <dimen name="settings_row_inset">8dp</dimen>
+    <!-- A row is a stop: inset by the app's gutter, so its focus ring lines up with the search
+         field and the card above instead of reaching past them, and padded so its text keeps
+         the column (inset + padding = settings_gutter). -->
+    <dimen name="settings_row_inset">16dp</dimen>
     <dimen name="settings_row_padding">8dp</dimen>
     <!-- The widest a row's value grows before it ellipsizes, so the title keeps its room. -->
     <dimen name="settings_value_max_width">160dp</dimen>
@@ -110,6 +112,10 @@
     <!-- The slim sticky label over the list's top ("VIDEO 34"), and the panel's choice rows. -->
     <dimen name="settings_sticky_padding_vertical">8dp</dimen>
     <dimen name="settings_choice_min_height">44dp</dimen>
+    <!-- A list setting's dialog (SettingsListDialog): the choices' side margin, so a choice's
+         radio lines up with the title over them, and the gap between two columns of them. -->
+    <dimen name="settings_dialog_gutter">12dp</dimen>
+    <dimen name="settings_dialog_column_gap">4dp</dimen>
 
     <!-- Statistics: the cards, and the widest the screen grows to on a big display. -->
     <dimen name="stats_card_corner">14dp</dimen>

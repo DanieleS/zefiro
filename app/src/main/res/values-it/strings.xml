@@ -194,7 +194,6 @@
     <string name="suffix_seekbar_bitrate_mbps">Mbps</string>
     <string name="resolution_prefix_native">Nativo</string>
     <string name="no_video_received_error">Nessun video ricevuto dal PC sorgente.</string>
-    <string name="resolution_prefix_native_fullscreen">Schermo intero nativo</string>
     <string name="category_input_settings">Impostazioni di input</string>
     <string name="title_native_res_dialog">Avviso Risoluzione Nativa</string>
     <string name="dialog_title_osc_opacity">Cambia opacità</string>

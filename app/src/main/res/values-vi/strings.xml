@@ -170,7 +170,6 @@
     <string name="title_resolution_scale_factor">Hệ số tỷ lệ độ phân giải</string>
     <string name="summary_resolution_scale_factor">Độ phân giải màn hình ảo được yêu cầu phía máy chủ sẽ được nhân với hệ số này. Độ phân giải phát trực tuyến không bị ảnh hưởng.\nVí dụ: 120% sẽ làm cho 2000x1000 trở thành 2400x1200.\nĐặt hệ số tỷ lệ cao hơn sẽ cải thiện chất lượng hình ảnh cho một số trò chơi.\nYêu cầu Apollo để có hiệu lực.</string>
     <string name="resolution_prefix_native">Gốc</string>
-    <string name="resolution_prefix_native_fullscreen">Gốc Toàn màn hình</string>
     <string name="resolution_prefix_native_landscape">(Ngang)</string>
     <string name="resolution_prefix_native_portrait">(Dọc)</string>
     <string name="resolution_prefix_custom">Tùy chỉnh</string>

@@ -227,7 +227,7 @@
     <string name="title_resolution_scale_factor">Resolution Scale Factor</string>
     <string name="summary_resolution_scale_factor">Server side requested virtual screen resolution will be multiplied by this factor. Streaming resolution are not affected.\ne.g. 120% will make 2000x1000 become 2400x1200.\nSetting a higher scale factor will improve image quality for some games.\nRequires Apollo to take effect.</string>
     <string name="resolution_prefix_native">Native</string>
-    <string name="resolution_prefix_native_fullscreen">Native Full-Screen</string>
+    <string name="resolution_prefix_native_cutout">Native, clear of the cutout</string>
     <string name="resolution_prefix_native_landscape">(Landscape)</string>
     <string name="resolution_prefix_native_portrait">(Portrait)</string>
     <string name="resolution_prefix_custom">Custom</string>
@@ -1318,6 +1318,8 @@
     <!-- A typed value with its unit ("20 Mbps"), and the units typed settings are entered in. -->
     <string name="settings_value_with_unit">%1$s %2$s</string>
     <string name="settings_unit_hz">Hz</string>
+    <!-- The metered bitrate at 0, which streams at a quarter of the video bitrate. -->
+    <string name="settings_metered_bitrate_auto">¼ of video bitrate</string>
     <!-- The codec as the pinned card names it, short. -->
     <string name="settings_codec_auto">Auto</string>
     <string name="settings_codec_av1">AV1</string>

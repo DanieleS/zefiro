@@ -11,7 +11,6 @@ import android.os.Bundle;
 import android.os.Parcelable;
 import android.text.TextUtils;
 import android.view.Display;
-import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -91,9 +90,11 @@ import java.util.Set;
  *
  * There is one header view; {@link #placeHeader()} hangs it in the fixed slot or makes it the
  * list's first item ({@link SettingsHeaderAdapter}) as the window and the search mode require
- * ({@link SettingsLayout#headerInList}): a phone in landscape scrolls it away too, or it would
- * take most of the height. A row's position in the list is therefore the header's count plus the
- * settings adapter's own position ({@link #scrollToKey}).
+ * ({@link SettingsLayout#headerInList}). A phone in landscape keeps the field and the chips
+ * fixed and makes only the card the first item ({@link SettingsLayout#cardInList}): the whole
+ * header would take half the height, and scrolled away it would take the chips with it. A row's
+ * position in the list is therefore the first item's count plus the settings adapter's own
+ * position ({@link #scrollToKey}).
  *
  * <p>Over the list's top, once the header is out of view, a slim sticky label names the section
  * the rows under it are in ("VIDEO 34"), or where the focused row is ("VIDEO · FRAME PACING · 8 OF
@@ -107,7 +108,7 @@ import java.util.Set;
  *                      (or on any other row) the key goes on, so LEFT still reaches the rail
  *   X / long-press     reset to default and pin or unpin; no single press resets a value
  *   Y                  search, from anywhere; a letter typed on a keyboard starts one too
- *   LB / RB            the previous and next chip at rest (Pinned, Video, …), jumping there;
+ *   L1 / R1            the previous and next chip at rest (Pinned, Video, …), jumping there;
  *                      the previous and next filter while searching
  *   B / back           leaves the search, then the section
  * </pre>
@@ -172,6 +173,9 @@ public class SettingsSectionFragment extends Fragment
     private SettingsHeaderAdapter headerAdapter;
     @Nullable
     private FrameLayout headerSlot;
+    // The list item the card hangs in on a turned phone (SettingsLayout.cardInList).
+    @Nullable
+    private FrameLayout cardHolder;
     @Nullable
     private View listContainer;
     @Nullable
@@ -198,7 +202,7 @@ public class SettingsSectionFragment extends Fragment
     private boolean searching;
     @NonNull
     private SettingsSearch.Filter filter = SettingsSearch.Filter.ALL;
-    // The section of the first row in view: the "on" chip, and LB / RB's start without a row.
+    // The section of the first row in view: the "on" chip, and L1 / R1's start without a row.
     @Nullable
     private String onSection;
 
@@ -280,7 +284,7 @@ public class SettingsSectionFragment extends Fragment
         }
     };
 
-    // A gamepad connected or gone: the header's Y, LB and RB glyphs follow.
+    // A gamepad connected or gone: the header's Y, L1 and R1 glyphs follow.
     private final InputManager.InputDeviceListener padsChanged = new InputManager.InputDeviceListener() {
         @Override
         public void onInputDeviceAdded(int deviceId) {
@@ -350,11 +354,12 @@ public class SettingsSectionFragment extends Fragment
         View headerView = LayoutInflater.from(view.getContext())
                 .inflate(R.layout.view_settings_header, headerSlot, false);
         header = new SettingsHeader(headerView, this);
-        headerAdapter = new SettingsHeaderAdapter(headerView);
+        headerAdapter = new SettingsHeaderAdapter();
+        cardHolder = newCardHolder(view.getContext());
         Configuration config = getResources().getConfiguration();
         wide = WindowClass.from(config.screenWidthDp) == WindowClass.WIDE;
         shortWindow = WindowClass.isShortWide(config.screenWidthDp, config.screenHeightDp);
-        header.setWide(wide, gamepadConnected());
+        header.setWide(wide, host.isDpadFirst());
         // Before the list is made: its adapter asks for the header's at once.
         placeHeader();
 
@@ -391,6 +396,7 @@ public class SettingsSectionFragment extends Fragment
         CompanionDisplayManager.panelShowing().observe(getViewLifecycleOwner(), showing -> {
             panelUp = Boolean.TRUE.equals(showing);
             refreshCompanionRow();
+            applyGlyphs();
             applyRowLines();
             refreshHeader();
             publishPage();
@@ -425,6 +431,7 @@ public class SettingsSectionFragment extends Fragment
         header = null;
         headerAdapter = null;
         headerSlot = null;
+        cardHolder = null;
         listContainer = null;
         results = null;
         resultsAdapter = null;
@@ -468,17 +475,12 @@ public class SettingsSectionFragment extends Fragment
         }
         boolean nextWide = WindowClass.from(newConfig.screenWidthDp) == WindowClass.WIDE;
         boolean nextShort = WindowClass.isShortWide(newConfig.screenWidthDp, newConfig.screenHeightDp);
-        StreamPreferencesFragment list = list();
-        if (list != null && list.getPreferenceScreen() != null) {
-            // Turned: the native resolutions say which way round they are meant.
-            list.relabelNativeResolutions();
-        }
         if (nextWide != wide || nextShort != shortWindow) {
             View focus = currentFocus();
             boolean headerHadFocus = header.contains(focus);
             wide = nextWide;
             shortWindow = nextShort;
-            header.setWide(wide, gamepadConnected());
+            header.setWide(wide, host.isDpadFirst());
             placeHeader();
             applyRowLines();
             refreshHeader();
@@ -602,24 +604,27 @@ public class SettingsSectionFragment extends Fragment
     }
 
     /**
-     * Hangs the header where the window and the mode want it ({@link SettingsLayout#headerInList}):
-     * in the list as its first item on a phone at rest, either way up, in the fixed slot
-     * otherwise.
+     * Hangs the header where the window and the mode want it ({@link SettingsLayout#headerInList},
+     * {@link SettingsLayout#cardInList}): in the list as its first item on a phone at rest; on a
+     * turned phone in the fixed slot, but for its card, which is the list's first item; in the
+     * fixed slot, card and all, otherwise.
      */
     private void placeHeader() {
-        if (header == null || headerAdapter == null || headerSlot == null) {
+        if (header == null || headerAdapter == null || headerSlot == null || cardHolder == null) {
             return;
         }
         View view = header.view();
         boolean inList = headerInList();
+        boolean cardInList = cardInList();
+        header.hangCard(cardInList ? cardHolder : null);
         if (inList) {
             if (view.getParent() == headerSlot) {
                 headerSlot.removeView(view);
             }
             // The item's bind takes the view in.
-            headerAdapter.setShown(true);
+            headerAdapter.setContent(view);
         } else {
-            headerAdapter.setShown(false);
+            headerAdapter.setContent(cardInList ? cardHolder : null);
             ViewParent parent = view.getParent();
             if (parent != headerSlot) {
                 if (parent instanceof ViewGroup) {
@@ -631,14 +636,29 @@ public class SettingsSectionFragment extends Fragment
     }
 
     private boolean headerInList() {
-        return SettingsLayout.headerInList(wide, shortWindow, searching);
+        return SettingsLayout.headerInList(wide, searching);
+    }
+
+    private boolean cardInList() {
+        return SettingsLayout.cardInList(wide, shortWindow, searching);
+    }
+
+    // The card's own list item: the header's side gutters, and a little air under the chips.
+    @NonNull
+    private static FrameLayout newCardHolder(@NonNull Context context) {
+        FrameLayout holder = new FrameLayout(context);
+        int gutter = context.getResources().getDimensionPixelSize(R.dimen.section_gutter);
+        int gap = context.getResources().getDimensionPixelSize(R.dimen.settings_header_gap);
+        holder.setPadding(gutter, gap, gutter, 0);
+        return holder;
     }
 
     /** The rows' description lines, for the window and the panel as they are now. */
     private void applyRowLines() {
         SettingsAdapter adapter = settingsAdapter();
         if (adapter != null) {
-            adapter.setRowLines(wide, panelUp);
+            // The "A Choices" hint where the dialog, not the panel, offers a list's choices.
+            adapter.setRowLines(wide, panelUp, true);
         }
     }
 
@@ -1251,7 +1271,7 @@ public class SettingsSectionFragment extends Fragment
     }
 
     /**
-     * LB / RB. At rest, from the chip in focus, the card, or the section of the row in focus (of
+     * L1 / R1. At rest, from the chip in focus, the card, or the section of the row in focus (of
      * the first row in view otherwise), to the previous or next chip, jumping there. Searching,
      * to the previous or next filter.
      */
@@ -1391,7 +1411,7 @@ public class SettingsSectionFragment extends Fragment
             return;
         }
         RecyclerView list = listView();
-        if (headerInList() && list != null) {
+        if ((headerInList() || cardInList()) && list != null) {
             // The card is the list's first item on a phone: back to the top for it.
             list.scrollToPosition(0);
             list.post(() -> {
@@ -1519,10 +1539,9 @@ public class SettingsSectionFragment extends Fragment
         Set<String> changed = SettingsIndex.changedKeys(screen, adapter.getDefaults(), prefs);
         String query = header.query();
         SettingsSearch.Result result = search.search(query, filter, changed);
-        // Counted whatever the filter in force, for the Changed chip.
-        int changedMatches = filter.changedOnly ? result.total
-                : search.search(query, SettingsSearch.Filter.CHANGED, changed).total;
-        header.bindFilters(result, filter, changedMatches);
+        // Counted whatever the filter in force, for the Changed chip, with the same value-vs-
+        // default check as the header's "{n} changed" and the rows' dots.
+        header.bindFilters(result, filter, search.changedCount(query, changed));
         header.setAlsoMatches(result.usedSynonyms.isEmpty() ? null
                 : TextUtils.join(", ", result.usedSynonyms));
 
@@ -1604,22 +1623,13 @@ public class SettingsSectionFragment extends Fragment
 
     // --- Glyphs ---
 
+    // The header's Y, L1 and R1, and a focused list row's "A Choices", on a screen driven by the
+    // pad as every other screen's hints are (MainHost.isDpadFirst): the Thor, with its panel or
+    // a pad; never a phone in the hand.
     private void applyGlyphs() {
         if (header != null) {
-            header.setWide(wide, gamepadConnected());
+            header.setWide(wide, host.isDpadFirst());
         }
-    }
-
-    /** Whether a gamepad is connected, whose buttons the header's glyphs would name. */
-    private static boolean gamepadConnected() {
-        for (int id : InputDevice.getDeviceIds()) {
-            InputDevice device = InputDevice.getDevice(id);
-            if (device != null && !device.isVirtual()
-                    && (device.getSources() & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD) {
-                return true;
-            }
-        }
-        return false;
     }
 
     // --- Results ---

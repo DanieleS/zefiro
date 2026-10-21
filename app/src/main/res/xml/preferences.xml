@@ -46,6 +46,7 @@
             android:title="@string/title_seekbar_metered_bitrate"
             app:iconSpaceReserved="false"
             seekbar:divisor="1000"
+            seekbar:zeroText="@string/settings_metered_bitrate_auto"
             seekbar:keyStep="1000"
             seekbar:min="0"
             seekbar:step="500" />

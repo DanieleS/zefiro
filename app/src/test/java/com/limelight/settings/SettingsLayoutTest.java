@@ -14,13 +14,23 @@ import static org.junit.Assert.assertTrue;
 public class SettingsLayoutTest {
 
     @Test
-    public void theHeader_scrollsOnAPhoneEitherWayUp_andStaysOnTheThor() {
-        assertTrue("phone, upright", SettingsLayout.headerInList(false, false, false));
-        assertTrue("phone, turned", SettingsLayout.headerInList(true, true, false));
-        assertFalse("Thor", SettingsLayout.headerInList(true, false, false));
+    public void theHeader_scrollsOnAnUprightPhone_andStaysOnTheThor() {
+        assertTrue("phone, upright", SettingsLayout.headerInList(false, false));
+        assertFalse("Thor", SettingsLayout.headerInList(true, false));
         // Searching it is the search bar, fixed everywhere.
-        assertFalse(SettingsLayout.headerInList(false, false, true));
-        assertFalse(SettingsLayout.headerInList(true, true, true));
+        assertFalse(SettingsLayout.headerInList(false, true));
+        assertFalse(SettingsLayout.headerInList(true, true));
+    }
+
+    @Test
+    public void onATurnedPhone_onlyTheCardScrolls_theFieldAndChipsStay() {
+        assertFalse("phone, turned", SettingsLayout.headerInList(true, false));
+        assertTrue("phone, turned", SettingsLayout.cardInList(true, true, false));
+        assertFalse("Thor", SettingsLayout.cardInList(true, false, false));
+        // An upright phone scrolls the whole header, card included.
+        assertFalse("phone, upright", SettingsLayout.cardInList(false, false, false));
+        // Searching there is no card.
+        assertFalse(SettingsLayout.cardInList(true, true, true));
     }
 
     @Test

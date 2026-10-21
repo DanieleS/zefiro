@@ -12,8 +12,8 @@
     The rest is bound by SettingsAdapter on the stream settings list, and stays gone anywhere
     else this row is used: a dot before the title when the value is not its default, the value
     itself on the right in mono, and an icon on a row that opens a web page. The row is a stop
-    (stop_bg), inset by 8dp so its focus ring has room; the inset plus the padding keeps the
-    text on the settings gutter the category headers use.
+    (stop_bg), inset by the app's gutter so its focus ring lines up with the header's edges;
+    the inset plus the padding keeps the text on the settings gutter the category headers use.
 
     Compact, as the mocks' rows: the description ends in an ellipsis at the lines SettingsAdapter
     gives it (one in a wide window, two in a compact one), and the focused row, the companion
@@ -92,6 +92,14 @@
             android:layout_marginTop="2dp"
             android:ellipsize="end"
             android:textAppearance="@style/TextAppearance.Zefiro.PreferenceSummary" />
+
+        <!-- "A Choices" on the focused list row while no panel spells its choices out: A opens
+             them in a dialog. Gone otherwise, and anywhere but the Settings section's list. -->
+        <com.limelight.ui.GamepadHintsView
+            android:id="@+id/settingChoicesHint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp" />
 
     </LinearLayout>
 

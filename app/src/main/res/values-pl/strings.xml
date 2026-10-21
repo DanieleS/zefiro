@@ -202,7 +202,6 @@
     <string name="perf_overlay_dectime">Średni czas dekodowania: %1$.2f ms</string>
     <string name="addpc_success">Dodano komputer z powodzeniem</string>
     <string name="resolution_prefix_native_landscape">(Panoramiczny)</string>
-    <string name="resolution_prefix_native_fullscreen">Natywny pełny ekran</string>
     <string name="resolution_prefix_native_portrait">(Portretowy)</string>
     <string name="resolution_1080p">1080p</string>
     <string name="help_loading_msg">Ładowanie strony pomocy…</string>

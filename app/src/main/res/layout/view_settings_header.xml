@@ -2,8 +2,9 @@
 <!--
     The Settings section's header, after Settings_C: the search field, the pinned card, the jump
     chips. One instance, bound by SettingsHeader; SettingsSectionFragment hangs it above the list
-    on the Thor, and makes it the list's first item on a phone, in either orientation, where it
-    scrolls away as the phone mock does. The sticky label of the section in view is the
+    on the Thor, and makes it the list's first item on an upright phone, where it scrolls away as
+    the phone mock does. On a turned phone it stays above the list but for the card, which is
+    the list's first item and scrolls away alone (SettingsHeader.hangCard). The sticky label of the section in view is the
     section's own (fragment_settings), so it stays when the header scrolls away.
 
     Searching, the same header turns into the search bar (back, the query, clear), the chips into
@@ -11,7 +12,8 @@
 
     Which parts a window shows (SettingsHeader.setWide):
       wide     the profile as the card's first pin, "{n} changed" (hidden at none), and with
-               a gamepad connected the Y glyph on the field and LB / RB around the chips
+               on a screen driven by the pad (the Thor) the Y glyph on the field and L1 / R1
+               around the chips
       compact  the profile as a row with Switch above five value pills, no glyphs, no Pinned
                chip (the card is right above the chips)
 -->

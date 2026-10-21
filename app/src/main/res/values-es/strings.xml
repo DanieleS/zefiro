@@ -128,7 +128,6 @@
 \nSi estas intentado transmitir mediante Internet, instala en tu pc la Moonlight Internet Hosting Tool y ejecuta el Internet Streaming Tester incluido para comprobar la conexión de tu PC a internet.</string>
     <string name="nettest_text_blocked">La conexión de red actual de tu dispositivo esta bloqueando Moonlight. La Transmisión mediante Internet puede no funcionar mientras estés conectado a esta red.</string>
     <string name="pair_already_in_progress">Emparejamiento ya en progreso</string>
-    <string name="resolution_prefix_native_fullscreen">Pantalla Completa Nativa</string>
     <string name="title_audio_config_list">Configuración de Sonido Envolvente</string>
     <string name="title_decoding_reset">Reiniciar Opciones de Video</string>
     <string name="no_video_received_error">No se recibe video desde el equipo anfitrión.</string>

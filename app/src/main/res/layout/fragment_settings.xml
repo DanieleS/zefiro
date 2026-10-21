@@ -5,7 +5,8 @@
 
     settingsHeaderSlot  holds the header (@layout/view_settings_header) in a wide window and while
                         searching; in a compact window at rest the header is the list's first
-                        item instead, and the slot is empty
+                        item instead, and the slot is empty; in a short wide one (a turned
+                        phone) the card alone is the list's first item
     settingsList        the StreamPreferencesFragment, added in code under "settings:list", never
                         named here, so this layout inflates outside a FragmentActivity too
     settingsResults     the search results, shown only while searching, in the list's place

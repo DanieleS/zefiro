@@ -97,7 +97,6 @@
     <string name="title_seekbar_bitrate">Videobitrate</string>
     <string name="suffix_seekbar_bitrate_mbps">Mbit/s</string>
     <string name="resolution_prefix_native">Ursprung</string>
-    <string name="resolution_prefix_native_fullscreen">Ursprungshelskärm</string>
     <string name="resolution_prefix_native_landscape">(Landskap)</string>
     <string name="resolution_prefix_native_portrait">(Porträtt)</string>
     <string name="category_audio_settings">Ljudinställningar</string>

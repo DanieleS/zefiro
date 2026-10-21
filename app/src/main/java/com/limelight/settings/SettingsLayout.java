@@ -10,8 +10,8 @@ package com.limelight.settings;
  *   a list row's A / tap   its choices on the panel   its choices in a dialog on top
  *   a row's description    one line; all of it below  one line wide, two compact; all of it
  *                                                     on the focused row
- *   the header             fixed above the list, or scrolling with it in a short or compact
- *                          window, either way
+ *   the header             fixed above the list on the Thor; scrolling with it on a phone;
+ *                          on a turned phone the field and chips fixed, the card scrolling
  * </pre>
  *
  * Whether the panel is up is {@link com.limelight.companion.CompanionDisplayManager#panelShowing()},
@@ -27,14 +27,22 @@ final class SettingsLayout {
 
     /**
      * Whether the header (search, card, chips) is the list's first item, scrolling away with the
-     * rows, rather than fixed above them. A phone in portrait has no room to keep it, nor a phone
-     * in landscape, where it would take most of the height; the Thor keeps it. Searching, it is
-     * always fixed: it is the search bar then.
-     *
-     * @param shortWindow a wide window too short to keep it ({@code WindowClass.isShortWide})
+     * rows, rather than fixed above them. A phone in portrait has no room to keep it; the Thor
+     * keeps it. Searching, it is always fixed: it is the search bar then.
      */
-    static boolean headerInList(boolean wide, boolean shortWindow, boolean searching) {
-        return !searching && (!wide || shortWindow);
+    static boolean headerInList(boolean wide, boolean searching) {
+        return !searching && !wide;
+    }
+
+    /**
+     * Whether only the pinned card is the list's first item, while the field and the chips stay
+     * fixed above it: a phone in landscape, where the whole header would take half the height,
+     * but scrolling it all away would take the chips, the way around the list, with it.
+     *
+     * @param shortWindow a wide window too short to keep it all ({@code WindowClass.isShortWide})
+     */
+    static boolean cardInList(boolean wide, boolean shortWindow, boolean searching) {
+        return !searching && wide && shortWindow;
     }
 
     /**

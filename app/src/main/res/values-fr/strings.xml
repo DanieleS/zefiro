@@ -164,7 +164,6 @@
     <string name="title_resolution_scale_factor">Facteur d\'échelle de la résolution</string>
     <string name="summary_resolution_scale_factor">La résolution de l\'écran virtuel demandée côté serveur sera multipliée par ce facteur. Le streaming résolution ne sera pas affecté.\nPar exemple, 120 % transformera 2000x1000 en 2400x1200.\nL\'utilisation d\'un facteur d\'échelle plus élevé améliorera la qualité de l\'image pour certains jeux.\nNécessite Apollo pour prendre effet.</string>
     <string name="resolution_prefix_native">Native</string>
-    <string name="resolution_prefix_native_fullscreen">Plein-écran natif</string>
     <string name="resolution_prefix_native_landscape">(Paysage)</string>
     <string name="resolution_prefix_native_portrait">(Portrait)</string>
     <string name="resolution_prefix_custom">Personnalisée</string>

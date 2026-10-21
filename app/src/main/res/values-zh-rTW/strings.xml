@@ -190,7 +190,6 @@
 	<string name="title_resolution_scale_factor">解析度縮放係數</string>
 	<string name="summary_resolution_scale_factor">伺服器端請求的虛擬螢幕解析度將乘以此係數。串流解析度不受影響。\n例如：120% 會將 2000x1000 變為 2400x1200。\n設定較高的縮放係數可改善部分遊戲的影像品質。\n需要 Apollo 才能生效。</string>
 	<string name="resolution_prefix_native">原生</string>
-	<string name="resolution_prefix_native_fullscreen">原生全螢幕</string>
 	<string name="resolution_prefix_native_landscape">（橫向）</string>
 	<string name="resolution_prefix_native_portrait">（直向）</string>
 	<string name="resolution_prefix_custom">自訂</string>
