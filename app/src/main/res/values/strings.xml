@@ -1181,4 +1181,14 @@
     <!-- Gamepad hints: "A Open October", "B Up". -->
     <string name="stats_hint_open">Open %1$s</string>
     <string name="stats_hint_up">Up</string>
+
+    <!-- Screens T6: Stats on the Thor bottom screen. -->
+    <!-- The remote's next-period button on this week. -->
+    <string name="stats_next_week">Next week</string>
+    <!-- The bottom screen's tabs: "Unlocks 64" and "Pick up again 4" (stats_resume); the count
+         follows in mono. -->
+    <string name="stats_tab_unlocks">Unlocks</string>
+    <!-- Under the totals on the bottom screen when there are neither unlocks nor games to pick
+         up again. -->
+    <string name="stats_remote_nothing">Nothing to pick up again</string>
 </resources>

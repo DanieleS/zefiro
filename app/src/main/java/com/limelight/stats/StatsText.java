@@ -274,6 +274,46 @@ public class StatsText implements StatsFormat.Words {
         return (diff > 0 ? "+" : "−") + duration(Math.abs(diff));
     }
 
+    /**
+     * A period named from its range and offset alone, for the remote's buttons, which follow the
+     * period asked for before any page of it has come: "2025", "October" ("Dec 2025" in another
+     * year than today's), "This week", "Last week", "Next week", or a week's Monday, "28 Sep".
+     *
+     * @param today the PC's play day, as a page carries it; the device's day when no page has
+     *              come yet
+     */
+    public String periodLabel(String range, int offset, String today) {
+        Calendar day = Iso8601.parseDay(today);
+        if (day == null) {
+            day = Calendar.getInstance();
+        }
+        int thisYear = day.get(Calendar.YEAR);
+        switch (range) {
+            case AppStats.RANGE_YEAR:
+                return String.valueOf(thisYear + offset);
+            case AppStats.RANGE_MONTH:
+                day.set(Calendar.DAY_OF_MONTH, 1);
+                day.add(Calendar.MONTH, offset);
+                return day.get(Calendar.YEAR) == thisYear
+                        ? capitalize(format(day.getTime(), "MMMM"))
+                        : capitalize(format(day.getTime(), "MMMyyyy"));
+            default:
+                switch (offset) {
+                    case 0:
+                        return res.getString(R.string.stats_this_week);
+                    case -1:
+                        return res.getString(R.string.stats_last_week);
+                    case 1:
+                        return res.getString(R.string.stats_next_week);
+                    default:
+                        // The host's weeks start on Monday (see its week pages).
+                        int back = (day.get(Calendar.DAY_OF_WEEK) - Calendar.MONDAY + 7) % 7;
+                        day.add(Calendar.DAY_OF_MONTH, -back + 7 * offset);
+                        return format(day.getTime(), "dMMM");
+                }
+        }
+    }
+
     /** "October 2026", for when a game was last played. */
     public String monthYear(String iso) {
         long millis = Iso8601.parseMillis(iso);

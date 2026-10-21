@@ -12,8 +12,8 @@
       strip       the period's own most played, up to five covers
       lower half  the latest unlocks, the games to pick up again and the library's four totals
 
-    The remote and the lower half are their own containers because a later step moves them to
-    the companion panel while the top keeps the rest. Untracked (no GameActivity sessions for the
+    The remote and the lower half are their own containers because the companion panel takes
+    them when it shows (stats/StatsRemotePage), while the top keeps the rest. Untracked (no GameActivity sessions for the
     period), the message takes the chart's place, the summary and the strip go, and the totals
     move first in the lower half.
 
@@ -326,13 +326,17 @@
                     android:orientation="vertical"
                     android:visibility="gone">
 
-                    <!-- Without sessions for the period: in the chart's place. -->
+                    <!-- Without sessions for the period: in the chart's place. A stop, with room
+                         for its ring, while the remote is on the companion panel (set in code),
+                         standing for it. -->
                     <TextView
                         android:id="@+id/statsUntracked"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
                         android:layout_marginBottom="4dp"
+                        android:background="@drawable/stop_bg"
+                        android:focusable="false"
                         android:lineSpacingMultiplier="1.2"
                         android:textColor="@color/content_secondary"
                         android:textSize="14sp"

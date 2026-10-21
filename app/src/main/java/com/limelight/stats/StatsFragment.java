@@ -33,12 +33,16 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.limelight.LimeLog;
 import com.limelight.R;
+import com.limelight.companion.CompanionDisplayManager;
+import com.limelight.companion.CompanionPage;
 import com.limelight.computers.HostEntry;
 import com.limelight.computers.HostLibrary;
 import com.limelight.computers.HostRepository;
 import com.limelight.library.HostSheet;
 import com.limelight.library.LibraryApp;
 import com.limelight.main.MainHost;
+import com.limelight.main.PageFocus;
+import com.limelight.main.PanelFocus;
 import com.limelight.main.SectionBack;
 import com.limelight.main.SectionFocus;
 import com.limelight.main.SectionKeys;
@@ -93,11 +97,34 @@ import java.util.concurrent.RejectedExecutionException;
  *
  * <h3>Layout</h3>
  *
- * Everything is on the main screen in this step, on every device: the remote (Week / Month /
- * Year and the period row), the summary, the chart, the strip, then the lower half (the latest
- * unlocks, the games to pick up again, the library's totals). The window's width, never the
- * device, decides the rest: the host chip or text, the crumb, and the strip's row of five cards
- * or five-column grid of covers.
+ * Whether the remote and the lower half are here or on the companion panel follows
+ * {@link CompanionDisplayManager#panelShowing()}, never the device:
+ *
+ * <pre>
+ *   inline (no panel)   everything here: the remote (Week / Month / Year and the period row),
+ *                       the summary, the chart, the strip, then the lower half (the latest
+ *                       unlocks, the games to pick up again, the library's totals)
+ *   split (panel)       here the header, the summary, the chart and the strip; the panel draws
+ *                       the remote, the lists behind two tabs, the totals and the pad's hints
+ *                       ({@link StatsRemotePage}). Untracked, the lists stay here, where the
+ *                       chart would be, and the panel has the remote and the totals; with no
+ *                       page, only the remote
+ * </pre>
+ *
+ * The window's width, never the device, decides the rest: the host chip or text, the crumb, and
+ * the strip's row of five cards or five-column grid of covers.
+ *
+ * <h3>Two screens, one focus</h3>
+ *
+ * Split, DOWN from the bottom of this screen (the strip, or the chart when there is no strip)
+ * takes the d-pad down to the panel, onto the active tab ({@link PanelFocus}: this window keeps
+ * the keys, a sink holds focus, the panel rings the stop, and the chart keeps its picked bar lit
+ * without its ring). Down there it walks the tabs, their rows, the ranges and the period; UP
+ * off the tabs comes back to the strip card it left. A on a row opens that game's page here and
+ * brings the d-pad up; B climbs from a month, else comes back up; the bumpers and X and Y work
+ * as up here. Taps on the panel act as A would there, without moving the d-pad between screens.
+ * The page is published while this screen is the one shown on its section, and taken off when a
+ * game's page is pushed over it, the section is hidden, or the view goes.
  *
  * <h3>Focus</h3>
  *
@@ -110,10 +137,10 @@ import java.util.concurrent.RejectedExecutionException;
  * Main thread only; every callback checks that the view still exists.
  */
 public class StatsFragment extends Fragment
-        implements SectionKeys, SectionFocus, SectionBack, StackedSectionFragment.SectionHiddenListener {
+        implements SectionKeys, SectionFocus, SectionBack, StackedSectionFragment.SectionHiddenListener,
+        PanelFocus.Owner {
 
-    private static final String[] RANGES = {
-            AppStats.RANGE_WEEK, AppStats.RANGE_MONTH, AppStats.RANGE_YEAR};
+    private static final String[] RANGES = StatsRemotePage.RANGES;
 
     // The mock's strip: five games at most, in a row or in a five-column grid.
     private static final int STRIP_MAX = 5;
@@ -141,6 +168,17 @@ public class StatsFragment extends Fragment
     @Nullable
     private Boolean compactApplied;
 
+    // Whether the companion panel is showing, and so has this screen's lower half (see the
+    // class comment).
+    private boolean split;
+    @Nullable
+    private PanelFocus panelFocus;
+    // The panel's tab the user chose; drawn while its list has rows (see StatsRemotePage).
+    private StatsRemotePage.Tab remoteTab = StatsRemotePage.Tab.UNLOCKS;
+    // The strip card the d-pad went down to the panel from, by position: the card itself is
+    // replaced when a new period is drawn meanwhile, and the d-pad comes back to its place.
+    private int bottomFromCard = -1;
+
     // The view that last held focus in the section, for the focus gate.
     @Nullable
     private View lastFocused;
@@ -157,6 +195,7 @@ public class StatsFragment extends Fragment
     private View crumbTag;
     private TextView crumbText;
     private View contentView;
+    private View remoteView;
     private SegmentedControlView ranges;
     private View climbView;
     private TextView climbLabel;
@@ -240,6 +279,7 @@ public class StatsFragment extends Fragment
         crumbText = view.findViewById(R.id.statsCrumbText);
         contentView = view.findViewById(R.id.statsContent);
 
+        remoteView = view.findViewById(R.id.statsRemote);
         ranges = view.findViewById(R.id.statsRanges);
         ranges.setSegments(getString(R.string.stats_range_week),
                 getString(R.string.stats_range_month), getString(R.string.stats_range_year));
@@ -301,6 +341,15 @@ public class StatsFragment extends Fragment
         resumeSection = view.findViewById(R.id.statsResumeSection);
         resumeList = view.findViewById(R.id.statsResumeList);
 
+        // Before the first draw, so a panel already on does not show the remote here for a frame.
+        split = Boolean.TRUE.equals(CompanionDisplayManager.panelShowing().getValue());
+        // Before this screen's own observer: when the panel goes, PanelFocus brings the d-pad
+        // back up first, and onPanelShowing then lays the lower half out here.
+        panelFocus = PanelFocus.attach(this, (ViewGroup) view, this);
+        CompanionDisplayManager.panelShowing().observe(getViewLifecycleOwner(),
+                this::onPanelShowing);
+        applySplit();
+
         installLayout(view);
         applyWindow();
         focusWatch = (oldFocus, newFocus) -> {
@@ -326,6 +375,9 @@ public class StatsFragment extends Fragment
         }
         focusWatch = null;
         lastFocused = null;
+        // Its view lifecycle has ended: it has taken the page off the panel already.
+        panelFocus = null;
+        bottomFromCard = -1;
         if (covers != null) {
             covers.shutdown();
             covers = null;
@@ -360,11 +412,18 @@ public class StatsFragment extends Fragment
 
     // Hidden or shown, on the section's stack or with the whole section.
     private void onShownChanged(boolean hidden) {
+        if (hidden && panelFocus != null && getView() != null) {
+            // The panel is the screen shown now's: a game page pushed over this one, or
+            // another section.
+            panelFocus.onSectionHidden();
+            return;
+        }
         if (!hidden && isAdded() && getView() != null
                 && !StackedSectionFragment.isHiddenInSection(this)) {
             // Back from another section: what was there is shown again at once, and asked for
             // anew, since a stream in between has likely changed it.
             present();
+            publishPage();
         }
     }
 
@@ -544,8 +603,15 @@ public class StatsFragment extends Fragment
         if (!isAdded() || getView() == null || event.getAction() != KeyEvent.ACTION_DOWN) {
             return false;
         }
+        // On the panel, the d-pad, A and B are the page's; the bumpers and X and Y stay here.
+        if (panelFocus != null && panelFocus.onKey(event)) {
+            return true;
+        }
         int code = event.getKeyCode();
         boolean first = event.getRepeatCount() == 0;
+        if (code == KeyEvent.KEYCODE_DPAD_DOWN && dropToPanel()) {
+            return true;
+        }
         if (code == KeyEvent.KEYCODE_BUTTON_L1 && first) {
             stepPeriod(-1);
             return true;
@@ -735,39 +801,37 @@ public class StatsFragment extends Fragment
     }
 
     /**
-     * The pad's shortcuts, as the state has them: A opens the picked month while the chart has
-     * focus on a year, B climbs from a month, the bumpers step the range's periods, X and Y
-     * cycle the ranges. Shown only on a screen driven by the pad.
+     * The pad's shortcuts, as the state has them ({@link StatsRemotePage#hints}): here, or, while
+     * the panel has the lower half, on the panel under the remote, as the mock draws them. Shown
+     * only on a screen driven by the pad. The panel's page is handed over again with them, so
+     * every caller of this keeps the panel current too.
      */
     private void updateHints() {
         if (hints == null || text == null) {
             return;
         }
-        List<GamepadHintsView.Hint> list = new ArrayList<>();
+        hints.setHints(split ? new GamepadHintsView.Hint[0] : currentHints());
+        publishPage();
+    }
+
+    @NonNull
+    private GamepadHintsView.Hint[] currentHints() {
+        return StatsRemotePage.hints(getResources(), model.range(), openableMonth());
+    }
+
+    /**
+     * The month A would open: the picked bar's, while the chart has focus on a year and no month
+     * is on its way. Null otherwise, and with the d-pad on the panel, where A is the page's.
+     */
+    @Nullable
+    private String openableMonth() {
         AppStats s = model.shown();
         int index = chart.getFocusIndex();
         if (s != null && chart.isFocused() && AppStats.RANGE_YEAR.equals(s.getRange())
                 && model.pendingDrill() == null && index >= 0 && index < s.getBuckets().size()) {
-            list.add(new GamepadHintsView.Hint(getString(R.string.stats_hint_open,
-                    text.monthName(s.getBuckets().get(index).getDate())), "A"));
+            return text.monthName(s.getBuckets().get(index).getDate());
         }
-        if (AppStats.RANGE_MONTH.equals(model.range())) {
-            list.add(new GamepadHintsView.Hint(getString(R.string.stats_hint_up), "B"));
-        }
-        list.add(new GamepadHintsView.Hint(rangeWord(model.range()), "LB", "RB"));
-        list.add(new GamepadHintsView.Hint(getString(R.string.stats_hint_range), "X", "Y"));
-        hints.setHints(list.toArray(new GamepadHintsView.Hint[0]));
-    }
-
-    private String rangeWord(String range) {
-        switch (range) {
-            case AppStats.RANGE_YEAR:
-                return getString(R.string.stats_range_year);
-            case AppStats.RANGE_MONTH:
-                return getString(R.string.stats_range_month);
-            default:
-                return getString(R.string.stats_range_week);
-        }
+        return null;
     }
 
     // --- Loading ---
@@ -852,6 +916,8 @@ public class StatsFragment extends Fragment
         statusProgress.setVisibility(loading ? View.VISIBLE : View.GONE);
         statusTitle.setVisibility(loading ? View.GONE : View.VISIBLE);
         statusHint.setVisibility(loading ? View.GONE : View.VISIBLE);
+        // No page: the panel keeps only range and period.
+        updateHints();
         if (hadFocus || (isOnScreen() && requireActivity().getCurrentFocus() == null)) {
             statusView.requestFocus();
         }
@@ -867,6 +933,8 @@ public class StatsFragment extends Fragment
     private void bind(AppStats s, boolean first, boolean focusChart) {
         View before = requireActivity().getCurrentFocus();
         boolean focusOurs = before == null || isInside(before);
+        // The d-pad is on the panel: the top's focus is the sink's, and stays so.
+        boolean below = panelFocus != null && panelFocus.zone() == PanelFocus.Zone.BOTTOM;
         FocusMemo memo = FocusMemo.capture(before, stripList, achievementsList, resumeList);
         drawn = s;
 
@@ -891,9 +959,9 @@ public class StatsFragment extends Fragment
         updateTooltip();
         updateHints();
 
-        // A page that lands while the d-pad is on the navigation leaves it there; and a hidden
-        // section takes no focus at all.
-        if (!focusOurs || !isOnScreen()) {
+        // A page that lands while the d-pad is on the navigation or the panel leaves it there;
+        // and a hidden section takes no focus at all.
+        if (below || !focusOurs || !isOnScreen()) {
             return;
         }
         View stop = firstStop();
@@ -1079,6 +1147,17 @@ public class StatsFragment extends Fragment
         bindAchievements(s);
         bindResume(s);
         bindLibrary(s);
+        placeLower(tracked);
+    }
+
+    /**
+     * Where the lower half goes. Inline, all of it here. Split, the panel has it: all of it for a
+     * tracked page; for an untracked one only the totals, and the lists move up here, where the
+     * chart would be, as the mock's untracked frame has them.
+     */
+    private void placeLower(boolean tracked) {
+        lowerView.setVisibility(split && tracked ? View.GONE : View.VISIBLE);
+        totalsView.setVisibility(split ? View.GONE : View.VISIBLE);
 
         lowerView.removeView(totalsView);
         lowerView.addView(totalsView, tracked ? lowerView.getChildCount() : 0);
@@ -1182,6 +1261,293 @@ public class StatsFragment extends Fragment
         host.openGamePage(new GamePageArgs(snapshot.hostUuid, uuid, appId, name, origin));
     }
 
+    // --- The companion panel ---
+
+    /** The panel came or went: the remote and the lower half move between it and this screen. */
+    private void onPanelShowing(@Nullable Boolean showing) {
+        boolean next = Boolean.TRUE.equals(showing);
+        if (next == split || getView() == null) {
+            return;
+        }
+        boolean hadFocus = root.hasFocus();
+        split = next;
+        applySplit();
+        updateHints();
+        // The remote just went from under the d-pad, perhaps: the chart (or what stands for it)
+        // takes it rather than the rail.
+        if (!refocusIfTaken(hadFocus)) {
+            placeFocusIfLost();
+        }
+    }
+
+    // What split changes that a page's bind does not redo: the remote's place, and whether the
+    // untracked message is a stop (it stands for the remote, which is on the panel), padded for
+    // its ring only then, so it sits flush with the column inline.
+    private void applySplit() {
+        remoteView.setVisibility(split ? View.GONE : View.VISIBLE);
+        untrackedView.setFocusable(split);
+        int ring = split ? dp(8) : 0;
+        untrackedView.setPadding(ring, ring, ring, ring);
+        if (drawn != null) {
+            placeLower(drawn.isTracked());
+        }
+    }
+
+    private boolean refocusIfTaken(boolean hadFocus) {
+        if (!hadFocus || root.hasFocus() || !isOnScreen() || root.isInTouchMode()) {
+            return false;
+        }
+        return firstStop().requestFocus();
+    }
+
+    // Focus on nothing visible after a change of layout: the page's first stop. Focus on the rail
+    // is the user's and is left there.
+    private void placeFocusIfLost() {
+        if (!isOnScreen() || root.isInTouchMode()) {
+            return;
+        }
+        View focused = requireActivity().getCurrentFocus();
+        if (focused == null || !focused.isShown()) {
+            firstStop().requestFocus();
+        }
+    }
+
+    /**
+     * DOWN, split, with nothing of this screen below the focused view (the strip, the chart when
+     * there is no strip, the status row): down to the panel's active tab, or its range when there
+     * is no list. Up top only; down there PanelFocus has the d-pad.
+     *
+     * @return whether the d-pad went down
+     */
+    private boolean dropToPanel() {
+        if (!split || panelFocus == null || panelFocus.zone() != PanelFocus.Zone.TOP) {
+            return false;
+        }
+        View focused = requireActivity().getCurrentFocus();
+        if (focused == null || !isInside(focused)) {
+            return false;
+        }
+        View below = focused.focusSearch(View.FOCUS_DOWN);
+        if (below != null && isInside(below)) {
+            return false;
+        }
+        StatsRemotePage page = remotePage();
+        if (page == null) {
+            return false;
+        }
+        int card = stripList.indexOfChild(focused);
+        if (!panelFocus.enterBottom(page.entryStop())) {
+            return false;
+        }
+        bottomFromCard = card;
+        updateHints();
+        return true;
+    }
+
+    /**
+     * Hands the page as it stands to the panel, while split and this screen is the one shown;
+     * takes it away when not split. With the d-pad on the panel, a stop the new page no longer
+     * has (a period button at its bound, a row past a shorter list) hands over to its nearest
+     * kin ({@link StatsRemotePage#settle}) rather than to the page's first stop.
+     */
+    private void publishPage() {
+        if (panelFocus == null || !isAdded() || getView() == null) {
+            return;
+        }
+        if (!split) {
+            panelFocus.clear();
+            return;
+        }
+        if (StackedSectionFragment.isHiddenInSection(this)) {
+            return;
+        }
+        if (panelFocus.zone() == PanelFocus.Zone.BOTTOM) {
+            StatsRemotePage page = remotePage();
+            int stop = panelFocus.focusedStop();
+            int settled = page != null ? page.settle(stop) : stop;
+            // enterBottom publishes, with the stop moved.
+            if (settled != stop && settled >= 0 && panelFocus.enterBottom(settled)) {
+                return;
+            }
+        }
+        panelFocus.publish();
+    }
+
+    /**
+     * The panel's page, from the period asked for (the remote answers a press at once) and the
+     * page this screen draws (the lists and totals); null when not split.
+     */
+    @Nullable
+    private StatsRemotePage remotePage() {
+        if (!split || text == null) {
+            return null;
+        }
+        String range = model.range();
+        int offset = model.offset();
+        AppStats shown = model.shown();
+        String today = shown != null ? shown.getToday() : null;
+        StatsRemotePage.Builder page = new StatsRemotePage.Builder(range)
+                .period(text.periodLabel(range, offset - 1, today),
+                        text.periodLabel(range, offset, today),
+                        text.periodLabel(range, offset + 1, today),
+                        offset > AppStats.MIN_OFFSET, offset < 0)
+                .hints(currentHints());
+        // What the top draws: none while the status row is up, and the panel keeps only range
+        // and period.
+        AppStats s = drawn;
+        if (s == null) {
+            return page.build();
+        }
+        page.totals(totalsOf(s));
+        if (!s.isTracked()) {
+            return page.build();
+        }
+        AppStats.Achievements a = s.getAchievements();
+        List<StatsRemotePage.UnlockRow> unlocks = new ArrayList<>();
+        if (a != null) {
+            for (Achievement item : a.getRecent()) {
+                unlocks.add(new StatsRemotePage.UnlockRow(orEmpty(item.getName()),
+                        orEmpty(item.getGame()), text.unlockedLabel(item.getUnlockedAt(), false),
+                        item.getAppUuid()));
+            }
+        }
+        List<StatsRemotePage.ResumeRow> resume = new ArrayList<>();
+        for (AppStats.ResumeGame g : s.getResume()) {
+            resume.add(new StatsRemotePage.ResumeRow(orEmpty(g.getName()),
+                    text.hoursTotal(g.getPlaytimeSeconds()), text.monthYear(g.getLastActivity()),
+                    g.getUuid()));
+        }
+        return page.lists(remoteTab, a != null ? text.number(a.getUnlocked()) : "", unlocks,
+                text.number(resume.size()), resume).build();
+    }
+
+    private StatsRemotePage.Totals totalsOf(AppStats s) {
+        AppStats.Library lib = s.getLibrary();
+        return new StatsRemotePage.Totals(text.hoursTotal(lib.getPlaytimeSeconds()),
+                text.number(lib.getGames()),
+                getString(R.string.stats_games, text.number(lib.getInstalled())),
+                text.number(lib.getInstalledNeverPlayed()), text.number(lib.getPlayedThisYear()));
+    }
+
+    private static String orEmpty(@Nullable String value) {
+        return value != null ? value : "";
+    }
+
+    @Nullable
+    @Override
+    public CompanionPage bottomPage() {
+        return remotePage();
+    }
+
+    @NonNull
+    @Override
+    public PageFocus bottomStops() {
+        StatsRemotePage page = remotePage();
+        return page != null ? page.stops() : new PageFocus(Collections.<int[]>emptyList());
+    }
+
+    @Override
+    public void onPageTap(int stopId) {
+        act(stopId);
+    }
+
+    @Override
+    public void onActivate(int stop) {
+        act(stop);
+    }
+
+    /**
+     * A or a tap on a stop of the panel's page: a tab is chosen (the d-pad stays on it), a range
+     * or a period is asked for as from the remote here, and a row opens its game's page here,
+     * the d-pad coming back up first so back returns to the strip.
+     */
+    private void act(int stop) {
+        if (getView() == null) {
+            return;
+        }
+        StatsRemotePage page = remotePage();
+        if (page == null) {
+            return;
+        }
+        StatsRemotePage.Tab tab = StatsRemotePage.tabAt(stop);
+        if (tab != null) {
+            if (page.visibleTabs().contains(tab) && tab != remoteTab) {
+                remoteTab = tab;
+                publishPage();
+            }
+            return;
+        }
+        int range = StatsRemotePage.rangeAt(stop);
+        if (range >= 0) {
+            setRange(RANGES[range]);
+            return;
+        }
+        if (stop == StatsRemotePage.STOP_PREVIOUS) {
+            if (page.previousEnabled) {
+                stepPeriod(-1);
+            }
+            return;
+        }
+        if (stop == StatsRemotePage.STOP_NEXT) {
+            if (page.nextEnabled) {
+                stepPeriod(1);
+            }
+            return;
+        }
+        StatsRemotePage.UnlockRow unlock = page.unlockAt(stop);
+        StatsRemotePage.ResumeRow resume = page.resumeAt(stop);
+        if (unlock == null && resume == null) {
+            return;
+        }
+        if (panelFocus != null) {
+            panelFocus.leaveBottom(true);
+        }
+        if (unlock != null) {
+            openGame(unlock.appUuid, unlock.game);
+        } else {
+            openGame(resume.uuid, resume.name);
+        }
+    }
+
+    @Override
+    public void onExit(@NonNull PageFocus.Nav direction) {
+        // Up off the tabs (or the range, with no tabs) is back up to the strip; off the period
+        // buttons, nowhere.
+        if (direction == PageFocus.Nav.UP && panelFocus != null) {
+            panelFocus.leaveBottom(true);
+        }
+    }
+
+    /** B on the panel climbs from a month, as up here; anywhere else it brings the d-pad up. */
+    @Override
+    public boolean onBottomBack() {
+        if (AppStats.RANGE_MONTH.equals(model.range())) {
+            climb();
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public void onBottomLeft(boolean restored) {
+        int card = bottomFromCard;
+        bottomFromCard = -1;
+        // Not given back (the card it left was redrawn for a new period, or the panel went):
+        // onto the card in the same place, else the first stop. A touch that took the d-pad up
+        // leaves focus to the touch.
+        if (!restored && isOnScreen() && !root.isInTouchMode()) {
+            View target = null;
+            int count = stripList.getChildCount();
+            if (card >= 0 && count > 0 && stripList.isShown()) {
+                target = stripList.getChildAt(Math.min(card, count - 1));
+            }
+            if (target == null || !target.requestFocus()) {
+                firstStop().requestFocus();
+            }
+        }
+        updateHints();
+    }
+
     // --- Focus ---
 
     @Nullable
@@ -1207,8 +1573,9 @@ public class StatsFragment extends Fragment
 
     /**
      * The chart, on its picked bar, when there is a page with one ("the chart is the page and the
-     * way around it"); the chosen range when the period is untracked; the status row (loading,
-     * or the retry) when there is no page.
+     * way around it"); when the period is untracked, the chosen range, or the message in the
+     * chart's place while the range is on the panel; the status row (loading, or the retry)
+     * when there is no page.
      */
     @NonNull
     private View firstStop() {
@@ -1217,6 +1584,10 @@ public class StatsFragment extends Fragment
         }
         if (trackedView.getVisibility() == View.VISIBLE) {
             return chart;
+        }
+        if (split) {
+            // The remote is on the panel: the message in the chart's place stands for it.
+            return untrackedView;
         }
         View segment = ranges.getSegmentView(Math.max(0, ranges.getSelectedIndex()));
         return segment != null ? segment : ranges;

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The period shown, between the remote's previous and next on the companion panel: the mock's
+     .big.on, a sunk card that takes no press. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="@dimen/segment_track_corner" />
+    <solid android:color="@color/surface_container_low" />
+</shape>
