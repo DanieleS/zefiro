@@ -9,9 +9,11 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.SystemClock;
+import android.util.SparseArray;
 import android.util.SparseLongArray;
 import android.view.InputDevice;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
@@ -23,12 +25,12 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
+import androidx.core.util.Consumer;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentManager;
 import androidx.lifecycle.Lifecycle;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.ViewModelProvider;
@@ -45,25 +47,29 @@ import com.limelight.computers.HostLibrary;
 import com.limelight.computers.HostRepository;
 import com.limelight.computers.PairingRequest;
 import com.limelight.library.LaunchController;
+import com.limelight.library.LibraryApp;
 import com.limelight.library.LibraryFragment;
 import com.limelight.library.LibraryIntents;
-import com.limelight.library.SearchFragment;
+import com.limelight.library.SearchSectionFragment;
+import com.limelight.nvstream.http.Achievement;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.NvHTTP;
 import com.limelight.pcs.HostActions;
 import com.limelight.pcs.PcsFragment;
-import com.limelight.preferences.StreamSettings;
+import com.limelight.settings.SettingsSectionFragment;
 import com.limelight.stats.AchievementToast;
 import com.limelight.stats.AchievementWatcher;
+import com.limelight.stats.GamePageArgs;
+import com.limelight.stats.GamePageFragment;
 import com.limelight.stats.HostLink;
 import com.limelight.stats.HostSession;
-import com.limelight.stats.StatsFragment;
+import com.limelight.stats.StatsSectionFragment;
 import com.limelight.utils.Dialog;
 import com.limelight.utils.UiHelper;
 
 /**
- * The main screen: Library, PCs, Stats and Search as sections of one activity, with a navigation
- * rail in wide windows and a bottom bar in compact ones.
+ * The main screen: Library, PCs, Stats, Search and Settings as sections of one activity, with a
+ * navigation rail in wide windows and a bottom bar in compact ones.
  *
  * <p>It replaced a pair of activities, a PC list with the library on top of it, each binding the
  * computer manager on its own. Here one {@link MainViewModel} owns the host state for every
@@ -110,15 +116,20 @@ import com.limelight.utils.UiHelper;
  *
  * <h3>Back</h3>
  *
- * Back has work to do only away from the Library's home: from another section it returns to the
- * Library, and inside the Library it pops the Library's own stack (See all). At the Library's
- * home the callback is disabled and the system's default applies, which leaves the app; with one
- * activity there is nothing underneath to return to.
+ * Back asks the visible section first ({@link SectionBack}): a section with a stack of its own
+ * (the Library's See all, a screen pushed over Stats or Search) pops it, one screen at a time,
+ * and Settings leaves its search first. Only a section with nothing to undo is left, back to the
+ * Library. At the Library's home the
+ * callback is disabled and the system's default applies, which leaves the app; with one activity
+ * there is nothing underneath to return to. Sections report every change of their back work
+ * ({@link MainHost#backWorkChanged()}), so the callback's enabled state always follows it.
  *
  * <h3>Keys</h3>
  *
  * Key-downs go to the visible section first ({@link SectionKeys}), then to the focused view.
- * Directional focus between navigation and section is decided by {@link MainRootLayout}.
+ * Directional focus between navigation and section is decided by {@link MainRootLayout}. A pad's
+ * analog triggers reach the section as L2 and R2 key-downs too ({@link TriggerEdges}): many pads
+ * send only the axis, and a press reported by both the axis and the key reaches it once.
  *
  * <h3>Controllers</h3>
  *
@@ -142,7 +153,7 @@ import com.limelight.utils.UiHelper;
  * A stream's achievements may only be written by the host once the game closes, after the
  * stream's last look. So on resume, a few seconds later, the screen asks the host that was
  * streamed (not necessarily the selected one) once more, and toasts what is new, as the old
- * library did.
+ * library did. When that host is the selected one, a tap on the toast opens the game's page.
  *
  * <h3>Pairing from a link</h3>
  *
@@ -190,39 +201,23 @@ public class MainActivity extends AppCompatActivity
     // A key-up carries its press's down time, so a stale entry can never match a later press.
     private final SparseLongArray sectionHeldKeys = new SparseLongArray();
 
+    // Each pad's triggers, by input device id: two pads' samples must not press each other's.
+    private final SparseArray<TriggerEdges> triggerEdges = new SparseArray<>();
+
     private final OnBackPressedCallback backCallback = new OnBackPressedCallback(false) {
         @Override
         public void handleOnBackPressed() {
-            if (navigator.current() != Section.LIBRARY) {
+            SectionBack section = sectionBack();
+            if (section != null && section.hasBackWork()) {
+                section.onBack();
+            } else if (navigator.current() != Section.LIBRARY) {
                 goTo(Section.LIBRARY);
-                return;
-            }
-            Fragment library = navigator.fragment(Section.LIBRARY);
-            if (library != null && library.isAdded()
-                    && library.getChildFragmentManager().getBackStackEntryCount() > 0) {
-                library.getChildFragmentManager().popBackStack();
             }
         }
     };
 
-    // The Library's child stack (See all) decides whether back has work at the Library. Its
-    // fragment can be created by a restore before this activity's onCreate gets past super, so
-    // the watch is set up on the fragment's creation, not on our first show of it.
-    private final FragmentManager.FragmentLifecycleCallbacks libraryStackWatcher =
-            new FragmentManager.FragmentLifecycleCallbacks() {
-                @Override
-                public void onFragmentCreated(@NonNull FragmentManager fm, @NonNull Fragment f,
-                                              @Nullable Bundle savedInstanceState) {
-                    if (Section.LIBRARY.tag().equals(f.getTag())) {
-                        f.getChildFragmentManager().addOnBackStackChangedListener(
-                                MainActivity.this::updateBackEnabled);
-                    }
-                }
-            };
-
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
-        getSupportFragmentManager().registerFragmentLifecycleCallbacks(libraryStackWatcher, false);
         super.onCreate(savedInstanceState);
 
         // Defaults first: the repository the view model makes reads the preferences at once.
@@ -283,6 +278,11 @@ public class MainActivity extends AppCompatActivity
         rendererProbe = new RendererProbe(this, findViewById(android.R.id.content));
         rendererProbe.start();
         launchController = new LaunchController(this, viewModel.repository(), rendererProbe, artExport);
+        // The actions sheet's "Stats & achievements" opens the game's page over this section;
+        // the crumb is left to openGamePage, which knows where the page lands.
+        launchController.setGamePageOpener((hostUuid, app) -> openGamePage(new GamePageArgs(
+                hostUuid, app.getAppUUID() != null ? app.getAppUUID() : "", app.getAppId(),
+                app.getAppName(), null)));
         companionFeed = new CompanionFeed(this, viewModel.repository(), launchController,
                 this::reclaimFocusFromCompanion);
 
@@ -347,7 +347,6 @@ public class MainActivity extends AppCompatActivity
         rendererProbe.release();
         hostActions.release();
         launchController.release();
-        getSupportFragmentManager().unregisterFragmentLifecycleCallbacks(libraryStackWatcher);
         super.onDestroy();
     }
 
@@ -384,7 +383,13 @@ public class MainActivity extends AppCompatActivity
             // The system bars come back on a swipe or when returning from another screen; a wide
             // window puts them away again.
             applySystemBars();
-        } else if (SystemClock.uptimeMillis() < companionReclaimUntil) {
+            return;
+        }
+        // A trigger held now has its release delivered to whichever window took focus, so the
+        // pressed state kept here would go stale and swallow the next pull as "already down".
+        // Forgotten instead: each pad's edges start again from released.
+        triggerEdges.clear();
+        if (SystemClock.uptimeMillis() < companionReclaimUntil) {
             // Most likely lost to the tap on the companion panel just now. A dialog the tap
             // raised takes window focus too, but moving a task already in front leaves that
             // dialog on top of it, and a game it launched has paused this activity by now.
@@ -396,6 +401,13 @@ public class MainActivity extends AppCompatActivity
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         int code = event.getKeyCode();
+        if ((code == KeyEvent.KEYCODE_BUTTON_L2 || code == KeyEvent.KEYCODE_BUTTON_R2)
+                && event.getRepeatCount() == 0 && event.getAction() != KeyEvent.ACTION_MULTIPLE
+                && !triggersOf(event.getDeviceId()).onKey(code == KeyEvent.KEYCODE_BUTTON_R2,
+                        event.getAction() == KeyEvent.ACTION_DOWN)) {
+            // The same pull, already reported from the trigger's axis.
+            return true;
+        }
         if (event.getAction() == KeyEvent.ACTION_DOWN) {
             Fragment section = navigator.currentFragment();
             if (section instanceof SectionKeys && section.isAdded() && section.getView() != null
@@ -413,6 +425,54 @@ public class MainActivity extends AppCompatActivity
         return super.dispatchKeyEvent(event);
     }
 
+    /**
+     * A pad's analog triggers, as L2 and R2 key-downs for the visible section (see
+     * {@link TriggerEdges}). Only the section hears them, as for a real L2: no view binds the
+     * triggers. The sample still goes on to the views, for the sticks it carries.
+     */
+    @Override
+    public boolean dispatchGenericMotionEvent(MotionEvent event) {
+        boolean handled = false;
+        if (event.getActionMasked() == MotionEvent.ACTION_MOVE
+                && (event.getSource() & InputDevice.SOURCE_JOYSTICK)
+                        == InputDevice.SOURCE_JOYSTICK) {
+            int edges = triggersOf(event.getDeviceId()).onAxes(
+                    Math.max(event.getAxisValue(MotionEvent.AXIS_LTRIGGER),
+                            event.getAxisValue(MotionEvent.AXIS_BRAKE)),
+                    Math.max(event.getAxisValue(MotionEvent.AXIS_RTRIGGER),
+                            event.getAxisValue(MotionEvent.AXIS_GAS)));
+            if ((edges & TriggerEdges.L2_DOWN) != 0) {
+                handled = offerTrigger(event, KeyEvent.KEYCODE_BUTTON_L2);
+            }
+            if ((edges & TriggerEdges.R2_DOWN) != 0) {
+                handled |= offerTrigger(event, KeyEvent.KEYCODE_BUTTON_R2);
+            }
+        }
+        return super.dispatchGenericMotionEvent(event) || handled;
+    }
+
+    @NonNull
+    private TriggerEdges triggersOf(int deviceId) {
+        TriggerEdges edges = triggerEdges.get(deviceId);
+        if (edges == null) {
+            edges = new TriggerEdges();
+            triggerEdges.put(deviceId, edges);
+        }
+        return edges;
+    }
+
+    // A trigger's press, as the key-down a pad with a trigger button would have sent.
+    private boolean offerTrigger(MotionEvent sample, int code) {
+        Fragment section = navigator.currentFragment();
+        if (!(section instanceof SectionKeys) || !section.isAdded() || section.getView() == null) {
+            return false;
+        }
+        KeyEvent press = new KeyEvent(sample.getEventTime(), sample.getEventTime(),
+                KeyEvent.ACTION_DOWN, code, 0, 0, sample.getDeviceId(), 0, 0,
+                InputDevice.SOURCE_GAMEPAD);
+        return ((SectionKeys) section).onSectionKey(press);
+    }
+
     // --- Sections and controllers ---
 
     private static Fragment createSection(@NonNull Section section) {
@@ -422,10 +482,12 @@ public class MainActivity extends AppCompatActivity
             case PCS:
                 return new PcsFragment();
             case STATS:
-                return new StatsFragment();
+                return new StatsSectionFragment();
+            case SETTINGS:
+                return new SettingsSectionFragment();
             case SEARCH:
             default:
-                return new SearchFragment();
+                return new SearchSectionFragment();
         }
     }
 
@@ -450,6 +512,12 @@ public class MainActivity extends AppCompatActivity
     @NonNull
     @Override
     public GameFocusListener gameFocus() {
+        return companionFeed;
+    }
+
+    @NonNull
+    @Override
+    public CompanionPages companionPages() {
         return companionFeed;
     }
 
@@ -554,11 +622,51 @@ public class MainActivity extends AppCompatActivity
             AchievementWatcher.checkOnce(session, since, fresh -> {
                 ViewGroup content = findViewById(android.R.id.content);
                 if (!isFinishing() && !isDestroyed() && content != null) {
-                    AchievementToast.show(content, fresh, session);
+                    AchievementToast.show(content, fresh, session, toastTapFor(streamed));
                 }
             });
         };
         root.postDelayed(achievementCheck, AFTER_STREAM_CHECK_DELAY_MS);
+    }
+
+    /**
+     * What a tap on an unlock toast does: opens the unlocked game's page, but only for the
+     * selected host. A page is about a game of the selected host's library, and leaves as soon
+     * as another host is selected, so a toast about another PC only informs. Checked when the
+     * toast is shown, so it has no tap, and again at the tap: the user may switch PCs while it
+     * is up, and a page for the old one would only flash and pop.
+     */
+    @Nullable
+    private Consumer<Achievement> toastTapFor(@NonNull String hostUuid) {
+        if (!isSelectedHost(hostUuid)) {
+            return null;
+        }
+        return achievement -> {
+            String uuid = achievement.getAppUuid();
+            if (uuid == null || uuid.isEmpty() || !isSelectedHost(hostUuid)) {
+                return;
+            }
+            openGamePage(new GamePageArgs(hostUuid, uuid, appIdOf(uuid), achievement.getGame(),
+                    null));
+        };
+    }
+
+    private boolean isSelectedHost(@NonNull String hostUuid) {
+        String selected = viewModel.repository().getSelectedHostUuid().getValue();
+        return selected != null && selected.equalsIgnoreCase(hostUuid);
+    }
+
+    /** The selected host's id for a game, by its UUID; 0 when the library does not list it. */
+    private int appIdOf(@NonNull String appUuid) {
+        HostLibrary.Snapshot snapshot = viewModel.repository().getLibrary().getValue();
+        if (snapshot != null) {
+            for (LibraryApp app : snapshot.apps) {
+                if (appUuid.equalsIgnoreCase(app.app.getAppUUID())) {
+                    return app.appId();
+                }
+            }
+        }
+        return 0;
     }
 
     /** A connection to a host: the open library's when it is that host, else a new one. */
@@ -640,29 +748,65 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
-    public void onSettingsChosen() {
-        startActivity(new Intent(this, StreamSettings.class));
-    }
-
-    @Override
     public void onSectionReselected(@NonNull Section section) {
-        // The Library goes back to its home from See all; the other sections have one screen.
+        // A section with a stack goes back to its root (the Library's home from See all); the
+        // others have one screen.
         Fragment fragment = navigator.fragment(section);
-        if (fragment instanceof LibraryFragment) {
-            ((LibraryFragment) fragment).showHome();
+        if (fragment instanceof StackedSectionFragment) {
+            ((StackedSectionFragment) fragment).popToRoot();
         }
     }
 
+    @Override
+    public void backWorkChanged() {
+        updateBackEnabled();
+    }
+
+    @Override
+    public void openGamePage(@NonNull GamePageArgs args) {
+        Fragment section = navigator.currentFragment();
+        if (!(section instanceof StackedSectionFragment)) {
+            // PCs has no stack: the game belongs to the Library, so its page goes there.
+            goTo(Section.LIBRARY);
+            section = navigator.currentFragment();
+        }
+        if (!(section instanceof StackedSectionFragment)) {
+            return;
+        }
+        StackedSectionFragment stack = (StackedSectionFragment) section;
+        // Named only now, after the switch above: the crumb says where back returns to.
+        GamePageArgs page = args.originLabel.isEmpty()
+                ? args.withOrigin(getString(navigator.current().title)) : args;
+        Fragment open = stack.getChildFragmentManager().findFragmentByTag(GamePageFragment.TAG);
+        GamePageArgs openArgs = open instanceof GamePageFragment
+                ? ((GamePageFragment) open).args() : null;
+        if (openArgs == null) {
+            stack.push(GamePageFragment.newInstance(page), GamePageFragment.TAG);
+        } else if (!openArgs.sameGame(page)) {
+            // Another game's page (an unlock toast tapped over it) takes its place, so back
+            // still returns to the section's own screen rather than to the other page.
+            stack.replace(GamePageFragment.newInstance(page), GamePageFragment.TAG);
+        }
+    }
+
+    /**
+     * The visible section's back, or null when it has none. A view is not required: after a
+     * restore the section's stack is back before its views are, and back has work there already.
+     */
+    @Nullable
+    private SectionBack sectionBack() {
+        Fragment section = navigator.currentFragment();
+        return section instanceof SectionBack && section.isAdded() ? (SectionBack) section : null;
+    }
+
+    // See SectionBack: enabled iff the visible section has back work or is not the Library.
     private void updateBackEnabled() {
         if (navigator == null) {
             return;
         }
-        boolean work = navigator.current() != Section.LIBRARY;
-        if (!work) {
-            Fragment library = navigator.fragment(Section.LIBRARY);
-            work = library != null && library.isAdded()
-                    && library.getChildFragmentManager().getBackStackEntryCount() > 0;
-        }
+        SectionBack section = sectionBack();
+        boolean work = navigator.current() != Section.LIBRARY
+                || (section != null && section.hasBackWork());
         backCallback.setEnabled(work);
     }
 

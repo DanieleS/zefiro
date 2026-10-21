@@ -12,8 +12,10 @@ import androidx.preference.PreferenceManager;
 
 import com.limelight.grid.assets.MemoryAssetLoader;
 import com.limelight.library.LibraryIntents;
+import com.limelight.library.LibraryModel;
 import com.limelight.nvstream.http.ComputerDetails;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -59,7 +61,8 @@ import java.util.concurrent.RejectedExecutionException;
  * <pre>
  *   CMS polling thread ──copy──▶ background executor ──────────▶ main thread
  *     (live details)              name the running game,          new HostEntry ─▶ hosts
- *                                 publish the host shortcut        pending pairing ─▶ pairingRequests
+ *                                 count the games,                 pending pairing ─▶ pairingRequests
+ *                                 publish the host shortcut
  *                                                                  selected host ─▶ HostLibrary ─▶ library
  *                                                                        │
  *                                 art executor ◀── hero image ───────────┘
@@ -110,6 +113,9 @@ public class HostRepository {
     private final RunningGameResolver runningGames;
     private final ShortcutPublisher shortcuts;
     private final SharedPreferences prefs;
+    private final SharedPreferences hiddenPrefs;
+    private final File cacheDir;
+    private final GameCount gameCounts = new GameCount();
 
     private final MutableLiveData<List<HostEntry>> hosts =
             new MutableLiveData<>(Collections.<HostEntry>emptyList());
@@ -188,6 +194,8 @@ public class HostRepository {
         this.runningGames = runningGames;
         this.shortcuts = shortcuts;
         this.prefs = PreferenceManager.getDefaultSharedPreferences(app);
+        this.hiddenPrefs = app.getSharedPreferences(LibraryIntents.PREFS_HIDDEN_APPS, Context.MODE_PRIVATE);
+        this.cacheDir = app.getCacheDir();
         // The last host is the default host: the library opens on it before anything is polled.
         String lastHost = prefs.getString(LibraryIntents.PREF_LAST_HOST, null);
         this.selectedHostUuid = new MutableLiveData<>(lastHost);
@@ -332,6 +340,7 @@ public class HostRepository {
         // host has to drop them; here, every removal path does. Even for a host this repository
         // never listed: its library may have been drawn from the cache before the first poll.
         new MemoryAssetLoader().clearHost(uuid);
+        gameCounts.forget(uuid);
         HostEntry removed = entries.remove(uuid);
         if (removed == null) {
             return;
@@ -466,16 +475,31 @@ public class HostRepository {
         }
 
         final String runningName = runningGames.resolveRunningAppName(copy);
+        final int gameCount = countGames(copy);
         // Only for a host the service still has. This also covers a removal whose forgetHost is
         // still on its way to main, and costs nothing else: a brand-new host's very first
         // report comes before the service lists it, and the next poll publishes it instead.
         if (known) {
             shortcuts.onHostUpdated(copy);
         }
-        main.execute(() -> onHostUpdated(copy, runningName));
+        main.execute(() -> onHostUpdated(copy, runningName, gameCount));
     }
 
-    private void onHostUpdated(ComputerDetails copy, String runningName) {
+    /**
+     * On the background executor: the games the Library would list for this host, from the list
+     * on the details (the selected host's, filled in by its app list poller) or else the copy the
+     * last library visit cached; {@link HostEntry#UNKNOWN_GAME_COUNT} for a host with neither.
+     *
+     * <p>The hidden ids are read on every poll, but a hide or unhide only shows on the poll after
+     * it, so the count may lag a hide by one poll. {@link GameCount} keeps an unchanged list from
+     * being parsed again.
+     */
+    private int countGames(ComputerDetails copy) {
+        Set<Integer> hidden = LibraryModel.parseHiddenIds(hiddenPrefs.getStringSet(copy.uuid, null));
+        return gameCounts.countFor(copy.uuid, RunningGameResolver.readAppList(cacheDir, copy), hidden);
+    }
+
+    private void onHostUpdated(ComputerDetails copy, String runningName, int gameCount) {
         if (closed || forgotten.contains(copy.uuid)) {
             return;
         }
@@ -492,7 +516,7 @@ public class HostRepository {
         Bitmap background = previous != null && copy.runningGameId != 0
                 && previous.details.runningGameId == copy.runningGameId
                 ? previous.runningBackground : null;
-        HostEntry entry = new HostEntry(copy, runningName, background);
+        HostEntry entry = new HostEntry(copy, runningName, background, gameCount);
         entries.put(copy.uuid, entry);
         publishHosts();
 
@@ -520,7 +544,8 @@ public class HostRepository {
                             || !key.equals(RunningGameResolver.keyOf(current.details))) {
                         return;
                     }
-                    entries.put(uuid, new HostEntry(current.details, current.runningAppName, bitmap));
+                    entries.put(uuid, new HostEntry(current.details, current.runningAppName, bitmap,
+                            current.gameCount));
                     publishHosts();
                 }));
     }

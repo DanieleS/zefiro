@@ -23,6 +23,7 @@ import android.widget.TextView;
 import androidx.annotation.ColorInt;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.core.view.ViewCompat;
 
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
@@ -54,6 +55,12 @@ import java.util.List;
  * Each lands focus on the first row. The bottom and anchored menus also close on B themselves,
  * rather than trusting the button's fallback to BACK, since they are raised from the d-pad
  * screens where B is the expected way out.
+ *
+ * <h3>Header and danger rows</h3>
+ *
+ * The title can carry a second line of facts about what the menu acts on
+ * ({@link #setSubtitle}), and a row that destroys something is drawn in the danger tone
+ * ({@link #addDanger}), focus ring included, so it never looks like one more ordinary row.
  */
 public class MenuSheet {
 
@@ -77,14 +84,17 @@ public class MenuSheet {
         final CharSequence trailingLabel;
         @Nullable
         final Runnable trailingAction;
+        // Drawn in the danger tone: a row that destroys something.
+        final boolean danger;
 
         Item(CharSequence label, int iconRes, boolean checked, Runnable action) {
-            this(label, iconRes, checked, action, false, 0, null, null, null);
+            this(label, iconRes, checked, action, false, 0, null, null, null, false);
         }
 
         Item(CharSequence label, int iconRes, boolean checked, Runnable action, boolean hasDot,
              @ColorInt int dotColor, @Nullable CharSequence description,
-             @Nullable CharSequence trailingLabel, @Nullable Runnable trailingAction) {
+             @Nullable CharSequence trailingLabel, @Nullable Runnable trailingAction,
+             boolean danger) {
             this.label = label;
             this.iconRes = iconRes;
             this.checked = checked;
@@ -94,11 +104,13 @@ public class MenuSheet {
             this.description = description;
             this.trailingLabel = trailingLabel;
             this.trailingAction = trailingAction;
+            this.danger = danger;
         }
     }
 
     private final Context context;
     private CharSequence title;
+    private CharSequence subtitle;
     private final List<Item> items = new ArrayList<>();
 
     public MenuSheet(Context context) {
@@ -110,6 +122,15 @@ public class MenuSheet {
         return this;
     }
 
+    /**
+     * A second header line under the title, for facts about what the menu acts on (a PC's
+     * address and games); null or empty for none.
+     */
+    public MenuSheet setSubtitle(@Nullable CharSequence subtitle) {
+        this.subtitle = subtitle;
+        return this;
+    }
+
     public MenuSheet add(CharSequence label, Runnable action) {
         items.add(new Item(label, 0, false, action));
         return this;
@@ -117,6 +138,17 @@ public class MenuSheet {
 
     public MenuSheet add(CharSequence label, int iconRes, Runnable action) {
         items.add(new Item(label, iconRes, false, action));
+        return this;
+    }
+
+    /**
+     * A row that destroys something, such as deleting a PC: label, icon and focus ring in the
+     * danger tone. It acts like any row; asking for confirmation is the action's job.
+     *
+     * @param iconRes the row's icon; 0 for none
+     */
+    public MenuSheet addDanger(CharSequence label, int iconRes, Runnable action) {
+        items.add(new Item(label, iconRes, false, action, false, 0, null, null, null, true));
         return this;
     }
 
@@ -144,7 +176,7 @@ public class MenuSheet {
                                   @Nullable CharSequence trailingLabel,
                                   @Nullable Runnable trailingAction) {
         items.add(new Item(label, 0, checked, action, true, dotColor, description,
-                trailingLabel, trailingAction));
+                trailingLabel, trailingAction, false));
         return this;
     }
 
@@ -275,6 +307,15 @@ public class MenuSheet {
         } else {
             titleView.setText(title);
         }
+        if (!TextUtils.isEmpty(subtitle)) {
+            TextView subtitleView = panel.findViewById(R.id.menuSheetSubtitle);
+            subtitleView.setText(subtitle);
+            subtitleView.setVisibility(View.VISIBLE);
+            // The two lines read as one header; the gap to the rows is the subtitle's.
+            ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) titleView.getLayoutParams();
+            lp.bottomMargin = dp(2);
+            titleView.setLayoutParams(lp);
+        }
 
         LinearLayout container = panel.findViewById(R.id.menuSheetItems);
         for (Item item : items) {
@@ -323,6 +364,15 @@ public class MenuSheet {
             ImageView icon = row.findViewById(R.id.menuRowIcon);
             icon.setImageResource(item.iconRes);
             icon.setVisibility(View.VISIBLE);
+            if (item.danger) {
+                icon.setImageTintList(ColorStateList.valueOf(
+                        ContextCompat.getColor(row.getContext(), R.color.danger)));
+            }
+        }
+        if (item.danger) {
+            ((TextView) row.findViewById(R.id.menuRowLabel)).setTextColor(
+                    ContextCompat.getColor(row.getContext(), R.color.danger));
+            row.setBackgroundResource(R.drawable.menu_row_danger_bg);
         }
         if (item.checked) {
             row.findViewById(R.id.menuRowCheck).setVisibility(View.VISIBLE);

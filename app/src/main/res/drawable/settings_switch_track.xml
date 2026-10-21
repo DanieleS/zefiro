@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The large switch of a setting on the companion panel (Settings_C's .tg.big), drawn by hand:
+    the panel's context is the presentation's own, not an AppCompat theme, so SwitchCompat is not
+    used there. On (selected) is the signal's container, off a neutral track.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="16dp" />
+            <solid android:color="@color/signal_container" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="16dp" />
+            <solid android:color="@color/outline_variant" />
+        </shape>
+    </item>
+</selector>

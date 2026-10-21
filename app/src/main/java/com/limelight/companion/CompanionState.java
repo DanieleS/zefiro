@@ -55,10 +55,15 @@ import java.util.Objects;
  *               ── every kind draws the hosts row under it
  * </pre>
  *
+ * A page ({@link CompanionPage}), when one is set, replaces what the three kinds draw: the
+ * screen up there has a lower half of its own (a game's achievements, the Stats remote), and the
+ * panel is where it goes. It belongs to browsing, so leaving browsing drops it.
+ *
  * The state holds values only, never callbacks: the panel's Play and host taps go back through
- * {@link CompanionDisplayManager#setBrowsingActions}, to whichever screen registered them. A
- * value can outlive the screen that pushed it (the panel is re-hosted on its own schedule); a
- * callback held here would outlive it too, and could start a game from a screen that is gone.
+ * {@link CompanionDisplayManager#setBrowsingActions}, to whichever screen registered them, and a
+ * page's taps through {@link CompanionDisplayManager#setPageActions}. A value can outlive the
+ * screen that pushed it (the panel is re-hosted on its own schedule); a callback held here would
+ * outlive it too, and could start a game from a screen that is gone.
  */
 public class CompanionState {
 
@@ -98,6 +103,8 @@ public class CompanionState {
     private Browsing browsing;
     /** The hosts row under the browsing surface. Never null; empty when there is none to draw. */
     private List<HostChip> hosts = Collections.emptyList();
+    /** The lower half of the screen up there, drawn instead of the browsing surface; or null. */
+    private CompanionPage page;
 
     private CompanionState() {
     }
@@ -130,8 +137,13 @@ public class CompanionState {
 
     /** The library went away. */
     public void leaveBrowsing() {
+        // The page is a part of browsing; one left behind would come back over the next screen.
+        boolean hadPage = page != null;
+        page = null;
         if (content == Content.BROWSING) {
             setContent(Content.IDLE);
+        } else if (hadPage) {
+            notifyChanged();
         }
     }
 
@@ -364,7 +376,7 @@ public class CompanionState {
         return browsing;
     }
 
-    /** Stop browsing, and leave the browsing surface with it, hosts row and all. */
+    /** Stop browsing, and leave the browsing surface with it, hosts row, page and all. */
     public void clearBrowsing() {
         leaveBrowsing();
         if (browsing == null && hosts.isEmpty()) {
@@ -373,6 +385,31 @@ public class CompanionState {
         browsing = null;
         hosts = Collections.emptyList();
         notifyChanged();
+    }
+
+    /**
+     * Draw a screen's lower half in place of the browsing surface, or null to go back to it. An
+     * equal page replaces the one held without a redraw, as {@link #setBrowsing} does, so a
+     * screen may publish on every bind.
+     *
+     * <p>Kept while the panel is off or yielded, and drawn when it comes back. Held, but not
+     * drawn, while a game streams: the panel is the stream's then. Held rather than refused
+     * because a finished game's activity is destroyed only after the main screen has started
+     * again, so the main screen re-publishes its page while the content still says STREAMING;
+     * a refused push would be lost, and the page would not come back after the stream. The next
+     * browsing push, once the stream has left, draws it.
+     */
+    public void setPage(CompanionPage next) {
+        boolean same = next == null ? page == null : next.equals(page);
+        page = next;
+        if (!same && content != Content.STREAMING) {
+            notifyChanged();
+        }
+    }
+
+    /** The page to draw instead of the browsing surface; null for none, and while streaming. */
+    public CompanionPage getPage() {
+        return content == Content.STREAMING ? null : page;
     }
 
     /** The browsed title, or null when nothing is being browsed. */

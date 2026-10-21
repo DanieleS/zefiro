@@ -18,11 +18,13 @@ import com.limelight.library.LibraryFragment;
 import com.limelight.library.LibraryHomeFragment;
 import com.limelight.library.LibraryIntents;
 import com.limelight.library.SearchFragment;
+import com.limelight.library.SearchSectionFragment;
 import com.limelight.library.SeeAllFragment;
 import com.limelight.pcs.PcsFragment;
 import com.limelight.preferences.AddComputerManually;
-import com.limelight.preferences.StreamSettings;
+import com.limelight.settings.SettingsSectionFragment;
 import com.limelight.stats.StatsFragment;
+import com.limelight.stats.StatsSectionFragment;
 
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -38,6 +40,7 @@ import org.robolectric.annotation.Config;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
@@ -85,6 +88,11 @@ public class MainActivityShellTest {
         return activity.getSupportFragmentManager().findFragmentByTag(section.tag());
     }
 
+    /** The first screen of a stacked section, under whatever is pushed over it. */
+    private static Fragment root(Fragment section) {
+        return section.getChildFragmentManager().getFragments().get(0);
+    }
+
     @Test
     @Config(qualifiers = "w900dp-h500dp-land")
     public void wideWindow_showsTheRail() {
@@ -123,36 +131,60 @@ public class MainActivityShellTest {
 
     @Test
     @Config(qualifiers = "w900dp-h500dp-land")
-    public void settings_startsStreamSettingsAndKeepsTheSelection() {
+    public void settings_showsTheSettingsSectionAndChecksIt() {
         MainActivity activity = launch().get();
         NavigationRailView rail = activity.findViewById(R.id.navRail);
+        View foot = activity.findViewById(R.id.navRailSettings);
         // The rail's own Settings item gives way to the button at its foot.
         assertFalse(rail.getMenu().findItem(R.id.nav_settings).isVisible());
 
-        activity.findViewById(R.id.navRailSettings).performClick();
+        foot.performClick();
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
 
-        Intent next = Shadows.shadowOf(activity).getNextStartedActivity();
-        assertNotNull("Settings should open StreamSettings", next);
-        assertEquals(StreamSettings.class.getName(), next.getComponent().getClassName());
-        assertEquals(R.id.nav_library, rail.getSelectedItemId());
+        assertTrue(section(activity, Section.SETTINGS) instanceof SettingsSectionFragment);
+        assertTrue(section(activity, Section.SETTINGS).isVisible());
+        assertTrue(section(activity, Section.LIBRARY).isHidden());
+        // The hidden rail item is checked, silently, so rail and bar agree; the foot shows it.
+        assertEquals(R.id.nav_settings, rail.getSelectedItemId());
         BottomNavigationView bottom = activity.findViewById(R.id.navBottom);
-        assertEquals(R.id.nav_library, bottom.getSelectedItemId());
-        assertTrue(section(activity, Section.LIBRARY).isVisible());
+        assertEquals(R.id.nav_settings, bottom.getSelectedItemId());
+        assertTrue(foot.isActivated());
+        assertNull("Settings is a section now, not another screen",
+                Shadows.shadowOf(activity).getNextStartedActivity());
     }
 
     @Test
     @Config(qualifiers = "w400dp-h800dp-port")
-    public void settingsInTheBottomBar_startsStreamSettingsAndKeepsTheSelection() {
+    public void settingsInTheBottomBar_showsTheSettingsSectionAndChecksIt() {
         MainActivity activity = launch().get();
         BottomNavigationView bottom = activity.findViewById(R.id.navBottom);
+        NavigationRailView rail = activity.findViewById(R.id.navRail);
 
         bottom.findViewById(R.id.nav_settings).performClick();
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
 
-        Intent next = Shadows.shadowOf(activity).getNextStartedActivity();
-        assertNotNull("Settings should open StreamSettings", next);
-        assertEquals(StreamSettings.class.getName(), next.getComponent().getClassName());
-        assertEquals(R.id.nav_library, bottom.getSelectedItemId());
+        assertTrue(section(activity, Section.SETTINGS).isVisible());
+        assertEquals(R.id.nav_settings, bottom.getSelectedItemId());
+        assertEquals(R.id.nav_settings, rail.getSelectedItemId());
+        assertTrue(activity.findViewById(R.id.navRailSettings).isActivated());
+        assertNull(Shadows.shadowOf(activity).getNextStartedActivity());
+    }
+
+    @Test
+    @Config(qualifiers = "w900dp-h500dp-land")
+    public void back_fromSettingsReturnsToLibrary() {
+        MainActivity activity = launch().get();
+        NavigationRailView rail = activity.findViewById(R.id.navRail);
+        activity.findViewById(R.id.navRailSettings).performClick();
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
+
+        activity.getOnBackPressedDispatcher().onBackPressed();
+
+        assertEquals(R.id.nav_library, rail.getSelectedItemId());
         assertTrue(section(activity, Section.LIBRARY).isVisible());
+        assertTrue(section(activity, Section.SETTINGS).isHidden());
+        assertFalse(activity.findViewById(R.id.navRailSettings).isActivated());
+        assertFalse(activity.isFinishing());
     }
 
     @Test
@@ -228,7 +260,8 @@ public class MainActivityShellTest {
         Shadows.shadowOf(Looper.getMainLooper()).idle();
 
         Fragment search = section(activity, Section.SEARCH);
-        assertTrue(search instanceof SearchFragment);
+        assertTrue(search instanceof SearchSectionFragment);
+        assertTrue(root(search) instanceof SearchFragment);
         View field = search.requireView().findViewById(R.id.searchField);
         assertTrue("Entering Search focuses its field", field.isFocused());
         // No PC chosen: the panel offers one, in the results' place.
@@ -253,8 +286,10 @@ public class MainActivityShellTest {
         assertTrue(bottom.getMenu().findItem(R.id.nav_stats).isVisible());
         rail.findViewById(R.id.nav_stats).performClick();
         Shadows.shadowOf(Looper.getMainLooper()).idle();
-        assertTrue(section(activity, Section.STATS) instanceof StatsFragment);
-        assertTrue(section(activity, Section.STATS).isVisible());
+        Fragment stats = section(activity, Section.STATS);
+        assertTrue(stats instanceof StatsSectionFragment);
+        assertTrue(root(stats) instanceof StatsFragment);
+        assertTrue(stats.isVisible());
     }
 
     @Test
@@ -291,7 +326,7 @@ public class MainActivityShellTest {
 
         Fragment library = section(activity, Section.LIBRARY);
         assertTrue(library instanceof LibraryFragment);
-        Fragment top = library.getChildFragmentManager().findFragmentById(R.id.libraryContainer);
+        Fragment top = library.getChildFragmentManager().findFragmentById(R.id.sectionStackContainer);
         assertTrue(top instanceof LibraryHomeFragment);
         // The home's own stack has nothing under it: back has no work in the Library.
         assertEquals(0, library.getChildFragmentManager().getBackStackEntryCount());
@@ -317,7 +352,7 @@ public class MainActivityShellTest {
         library.showSeeAll();
         Shadows.shadowOf(Looper.getMainLooper()).idle();
 
-        Fragment top = library.getChildFragmentManager().findFragmentById(R.id.libraryContainer);
+        Fragment top = library.getChildFragmentManager().findFragmentById(R.id.sectionStackContainer);
         assertTrue(top instanceof SeeAllFragment);
         // A window with the rail has no arrow: B, or the Library's item again, goes back.
         assertEquals(View.GONE, top.requireView().findViewById(R.id.seeAllBack).getVisibility());
@@ -325,7 +360,7 @@ public class MainActivityShellTest {
         activity.getOnBackPressedDispatcher().onBackPressed();
         Shadows.shadowOf(Looper.getMainLooper()).idle();
 
-        top = library.getChildFragmentManager().findFragmentById(R.id.libraryContainer);
+        top = library.getChildFragmentManager().findFragmentById(R.id.sectionStackContainer);
         assertTrue(top instanceof LibraryHomeFragment);
         assertTrue(top.isVisible());
         assertFalse(activity.isFinishing());
@@ -340,7 +375,7 @@ public class MainActivityShellTest {
         library.showSeeAll();
         Shadows.shadowOf(Looper.getMainLooper()).idle();
 
-        Fragment top = library.getChildFragmentManager().findFragmentById(R.id.libraryContainer);
+        Fragment top = library.getChildFragmentManager().findFragmentById(R.id.sectionStackContainer);
         assertTrue(top instanceof SeeAllFragment);
         // Something to go back to now, so the arrow shows.
         assertEquals(View.VISIBLE, top.requireView().findViewById(R.id.seeAllBack).getVisibility());
@@ -349,7 +384,7 @@ public class MainActivityShellTest {
         assertFalse(bottom.getMenu().findItem(R.id.nav_search).isVisible());
         top.requireView().findViewById(R.id.seeAllSearch).performClick();
         Shadows.shadowOf(Looper.getMainLooper()).idle();
-        assertTrue(section(activity, Section.SEARCH) instanceof SearchFragment);
+        assertTrue(section(activity, Section.SEARCH) instanceof SearchSectionFragment);
         assertTrue(section(activity, Section.SEARCH).isVisible());
     }
 
@@ -365,7 +400,7 @@ public class MainActivityShellTest {
         rail.setSelectedItemId(R.id.nav_library);
         Shadows.shadowOf(Looper.getMainLooper()).idle();
 
-        Fragment top = library.getChildFragmentManager().findFragmentById(R.id.libraryContainer);
+        Fragment top = library.getChildFragmentManager().findFragmentById(R.id.sectionStackContainer);
         assertTrue(top instanceof LibraryHomeFragment);
         assertTrue(top.isVisible());
     }

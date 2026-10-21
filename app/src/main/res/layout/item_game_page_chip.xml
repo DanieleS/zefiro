@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    One of a game page's actions (Hide, Companion app, Details, Create shortcut, Export launcher
+    file), the mocks' .chip: a 48dp stop around a 36dp pill. Hide is drawn selected while the
+    game is hidden, as the sheet checks its row.
+-->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="wrap_content"
+    android:layout_height="@dimen/action_size"
+    android:layout_marginEnd="8dp"
+    android:background="@drawable/chip_bg"
+    android:clickable="true"
+    android:focusable="true"
+    android:fontFamily="sans-serif-medium"
+    android:gravity="center"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:singleLine="true"
+    android:textColor="@color/chip_text"
+    android:textSize="14sp"
+    tools:text="Create Shortcut" />

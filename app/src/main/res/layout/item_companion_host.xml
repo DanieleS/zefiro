@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    One PC on the companion panel's hosts row (CompanionPresentation): a compact pc_card_item,
+    One PC on the companion panel's hosts row (CompanionPresentation): a compact item_pc_tile,
     just its status dot and name, as a 48dp chip. Selected, it wears the signal container.
     Touch only, like everything on the panel: it is never focusable.
 -->

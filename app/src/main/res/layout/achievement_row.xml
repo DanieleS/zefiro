@@ -1,37 +1,48 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    One achievement in a game's list: its icon, its name and description, and beneath them when
-    it was unlocked, how rare it is and its gamerscore. A hidden one that is still locked shows
-    only that it exists, until it is selected.
+    One achievement in a game's list (stats/AchievementsBlockView): its icon, its name with NEW
+    after it when the unlock is from the last twelve hours, its description, then when it was
+    unlocked (with its gamerscore) and its rarity; on the right, the share of players who have
+    it. A hidden one that is still locked shows only that it exists, until it is selected.
+
+    The row is a stop (@drawable/stop_bg): focused inline, activated on the companion panel. A
+    locked row is dimmed by its content, never by the row, so the ring stays at full strength.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="2dp"
-    android:background="@drawable/menu_row_bg"
+    android:background="@drawable/stop_bg"
     android:clickable="true"
     android:focusable="true"
-    android:gravity="top"
+    android:gravity="center_vertical"
+    android:minHeight="@dimen/action_size"
     android:orientation="horizontal"
-    android:padding="10dp">
+    android:padding="8dp">
 
     <ImageView
         android:id="@+id/achievementIcon"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
+        android:layout_width="@dimen/achievement_icon_size"
+        android:layout_height="@dimen/achievement_icon_size"
         android:background="@drawable/stats_icon_bg"
         android:importantForAccessibility="no"
         android:scaleType="centerCrop" />
 
     <LinearLayout
+        android:id="@+id/achievementText"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="12dp"
         android:layout_weight="1"
         android:orientation="vertical">
 
+        <!--
+            Wrapped to its content, so NEW follows the name; a long name is the weighted child
+            and gives way first, ellipsised, rather than push NEW out.
+        -->
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
             android:orientation="horizontal">
@@ -48,11 +59,33 @@
 
             <TextView
                 android:id="@+id/achievementName"
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif-medium"
+                android:singleLine="true"
                 android:textColor="@color/content_primary"
-                android:textSize="15sp" />
+                android:textSize="15sp"
+                tools:text="Master Fisher" />
+
+            <TextView
+                android:id="@+id/achievementNew"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/pill_bg"
+                android:backgroundTint="@color/signal"
+                android:letterSpacing="0.06"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp"
+                android:singleLine="true"
+                android:text="@string/game_page_new"
+                android:textAllCaps="true"
+                android:textColor="@color/on_signal"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
 
         </LinearLayout>
 
@@ -63,12 +96,13 @@
             android:layout_marginTop="2dp"
             android:lineSpacingMultiplier="1.15"
             android:textColor="@color/content_muted"
-            android:textSize="13sp" />
+            android:textSize="13sp"
+            tools:text="Catch every kind of fish in the world." />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
+            android:layout_marginTop="4dp"
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
@@ -79,35 +113,37 @@
                 android:layout_marginEnd="10dp"
                 android:singleLine="true"
                 android:textColor="@color/content_primary"
-                android:textSize="12sp" />
+                android:textSize="12sp"
+                tools:text="2 October · 30 G" />
 
             <TextView
                 android:id="@+id/achievementRarity"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="10dp"
                 android:background="@drawable/stats_chip_bg"
                 android:fontFamily="sans-serif-medium"
                 android:paddingStart="6dp"
-                android:paddingEnd="6dp"
                 android:paddingTop="1dp"
+                android:paddingEnd="6dp"
                 android:paddingBottom="1dp"
                 android:singleLine="true"
                 android:textColor="@color/signal"
-                android:textSize="11sp" />
-
-            <TextView
-                android:id="@+id/achievementMeta"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:ellipsize="end"
-                android:singleLine="true"
-                android:textColor="@color/content_muted"
-                android:textSize="12sp" />
+                android:textSize="11sp"
+                tools:text="Rare" />
 
         </LinearLayout>
 
     </LinearLayout>
+
+    <TextView
+        android:id="@+id/achievementPercent"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:fontFamily="monospace"
+        android:singleLine="true"
+        android:textColor="@color/content_muted"
+        android:textSize="12sp"
+        tools:text="8.7%" />
 
 </LinearLayout>

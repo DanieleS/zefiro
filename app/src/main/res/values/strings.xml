@@ -203,8 +203,6 @@
     <string name="addpc_wrong_sitelocal">That address doesn\'t look right. You must use your router\'s public IP address for streaming over the Internet.</string>
 
     <!-- Preferences -->
-    <string name="title_stream_settings">Streaming Settings</string>
-    <string name="settings_back">Back</string>
     <string name="category_general_settings">General Settings</string>
     <string name="category_video_settings">Video Settings</string>
     <string name="title_resolution_list">Video resolution</string>
@@ -778,9 +776,6 @@
     <string name="sort_order_recent">Recently played</string>
     <string name="sort_order_release">Release date</string>
     <string name="sort_order_score">Rating</string>
-    <!-- Gamepad buttons, as the hint badges name them. -->
-    <string name="hint_button_y" translatable="false">Y</string>
-    <string name="hint_button_rb" translatable="false">RB</string>
 
     <string name="title_enable_companion_display">Companion Screen (Beta)</string>
     <string name="summary_enable_companion_display">Show a companion surface on the secondary screen while the app is open. Ignored when Fully External Display Mode is enabled.</string>
@@ -858,7 +853,6 @@
     <string name="stats_untracked_since">Sessions are recorded from %1$s, so there are none for this period. The totals are below.</string>
     <!-- The host found no data from the GameActivity Playnite extension, the one source of sessions. -->
     <string name="stats_no_activity">Install GameActivity in Playnite to see when you play. The totals are below.</string>
-    <string name="stats_played">Played</string>
     <!-- Compared with the period before: "+2h 10m vs last week at this point". -->
     <string name="stats_than_week_running">last week at this point</string>
     <string name="stats_than_week_done">the week before</string>
@@ -873,14 +867,7 @@
         <item quantity="other">%d sessions</item>
     </plurals>
     <string name="stats_average">average %1$s</string>
-    <string name="stats_top">Most played</string>
     <string name="stats_achievements">Achievements</string>
-    <plurals name="stats_unlocked">
-        <item quantity="one">unlocked</item>
-        <item quantity="other">unlocked</item>
-    </plurals>
-    <string name="stats_no_achievements">Nothing in this period.</string>
-    <string name="stats_library">Library</string>
     <string name="stats_hours_total">%1$s h</string>
     <string name="stats_played_total">played in total</string>
     <string name="stats_games">games, %1$s installed</string>
@@ -891,10 +878,7 @@
     <string name="stats_resume_detail">%1$s · %2$s</string>
     <string name="stats_achievement_detail">%1$s · %2$s</string>
     <string name="stats_bar_caption">%1$s · %2$s</string>
-    <string name="stats_hint_period">Period</string>
     <string name="stats_hint_range">Range</string>
-    <string name="hint_button_lb" translatable="false">LB</string>
-    <string name="hint_button_x" translatable="false">X</string>
     <!-- Bars run Monday to Sunday, as the PC sends them; a year's are its months. -->
     <string-array name="stats_weekdays">
         <item>M</item>
@@ -926,7 +910,6 @@
     <string name="stats_today_at">Today at %1$s</string>
     <string name="stats_yesterday_at">Yesterday at %1$s</string>
     <string name="stats_bars_label">Playtime</string>
-    <string name="stats_bars_hint">Pick a bar for details</string>
     <!-- A game's statistics and achievements, from the library's game menu. -->
     <string name="applist_menu_stats">Stats &amp; achievements</string>
     <string name="game_stats_loading">Loading…</string>
@@ -941,7 +924,6 @@
     <string name="game_stats_per_session">per session</string>
     <string name="game_stats_per_launch">per launch</string>
     <string name="game_stats_last_12_weeks">Last 12 weeks</string>
-    <string name="game_stats_this_week">%1$s this week</string>
     <string name="game_stats_last_played">Last played %1$s</string>
     <string name="game_stats_last_played_for">Last played %1$s, for %2$s</string>
     <string name="game_stats_today">today</string>
@@ -950,18 +932,8 @@
         <item quantity="one">%d day ago</item>
         <item quantity="other">%d days ago</item>
     </plurals>
-    <string name="game_stats_achievements_count">Achievements · %1$d/%2$d</string>
-    <string name="game_stats_see_all">See all</string>
-    <string name="game_stats_latest">latest: %1$s</string>
-    <string name="game_stats_none_yet">none yet</string>
-    <string name="achievements_title">%1$s achievements</string>
-    <string name="achievements_count">%1$d of %2$d achievements</string>
-    <string name="achievements_count_score">%1$d of %2$d achievements · %3$d / %4$d G</string>
     <string name="achievements_percent">%1$d%%</string>
-    <string name="achievements_percent_all">%1$d%% · all of them!</string>
-    <string name="achievements_filter_all">All</string>
     <string name="achievements_filter_unlocked">Unlocked %1$d</string>
-    <string name="achievements_filter_locked">To do %1$d</string>
     <string name="achievements_all_done">Nothing left: you have them all.</string>
     <string name="achievements_none_yet">None yet: the next session is the one.</string>
     <string name="achievements_hidden">Hidden achievement</string>
@@ -1135,4 +1107,273 @@
     <string name="library_host_sheet_remote_session">Remote session</string>
     <string name="library_host_sheet_wake">Wake %1$s</string>
     <string name="library_host_sheet_manage">Manage PCs</string>
+    <!-- Screens T3: the game page, pushed over Stats, the Library or Search. -->
+    <!-- The crumb beside the back arrow, opened from Stats: "Stats · This month". -->
+    <string name="game_page_origin_stats">Stats · %1$s</string>
+    <!-- Over the title while the game runs on this PC; drawn upper case. -->
+    <string name="game_page_running_on">Running on %1$s</string>
+    <!-- The cover's badge, and the line over the title on a phone, while the game runs. -->
+    <string name="game_page_running">Running</string>
+    <!-- Two parts of one line: the PC and its state, the metadata and the last played. -->
+    <string name="game_page_joined">%1$s · %2$s</string>
+    <string name="game_page_play">Play</string>
+    <!-- The last-played line while the game runs: the session recorded last is the one before. -->
+    <string name="game_page_session_before">session before this: %1$s, %2$s</string>
+    <!-- Under this week's figure, beside the twelve weeks' bars. -->
+    <string name="game_page_this_week">this week</string>
+    <!-- The failed row: A or a tap asks the PC again. -->
+    <string name="game_page_retry">Press A or tap to try again.</string>
+    <!-- The achievements' header: unlocked of all, and gamerscore got of all. -->
+    <string name="game_page_achievements_count">%1$d / %2$d</string>
+    <string name="game_page_gamerscore">%1$d / %2$d G</string>
+    <string name="game_page_filter_all">All %1$d</string>
+    <string name="game_page_filter_locked">Locked %1$d</string>
+    <!-- Marks an unlock from the last twelve hours; drawn upper case. -->
+    <string name="game_page_new">New</string>
+    <!-- An achievement's share of players, beside its row: "8.7%". -->
+    <string name="game_page_percent">%1$s%%</string>
+    <string name="game_page_no_achievements">No achievements tracked for this game</string>
+    <string name="game_page_no_achievements_detail">SuccessStory doesn\'t follow %1$s.</string>
+
+    <!-- Screens T4: the game page's lower half on the companion panel. -->
+    <!-- The gamepad hint for R2 while the d-pad is up top, for a game with no achievements:
+         R2 goes down to its actions, on the companion panel. -->
+    <string name="game_page_hint_actions">Actions</string>
+    <!-- The gamepad hint while the d-pad is on the companion panel; %1$s is the button L2 goes
+         back to: "Resume" or "Play". -->
+    <string name="game_page_hint_below">Focus is on the lower screen; L2 brings it back to %1$s</string>
+    <!-- As game_page_hint_below, for a game with neither Resume nor Play (not in the library). -->
+    <string name="game_page_hint_below_up">Focus is on the lower screen; L2 brings it back up</string>
+
+    <!-- Screens T5: Stats, chart first. -->
+    <!-- The period inside a sentence, after "Played", "Most played" or an unlock count:
+         "in 2026", "in October", "this week". -->
+    <string name="stats_phrase_in">in %1$s</string>
+    <string name="stats_phrase_this_week">this week</string>
+    <string name="stats_phrase_last_week">last week</string>
+    <!-- %1$s is the week's first day: "in the week of 28 Sep". -->
+    <string name="stats_phrase_week_of">in the week of %1$s</string>
+    <!-- Over the period's total, drawn upper case: "Played in 2026". -->
+    <string name="stats_played_period">Played %1$s</string>
+    <!-- Between the parts of the summary line: "318 sessions · average 1h 21m · 64 unlocked". -->
+    <string name="stats_separator">" · "</string>
+    <string name="stats_unlocked_count">%1$s unlocked</string>
+    <!-- The header's crumb on a year: "Year 2026 › pick a month". -->
+    <string name="stats_crumb_pick">pick a month</string>
+    <!-- The tooltip's action over a year's month, after the A glyph. -->
+    <string name="stats_tooltip_open">Open</string>
+    <!-- The climb chip before a month's name, back to its year; spoken. -->
+    <string name="stats_climb_a11y">Back to %1$s</string>
+    <!-- The strip under the chart: "Most played in 2026". -->
+    <string name="stats_most_played">Most played %1$s</string>
+    <!-- Under it: "top 5 of the 9 games played, share of the year". -->
+    <string name="stats_strip_top_of">top %1$d of the %2$d games played, %3$s</string>
+    <string name="stats_strip_share_week">share of the week</string>
+    <string name="stats_strip_share_month">share of the month</string>
+    <string name="stats_strip_share_year">share of the year</string>
+    <!-- A game's share of the period, under its hours: "22%". -->
+    <string name="stats_share_percent">%1$d%%</string>
+    <!-- In place of the strip, for a tracked period without play: "Nothing played in October". -->
+    <string name="stats_nothing_played">Nothing played %1$s</string>
+    <string name="stats_latest_unlocks">Latest unlocks</string>
+    <!-- Beside it: "9 in October". -->
+    <string name="stats_unlocks_in">%1$s %2$s</string>
+    <!-- Gamepad hints: "A Open October", "B Up". -->
+    <string name="stats_hint_open">Open %1$s</string>
+    <string name="stats_hint_up">Up</string>
+
+    <!-- Screens T6: Stats on the Thor bottom screen. -->
+    <!-- The remote's next-period button on this week. -->
+    <string name="stats_next_week">Next week</string>
+    <!-- The bottom screen's tabs: "Unlocks 64" and "Pick up again 4" (stats_resume); the count
+         follows in mono. -->
+    <string name="stats_tab_unlocks">Unlocks</string>
+    <!-- Under the totals on the bottom screen when there are neither unlocks nor games to pick
+         up again. -->
+    <string name="stats_remote_nothing">Nothing to pick up again</string>
+
+    <!-- Screens T7: Settings regrouped into one list of sections. -->
+    <!-- The sections, in screen order, drawn upper case over their rows with a count. -->
+    <string name="settings_section_video">Video</string>
+    <string name="settings_section_audio">Audio</string>
+    <string name="settings_section_controllers">Controllers</string>
+    <string name="settings_section_touch">Touch &amp; keyboard</string>
+    <string name="settings_section_screens">Screens &amp; overlay</string>
+    <string name="settings_section_connection">Connection</string>
+    <string name="settings_section_help">Help &amp; about</string>
+    <!-- A trailing section for a setting the catalogue does not place; never expected to show. -->
+    <string name="settings_section_other">Other</string>
+    <!-- The short names the jump chips use where a section's own name is too long. -->
+    <string name="settings_chip_touch">Touch</string>
+    <string name="settings_chip_screens">Screens</string>
+    <string name="settings_chip_help">Help</string>
+    <!-- The subgroups within each section: where a setting lives, "Controllers › Rumble". -->
+    <string name="settings_group_resolution_fps">Resolution and frame rate</string>
+    <string name="settings_group_bitrate">Bitrate</string>
+    <string name="settings_group_error_correction">Error correction</string>
+    <string name="settings_group_frame_pacing">Frame pacing</string>
+    <string name="settings_group_display">Display</string>
+    <string name="settings_group_scaling">Scaling</string>
+    <string name="settings_group_custom_values">Custom values</string>
+    <string name="settings_group_3d">3D</string>
+    <string name="settings_group_hdr_codec">HDR and codec</string>
+    <string name="settings_group_refresh_rate">Refresh rate</string>
+    <string name="settings_group_audio">Audio</string>
+    <string name="settings_group_gamepad">Gamepad</string>
+    <string name="settings_group_mouse_emulation">Mouse emulation</string>
+    <string name="settings_group_buttons">Buttons</string>
+    <string name="settings_group_motion">Motion</string>
+    <string name="settings_group_extras">Extras</string>
+    <string name="settings_group_rumble">Rumble</string>
+    <string name="settings_group_touch_mode">Touch mode</string>
+    <string name="settings_group_trackpad">Trackpad</string>
+    <string name="settings_group_keyboard">Keyboard</string>
+    <string name="settings_group_onscreen_keyboard">On-screen keyboard</string>
+    <string name="settings_group_onscreen_controls">On-screen controls</string>
+    <string name="settings_group_special_keys">Special keys</string>
+    <string name="settings_group_touch_sensitivity">Touch sensitivity</string>
+    <string name="settings_group_companion">Companion screen</string>
+    <string name="settings_group_library">Library</string>
+    <string name="settings_group_stream">Stream</string>
+    <string name="settings_group_perf_overlay">Performance overlay</string>
+    <string name="settings_group_host">Host</string>
+    <string name="settings_group_network">Network</string>
+    <string name="settings_group_clipboard">Clipboard</string>
+    <string name="settings_group_cocoon_sync">Cocoon sync</string>
+    <string name="settings_group_general">General</string>
+    <string name="settings_group_help">Help</string>
+    <string name="settings_group_diagnostics">Diagnostics</string>
+    <string name="settings_group_updates">Updates</string>
+    <!-- A text setting's value on the right of its row while it is empty. -->
+    <string name="settings_value_not_set">Not set</string>
+    <!-- Spoken for the icon on a row that opens a web page. -->
+    <string name="settings_opens_in_browser">Opens in the browser</string>
+    <!-- Spoken for the dot on a row whose value differs from its default. -->
+    <string name="settings_changed">Changed from the default</string>
+
+    <!-- Screens T8: the Settings section, header, pinned card, chips and search. -->
+    <!-- The search field at rest; the count is of the settings this device shows. -->
+    <string name="settings_search_hint">Search %1$d settings and help</string>
+    <string name="settings_search_hint_wide">Search %1$d settings and help, try “rumble” or “HDR”</string>
+    <string name="settings_search_field_hint">Search settings</string>
+    <string name="settings_search_back">Leave search</string>
+    <string name="settings_search_clear">Clear</string>
+    <!-- The pinned card. The profile is a settings profile, a named set of overrides. -->
+    <string name="settings_pin_profile">Profile</string>
+    <string name="settings_profile_none">No profile</string>
+    <string name="settings_profile_subtitle">Settings profile · %1$d changed</string>
+    <string name="settings_profile_switch">Switch</string>
+    <string name="settings_profile_manage">Manage profiles…</string>
+    <string name="settings_pin_resolution">Resolution</string>
+    <string name="settings_pin_resolution_short">Res</string>
+    <string name="settings_pin_fps">FPS</string>
+    <string name="settings_pin_bitrate">Bitrate</string>
+    <string name="settings_pin_bitrate_short">Mbps</string>
+    <string name="settings_pin_codec">Codec</string>
+    <string name="settings_pin_hdr">HDR</string>
+    <!-- Beside a pinned value the active profile sets in place of the stored one. -->
+    <string name="settings_pin_profile_tag">profile</string>
+    <!-- A switch's state where the switch is not drawn (the pinned card, a reset's default). -->
+    <string name="settings_value_on">On</string>
+    <string name="settings_value_off">Off</string>
+    <!-- The chips: the card's own, the changed count, and the filters while searching. -->
+    <string name="settings_chip_pinned">Pinned</string>
+    <string name="settings_changed_count">%1$d changed</string>
+    <string name="settings_filter_all">All</string>
+    <string name="settings_filter_changed">Changed</string>
+    <string name="settings_filter_count">%1$s %2$d</string>
+    <!-- Wide windows: where the row in focus is, "VIDEO · FRAME PACING · 8 OF 34". -->
+    <string name="settings_sticky">%1$s · %2$s · %3$d of %4$d</string>
+    <!-- Search results. -->
+    <string name="settings_also_matches">Also showing matches for %1$s</string>
+    <string name="settings_breadcrumb">%1$s › %2$s</string>
+    <string name="settings_result_needs">%1$s · Needs %2$s</string>
+    <string name="settings_no_match">No settings match “%1$s”</string>
+    <string name="settings_search_help">Search help instead</string>
+    <string name="settings_nothing_changed">Everything is at its default</string>
+    <!-- X or a long-press on a row. No single press resets a value. -->
+    <string name="settings_row_reset">Reset to default (%1$s)</string>
+    <string name="settings_row_pin">Pin to top</string>
+    <string name="settings_row_unpin">Unpin</string>
+    <string name="settings_pins_full">Up to %1$d settings can be pinned</string>
+
+    <!-- Screens T9: Settings on the Thor bottom screen, the choices. -->
+    <!-- The caption over a list setting's choices: "VIDEO · CHOICES" (drawn in caps). -->
+    <string name="settings_choices_choices">Choices</string>
+    <!-- The caption over a setting: its section, then "Choices" or its subgroup. -->
+    <string name="settings_choices_label">%1$s · %2$s</string>
+    <!-- After the description of the entry a reset would put back. -->
+    <string name="settings_choice_default_after">%1$s Default.</string>
+    <!-- The description of the default entry when it has no other. -->
+    <string name="settings_choice_default">Default</string>
+    <string name="settings_choices_default">Default: %1$s</string>
+    <!-- A slider's range: "0.5 Mbps to 800.0 Mbps". -->
+    <string name="settings_choices_range">%1$s to %2$s</string>
+    <!-- A disabled setting, with the title of the one it waits for. -->
+    <string name="settings_choices_needs">Needs %1$s</string>
+    <string name="settings_choices_opens">A opens it</string>
+    <string name="settings_choices_opens_browser">A opens it in the browser</string>
+    <string name="settings_choices_decrease">Decrease</string>
+    <string name="settings_choices_increase">Increase</string>
+    <!-- The panel's gamepad hints. -->
+    <string name="settings_choices_hint_change">Change on top</string>
+    <string name="settings_choices_hint_open">Open</string>
+    <string name="settings_choices_hint_menu">Reset or pin</string>
+    <string name="settings_choices_hint_search">Search</string>
+    <string name="settings_choices_hint_touch_list">or touch a choice</string>
+    <string name="settings_choices_hint_touch_switch">or touch the switch</string>
+    <string name="settings_choices_hint_touch_seek">or touch − or +</string>
+    <!-- The panel while focus is in the Settings header. -->
+    <string name="settings_pinned_page_title">Pinned settings</string>
+    <string name="settings_pinned_page_profile">Profile: %1$s</string>
+    <string name="settings_pinned_page_hint_touch">or touch one to go to it</string>
+    <!--
+        What each entry of a list setting does, shown under it on the companion panel. Named
+        settings_choices_<preference key>, one item per entry in the order of the XML's
+        android:entries (SettingsChoiceHints).
+    -->
+    <string-array name="settings_choices_frame_pacing">
+        <item>Newest experimental mode. Try it if a game judders.</item>
+        <item>The first experimental mode.</item>
+        <item>Shows each frame as soon as it arrives.</item>
+        <item>Waits for the screen refresh. Smoother, a little slower.</item>
+        <item>Balanced, and the PC caps its frame rate to match.</item>
+        <item>Never drops a frame. May add a lot of latency.</item>
+    </string-array>
+
+    <!-- Screens P1: host facts and the PC actions sheet -->
+    <!-- Which of a PC's addresses answered: the "Connection" fact. -->
+    <string name="pcs_connection_local">Local</string>
+    <string name="pcs_connection_manual">Manual</string>
+    <string name="pcs_connection_ipv6">IPv6</string>
+    <string name="pcs_connection_remote">Remote</string>
+    <!-- The games the Library lists for a PC, in the actions sheet's header. -->
+    <plurals name="pcs_game_count">
+        <item quantity="one">%d game</item>
+        <item quantity="other">%d games</item>
+    </plurals>
+
+    <!-- Screens P2: the PCs grid -->
+    <!-- Beside the PCs title: how many PCs are saved, and how many of them are online and paired. -->
+    <string name="pcs_subtitle">%1$d saved · %2$d online</string>
+    <!-- Under the PCs grid, while the network is searched for more. -->
+    <string name="pcs_looking">Looking for PCs on this network…</string>
+    <!-- A PC tile's overflow button, spoken. -->
+    <string name="pcs_more_for">More for %1$s</string>
+    <!-- The PCs grid's gamepad hints: what A and Y do on the focused tile. -->
+    <string name="pcs_hint_library">Library</string>
+    <string name="pcs_hint_actions">Actions</string>
+
+    <!-- Screens P3: the focused PC on the Thor bottom screen -->
+    <!-- The facts grid's labels, under each value. -->
+    <string name="pcs_fact_address">Address</string>
+    <string name="pcs_fact_connection">Connection</string>
+    <string name="pcs_fact_games">Games</string>
+    <!-- The running card's second button: quits the game the PC is in. -->
+    <string name="pcs_running_quit">Quit</string>
+    <!-- The PCs grid's gamepad hints with the bottom screen on: Y takes the d-pad down there;
+         then A and B, while it is there. -->
+    <string name="pcs_hint_actions_below">Actions below</string>
+    <string name="pcs_hint_select">Select</string>
+    <string name="pcs_hint_back">Back</string>
 </resources>

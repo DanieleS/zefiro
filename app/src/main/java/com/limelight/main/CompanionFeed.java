@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.text.format.DateUtils;
 
 import androidx.annotation.NonNull;
@@ -13,6 +14,7 @@ import androidx.lifecycle.Observer;
 
 import com.limelight.R;
 import com.limelight.companion.CompanionDisplayManager;
+import com.limelight.companion.CompanionPage;
 import com.limelight.companion.CompanionState;
 import com.limelight.companion.CompanionState.Browsing;
 import com.limelight.computers.HostEntry;
@@ -24,7 +26,7 @@ import com.limelight.library.LibraryApp;
 import com.limelight.nvstream.http.AppMetadata;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.NvApp;
-import com.limelight.pcs.HostCardBinder;
+import com.limelight.pcs.HostTileBinder;
 import com.limelight.preferences.AddComputerManually;
 
 import java.util.ArrayList;
@@ -70,21 +72,39 @@ import java.util.Objects;
  * game starting or stopping), so the panel follows a game that starts running without the d-pad
  * moving. An unchanged answer does not redraw: {@link CompanionState} drops equal pushes.
  *
+ * <h3>Pages</h3>
+ *
+ * A screen with a lower half of its own (a game's achievements, the Stats remote) publishes it
+ * here as a {@link CompanionPage} ({@link CompanionPages}). The panel draws a page in place of
+ * the spotlight, so while one is published the focus reports above still settle but are not
+ * seen. The feed holds the page and its owner, routes the page's taps to that owner, and, as for
+ * browsing taps, hands the d-pad back to the main screen after each.
+ *
  * <h3>Lifecycle</h3>
  *
  * <pre>
  *   start()  ── onStart: watches the hosts and the library, registers the panel's actions,
- *              and pushes what was last reported, so coming back from a stream restores it
+ *              and pushes what was last reported, page included, so coming back from a stream
+ *              restores it
  *   stop()   ── onStop:  stops watching, unregisters, and clears the browsing surface; a game
- *              launch stops this activity without destroying it
+ *              launch stops this activity without destroying it. The page and its owner are
+ *              kept for start()
  * </pre>
  *
  * Main thread only.
  */
-public final class CompanionFeed implements GameFocusListener, CompanionDisplayManager.BrowsingActions {
+public final class CompanionFeed implements GameFocusListener,
+        CompanionDisplayManager.BrowsingActions, CompanionPages, CompanionDisplayManager.PageActions {
 
     /** How long a focus report must stand before the panel follows it. */
     static final long FOCUS_SETTLE_MS = 150;
+
+    /**
+     * How long after a tap on a page the main window entering touch mode is put down to that tap:
+     * the time it takes the reclaim after it to give the main window its focus back. As long as
+     * MainActivity's window for a lost focus, for the same round trip.
+     */
+    static final long PAGE_TAP_GRACE_MS = 600;
 
     /** What a report names; resolved into a {@link Browsing} only when drawn. */
     private static final class Focus {
@@ -141,6 +161,14 @@ public final class CompanionFeed implements GameFocusListener, CompanionDisplayM
     private Focus pending;
     private boolean started;
 
+    // The page published last and the screen it belongs to; both null when there is none.
+    @Nullable
+    private CompanionPage page;
+    @Nullable
+    private PageOwner pageOwner;
+    // When the page was last tapped on the panel (uptime), or 0 for never.
+    private long pageTapAt;
+
     // The backdrop asked for while the current game is in focus, so it is asked for once.
     @Nullable
     private HostLibrary backdropLibrary;
@@ -187,10 +215,14 @@ public final class CompanionFeed implements GameFocusListener, CompanionDisplayM
             pending = null;
         }
         CompanionDisplayManager.setBrowsingActions(this);
+        CompanionDisplayManager.setPageActions(this);
         // Each delivers the value it holds at once, which draws what was last reported.
         repository.getHosts().observeForever(hostsObserver);
         repository.getSelectedHostUuid().observeForever(selectionObserver);
         repository.getLibrary().observeForever(libraryObserver);
+        if (page != null) {
+            state.setPage(page);
+        }
     }
 
     /**
@@ -212,6 +244,8 @@ public final class CompanionFeed implements GameFocusListener, CompanionDisplayM
         repository.getSelectedHostUuid().removeObserver(selectionObserver);
         repository.getLibrary().removeObserver(libraryObserver);
         CompanionDisplayManager.setBrowsingActions(null);
+        CompanionDisplayManager.setPageActions(null);
+        // Takes the page off the state too; it is kept here for start().
         state.clearBrowsing();
     }
 
@@ -239,9 +273,13 @@ public final class CompanionFeed implements GameFocusListener, CompanionDisplayM
         report(NOTHING);
     }
 
-    /** The section on screen changed; its own focus reports follow and refine this. */
+    /**
+     * The section on screen changed; its own focus reports follow and refine this. Stats and
+     * Settings start from the idle hosts surface, under the page each publishes of its own (the
+     * remote, the focused setting's choices) and back on it when that page is taken off.
+     */
     public void onSection(@NonNull Section section) {
-        if (section == Section.STATS) {
+        if (section == Section.STATS || section == Section.SETTINGS) {
             none();
         } else {
             focusHost(null);
@@ -365,7 +403,7 @@ public final class CompanionFeed implements GameFocusListener, CompanionDisplayM
         boolean online = details.state == ComputerDetails.State.ONLINE;
         String meta = online && entry.runningAppName != null
                 ? context.getString(R.string.pcview_status_running, entry.runningAppName)
-                : context.getString(HostCardBinder.statusLabel(details));
+                : context.getString(HostTileBinder.statusLabel(details));
 
         NvApp running = snapshot != null && sameHost(snapshot.hostUuid, details.uuid)
                 ? snapshot.running : null;
@@ -410,6 +448,47 @@ public final class CompanionFeed implements GameFocusListener, CompanionDisplayM
     private void forgetBackdrop() {
         backdropLibrary = null;
         backdropAppId = Browsing.NO_APP;
+    }
+
+    // --- Pages (CompanionPages) ---
+
+    @Override
+    public void publish(@NonNull PageOwner owner, @NonNull CompanionPage next) {
+        pageOwner = owner;
+        page = next;
+        if (started) {
+            state.setPage(next);
+        }
+    }
+
+    @Override
+    public void clear(@NonNull PageOwner owner) {
+        if (owner != pageOwner) {
+            // Not the page on the panel any more: another screen's took its place.
+            return;
+        }
+        pageOwner = null;
+        page = null;
+        if (started) {
+            state.setPage(null);
+        }
+    }
+
+    /** A tap on the page's stop (CompanionDisplayManager.PageActions). */
+    @Override
+    public void onPageTap(@NonNull CompanionPage tapped, int stopId) {
+        // Marked before anything runs, so the touch mode the tap brings is put down to it.
+        pageTapAt = SystemClock.uptimeMillis();
+        // The owner of the page tapped, and only while it still is.
+        if (pageOwner != null && tapped.equals(page)) {
+            pageOwner.onPageTap(stopId);
+        }
+        reclaimFocus.run();
+    }
+
+    @Override
+    public boolean pageTappedJustNow() {
+        return pageTapAt != 0 && SystemClock.uptimeMillis() - pageTapAt < PAGE_TAP_GRACE_MS;
     }
 
     // --- The panel's taps (CompanionDisplayManager.BrowsingActions) ---

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The rail's Settings button icon: the signal while Settings is the section on screen (the
+    button is activated then, standing in for a checked rail item), muted otherwise, as
+    @color/nav_item_tint does for the items above it.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_activated="true" android:color="@color/signal" />
+    <item android:color="@color/content_muted" />
+</selector>

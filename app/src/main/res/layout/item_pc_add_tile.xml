@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The last tile of the PCs grid, always: Add PC, as a dashed outline where a PC would be. It
+    is a stop like the PC tiles, so the d-pad reaches it from the grid, and it is where focus
+    waits while no PC has been found yet.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="@dimen/pc_tile_half_gap"
+    android:background="@drawable/pc_add_tile_bg"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center"
+    android:minHeight="@dimen/pc_tile_min_height"
+    android:orientation="vertical"
+    android:padding="@dimen/pc_tile_padding">
+
+    <ImageView
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:duplicateParentState="true"
+        android:importantForAccessibility="no"
+        android:src="@drawable/ic_plus"
+        app:tint="@color/pc_tile_glyph" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:fontFamily="sans-serif-medium"
+        android:text="@string/pcs_add_pc"
+        android:textColor="@color/content_secondary"
+        android:textSize="14sp" />
+
+</LinearLayout>

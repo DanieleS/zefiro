@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A stacked section's frame (main/StackedSectionFragment): one container for the section's own
+    stack of screens, its root first and the screens pushed over it (the Library's See all, a
+    game's page). The screens are added in code, never named here, for the same reason the main
+    screen's sections are not.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/sectionStackContainer"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface_deep" />

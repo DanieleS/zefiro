@@ -226,6 +226,14 @@ android {
 
     testOptions {
         unitTests.includeAndroidResources = true
+        // Robolectric runs every test in one JVM, and a main screen a test leaves running stays
+        // reachable after it: from Mockito's inline mocks (the stub binder records the host
+        // repository that holds the app), RecyclerView's per-thread GapWorker, the transitions
+        // still pending and ProfilesManager's listeners. Gradle's default 512 MB ran out once
+        // the screens grew, failing a random late test or wedging the worker with no result.
+        unitTests.all {
+            maxHeapSize = "2g"
+        }
     }
 }
 

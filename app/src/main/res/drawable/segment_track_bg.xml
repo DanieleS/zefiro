@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The well a segmented control's segments sit in, after the mocks' .seg. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="@dimen/segment_track_corner" />
+    <solid android:color="@color/surface" />
+</shape>

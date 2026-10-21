@@ -130,11 +130,30 @@ public final class StatsFormat {
         return Math.max(minOffset, Math.min(0, offset + step));
     }
 
-    /** 0..1 of the longest, for the meters beside the top games; never a division by zero. */
-    public static float share(long value, long max) {
-        if (max <= 0) {
-            return 0f;
+    /**
+     * A game's share of the period's play, as the strip prints it: a whole percent, rounded
+     * half up, 0 when nothing was played, never above 100 (the host's per-game seconds and its
+     * total are counted separately, and a session across midnight can tip one over the other).
+     */
+    public static int sharePercent(long seconds, long totalSeconds) {
+        if (totalSeconds <= 0 || seconds <= 0) {
+            return 0;
         }
-        return Math.max(0f, Math.min(1f, value / (float) max));
+        long percent = Math.round(seconds * 100.0 / totalSeconds);
+        return (int) Math.min(100, percent);
+    }
+
+    /**
+     * Above a year's bars: whole hours ("42h" as {@code hours}), or the short form below half
+     * an hour, so a month with a little play is not labelled "0h".
+     *
+     * @return the label, or the empty string for a month without play
+     */
+    public static String yearBarValue(long seconds, Words words) {
+        long hours = roundHours(seconds);
+        if (hours == 0) {
+            return shortDuration(seconds);
+        }
+        return words.hours(hours, 0);
     }
 }

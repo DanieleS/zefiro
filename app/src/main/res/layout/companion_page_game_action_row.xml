@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    One of a game's actions on the companion panel (stats/GameActionsRenderer), the mock's
+    .mini: a 56dp row on a card fill, its icon then its label, and a check after Hide while the
+    game is hidden. Not focusable: the panel's d-pad place is drawn activated.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/companion_action_row_height"
+    android:layout_marginBottom="4dp"
+    android:background="@drawable/companion_action_row_bg"
+    android:clickable="true"
+    android:focusable="false"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp">
+
+    <ImageView
+        android:id="@+id/companionActionIcon"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:importantForAccessibility="no"
+        android:tint="@color/content_muted" />
+
+    <TextView
+        android:id="@+id/companionActionLabel"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="14dp"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:singleLine="true"
+        android:textColor="@color/content_primary"
+        android:textSize="15sp"
+        tools:text="Create shortcut" />
+
+    <ImageView
+        android:id="@+id/companionActionCheck"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:layout_marginStart="10dp"
+        android:importantForAccessibility="no"
+        android:src="@drawable/ic_check"
+        android:tint="@color/signal"
+        android:visibility="gone" />
+
+</LinearLayout>

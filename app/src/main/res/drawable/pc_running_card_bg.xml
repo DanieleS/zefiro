@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The card of the game a PC is in, on the companion panel (companion_pc_details): the signal's
+    container, the colour of "playing" everywhere in the PCs section. Not a control; its Resume
+    and Quit are.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="@dimen/pc_details_card_corner" />
+    <solid android:color="@color/signal_container" />
+</shape>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A card on the game page (a figure, the twelve weeks, no achievements): the mocks' .card, a
+    quiet fill one step above the true-black ground. Nothing on it takes focus.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="@dimen/game_page_card_corner" />
+    <solid android:color="@color/surface_container_low" />
+</shape>

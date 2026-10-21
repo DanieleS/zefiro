@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A settings row's value on the right: secondary text, faint while the row is disabled. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:color="@color/content_faint" android:state_enabled="false" />
+    <item android:color="@color/content_secondary" />
+</selector>

@@ -5,8 +5,8 @@ import android.graphics.Bitmap;
 import com.limelight.nvstream.http.ComputerDetails;
 
 /**
- * One host as the UI shows it: what the computer manager knows about it, plus the two things the
- * PC list adds on top, the game it is running and that game's art.
+ * One host as the UI shows it: what the computer manager knows about it, plus what the PC list
+ * adds on top: the game it is running, that game's art, and how many games it has.
  *
  * <p>It used to be {@code PcView.ComputerObject}. It moved out so the host list can be built and
  * shared without the activity that first drew it.
@@ -27,22 +27,39 @@ public class HostEntry {
     /** That game's hero image, fetched from the host; null until it arrives, or if it has none. */
     public Bitmap runningBackground;
 
+    /**
+     * How many games the Library would list for this host, or {@link #UNKNOWN_GAME_COUNT} for a
+     * host whose app list has never been seen. See {@link GameCount} for what is counted.
+     */
+    public final int gameCount;
+
+    /** The {@link #gameCount} of a host whose app list is not known. */
+    public static final int UNKNOWN_GAME_COUNT = -1;
+
     public HostEntry(ComputerDetails details) {
-        if (details == null) {
-            throw new IllegalArgumentException("details must not be null");
-        }
-        this.details = details;
+        this(details, null, null, UNKNOWN_GAME_COUNT);
+    }
+
+    /** An entry whose game count is not known; for callers that never had an app list. */
+    public HostEntry(ComputerDetails details, String runningAppName, Bitmap runningBackground) {
+        this(details, runningAppName, runningBackground, UNKNOWN_GAME_COUNT);
     }
 
     /**
      * A complete entry, as the repository publishes it.
      *
-     * @param details a copy of the service's details, never the live object it polls into.
+     * @param details   a copy of the service's details, never the live object it polls into.
+     * @param gameCount the games the Library would list, or {@link #UNKNOWN_GAME_COUNT}.
      */
-    public HostEntry(ComputerDetails details, String runningAppName, Bitmap runningBackground) {
-        this(details);
+    public HostEntry(ComputerDetails details, String runningAppName, Bitmap runningBackground,
+                     int gameCount) {
+        if (details == null) {
+            throw new IllegalArgumentException("details must not be null");
+        }
+        this.details = details;
         this.runningAppName = runningAppName;
         this.runningBackground = runningBackground;
+        this.gameCount = gameCount;
     }
 
     @Override

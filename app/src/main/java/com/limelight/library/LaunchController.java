@@ -26,8 +26,6 @@ import com.limelight.main.ArtExport;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.NvApp;
 import com.limelight.preferences.PreferenceConfiguration;
-import com.limelight.stats.GameStatsSheet;
-import com.limelight.stats.HostSession;
 import com.limelight.ui.MenuSheet;
 import com.limelight.utils.ServerHelper;
 import com.limelight.utils.ShortcutHelper;
@@ -101,6 +99,14 @@ public class LaunchController {
                   @NonNull String uniqueId, @NonNull Runnable onDone, @NonNull Runnable onFailed);
     }
 
+    /**
+     * Opens a game's page over the section on screen: the actions sheet's "Stats &amp;
+     * achievements" row. The main screen in production, which knows the section and its stack.
+     */
+    public interface GamePageOpener {
+        void openGamePage(@NonNull String hostUuid, @NonNull NvApp app);
+    }
+
     /** The confirmations a launch may ask for; dialogs in production, answered at once in tests. */
     public interface Prompts {
         /** The host cannot make a virtual display right now: ask whether to go ahead anyway. */
@@ -118,6 +124,8 @@ public class LaunchController {
     private final ServerActions server;
     private final Prompts prompts;
     private final Handler main = new Handler(Looper.getMainLooper());
+    @Nullable
+    private GamePageOpener gamePageOpener;
 
     public LaunchController(@NonNull FragmentActivity activity, @NonNull HostRepository repository,
                             @NonNull StartGate gate, @NonNull ArtExport artExport) {
@@ -135,6 +143,11 @@ public class LaunchController {
         this.artExport = artExport;
         this.server = server;
         this.prompts = prompts;
+    }
+
+    /** Where the actions sheet's Stats row goes; until one is set, the row does nothing. */
+    public void setGamePageOpener(@Nullable GamePageOpener opener) {
+        gamePageOpener = opener;
     }
 
     /** Drops the quit results still to come; from the activity's onDestroy. */
@@ -186,17 +199,25 @@ public class LaunchController {
     /** A long-press or Y on a game: everything that can be done to it, as a sheet. */
     @Nullable
     public Dialog showActions(@NonNull LibraryApp app) {
-        HostLibrary library = repository.currentLibrary();
-        HostLibrary.Snapshot snapshot = library != null ? library.getSnapshot() : null;
-        PreferenceConfiguration prefs = PreferenceConfiguration.readPreferences(activity);
+        return GameActionsSheet.show(activity, app, actionState(), companionLabel(app.app),
+                this::runAction);
+    }
 
-        GameActionsSheet.State state = new GameActionsSheet.State(
+    /**
+     * What the actions sheet's rows depend on now: what the host runs, the preferred display,
+     * whether there is a second screen, statistics and pinned shortcuts. A game's page draws its
+     * chips from the same state, so its rows and the sheet's never disagree.
+     */
+    @NonNull
+    public GameActionsSheet.State actionState() {
+        HostLibrary.Snapshot snapshot = currentSnapshot();
+        PreferenceConfiguration prefs = PreferenceConfiguration.readPreferences(activity);
+        return new GameActionsSheet.State(
                 runningAppId(),
                 prefs.useVirtualDisplay,
                 CompanionAppLauncher.isSupported(activity),
                 snapshot != null && snapshot.statsAvailable,
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.O);
-        return GameActionsSheet.show(activity, app, state, companionLabel(app.app), this::run);
     }
 
     // --- Launching ---
@@ -285,7 +306,11 @@ public class LaunchController {
 
     // --- The actions sheet's other rows ---
 
-    private void run(@NonNull GameActionsSheet.Item item, @NonNull LibraryApp app) {
+    /**
+     * Does what one of the sheet's rows does, for the sheet and for a game page's buttons and
+     * chips alike, so a row behaves the same wherever it is picked.
+     */
+    public void runAction(@NonNull GameActionsSheet.Item item, @NonNull LibraryApp app) {
         PreferenceConfiguration prefs = PreferenceConfiguration.readPreferences(activity);
         switch (item) {
             case START_PRIMARY_DISPLAY:
@@ -342,11 +367,12 @@ public class LaunchController {
         }
     }
 
+    // The page asks the host itself, and offers a retry when it cannot reach it, so a host
+    // without an address yet still gets its page rather than a row that does nothing.
     private void showStats(NvApp app) {
         HostLibrary library = repository.currentLibrary();
-        HostSession session = library != null ? library.session() : null;
-        if (session != null) {
-            GameStatsSheet.show(activity, session, app.getAppUUID(), app.getAppName());
+        if (library != null && gamePageOpener != null) {
+            gamePageOpener.openGamePage(library.getHostUuid(), app);
         }
     }
 
@@ -386,10 +412,12 @@ public class LaunchController {
         }
     }
 
-    // The row names the app already chosen for the game, so the user sees it without opening
-    // the picker. Only asked when the row is offered.
+    /**
+     * The companion row's label, naming the app already chosen for the game, so the user sees it
+     * without opening the picker; null where the row is not offered (no second screen).
+     */
     @Nullable
-    private String companionLabel(NvApp app) {
+    public String companionLabel(@NonNull NvApp app) {
         if (!CompanionAppLauncher.isSupported(activity)) {
             return null;
         }

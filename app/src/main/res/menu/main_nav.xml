@@ -3,11 +3,11 @@
     The main screen's destinations, shared by the rail (wide windows) and the bottom bar
     (compact ones), so the two always offer the same places in the same order.
 
-    Settings is an action, not a destination: choosing it opens the settings screen and the
-    selection stays where it was. The bottom bar shows it as its last item; the rail hides it
-    and shows a button at its foot instead (see activity_main), because a rail item cannot sit
-    apart from the others. Stats is hidden until the selected host is known to answer for
-    statistics.
+    Settings is a destination like the others, the last one. The bottom bar shows it as its last
+    item; the rail hides it and shows a button at its foot instead (see activity_main), because a
+    rail item cannot sit apart from the others. The hidden rail item is still checked while
+    Settings is on screen, so the two widgets agree. Stats is hidden until the selected host is
+    known to answer for statistics.
 -->
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item

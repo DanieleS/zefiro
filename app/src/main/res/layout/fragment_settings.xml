@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The Settings section (settings/SettingsSectionFragment), after Settings_C: a header slot, and
+    under it either the settings list or the search results.
+
+    settingsHeaderSlot  holds the header (@layout/view_settings_header) in a wide window and while
+                        searching; in a compact window at rest the header is the list's first
+                        item instead, and the slot is empty
+    settingsList        the StreamPreferencesFragment, added in code under "settings:list", never
+                        named here, so this layout inflates outside a FragmentActivity too
+    settingsResults     the search results, shown only while searching, in the list's place
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/settingsRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface_deep"
+    android:orientation="vertical">
+
+    <FrameLayout
+        android:id="@+id/settingsHeaderSlot"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <FrameLayout
+            android:id="@+id/settingsList"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/settingsResults"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingBottom="@dimen/section_gutter"
+            android:scrollbars="none"
+            android:visibility="gone" />
+
+    </FrameLayout>
+
+</LinearLayout>

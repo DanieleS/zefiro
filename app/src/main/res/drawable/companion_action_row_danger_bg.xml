@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    An action on the companion panel that cannot be undone (Delete PC), the mock's .tile.dng:
+    @drawable/companion_action_row_bg in the danger tone. Resting, the danger container; the
+    d-pad's place (state_activated) and a press add the 2dp danger ring, as
+    @drawable/menu_row_danger_bg does, so the row never flashes the signal colour on its way to a
+    confirmation.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:exitFadeDuration="120">
+
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/stop_corner" />
+            <solid android:color="@color/danger_container" />
+            <stroke
+                android:width="@dimen/tile_focus_stroke"
+                android:color="@color/danger" />
+        </shape>
+    </item>
+
+    <item android:state_activated="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/stop_corner" />
+            <solid android:color="@color/danger_container" />
+            <stroke
+                android:width="@dimen/tile_focus_stroke"
+                android:color="@color/danger" />
+        </shape>
+    </item>
+
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/stop_corner" />
+            <solid android:color="@color/danger_container" />
+        </shape>
+    </item>
+
+</selector>

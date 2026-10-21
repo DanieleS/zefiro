@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A setting's choice on the companion panel, after Settings_C's .opt: no fill at rest, the
+    signal's container on the entry in effect (selected), the wash under a finger. Never a d-pad
+    stop (Settings keeps the d-pad on the main screen), so it has no focus or activated ring.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:exitFadeDuration="120">
+
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/stop_corner" />
+            <solid android:color="@color/signal_wash" />
+        </shape>
+    </item>
+
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/stop_corner" />
+            <solid android:color="@color/signal_container" />
+        </shape>
+    </item>
+
+    <item android:drawable="@android:color/transparent" />
+
+</selector>

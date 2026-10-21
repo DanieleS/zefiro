@@ -30,6 +30,7 @@ import com.limelight.main.MainHost;
 import com.limelight.main.Section;
 import com.limelight.main.SectionFocus;
 import com.limelight.main.SectionKeys;
+import com.limelight.main.StackedSectionFragment;
 
 import java.util.List;
 
@@ -64,7 +65,8 @@ import java.util.List;
  * Main thread only; every callback checks that the view still exists.
  */
 public class SearchFragment extends Fragment
-        implements SectionKeys, SectionFocus, GameGridAdapter.Listener, HostStatePanel.Listener {
+        implements SectionKeys, SectionFocus, GameGridAdapter.Listener, HostStatePanel.Listener,
+        StackedSectionFragment.SectionHiddenListener {
 
     private static final int NO_APP = Integer.MIN_VALUE;
 
@@ -209,8 +211,14 @@ public class SearchFragment extends Fragment
     @Override
     public void onHiddenChanged(boolean hidden) {
         super.onHiddenChanged(hidden);
+        onSectionHiddenChanged(hidden);
+    }
+
+    @Override
+    public void onSectionHiddenChanged(boolean hidden) {
         if (hidden) {
-            // A keyboard left up over another section would type into nothing there.
+            // A keyboard left up over another section, or a screen pushed over this one, would
+            // type into nothing there.
             hideKeyboard();
         }
     }

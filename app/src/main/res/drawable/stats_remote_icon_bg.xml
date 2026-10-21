@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The square before a row on the Stats bottom screen, the mock's .ach: the signal's container
+     under a signal glyph. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="8dp" />
+    <solid android:color="@color/signal_container" />
+</shape>

@@ -168,6 +168,9 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
     private boolean focusAwaitingContent;
     // The panel came or went with focus in the content; place it again once laid out.
     private boolean focusNeedsPlacing;
+    // See all is what was pushed over the home, so its pop returns to the shelf's end. Any other
+    // screen (a game's page) leaves focus to the stack, which returns it to the remembered spot.
+    private boolean seeAllOpen;
     private boolean focusSettlePosted;
     // A d-pad-first screen's launch focus, taken out of touch mode, is placed once.
     private boolean launchFocusPlaced;
@@ -338,6 +341,12 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
     public void onHiddenChanged(boolean hidden) {
         super.onHiddenChanged(hidden);
         if (hidden || list == null) {
+            return;
+        }
+        boolean fromSeeAll = seeAllOpen;
+        seeAllOpen = false;
+        if (!fromSeeAll) {
+            // A game's page popped: the stack hands focus back to the spot remembered here.
             return;
         }
         // Shown again: See all was popped. The d-pad goes back to the tile that led there; a
@@ -651,6 +660,7 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
     private void openSeeAll() {
         LibraryFragment library = libraryFrame();
         if (library != null) {
+            seeAllOpen = true;
             library.showSeeAll();
         }
     }
@@ -659,6 +669,7 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
     private void openSeeAllRecent() {
         LibraryFragment library = libraryFrame();
         if (library != null) {
+            seeAllOpen = true;
             library.showSeeAll(AppSortOrder.RECENT);
         }
     }

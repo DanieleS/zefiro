@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A section of the settings list: the name in the quiet category label (muted, tracked, upper
+    case) and, beside it, how many rows the section holds, in mono like every figure in the app.
+    The mocks' "VIDEO 34". Bound by SectionCategory; @android:id/title is androidx's, so the
+    title binds as on any category.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:baselineAligned="true"
+    android:orientation="horizontal"
+    android:paddingStart="@dimen/settings_gutter"
+    android:paddingEnd="@dimen/settings_gutter"
+    android:paddingTop="@dimen/settings_category_top"
+    android:paddingBottom="8dp">
+
+    <TextView
+        android:id="@android:id/title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:singleLine="true"
+        android:textAppearance="@style/TextAppearance.Zefiro.PreferenceCategory" />
+
+    <TextView
+        android:id="@+id/settingsSectionCount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:fontFamily="monospace"
+        android:singleLine="true"
+        android:textColor="@color/content_faint"
+        android:textSize="12sp" />
+
+</LinearLayout>

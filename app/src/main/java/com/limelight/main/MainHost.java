@@ -6,6 +6,7 @@ import androidx.lifecycle.LiveData;
 import com.limelight.computers.HostRepository;
 import com.limelight.library.LaunchController;
 import com.limelight.pcs.HostActions;
+import com.limelight.stats.GamePageArgs;
 
 /**
  * What a section fragment may ask of the main screen.
@@ -40,6 +41,15 @@ public interface MainHost {
     GameFocusListener gameFocus();
 
     /**
+     * Where a section screen puts its lower half on the companion panel. A page may be published
+     * at any time: while the panel is off ({@code CompanionDisplayManager.panelShowing()}) it is
+     * held, and drawn when the panel comes back. A screen that lays the lower half out inline
+     * meanwhile clears it (or has no page to give) if it must not reappear on the panel then.
+     */
+    @NonNull
+    CompanionPages companionPages();
+
+    /**
      * Whether the screen is driven by a d-pad first: a wide window with a companion panel or a
      * gamepad attached (the Thor). Such a screen opens with a game focused, even though it
      * starts in touch mode, so the companion panel has a game to show and the first press
@@ -59,4 +69,19 @@ public interface MainHost {
     LiveData<Boolean> showHiddenGames();
 
     void setShowHiddenGames(boolean show);
+
+    /**
+     * Whether back has work in a section may have changed: a screen was pushed or popped, or a
+     * mode entered or left. The main screen asks the visible section again ({@link SectionBack}).
+     */
+    void backWorkChanged();
+
+    /**
+     * Opens a game's page over the section on screen, pushed on its stack so back returns to
+     * the row that led there. A section without a stack (PCs) switches to the Library first and
+     * pushes it there. A page for the same game already on that stack is left as it is; one for
+     * another game is replaced, with whatever is over it. An empty
+     * {@link GamePageArgs#originLabel} is filled with the title of the section the page lands on.
+     */
+    void openGamePage(@NonNull GamePageArgs args);
 }

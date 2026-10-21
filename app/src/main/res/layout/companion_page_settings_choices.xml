@@ -1,0 +1,267 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A setting on the companion panel (settings/SettingsChoicesRenderer), after the approved
+    Settings_C mock's Thor bottom screen, top to bottom:
+
+      caption   "VIDEO · CHOICES", where the setting lives
+      title     the setting's name, then its full summary, then "Needs …" while disabled
+      body      one of: the list's choices as radio rows; the large switch; the slider's value,
+                range and − / + buttons; "A opens it" for a text or an action
+      default   "Default: Off", for a setting whose list does not mark it already
+      hints     "◀▶ Change on top · X Reset or pin · Y Search · or touch a choice"
+
+    Nothing here is focusable: Settings keeps the d-pad on the main screen, and the panel's
+    window never takes focus. The choices container is filled in by the renderer
+    (companion_page_settings_choice).
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface_deep"
+    android:orientation="vertical"
+    android:paddingStart="14dp"
+    android:paddingTop="14dp"
+    android:paddingEnd="14dp"
+    android:paddingBottom="10dp">
+
+    <TextView
+        android:id="@+id/companionSettingsLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:fontFamily="sans-serif-medium"
+        android:letterSpacing="0.16"
+        android:singleLine="true"
+        android:textAllCaps="true"
+        android:textColor="@color/content_muted"
+        android:textSize="12sp"
+        tools:text="Video · Choices" />
+
+    <TextView
+        android:id="@+id/companionSettingsTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:ellipsize="end"
+        android:maxLines="2"
+        android:textColor="@color/content_primary"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        tools:text="Video frame pacing" />
+
+    <TextView
+        android:id="@+id/companionSettingsSummary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:ellipsize="end"
+        android:maxLines="4"
+        android:textColor="@color/content_muted"
+        android:textSize="13sp"
+        tools:text="Specify how to balance video latency and smoothness" />
+
+    <TextView
+        android:id="@+id/companionSettingsNeeds"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:fontFamily="sans-serif-medium"
+        android:textColor="@color/content_secondary"
+        android:textSize="13sp"
+        android:visibility="gone"
+        tools:text="Needs Enable rumble"
+        tools:visibility="visible" />
+
+    <ScrollView
+        android:id="@+id/companionSettingsScroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
+        android:layout_weight="1"
+        android:overScrollMode="never"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/companionSettingsBody"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- LIST: one radio row per entry. -->
+            <LinearLayout
+                android:id="@+id/companionSettingsChoices"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone" />
+
+            <!-- TOGGLE: the state in words, then the large switch; the whole row is the target. -->
+            <LinearLayout
+                android:id="@+id/companionSettingsToggle"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/companion_action_row_height"
+                android:background="@drawable/companion_action_row_bg"
+                android:clickable="true"
+                android:focusable="false"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="16dp"
+                android:paddingEnd="12dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/companionSettingsToggleState"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="sans-serif-medium"
+                    android:textColor="@color/content_primary"
+                    android:textSize="15sp"
+                    tools:text="On" />
+
+                <FrameLayout
+                    android:id="@+id/companionSettingsSwitchTrack"
+                    android:layout_width="56dp"
+                    android:layout_height="32dp"
+                    android:background="@drawable/settings_switch_track"
+                    android:importantForAccessibility="no">
+
+                    <View
+                        android:id="@+id/companionSettingsSwitchThumb"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center_vertical|start"
+                        android:layout_marginStart="4dp"
+                        android:layout_marginEnd="4dp"
+                        android:background="@drawable/settings_switch_thumb" />
+
+                </FrameLayout>
+
+            </LinearLayout>
+
+            <!-- SEEK: the value, its range, and the − / + buttons. -->
+            <LinearLayout
+                android:id="@+id/companionSettingsSeek"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/companionSettingsSeekValue"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:textColor="@color/content_primary"
+                    android:textSize="30sp"
+                    tools:text="40.0 Mbps" />
+
+                <TextView
+                    android:id="@+id/companionSettingsSeekRange"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:textColor="@color/content_muted"
+                    android:textSize="13sp"
+                    tools:text="0.5 Mbps to 800.0 Mbps" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/companionSettingsMinus"
+                        android:layout_width="0dp"
+                        android:layout_height="@dimen/companion_action_row_height"
+                        android:layout_weight="1"
+                        android:background="@drawable/companion_action_row_bg"
+                        android:clickable="true"
+                        android:contentDescription="@string/settings_choices_decrease"
+                        android:focusable="false"
+                        android:gravity="center"
+                        android:text="−"
+                        android:textColor="@color/content_primary"
+                        android:textSize="26sp"
+                        tools:ignore="HardcodedText" />
+
+                    <TextView
+                        android:id="@+id/companionSettingsPlus"
+                        android:layout_width="0dp"
+                        android:layout_height="@dimen/companion_action_row_height"
+                        android:layout_marginStart="8dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/companion_action_row_bg"
+                        android:clickable="true"
+                        android:contentDescription="@string/settings_choices_increase"
+                        android:focusable="false"
+                        android:gravity="center"
+                        android:text="+"
+                        android:textColor="@color/content_primary"
+                        android:textSize="26sp"
+                        tools:ignore="HardcodedText" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <!-- TEXT and ACTION: the current text, if any, and how to open it on top. -->
+            <LinearLayout
+                android:id="@+id/companionSettingsOpen"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/companionSettingsOpenValue"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="6dp"
+                    android:fontFamily="monospace"
+                    android:textColor="@color/content_secondary"
+                    android:textSize="15sp"
+                    tools:text="2560x1600" />
+
+                <TextView
+                    android:id="@+id/companionSettingsOpenNote"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:drawablePadding="8dp"
+                    android:gravity="center_vertical"
+                    android:textColor="@color/content_muted"
+                    android:textSize="14sp"
+                    tools:text="A opens it" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </ScrollView>
+
+    <TextView
+        android:id="@+id/companionSettingsDefault"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:textColor="@color/content_muted"
+        android:textSize="13sp"
+        android:visibility="gone"
+        tools:text="Default: Off"
+        tools:visibility="visible" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="8dp"
+        android:background="@color/divider" />
+
+    <com.limelight.ui.GamepadHintsView
+        android:id="@+id/companionSettingsHints"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="7dp" />
+
+</LinearLayout>

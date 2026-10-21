@@ -65,7 +65,9 @@ import java.util.List;
  * screen shows only the game and its HUD (see the approved StreamTelemetry mock). While the
  * main screen is browsing it draws what the d-pad is on up there ({@link CompanionState.Browsing}):
  * a game's details with Play, or Resume and Quit game for the one running, or a host's state,
- * over a row of the known PCs. The rest of the time it shows nothing but the app name.
+ * over a row of the known PCs. The rest of the time it shows nothing but the app name. A screen
+ * with a lower half of its own puts it here as a {@link CompanionPage}, drawn by
+ * {@link CompanionPageHost} over all of the browsing surface.
  *
  * <p>Those browsing controls are touch only. The window is never focusable (see
  * {@link #onCreate}), so the d-pad stays on the main screen, which offers the same actions; a tap
@@ -107,6 +109,8 @@ public class CompanionPresentation extends android.app.Presentation
     private List<CompanionState.HostChip> renderedHosts;
     /** What the browsing controls were last drawn for: the one a tap acts on. */
     private CompanionState.Browsing shownBrowsing;
+    // A screen's lower half, drawn over the browsing surface when the state has one.
+    private CompanionPageHost pageHost;
     private ImageView backdropView;
     private View backdropScrimView;
     /** The streaming surface: the view or the stats, over the strip. */
@@ -319,6 +323,8 @@ public class CompanionPresentation extends android.app.Presentation
         menuScrollView.setMaxHeightPx((int) (getContext().getResources().getDisplayMetrics().heightPixels * 0.6f));
         // A tap on the scrim around the sheet closes it, as a tap outside any sheet does.
         menuOverlay.setOnClickListener(v -> hideMenu());
+        pageHost = new CompanionPageHost(findViewById(R.id.companionPage),
+                LayoutInflater.from(getContext()));
     }
 
     @Override
@@ -389,10 +395,18 @@ public class CompanionPresentation extends android.app.Presentation
         // panel whose main screen has gone, would act for a screen that is not there.
         CompanionState.Browsing browsing =
                 content == CompanionState.Content.BROWSING ? state.getBrowsing() : null;
-        showBrowsingControls(browsing, browsing != null ? state.getHosts() : null);
+        // A page replaces the whole browsing surface, its buttons and hosts row included; one
+        // that fails to draw leaves the spotlight in its place.
+        boolean paged = showPage(
+                content == CompanionState.Content.BROWSING ? state.getPage() : null);
+        showBrowsingControls(paged ? null : browsing,
+                browsing != null && !paged ? state.getHosts() : null);
 
         switch (content) {
             case BROWSING:
+                if (paged) {
+                    return;
+                }
                 if (browsing == null) {
                     showSpotlight(null, null, null, null);
                 } else {
@@ -416,6 +430,25 @@ public class CompanionPresentation extends android.app.Presentation
             default:
                 showSpotlight(null, null, null, null);
         }
+    }
+
+    /**
+     * Draw a screen's lower half in place of the spotlight, or take the page away for null.
+     *
+     * @return whether a page is on screen
+     */
+    private boolean showPage(CompanionPage page) {
+        if (page == null || !pageHost.show(page)) {
+            pageHost.hide();
+            return false;
+        }
+        hideTelemetryView();
+        idleView.setVisibility(View.GONE);
+        streamView.setVisibility(View.GONE);
+        statsView.setVisibility(View.GONE);
+        setBackdrop(null);
+        descriptionImages.setAnimating(false);
+        return true;
     }
 
     /**

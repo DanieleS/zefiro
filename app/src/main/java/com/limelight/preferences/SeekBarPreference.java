@@ -113,15 +113,7 @@ public class SeekBarPreference extends Preference
                     return;
                 }
 
-                String t;
-                if (divisor != 1) {
-                    float floatValue = roundedValue / (float)divisor;
-                    t = String.format((Locale)null, "%.1f", floatValue);
-                }
-                else {
-                    t = String.valueOf(value);
-                }
-                valueText.setText(suffix == null ? t : t.concat(suffix.length() > 1 ? " "+suffix : suffix));
+                valueText.setText(format(roundedValue));
             }
 
             @Override
@@ -190,6 +182,89 @@ public class SeekBarPreference extends Preference
     }
     public int getProgress() {
         return currentValue + minValue;
+    }
+
+    /** The lowest value the slider reaches, as stored (before the divisor). */
+    public int getMinValue() {
+        return minValue;
+    }
+
+    /** The highest value the slider reaches, as stored (before the divisor). */
+    public int getMaxValue() {
+        return maxValue;
+    }
+
+    /** The default from the XML's android:defaultValue, which this preference never stores. */
+    public int getDefaultProgress() {
+        return defaultValue;
+    }
+
+    /**
+     * The value in effect: the stored one, or the default while nothing is stored. Read from
+     * storage rather than the dialog's copy, which a write behind this preference's back (the
+     * bitrate a resolution change resets) leaves stale.
+     */
+    public int getValue() {
+        return shouldPersist() ? getPersistedInt(defaultValue) : currentValue;
+    }
+
+    /** The value as the dialog shows it, with its divisor and suffix: "40.0 Mbps", "90%". */
+    public String getDisplayValue() {
+        return format(getValue());
+    }
+
+    /** Any value of this slider as {@link #getDisplayValue()} shows its own: a default, say. */
+    public String formatValue(int value) {
+        return format(value);
+    }
+
+    private String format(int value) {
+        String t;
+        if (divisor != 1) {
+            float floatValue = value / (float)divisor;
+            t = String.format((Locale)null, "%.1f", floatValue);
+        }
+        else {
+            t = String.valueOf(value);
+        }
+        return suffix == null ? t : t.concat(suffix.length() > 1 ? " "+suffix : suffix);
+    }
+
+    /**
+     * Moves the value one step without the dialog: by the d-pad step where the XML gives one,
+     * else by the slider's step, clamped to the range. It writes the way the dialog's OK does,
+     * stored first and the change listener told after, so both paths have the same effects.
+     *
+     * @return false when it could not move: already at that end of the range, or disabled.
+     */
+    public boolean step(int dir) {
+        if (dir == 0 || !isEnabled()) {
+            return false;
+        }
+        int increment = keyStepSize != 0 ? keyStepSize : stepSize;
+        int current = getValue();
+        int next = Math.max(minValue, Math.min(maxValue, current + Integer.signum(dir) * increment));
+        if (next == current) {
+            return false;
+        }
+        commitValue(next);
+        return true;
+    }
+
+    /**
+     * Stores a value as the dialog's OK does (persist, then tell the change listener, whose
+     * answer the dialog never consulted either) and redraws the row.
+     */
+    public void commitValue(int value) {
+        currentValue = value;
+        if (seekBar != null) {
+            seekBar.setProgress(currentValue - minValue);
+        }
+        if (shouldPersist()) {
+            persistInt(currentValue);
+            callChangeListener(currentValue);
+        }
+        notifyChanged();
     }
 
     public void showDialog() {

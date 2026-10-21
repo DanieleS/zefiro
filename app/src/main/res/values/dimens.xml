@@ -27,20 +27,29 @@
     <dimen name="pc_tile_corner">12dp</dimen>
 
     <!--
-        A PC is a card rather than a tile: it carries a name, a state, an address and, when
-        the host is in a game, that game's art. The cards stack in one column and stop
-        widening at pc_card_max_width, so a PC on a TV is a card and not a banner.
+        A PC is a small tile (item_pc_tile): an icon box, a name, a status line and one action,
+        four across on the Thor and two on a phone. The grid's rows take their tallest tile's
+        height, so the minimum is what a tile with its action button needs.
     -->
-    <dimen name="pc_card_corner">14dp</dimen>
-    <dimen name="pc_card_max_width">560dp</dimen>
-    <dimen name="pc_card_min_height">120dp</dimen>
+    <dimen name="pc_tile_min_height">168dp</dimen>
+    <dimen name="pc_tile_padding">12dp</dimen>
+    <!-- Half the gap between tiles: each tile's margin, so two neighbours make one gap. -->
+    <dimen name="pc_tile_half_gap">6dp</dimen>
+    <!-- The grid's side padding: the section gutter, less the outer tiles' own half gap. -->
+    <dimen name="pc_grid_inset">10dp</dimen>
+    <dimen name="pc_tile_icon_box">48dp</dimen>
+    <dimen name="pc_tile_icon_corner">12dp</dimen>
+    <dimen name="pc_tile_glyph">26dp</dimen>
+    <!-- The status badge on the icon box's corner, ringed in the tile's own colour. -->
+    <dimen name="pc_tile_badge">12dp</dimen>
+    <dimen name="pc_tile_badge_ring">2dp</dimen>
+    <dimen name="pc_tile_badge_offset">-4dp</dimen>
+    <!-- The overflow button: a 48dp target around a 20dp glyph. -->
+    <dimen name="pc_tile_more_inset">14dp</dimen>
+    <!-- The action pill: 48dp to touch, drawn 36dp tall. -->
+    <dimen name="pc_tile_action_inset">6dp</dimen>
+    <!-- Kept from the old PC cards: See all and the Library header space their chips by it. -->
     <dimen name="pc_card_spacing">12dp</dimen>
-    <dimen name="pc_card_padding">16dp</dimen>
-    <!-- The leading slot holds either the host glyph or the running game's cover, and is the
-         width of the cover so the text starts in the same place either way. -->
-    <dimen name="pc_card_leading_width">66dp</dimen>
-    <dimen name="pc_card_leading_height">88dp</dimen>
-    <dimen name="pc_card_glyph">44dp</dimen>
     <dimen name="pc_status_dot">8dp</dimen>
 
     <!--
@@ -82,19 +91,24 @@
     <dimen name="dialog_corner">24dp</dimen>
 
     <!--
-        The settings screen. A top app bar over a scrolling column of preferences, laid on
-        the ground with the same 16dp gutter the rest of the app keeps.
+        The settings list, laid on the ground with the same 16dp gutter the rest of the app
+        keeps.
     -->
-    <dimen name="settings_bar_height">56dp</dimen>
     <dimen name="settings_gutter">16dp</dimen>
     <dimen name="settings_category_top">20dp</dimen>
+    <!-- A row is a stop: inset from the edges so its focus ring shows, padded back out so its
+         text keeps the gutter (inset + padding = settings_gutter). -->
+    <dimen name="settings_row_inset">8dp</dimen>
+    <dimen name="settings_row_padding">8dp</dimen>
+    <!-- The widest a row's value grows before it ellipsizes, so the title keeps its room. -->
+    <dimen name="settings_value_max_width">160dp</dimen>
 
-    <!-- Statistics: the cards, the widest the screen grows to on a big display, and the sheets. -->
+    <!-- Statistics: the cards, and the widest the screen grows to on a big display. -->
     <dimen name="stats_card_corner">14dp</dimen>
     <dimen name="stats_max_width">1100dp</dimen>
-    <dimen name="stats_sheet_max_width">560dp</dimen>
-    <dimen name="stats_list_max_width">640dp</dimen>
     <dimen name="stats_gutter">24dp</dimen>
+    <!-- The label beside the strip's covers in a wide window, as the mock's left column. -->
+    <dimen name="stats_strip_label_width">120dp</dimen>
 
     <!--
         The main screen's navigation. The rail is narrow and icon-only, as in the mocks: on the
@@ -213,5 +227,68 @@
     <dimen name="controls_tile_height">56dp</dimen>
     <dimen name="controls_tile_corner">12dp</dimen>
     <dimen name="controls_tile_gap">6dp</dimen>
+
+    <!--
+        The stop ring, chips, pills, segmented controls and gamepad hints shared by the Stats,
+        game and Settings screens.
+    -->
+    <!-- A stop's ring (@drawable/stop_bg): rows and cards the d-pad stops on. -->
+    <dimen name="stop_corner">8dp</dimen>
+    <!-- A chip is drawn 36dp tall inside its 48dp target, as the header chip is. -->
+    <dimen name="chip_inset">6dp</dimen>
+    <dimen name="chip_corner">18dp</dimen>
+    <dimen name="pill_corner">100dp</dimen>
+    <!-- A segmented control: a 48dp row whose segments are drawn 40dp tall in the track. -->
+    <dimen name="segment_track_corner">12dp</dimen>
+    <dimen name="segment_track_padding">3dp</dimen>
+    <dimen name="segment_item_inset">4dp</dimen>
+    <dimen name="segment_item_corner">9dp</dimen>
+    <!-- A gamepad hint: key glyphs, then the label, hints spaced apart. -->
+    <dimen name="key_glyph_height">20dp</dimen>
+    <dimen name="key_glyph_min_width">22dp</dimen>
+    <dimen name="key_glyph_corner">4dp</dimen>
+    <dimen name="key_glyph_gap">3dp</dimen>
+    <dimen name="hint_label_gap">6dp</dimen>
+    <dimen name="hint_gap">14dp</dimen>
+    <!-- Screens T3: the game page. The cover beside the title, wide and compact. -->
+    <dimen name="game_page_cover_width">132dp</dimen>
+    <dimen name="game_page_cover_height">176dp</dimen>
+    <dimen name="game_page_cover_width_compact">84dp</dimen>
+    <dimen name="game_page_cover_height_compact">112dp</dimen>
+    <dimen name="game_page_column_gap">20dp</dimen>
+    <dimen name="game_page_title_size">26sp</dimen>
+    <dimen name="game_page_title_size_compact">22sp</dimen>
+    <dimen name="game_page_figure_size">18sp</dimen>
+    <dimen name="game_page_card_corner">12dp</dimen>
+    <dimen name="game_page_bars_height">52dp</dimen>
+    <dimen name="game_page_block_gap">20dp</dimen>
+    <dimen name="achievement_icon_size">40dp</dimen>
+    <!-- Screens T4: a game's actions as rows on the companion panel, the mock's big rows. -->
+    <dimen name="companion_action_row_height">56dp</dimen>
+
+    <!-- Screens T8: the Settings section. -->
+    <!-- The rail's 40dp indicator inside the Settings button's 72 by 56dp rail cell. -->
+    <dimen name="nav_rail_settings_indicator_inset">16dp</dimen>
+    <dimen name="nav_rail_settings_indicator_inset_vertical">8dp</dimen>
+    <!-- The pinned card: the essentials and the user's pins, each a stop of at least 48dp. -->
+    <dimen name="settings_card_corner">12dp</dimen>
+    <dimen name="settings_pin_min_width">88dp</dimen>
+    <dimen name="settings_pill_min_width">64dp</dimen>
+    <dimen name="settings_pin_height">56dp</dimen>
+    <dimen name="settings_profile_icon_size">36dp</dimen>
+    <dimen name="settings_profile_icon_size_small">28dp</dimen>
+    <dimen name="settings_header_gap">10dp</dimen>
+    <!-- A search result: a 56dp row at least, as the list's rows are 48dp at least. -->
+    <dimen name="settings_result_min_height">56dp</dimen>
+
+    <!-- Screens P3: the focused PC on the companion panel (companion_pc_details). -->
+    <dimen name="pc_details_card_corner">12dp</dimen>
+    <!-- The running game's cover, a portrait box art. -->
+    <dimen name="pc_details_cover_width">40dp</dimen>
+    <dimen name="pc_details_cover_height">54dp</dimen>
+    <!-- Resume and Quit on the running card: 48dp to touch, and the gap a focus ring needs. -->
+    <dimen name="pc_details_button_height">48dp</dimen>
+    <dimen name="pc_details_ring_gap">3dp</dimen>
+    <dimen name="pc_details_gap">8dp</dimen>
 
 </resources>

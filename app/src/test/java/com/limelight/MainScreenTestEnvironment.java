@@ -7,16 +7,22 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Build;
 
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.preference.PreferenceManager;
 import androidx.test.core.app.ApplicationProvider;
 
+import com.limelight.companion.CompanionDisplayManager;
 import com.limelight.computers.ComputerManagerService;
 import com.limelight.library.LibraryIntents;
 
 import org.robolectric.Shadows;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 import static org.mockito.Mockito.mock;
 
@@ -36,6 +42,7 @@ public final class MainScreenTestEnvironment {
      */
     public static void prepare() {
         forgetCachedViewModelFactory();
+        forgetPanelObservers();
         Application app = ApplicationProvider.getApplicationContext();
 
         SharedPreferences glPrefs = app.getSharedPreferences("GlPreferences", 0);
@@ -65,6 +72,33 @@ public final class MainScreenTestEnvironment {
             instance.set(null, null);
         } catch (ReflectiveOperationException e) {
             throw new AssertionError("lifecycle's factory cache moved; update this reset", e);
+        }
+    }
+
+    /**
+     * The companion panel's availability ({@link CompanionDisplayManager#panelShowing()}) is a
+     * process-wide LiveData, observed by every screen with a page for the panel, PCs among them,
+     * which every first run opens on. An observer leaves with its view's lifecycle, and
+     * Robolectric never destroys a test's activity, so without this every main screen any test
+     * started would stay reachable from it, views and all, until the test JVM runs out of memory.
+     * Its value is left alone: a test that wants the panel sets it itself (and resets it in
+     * {@code @After}).
+     */
+    @SuppressWarnings("unchecked")
+    private static void forgetPanelObservers() {
+        LiveData<Boolean> panel = CompanionDisplayManager.panelShowing();
+        List<Observer<? super Boolean>> observers = new ArrayList<>();
+        try {
+            Field field = LiveData.class.getDeclaredField("mObservers");
+            field.setAccessible(true);
+            for (Object entry : (Iterable<Object>) field.get(panel)) {
+                observers.add(((Map.Entry<Observer<? super Boolean>, Object>) entry).getKey());
+            }
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("LiveData's observer map moved; update this reset", e);
+        }
+        for (Observer<? super Boolean> observer : observers) {
+            panel.removeObserver(observer);
         }
     }
 

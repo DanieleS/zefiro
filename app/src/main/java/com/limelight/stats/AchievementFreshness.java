@@ -36,11 +36,22 @@ public final class AchievementFreshness {
             if (!seen.add(key)) {
                 continue;
             }
-            long when = a.getUnlockedAtMillis();
-            if (when > 0 && nowMillis - when < FRESH_MS) {
+            if (isFresh(a, nowMillis)) {
                 fresh.add(a);
             }
         }
         return fresh;
+    }
+
+    /**
+     * Whether one unlock is still news: unlocked, dated, and less than {@link #FRESH_MS} before
+     * {@code nowMillis}. A game's page marks these NEW, by the same rule the toast announces them.
+     */
+    public static boolean isFresh(Achievement a, long nowMillis) {
+        if (a == null || !a.isUnlocked()) {
+            return false;
+        }
+        long when = a.getUnlockedAtMillis();
+        return when > 0 && nowMillis - when < FRESH_MS;
     }
 }

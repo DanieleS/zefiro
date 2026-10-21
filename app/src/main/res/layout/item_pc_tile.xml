@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    One PC in the PCs grid (HostTileBinder draws it): an icon box with the state as a badge on
+    its corner, the name, the state as a dot and a line, and the one action the PC is waiting
+    for (Resume, Wake or Pair) at the foot. Everything else lives in the PC's actions, behind
+    Y, a long-press or the overflow button.
+
+    The tile is the stop. Its insides follow its state (duplicateParentState), so the icon box,
+    the glyph and the badge's cut-out light up with it. The grid makes every tile in a row as
+    tall as the tallest, which is why the action sits after a flexible gap.
+
+    The action and the overflow are touch targets only: a d-pad cannot move onto a view inside
+    the focused one. X fires the action, Y opens the actions.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="@dimen/pc_tile_half_gap"
+    android:background="@drawable/pc_tile_bg"
+    android:clickable="true"
+    android:focusable="true"
+    android:longClickable="true"
+    android:minHeight="@dimen/pc_tile_min_height">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipChildren="false"
+        android:duplicateParentState="true"
+        android:orientation="vertical"
+        android:padding="@dimen/pc_tile_padding">
+
+        <FrameLayout
+            android:id="@+id/pcTileIconBox"
+            android:layout_width="@dimen/pc_tile_icon_box"
+            android:layout_height="@dimen/pc_tile_icon_box"
+            android:background="@drawable/pc_tile_icon_bg"
+            android:clipChildren="false"
+            android:duplicateParentState="true">
+
+            <ImageView
+                android:id="@+id/pcTileGlyph"
+                android:layout_width="@dimen/pc_tile_glyph"
+                android:layout_height="@dimen/pc_tile_glyph"
+                android:layout_gravity="center"
+                android:duplicateParentState="true"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_computer"
+                app:tint="@color/pc_tile_glyph" />
+
+            <!-- Drawn by HostTileBinder: the state's colour, ringed in the tile's. -->
+            <View
+                android:id="@+id/pcTileBadge"
+                android:layout_width="@dimen/pc_tile_badge"
+                android:layout_height="@dimen/pc_tile_badge"
+                android:layout_gravity="bottom|end"
+                android:layout_marginEnd="@dimen/pc_tile_badge_offset"
+                android:layout_marginBottom="@dimen/pc_tile_badge_offset"
+                android:duplicateParentState="true"
+                android:importantForAccessibility="no" />
+
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/pcTileName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:textColor="@color/content_primary"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <View
+                android:id="@+id/pcTileDot"
+                android:layout_width="@dimen/pc_status_dot"
+                android:layout_height="@dimen/pc_status_dot"
+                android:background="@drawable/pc_status_dot" />
+
+            <TextView
+                android:id="@+id/pcTileStatus"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:singleLine="true"
+                android:textColor="@color/content_secondary"
+                android:textSize="13sp" />
+
+        </LinearLayout>
+
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/pcTileAction"
+            style="@style/PcTileAction"
+            android:layout_marginTop="4dp"
+            android:focusable="false"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <!-- The PC's actions, for a thumb: a bottom sheet on a phone, a menu beside it otherwise.
+         Touch only, the tile is the d-pad stop: ImageButton makes itself focusable after reading
+         this, so HostTileBinder.TileViews turns it off again in code. -->
+    <ImageButton
+        android:id="@+id/pcTileMore"
+        android:layout_width="@dimen/action_size"
+        android:layout_height="@dimen/action_size"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="2dp"
+        android:layout_marginEnd="2dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:focusable="false"
+        android:padding="@dimen/pc_tile_more_inset"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_more_vert"
+        app:tint="@color/content_muted" />
+
+</FrameLayout>
