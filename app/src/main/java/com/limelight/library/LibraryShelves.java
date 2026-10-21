@@ -55,6 +55,27 @@ public final class LibraryShelves {
         return cap(played, SHELF_SIZE);
     }
 
+    /**
+     * The fewest games Recently played shows as a shelf. Fewer would leave a row mostly empty
+     * on every window (a wide one shows seven tiles across), so the shelf is left out instead;
+     * See all still opens on the games played ({@link #seeAllDefault} reads {@link #recent},
+     * not this).
+     */
+    public static final int MIN_RECENT = 4;
+
+    /**
+     * Recently played as the home draws it: {@link #recent}, or nothing while it holds fewer
+     * than {@link #MIN_RECENT} games. A library smaller than that needs fewer: three games
+     * played out of three is not a mostly empty shelf.
+     *
+     * @param recent  {@link #recent} for the library as it stands
+     * @param visible {@link #visibleCount} for the same library
+     */
+    public static List<LibraryApp> recentShelf(List<LibraryApp> recent, int visible) {
+        return recent.size() >= Math.min(MIN_RECENT, Math.max(1, visible))
+                ? recent : Collections.<LibraryApp>emptyList();
+    }
+
     /** {@link #preview(List, Comparator, int)} at {@link #SHELF_SIZE}. */
     public static List<LibraryApp> preview(List<LibraryApp> apps, Comparator<NvApp> order) {
         return preview(apps, order, SHELF_SIZE);

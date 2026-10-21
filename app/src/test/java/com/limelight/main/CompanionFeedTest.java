@@ -2,11 +2,17 @@ package com.limelight.main;
 
 import android.content.Context;
 import android.os.Looper;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
 
+import androidx.annotation.NonNull;
 import androidx.lifecycle.MutableLiveData;
 import androidx.test.core.app.ApplicationProvider;
 
 import com.limelight.TestLogSuppressor;
+import com.limelight.companion.CompanionPage;
+import com.limelight.companion.CompanionPageRenderer;
 import com.limelight.companion.CompanionState;
 import com.limelight.companion.CompanionState.Browsing;
 import com.limelight.computers.HostEntry;
@@ -35,13 +41,16 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
  * What the companion panel shows while browsing: the game the d-pad is on, the game an actions
- * sheet is open for while it is open, and a host without the hero's Resume and Quit game.
+ * sheet is open for while it is open, a host without the hero's Resume and Quit game, and a
+ * screen's page across a stream.
  */
 @Config(sdk = {33})
 @RunWith(RobolectricTestRunner.class)
@@ -133,5 +142,94 @@ public class CompanionFeedTest {
         assertEquals(Browsing.Kind.HOST, shown().kind);
         assertFalse(shown().hasGame());
         assertFalse(shown().running);
+    }
+
+    @Test
+    public void aPageClearedBehindAStream_comesBack_andItsOwnerIsAskedAgain() {
+        final CompanionPage after = new TestPage("after");
+        final boolean[] asked = {false};
+        CompanionPages.PageOwner owner = new CompanionPages.PageOwner() {
+            @Override
+            public void onPageTap(int stopId) {
+            }
+
+            @Override
+            public boolean republishPage() {
+                asked[0] = true;
+                feed.publish(this, after);
+                return true;
+            }
+        };
+        CompanionPage before = new TestPage("before");
+        feed.publish(owner, before);
+
+        // A stream: the screen behind it reads as off screen and takes its page off.
+        feed.stop();
+        feed.clear(owner);
+        feed.start();
+        assertEquals("the page left is drawn again, not the idle hosts", before,
+                CompanionState.getInstance().getPage());
+
+        feed.resume();
+        assertTrue(asked[0]);
+        assertEquals(after, CompanionState.getInstance().getPage());
+    }
+
+    @Test
+    public void aPageClearedBehindAStream_byAnOwnerThatDoesNotRepublish_staysOff() {
+        CompanionPages.PageOwner owner = stopId -> { };
+        feed.publish(owner, new TestPage("page"));
+
+        feed.stop();
+        feed.clear(owner);
+        feed.start();
+        feed.resume();
+        assertNull(CompanionState.getInstance().getPage());
+    }
+
+    /** A page that is never drawn here, told apart by its text. */
+    private static final class TestPage extends CompanionPage {
+        private static final CompanionPageRenderer RENDERER = new CompanionPageRenderer() {
+            @NonNull
+            @Override
+            public View create(@NonNull LayoutInflater inflater, @NonNull ViewGroup parent) {
+                throw new UnsupportedOperationException("not drawn here");
+            }
+
+            @Override
+            public void bind(@NonNull View view, @NonNull CompanionPage page,
+                             @NonNull PageTaps taps) {
+                throw new UnsupportedOperationException("not drawn here");
+            }
+        };
+
+        private final String text;
+
+        TestPage(String text) {
+            super(NO_STOP);
+            this.text = text;
+        }
+
+        @NonNull
+        @Override
+        public CompanionPageRenderer renderer() {
+            return RENDERER;
+        }
+
+        @NonNull
+        @Override
+        public CompanionPage withFocus(int stop) {
+            return this;
+        }
+
+        @Override
+        protected boolean sameContent(@NonNull CompanionPage other) {
+            return text.equals(((TestPage) other).text);
+        }
+
+        @Override
+        protected int contentHash() {
+            return text.hashCode();
+        }
     }
 }

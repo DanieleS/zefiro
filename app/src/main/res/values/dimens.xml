@@ -204,8 +204,6 @@
     <dimen name="hero_gap">14dp</dimen>
     <dimen name="shelf_label_size">15sp</dimen>
     <dimen name="shelf_link_size">13sp</dimen>
-    <!-- Recently played's "›", which is a glyph alone and so drawn larger than a word. -->
-    <dimen name="shelf_more_size">22sp</dimen>
     <dimen name="shelf_spacing">18dp</dimen>
     <dimen name="host_chip_dot_gap">8dp</dimen>
     <!-- The companion panel's hosts row: a chip is its own 48dp touch target, so it is drawn

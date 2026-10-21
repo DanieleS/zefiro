@@ -52,7 +52,7 @@ public class LibraryFragment extends StackedSectionFragment {
 
     /**
      * As {@link #showSeeAll()}, listing the games in this order for as long as the grid is up,
-     * without changing the library's own (Recently played's "›" opens it in recent order).
+     * without changing the library's own (Recently played's "See all" opens it in recent order).
      *
      * @param order the order to open in; null for the library's
      */

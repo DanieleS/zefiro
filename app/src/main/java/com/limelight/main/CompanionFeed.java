@@ -94,7 +94,14 @@ import java.util.Objects;
  *   stop()   ── onStop:  stops watching, unregisters, and clears the browsing surface; a game
  *              launch stops this activity without destroying it. The page and its owner are
  *              kept for start()
+ *   resume() ── onResume: asks the page's owner to publish again when it cleared the page while
+ *              stopped (see clear), so the page comes back current rather than not at all
  * </pre>
+ *
+ * A clear while stopped is held, not done: the owner's screen sits behind the stream then, and
+ * a screen that publishes only while shown takes its page off for that alone (a setting written
+ * by the stream, the panel coming back on the way out). Done there, the stream would hand the
+ * panel back to the idle hosts surface instead of the page the user left.
  *
  * Main thread only.
  */
@@ -180,6 +187,8 @@ public final class CompanionFeed implements GameFocusListener,
     private PageOwner pageOwner;
     // When the page was last tapped on the panel (uptime), or 0 for never.
     private long pageTapAt;
+    // Whether the page's owner cleared it while this was stopped; asked again on resume().
+    private boolean clearHeld;
 
     // The backdrop asked for while the current game is in focus, so it is asked for once.
     @Nullable
@@ -234,6 +243,22 @@ public final class CompanionFeed implements GameFocusListener,
         repository.getLibrary().observeForever(libraryObserver);
         if (page != null) {
             state.setPage(page);
+        }
+    }
+
+    /**
+     * From the activity's onResume, once the main window is shown again: a page cleared while
+     * stopped is put to its owner, which publishes it as it stands or clears it for good. One
+     * that does neither has its clear done now.
+     */
+    public void resume() {
+        if (!started || !clearHeld) {
+            return;
+        }
+        clearHeld = false;
+        PageOwner owner = pageOwner;
+        if (owner != null && !owner.republishPage()) {
+            clear(owner);
         }
     }
 
@@ -510,6 +535,7 @@ public final class CompanionFeed implements GameFocusListener,
     public void publish(@NonNull PageOwner owner, @NonNull CompanionPage next) {
         pageOwner = owner;
         page = next;
+        clearHeld = false;
         if (started) {
             state.setPage(next);
         }
@@ -521,11 +547,15 @@ public final class CompanionFeed implements GameFocusListener,
             // Not the page on the panel any more: another screen's took its place.
             return;
         }
+        if (!started) {
+            // Held for resume(): nothing is drawn now anyway, and start() draws the page kept.
+            clearHeld = true;
+            return;
+        }
+        clearHeld = false;
         pageOwner = null;
         page = null;
-        if (started) {
-            state.setPage(null);
-        }
+        state.setPage(null);
     }
 
     /** A tap on the page's stop (CompanionDisplayManager.PageActions). */

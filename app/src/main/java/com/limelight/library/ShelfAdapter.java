@@ -1,8 +1,6 @@
 package com.limelight.library;
 
 import android.content.Context;
-import android.util.TypedValue;
-import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -29,10 +27,12 @@ import java.util.WeakHashMap;
  *
  * <h3>The label's link</h3>
  *
- * A shelf may lead somewhere, through a link at the end of its label row, in the signal, as the
- * mocks draw both: "See all · N" on All games, which also ends its row with a "See all" tile for
- * the d-pad, and a bare "›" on Recently played, touch only. The label itself can carry a detail
- * after it ("All games · Taverna"), which the home sets on a wide window.
+ * A shelf may lead somewhere, through a link at the end of its label row, in the signal, the
+ * same words on both so they read as the same thing: "See all · N" on All games, which also ends
+ * its row with a "See all" tile for the d-pad, and "See all" on Recently played, touch only. The
+ * home takes both links away on a compact window ({@link #setLinkShown}), where the grid's last
+ * cell is the one way there. The label itself can carry a detail after it ("All games ·
+ * Taverna"), which the home sets on a wide window.
  *
  * <h3>Two lists</h3>
  *
@@ -58,9 +58,8 @@ import java.util.WeakHashMap;
  *
  * <h3>Shape</h3>
  *
- * The count is said once: a grid (a phone in portrait), whose last cell is the "See all · N"
- * tile, has a plain "See all" link over it, while a row, whose tile is scrolled to its end,
- * keeps the count in its link.
+ * The count is said once per row: a row, whose tile is scrolled to its end, keeps the count in
+ * its link; a grid (a phone in portrait) says it in its last cell and has no link over it.
  *
  * <p>The home decides each shelf's shape from the window ({@link #setShape}): a row, with its tiles'
  * height capped or not, or a grid of a few rows. A grid shows only as many games as fill its
@@ -88,8 +87,10 @@ final class ShelfAdapter extends RecyclerView.Adapter<ShelfAdapter.Holder> {
     private final RecyclerView.RecycledViewPool pool;
     @Nullable
     private final Runnable onSeeAll;
-    // Whether the link is "See all · N", with the trailing tile; otherwise it is a bare "›".
+    // Whether the link is "See all · N", with the trailing tile; otherwise it is "See all".
     private final boolean counted;
+    // Whether the label row shows the link at all; see setLinkShown.
+    private boolean linkShown = true;
     @Nullable
     private String labelDetail;
     private final GameGridAdapter tiles;
@@ -113,7 +114,7 @@ final class ShelfAdapter extends RecyclerView.Adapter<ShelfAdapter.Holder> {
      * @param onSeeAll what the header link (and the trailing tile) do; null for a shelf that
      *                 leads nowhere, which then has neither
      * @param counted  true for a "See all · N" link and a trailing "See all" tile, false for a
-     *                 bare "›" link and no tile
+     *                 plain "See all" link and no tile
      */
     ShelfAdapter(@StringRes int label, @NonNull RecyclerView.RecycledViewPool pool,
                  @NonNull GameGridAdapter.Listener tileListener, @Nullable Runnable onSeeAll,
@@ -178,6 +179,20 @@ final class ShelfAdapter extends RecyclerView.Adapter<ShelfAdapter.Holder> {
         }
     }
 
+    /**
+     * Whether the label row offers the link. Off on a compact window, where All games' grid ends
+     * in the "See all · N" cell: one way to See all on a phone screen, not one per shelf on top.
+     */
+    void setLinkShown(boolean shown) {
+        if (shown == linkShown) {
+            return;
+        }
+        linkShown = shown;
+        for (Holder holder : holding) {
+            bindLink(holder);
+        }
+    }
+
     /** Whether the shelf's row is in the list. */
     boolean isShown() {
         return shown;
@@ -206,15 +221,21 @@ final class ShelfAdapter extends RecyclerView.Adapter<ShelfAdapter.Holder> {
         bindLink(holder);
     }
 
-    // "See all · N", or "See all" alone over a grid whose last cell says the count.
+    // "See all · N" on All games, "See all" on Recently played, and none over a grid, whose last
+    // cell says it, or while the home has taken the links away.
     private void bindLink(Holder holder) {
-        if (onSeeAll == null || !counted) {
+        if (onSeeAll == null) {
+            return;
+        }
+        boolean shown = linkShown && !(gridColumns > 0 && seeAllTile != null);
+        holder.link.setVisibility(shown ? View.VISIBLE : View.GONE);
+        if (!shown) {
             return;
         }
         Context context = holder.itemView.getContext();
-        holder.link.setText(gridColumns > 0 && seeAllTile != null
-                ? context.getString(R.string.library_see_all)
-                : context.getString(R.string.library_see_all_count, seeAllCount));
+        holder.link.setText(counted
+                ? context.getString(R.string.library_see_all_count, seeAllCount)
+                : context.getString(R.string.library_see_all));
     }
 
     // The games that fit the shape, then the "See all" tile once they are in: added in the same
@@ -302,20 +323,8 @@ final class ShelfAdapter extends RecyclerView.Adapter<ShelfAdapter.Holder> {
         Holder holder = new Holder(view);
         holder.shelf.setRecycledViewPool(pool);
         if (onSeeAll != null) {
-            holder.link.setVisibility(View.VISIBLE);
+            // Shown or not with the shape (bindLink).
             holder.link.setOnClickListener(v -> onSeeAll.run());
-            if (!counted) {
-                // A glyph alone: as wide as its touch target, and named for TalkBack.
-                holder.link.setText(R.string.library_shelf_more);
-                holder.link.setMinWidth(parent.getResources()
-                        .getDimensionPixelSize(R.dimen.action_size));
-                holder.link.setGravity(Gravity.CENTER_VERTICAL
-                        | Gravity.END);
-                holder.link.setTextSize(TypedValue.COMPLEX_UNIT_PX, parent
-                        .getResources().getDimension(R.dimen.shelf_more_size));
-                holder.link.setContentDescription(parent.getContext()
-                        .getString(R.string.library_see_all));
-            }
         }
         return holder;
     }

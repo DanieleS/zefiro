@@ -1802,6 +1802,17 @@ public class SettingsSectionFragment extends Fragment
     }
 
     /**
+     * Back from a stream (CompanionPages.PageOwner): the page was taken off while the section sat
+     * behind it, unseen ({@link #isOnScreen} is false while the activity is stopped). It goes back
+     * up as it stands now; still off screen, it stays off.
+     */
+    @Override
+    public boolean republishPage() {
+        publishPage();
+        return page != null;
+    }
+
+    /**
      * A tap on the panel (CompanionPages.PageOwner): a choice, the switch, − or +, through
      * {@link SettingsEditor} as Left and Right on the row go, so the change listeners run as
      * from a dialog. A disabled setting, or a refused change, leaves the value; the page is built

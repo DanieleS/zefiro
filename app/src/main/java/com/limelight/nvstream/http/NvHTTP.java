@@ -21,7 +21,6 @@ import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
@@ -830,36 +829,20 @@ public class NvHTTP {
      * hosts that don't serve it (or when anything goes wrong) rather than throwing.
      */
     public Map<String, AppMetadata> getAppMetadata() {
-        Map<String, AppMetadata> metadata = new HashMap<>();
-        String raw;
+        return AppMetadata.parseAll(getAppMetadataRaw());
+    }
+
+    /**
+     * The host's {@code /appmetadata} answer as it came, for a caller that keeps a copy (see
+     * {@link AppMetadata#parseAll}); null when the host does not serve it or could not be asked.
+     */
+    public String getAppMetadataRaw() {
         try {
-            raw = openHttpConnectionToString(httpClientLongConnectTimeout, getHttpsUrl(true), "appmetadata");
+            return openHttpConnectionToString(httpClientLongConnectTimeout, getHttpsUrl(true), "appmetadata");
         } catch (Exception e) {
             // Older/stock hosts don't have the endpoint; treat that as "no metadata".
-            return metadata;
+            return null;
         }
-
-        try {
-            JSONArray apps = new JSONObject(raw).optJSONArray("apps");
-            if (apps == null) {
-                return metadata;
-            }
-            for (int i = 0; i < apps.length(); i++) {
-                JSONObject app = apps.optJSONObject(i);
-                if (app == null) {
-                    continue;
-                }
-                String uuid = app.optString("uuid", "");
-                if (uuid.isEmpty()) {
-                    continue;
-                }
-                metadata.put(uuid.toUpperCase(), AppMetadata.fromJson(app));
-            }
-        } catch (Exception e) {
-            LimeLog.warning("Malformed app metadata: " + e.getMessage());
-        }
-
-        return metadata;
     }
 
     /**
