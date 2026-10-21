@@ -651,4 +651,55 @@
         <item name="android:ellipsize">end</item>
     </style>
 
+    <!-- ============================================================================
+         Screens T3: the game page.
+         ============================================================================ -->
+
+    <!--
+        Quit game beside Resume: the mocks' danger pill, the error's container with its light
+        text. Focus is the signal ring, as on the ghost button.
+    -->
+    <style name="Widget.Zefiro.DangerButton" parent="Widget.Zefiro.GhostButton">
+        <item name="android:textColor">@color/danger</item>
+        <item name="backgroundTint">@color/danger_container</item>
+        <item name="iconTint">@color/danger</item>
+        <item name="rippleColor">@color/scrim_soft</item>
+    </style>
+
+    <!-- A figure on the game page, the mocks' .st b: a mono number in the primary colour. -->
+    <style name="GamePageFigure">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:fontFamily">monospace</item>
+        <item name="android:textColor">@color/content_primary</item>
+        <item name="android:textSize">@dimen/game_page_figure_size</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:ellipsize">end</item>
+    </style>
+
+    <!-- The small tracked caption under a figure, the mocks' .cap. -->
+    <style name="GamePageCap">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">2dp</item>
+        <item name="android:letterSpacing">0.12</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:textColor">@color/content_muted</item>
+        <item name="android:textSize">11sp</item>
+    </style>
+
+    <!-- A figure's card: the mocks' .st, a quiet fill and nothing to focus. -->
+    <style name="GamePageFigureCard">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:background">@drawable/game_page_card_bg</item>
+        <item name="android:paddingStart">12dp</item>
+        <item name="android:paddingEnd">12dp</item>
+        <item name="android:paddingTop">10dp</item>
+        <item name="android:paddingBottom">10dp</item>
+    </style>
+
 </resources>

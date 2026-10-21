@@ -961,7 +961,6 @@
     <string name="game_stats_per_session">per session</string>
     <string name="game_stats_per_launch">per launch</string>
     <string name="game_stats_last_12_weeks">Last 12 weeks</string>
-    <string name="game_stats_this_week">%1$s this week</string>
     <string name="game_stats_last_played">Last played %1$s</string>
     <string name="game_stats_last_played_for">Last played %1$s, for %2$s</string>
     <string name="game_stats_today">today</string>
@@ -970,18 +969,8 @@
         <item quantity="one">%d day ago</item>
         <item quantity="other">%d days ago</item>
     </plurals>
-    <string name="game_stats_achievements_count">Achievements · %1$d/%2$d</string>
-    <string name="game_stats_see_all">See all</string>
-    <string name="game_stats_latest">latest: %1$s</string>
-    <string name="game_stats_none_yet">none yet</string>
-    <string name="achievements_title">%1$s achievements</string>
-    <string name="achievements_count">%1$d of %2$d achievements</string>
-    <string name="achievements_count_score">%1$d of %2$d achievements · %3$d / %4$d G</string>
     <string name="achievements_percent">%1$d%%</string>
-    <string name="achievements_percent_all">%1$d%% · all of them!</string>
-    <string name="achievements_filter_all">All</string>
     <string name="achievements_filter_unlocked">Unlocked %1$d</string>
-    <string name="achievements_filter_locked">To do %1$d</string>
     <string name="achievements_all_done">Nothing left: you have them all.</string>
     <string name="achievements_none_yet">None yet: the next session is the one.</string>
     <string name="achievements_hidden">Hidden achievement</string>
@@ -1133,4 +1122,31 @@
     <string name="library_host_sheet_remote_session">Remote session</string>
     <string name="library_host_sheet_wake">Wake %1$s</string>
     <string name="library_host_sheet_manage">Manage PCs</string>
+    <!-- Screens T3: the game page, pushed over Stats, the Library or Search. -->
+    <!-- The crumb beside the back arrow, opened from Stats: "Stats · This month". -->
+    <string name="game_page_origin_stats">Stats · %1$s</string>
+    <!-- Over the title while the game runs on this PC; drawn upper case. -->
+    <string name="game_page_running_on">Running on %1$s</string>
+    <!-- The cover's badge, and the line over the title on a phone, while the game runs. -->
+    <string name="game_page_running">Running</string>
+    <!-- Two parts of one line: the PC and its state, the metadata and the last played. -->
+    <string name="game_page_joined">%1$s · %2$s</string>
+    <string name="game_page_play">Play</string>
+    <!-- The last-played line while the game runs: the session recorded last is the one before. -->
+    <string name="game_page_session_before">session before this: %1$s, %2$s</string>
+    <!-- Under this week's figure, beside the twelve weeks' bars. -->
+    <string name="game_page_this_week">this week</string>
+    <!-- The failed row: A or a tap asks the PC again. -->
+    <string name="game_page_retry">Press A or tap to try again.</string>
+    <!-- The achievements' header: unlocked of all, and gamerscore got of all. -->
+    <string name="game_page_achievements_count">%1$d / %2$d</string>
+    <string name="game_page_gamerscore">%1$d / %2$d G</string>
+    <string name="game_page_filter_all">All %1$d</string>
+    <string name="game_page_filter_locked">Locked %1$d</string>
+    <!-- Marks an unlock from the last twelve hours; drawn upper case. -->
+    <string name="game_page_new">New</string>
+    <!-- An achievement's share of players, beside its row: "8.7%". -->
+    <string name="game_page_percent">%1$s%%</string>
+    <string name="game_page_no_achievements">No achievements tracked for this game</string>
+    <string name="game_page_no_achievements_detail">SuccessStory doesn\'t follow %1$s.</string>
 </resources>

@@ -32,7 +32,9 @@ import com.limelight.R;
  * <p>Invariants: the root is never popped, so the section always has a screen. A pushed screen
  * is added over its predecessor, which is hidden rather than replaced: its views, its scroll and
  * its focus memory are all still there when back pops the screen over it, so focus can return to
- * what led there. A push of a tag already on the stack does nothing.
+ * what led there: a pop that takes the focused view with it hands the d-pad to the screen below's
+ * {@link SectionFocus#restoreFocusTarget()}. A push of a tag already on the stack does nothing;
+ * {@link #replace} pops that screen first.
  *
  * <h3>Keys, focus and visibility</h3>
  *
@@ -145,12 +147,53 @@ public abstract class StackedSectionFragment extends Fragment
         }
     }
 
+    /**
+     * Pushes a screen in place of the one with the same tag and every screen over it, or over
+     * the top when there is none: the same kind of screen opened for something else (another
+     * game's page). The pop runs at once, so the push does not find the tag still there.
+     *
+     * @param screen the screen to show
+     * @param tag    its fragment tag, also its back-stack entry's name; never the root's
+     */
+    public void replace(@NonNull Fragment screen, @NonNull String tag) {
+        if (!isAdded() || isStateSaved() || TAG_ROOT.equals(tag)) {
+            return;
+        }
+        FragmentManager children = getChildFragmentManager();
+        if (children.findFragmentByTag(tag) != null) {
+            // No focus handed back to the screen below: the push gives it to the new screen.
+            children.popBackStackImmediate(tag, FragmentManager.POP_BACK_STACK_INCLUSIVE);
+        }
+        push(screen, tag);
+    }
+
     /** Pops the screen on top; never the root. */
     public void pop() {
         if (!isAdded() || isStateSaved() || depth() == 0) {
             return;
         }
+        boolean hadFocus = topHasFocus();
         getChildFragmentManager().popBackStack();
+        if (hadFocus) {
+            restoreFocusAfterPop();
+        }
+    }
+
+    /**
+     * Pops the screen pushed with this tag, and every screen over it: a screen that has to go
+     * whatever is on top of it (a game's page whose host is no longer the selected one). Does
+     * nothing when no such screen is on the stack; never pops the root.
+     */
+    public void pop(@NonNull String tag) {
+        if (!isAdded() || isStateSaved() || TAG_ROOT.equals(tag)
+                || getChildFragmentManager().findFragmentByTag(tag) == null) {
+            return;
+        }
+        boolean hadFocus = topHasFocus();
+        getChildFragmentManager().popBackStack(tag, FragmentManager.POP_BACK_STACK_INCLUSIVE);
+        if (hadFocus) {
+            restoreFocusAfterPop();
+        }
     }
 
     /**
@@ -161,9 +204,57 @@ public abstract class StackedSectionFragment extends Fragment
         if (!isAdded() || isStateSaved() || depth() == 0) {
             return;
         }
+        boolean hadFocus = topHasFocus();
         FragmentManager children = getChildFragmentManager();
         children.popBackStack(children.getBackStackEntryAt(0).getId(),
                 FragmentManager.POP_BACK_STACK_INCLUSIVE);
+        if (hadFocus) {
+            restoreFocusAfterPop();
+        }
+    }
+
+    private boolean topHasFocus() {
+        Fragment top = top();
+        View view = top != null ? top.getView() : null;
+        return view != null && view.hasFocus();
+    }
+
+    /**
+     * After a pop that took the focused view with it, hands the d-pad back to the screen now on
+     * top: to what it last had focused ({@link SectionFocus#restoreFocusTarget()}), the row that
+     * led to the popped screen. The framework would otherwise give focus to the first focusable
+     * view in the window, the rail's first item, as the focused view is removed. Posted, so it
+     * runs after the pop's transaction; a screen that places focus itself when shown again posts
+     * after this, and has the last word.
+     */
+    private void restoreFocusAfterPop() {
+        View view = getView();
+        if (view == null) {
+            return;
+        }
+        view.post(() -> {
+            View self = getView();
+            if (!isAdded() || self == null || isHiddenInSection(this) || self.isInTouchMode()) {
+                return;
+            }
+            View focused = requireActivity().getCurrentFocus();
+            if (focused != null && focused.isShown() && isInside(self, focused)) {
+                return;
+            }
+            View target = restoreFocusTarget();
+            if (target != null) {
+                target.requestFocus();
+            }
+        });
+    }
+
+    private static boolean isInside(View ancestor, View view) {
+        for (Object p = view; p instanceof View; p = ((View) p).getParent()) {
+            if (p == ancestor) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** How many screens are pushed over the root: 0 at the root. */

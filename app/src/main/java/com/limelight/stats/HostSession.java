@@ -8,7 +8,7 @@ import java.io.IOException;
 
 /**
  * One NvHTTP to a host, made on first use and shared by everything a screen loads from it — the
- * statistics, the per-game sheet, the achievement icons the host keeps on disk. Making one is not
+ * statistics, a game's page, the achievement icons the host keeps on disk. Making one is not
  * free (it builds the TLS state and may resolve the address), so it is made off the main thread,
  * by whichever request needs it first.
  */

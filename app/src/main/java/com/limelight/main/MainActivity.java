@@ -25,6 +25,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
+import androidx.core.util.Consumer;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -46,9 +47,11 @@ import com.limelight.computers.HostLibrary;
 import com.limelight.computers.HostRepository;
 import com.limelight.computers.PairingRequest;
 import com.limelight.library.LaunchController;
+import com.limelight.library.LibraryApp;
 import com.limelight.library.LibraryFragment;
 import com.limelight.library.LibraryIntents;
 import com.limelight.library.SearchSectionFragment;
+import com.limelight.nvstream.http.Achievement;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.NvHTTP;
 import com.limelight.pcs.HostActions;
@@ -56,6 +59,8 @@ import com.limelight.pcs.PcsFragment;
 import com.limelight.preferences.StreamSettings;
 import com.limelight.stats.AchievementToast;
 import com.limelight.stats.AchievementWatcher;
+import com.limelight.stats.GamePageArgs;
+import com.limelight.stats.GamePageFragment;
 import com.limelight.stats.HostLink;
 import com.limelight.stats.HostSession;
 import com.limelight.stats.StatsSectionFragment;
@@ -147,7 +152,7 @@ import com.limelight.utils.UiHelper;
  * A stream's achievements may only be written by the host once the game closes, after the
  * stream's last look. So on resume, a few seconds later, the screen asks the host that was
  * streamed (not necessarily the selected one) once more, and toasts what is new, as the old
- * library did.
+ * library did. When that host is the selected one, a tap on the toast opens the game's page.
  *
  * <h3>Pairing from a link</h3>
  *
@@ -272,6 +277,11 @@ public class MainActivity extends AppCompatActivity
         rendererProbe = new RendererProbe(this, findViewById(android.R.id.content));
         rendererProbe.start();
         launchController = new LaunchController(this, viewModel.repository(), rendererProbe, artExport);
+        // The actions sheet's "Stats & achievements" opens the game's page over this section;
+        // the crumb is left to openGamePage, which knows where the page lands.
+        launchController.setGamePageOpener((hostUuid, app) -> openGamePage(new GamePageArgs(
+                hostUuid, app.getAppUUID() != null ? app.getAppUUID() : "", app.getAppId(),
+                app.getAppName(), null)));
         companionFeed = new CompanionFeed(this, viewModel.repository(), launchController,
                 this::reclaimFocusFromCompanion);
 
@@ -609,11 +619,51 @@ public class MainActivity extends AppCompatActivity
             AchievementWatcher.checkOnce(session, since, fresh -> {
                 ViewGroup content = findViewById(android.R.id.content);
                 if (!isFinishing() && !isDestroyed() && content != null) {
-                    AchievementToast.show(content, fresh, session);
+                    AchievementToast.show(content, fresh, session, toastTapFor(streamed));
                 }
             });
         };
         root.postDelayed(achievementCheck, AFTER_STREAM_CHECK_DELAY_MS);
+    }
+
+    /**
+     * What a tap on an unlock toast does: opens the unlocked game's page, but only for the
+     * selected host. A page is about a game of the selected host's library, and leaves as soon
+     * as another host is selected, so a toast about another PC only informs. Checked when the
+     * toast is shown, so it has no tap, and again at the tap: the user may switch PCs while it
+     * is up, and a page for the old one would only flash and pop.
+     */
+    @Nullable
+    private Consumer<Achievement> toastTapFor(@NonNull String hostUuid) {
+        if (!isSelectedHost(hostUuid)) {
+            return null;
+        }
+        return achievement -> {
+            String uuid = achievement.getAppUuid();
+            if (uuid == null || uuid.isEmpty() || !isSelectedHost(hostUuid)) {
+                return;
+            }
+            openGamePage(new GamePageArgs(hostUuid, uuid, appIdOf(uuid), achievement.getGame(),
+                    null));
+        };
+    }
+
+    private boolean isSelectedHost(@NonNull String hostUuid) {
+        String selected = viewModel.repository().getSelectedHostUuid().getValue();
+        return selected != null && selected.equalsIgnoreCase(hostUuid);
+    }
+
+    /** The selected host's id for a game, by its UUID; 0 when the library does not list it. */
+    private int appIdOf(@NonNull String appUuid) {
+        HostLibrary.Snapshot snapshot = viewModel.repository().getLibrary().getValue();
+        if (snapshot != null) {
+            for (LibraryApp app : snapshot.apps) {
+                if (appUuid.equalsIgnoreCase(app.app.getAppUUID())) {
+                    return app.appId();
+                }
+            }
+        }
+        return 0;
     }
 
     /** A connection to a host: the open library's when it is that host, else a new one. */
@@ -712,6 +762,33 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void backWorkChanged() {
         updateBackEnabled();
+    }
+
+    @Override
+    public void openGamePage(@NonNull GamePageArgs args) {
+        Fragment section = navigator.currentFragment();
+        if (!(section instanceof StackedSectionFragment)) {
+            // PCs has no stack: the game belongs to the Library, so its page goes there.
+            goTo(Section.LIBRARY);
+            section = navigator.currentFragment();
+        }
+        if (!(section instanceof StackedSectionFragment)) {
+            return;
+        }
+        StackedSectionFragment stack = (StackedSectionFragment) section;
+        // Named only now, after the switch above: the crumb says where back returns to.
+        GamePageArgs page = args.originLabel.isEmpty()
+                ? args.withOrigin(getString(navigator.current().title)) : args;
+        Fragment open = stack.getChildFragmentManager().findFragmentByTag(GamePageFragment.TAG);
+        GamePageArgs openArgs = open instanceof GamePageFragment
+                ? ((GamePageFragment) open).args() : null;
+        if (openArgs == null) {
+            stack.push(GamePageFragment.newInstance(page), GamePageFragment.TAG);
+        } else if (!openArgs.sameGame(page)) {
+            // Another game's page (an unlock toast tapped over it) takes its place, so back
+            // still returns to the section's own screen rather than to the other page.
+            stack.replace(GamePageFragment.newInstance(page), GamePageFragment.TAG);
+        }
     }
 
     /**

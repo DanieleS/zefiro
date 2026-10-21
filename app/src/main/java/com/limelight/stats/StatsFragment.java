@@ -24,6 +24,7 @@ import com.limelight.R;
 import com.limelight.computers.HostEntry;
 import com.limelight.computers.HostLibrary;
 import com.limelight.computers.HostRepository;
+import com.limelight.library.LibraryApp;
 import com.limelight.main.MainHost;
 import com.limelight.main.SectionFocus;
 import com.limelight.main.SectionKeys;
@@ -45,7 +46,7 @@ import java.util.concurrent.RejectedExecutionException;
  * Y cycle week, month and year, and the d-pad walks one column top to bottom: the range buttons,
  * the period (left and right step it there too), the chart (left and right pick a bar), the most
  * played, the latest unlocks and the games worth picking up again. Each game opens its own
- * statistics and achievements sheet.
+ * page ({@link GamePageFragment}), pushed over this one on the section's stack.
  *
  * <h3>The host</h3>
  *
@@ -694,11 +695,31 @@ public class StatsFragment extends Fragment
         }
     }
 
+    /**
+     * Opens the game's page over this one, on the section's stack, so back returns to the row.
+     * The game's app id comes from the library when it lists the game (0 otherwise: the page
+     * then has no buttons, but its figures and achievements still load by UUID).
+     */
     private void openGame(String uuid, String name) {
-        if (uuid == null || uuid.isEmpty() || session == null || !isAdded()) {
+        if (uuid == null || uuid.isEmpty() || !isAdded()) {
             return;
         }
-        GameStatsSheet.show(requireActivity(), session, uuid, name);
+        HostLibrary.Snapshot snapshot = host.hostRepository().getLibrary().getValue();
+        if (snapshot == null) {
+            return;
+        }
+        int appId = 0;
+        for (LibraryApp app : snapshot.apps) {
+            if (uuid.equalsIgnoreCase(app.app.getAppUUID())) {
+                appId = app.appId();
+                break;
+            }
+        }
+        AppStats shown = model.stats();
+        String origin = shown != null
+                ? getString(R.string.game_page_origin_stats, text.periodTitle(shown))
+                : getString(R.string.nav_stats);
+        host.openGamePage(new GamePageArgs(snapshot.hostUuid, uuid, appId, name, origin));
     }
 
     // --- Focus ---

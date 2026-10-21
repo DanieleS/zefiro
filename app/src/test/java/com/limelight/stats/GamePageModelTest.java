@@ -1,0 +1,260 @@
+package com.limelight.stats;
+
+import com.limelight.library.GameActionsSheet.Item;
+import com.limelight.library.GameActionsSheet.State;
+import com.limelight.library.LibraryApp;
+import com.limelight.nvstream.http.GameStats;
+import com.limelight.nvstream.http.NvApp;
+
+import org.json.JSONArray;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.annotation.Config;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.TimeZone;
+
+import static com.limelight.nvstream.http.TestGameStats.json;
+import static com.limelight.nvstream.http.TestGameStats.stats;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
+/**
+ * A game page's decisions: figures in sessions or in launches, the bars only with sessions, the
+ * last-played wording, and the buttons and chips the game gets.
+ */
+// Robolectric for org.json, which the plain unit-test android.jar only stubs.
+@Config(sdk = {33})
+@RunWith(RobolectricTestRunner.class)
+public class GamePageModelTest {
+    // 2026-10-08T12:00:00Z
+    private static final long NOW = 1_791_460_800_000L;
+
+    private TimeZone savedZone;
+
+    // Days are counted in the device's zone; pinned, so "yesterday" is the same everywhere.
+    @Before
+    public void pinZone() {
+        savedZone = TimeZone.getDefault();
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+    }
+
+    @After
+    public void restoreZone() {
+        TimeZone.setDefault(savedZone);
+    }
+
+    private static final GamePageModel.Words WORDS = new GamePageModel.Words() {
+        @Override
+        public String today() {
+            return "today";
+        }
+
+        @Override
+        public String yesterday() {
+            return "yesterday";
+        }
+
+        @Override
+        public String daysAgo(int days) {
+            return days + " days ago";
+        }
+
+        @Override
+        public String date(long millis, boolean withYear) {
+            return "date(" + millis + (withYear ? ", year" : "") + ")";
+        }
+
+        @Override
+        public String duration(long seconds) {
+            return seconds + "s";
+        }
+
+        @Override
+        public String lastPlayed(String day) {
+            return "Last played " + day;
+        }
+
+        @Override
+        public String lastPlayedFor(String day, String duration) {
+            return "Last played " + day + ", for " + duration;
+        }
+
+        @Override
+        public String sessionBefore(String day, String duration) {
+            return "session before this: " + day + ", " + duration;
+        }
+    };
+
+    private static GameStats withSessions() {
+        long[] weeks = {0, 45, 120, 210, 95, 0, 180, 300, 260, 140, 320, 250};
+        JSONArray array = new JSONArray();
+        for (long w : weeks) {
+            array.put(w);
+        }
+        return stats(json("activity", true, "playtime_seconds", 138_000L, "play_count", 30,
+                "sessions", 27, "average_seconds", 5_100L, "weeks", array,
+                "last_session", json("start", "2026-10-07T20:00:00Z", "seconds", 7_500L)));
+    }
+
+    private static GameStats launchesOnly(long playCount, String lastActivity) {
+        return stats(json("activity", false, "playtime_seconds", 147_900L,
+                "play_count", playCount, "last_activity", lastActivity));
+    }
+
+    private static GameStats sessionOn(String start) {
+        return stats(json("activity", true, "playtime_seconds", 3_600L, "sessions", 1,
+                "average_seconds", 3_600L,
+                "last_session", json("start", start, "seconds", 3_600L)));
+    }
+
+    private static LibraryApp game(int id, boolean running, boolean hidden) {
+        return new LibraryApp(new NvApp("Game " + id, "uuid-" + id, id, false), running, hidden);
+    }
+
+    private static State state(int running, boolean companion) {
+        return new State(running, false, companion, true, true);
+    }
+
+    // --- Figures ---
+
+    @Test
+    public void sessions_countSessions_withBars() {
+        GamePageModel.Figures f = GamePageModel.figures(withSessions());
+
+        assertNotNull(f);
+        assertEquals(GamePageModel.Unit.SESSIONS, f.unit);
+        assertEquals(138_000L, f.totalSeconds);
+        assertEquals(27, f.count);
+        assertEquals(5_100L, f.averageSeconds);
+        assertTrue(f.showsBars());
+        assertEquals(12, f.weeks.length);
+        assertEquals(250, f.thisWeekSeconds());
+    }
+
+    @Test
+    public void noSessions_countLaunches_withoutBars() {
+        GamePageModel.Figures f = GamePageModel.figures(launchesOnly(16, null));
+
+        assertNotNull(f);
+        assertEquals(GamePageModel.Unit.LAUNCHES, f.unit);
+        assertEquals(16, f.count);
+        assertEquals(147_900L / 16, f.averageSeconds);
+        assertFalse(f.showsBars());
+        assertEquals(0, f.thisWeekSeconds());
+    }
+
+    @Test
+    public void aStraySessionCountWithoutActivity_isNotTrusted() {
+        GameStats s = stats(json("activity", false, "playtime_seconds", 3_600L,
+                "play_count", 2, "sessions", 9));
+        assertEquals(GamePageModel.Unit.LAUNCHES, GamePageModel.figures(s).unit);
+    }
+
+    @Test
+    public void noLaunches_hidesTheAverage() {
+        GamePageModel.Figures f = GamePageModel.figures(launchesOnly(0, null));
+        assertEquals(-1, f.averageSeconds);
+    }
+
+    @Test
+    public void noPlayTime_noFigures() {
+        assertNull(GamePageModel.figures(null));
+        assertNull(GamePageModel.figures(stats(json("playtime_seconds", 0L))));
+    }
+
+    // --- Last played ---
+
+    @Test
+    public void lastPlayed_today() {
+        GamePageModel.LastPlayed last = GamePageModel.lastPlayed(sessionOn("2026-10-08T09:00:00Z"), NOW);
+        assertEquals(GamePageModel.Day.TODAY, last.day);
+        assertEquals("Last played today, for 3600s", GamePageModel.lastPlayedLine(last, false, WORDS));
+    }
+
+    @Test
+    public void lastPlayed_yesterday_whileRunning_isTheSessionBeforeThis() {
+        GamePageModel.LastPlayed last = GamePageModel.lastPlayed(withSessions(), NOW);
+        assertEquals(GamePageModel.Day.YESTERDAY, last.day);
+        assertEquals("session before this: yesterday, 7500s",
+                GamePageModel.lastPlayedLine(last, true, WORDS));
+        assertEquals("Last played yesterday, for 7500s",
+                GamePageModel.lastPlayedLine(last, false, WORDS));
+    }
+
+    @Test
+    public void lastPlayed_underAWeek_countsDays() {
+        GamePageModel.LastPlayed last = GamePageModel.lastPlayed(sessionOn("2026-10-05T22:00:00Z"), NOW);
+        assertEquals(GamePageModel.Day.DAYS_AGO, last.day);
+        assertEquals(3, last.days);
+        assertEquals("Last played 3 days ago, for 3600s", GamePageModel.lastPlayedLine(last, false, WORDS));
+    }
+
+    @Test
+    public void lastPlayed_aWeekOrMore_isDated_withTheYearOnlyWhenOld() {
+        GamePageModel.LastPlayed recent = GamePageModel.lastPlayed(sessionOn("2026-09-20T10:00:00Z"), NOW);
+        assertEquals(GamePageModel.Day.DATED, recent.day);
+        assertFalse(recent.withYear());
+        assertTrue(GamePageModel.lastPlayedLine(recent, false, WORDS).startsWith("Last played date("));
+
+        GamePageModel.LastPlayed old = GamePageModel.lastPlayed(sessionOn("2025-08-01T10:00:00Z"), NOW);
+        assertTrue(old.withYear());
+        assertTrue(GamePageModel.lastPlayedLine(old, false, WORDS).contains(", year)"));
+    }
+
+    @Test
+    public void lastPlayed_fromPlaynite_hasNoDuration() {
+        GamePageModel.LastPlayed last = GamePageModel.lastPlayed(
+                launchesOnly(16, "2026-10-05T18:00:00Z"), NOW);
+        assertFalse(last.hasDuration());
+        assertEquals("Last played 3 days ago", GamePageModel.lastPlayedLine(last, true, WORDS));
+    }
+
+    @Test
+    public void lastPlayed_absentWithoutADate() {
+        assertNull(GamePageModel.lastPlayed(launchesOnly(16, null), NOW));
+        assertNull(GamePageModel.lastPlayed(null, NOW));
+    }
+
+    // --- Buttons and chips ---
+
+    @Test
+    public void primary_followsTheLibrary() {
+        assertEquals(GamePageModel.Primary.PLAY, GamePageModel.primary(game(1, false, false)));
+        assertEquals(GamePageModel.Primary.RESUME_QUIT, GamePageModel.primary(game(1, true, false)));
+        assertEquals(GamePageModel.Primary.NONE, GamePageModel.primary(null));
+    }
+
+    @Test
+    public void chips_areTheSheetsRows_minusWhatTheButtonsDo_andStats() {
+        List<Item> idle = GamePageModel.chips(game(1, false, false), state(0, true));
+        assertEquals(Arrays.asList(Item.HIDE, Item.COMPANION_APP, Item.DETAILS,
+                Item.PIN_SHORTCUT, Item.EXPORT_LAUNCHER), idle);
+
+        List<Item> another = GamePageModel.chips(game(1, false, false), state(2, false));
+        assertArrayEquals(new Item[]{Item.HIDE, Item.DETAILS, Item.PIN_SHORTCUT,
+                Item.EXPORT_LAUNCHER}, another.toArray());
+    }
+
+    @Test
+    public void chips_haveNoHide_whileTheGameRuns() {
+        List<Item> running = GamePageModel.chips(game(1, true, false), state(1, true));
+        assertFalse(running.contains(Item.HIDE));
+        assertEquals(Arrays.asList(Item.COMPANION_APP, Item.DETAILS, Item.PIN_SHORTCUT,
+                Item.EXPORT_LAUNCHER), running);
+    }
+
+    @Test
+    public void notInTheLibrary_noButtonsNoChips() {
+        assertEquals(GamePageModel.Primary.NONE, GamePageModel.primary(null));
+        assertTrue(GamePageModel.chips(null, state(0, true)).isEmpty());
+    }
+}

@@ -9,6 +9,9 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import androidx.annotation.Nullable;
+import androidx.core.util.Consumer;
+
 import com.limelight.R;
 import com.limelight.nvstream.http.Achievement;
 
@@ -32,6 +35,19 @@ public final class AchievementToast {
      * Activity's or a Dialog's content view is one).
      */
     public static void show(ViewGroup parent, List<Achievement> fresh, HostSession session) {
+        show(parent, fresh, session, null);
+    }
+
+    /**
+     * As {@link #show(ViewGroup, List, HostSession)}, and a tap on the toast hands its newest
+     * unlock to {@code onTap} and puts the toast away: on the main screen, it opens that game's
+     * page. Still never focusable: a tap is for touch, and the pad stays where it was.
+     *
+     * @param onTap told on a tap; null for a toast that only informs (over a stream, on the
+     *              companion panel)
+     */
+    public static void show(ViewGroup parent, List<Achievement> fresh, HostSession session,
+                            @Nullable Consumer<Achievement> onTap) {
         if (parent == null || fresh == null || fresh.isEmpty()) {
             return;
         }
@@ -57,6 +73,13 @@ public final class AchievementToast {
         ImageView icon = toast.findViewById(R.id.achievementToastIcon);
         icon.setClipToOutline(true);
         AchievementIcons.load(icon, first, session);
+        if (onTap != null) {
+            toast.setFocusable(false);
+            toast.setOnClickListener(v -> {
+                parent.removeView(toast);
+                onTap.accept(first);
+            });
+        }
 
         int margin = Math.round(24 * context.getResources().getDisplayMetrics().density);
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(

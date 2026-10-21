@@ -395,7 +395,6 @@
     <string name="game_stats_per_session">a sessione</string>
     <string name="game_stats_per_launch">ad avvio</string>
     <string name="game_stats_last_12_weeks">Ultime 12 settimane</string>
-    <string name="game_stats_this_week">%1$s questa</string>
     <string name="game_stats_last_played">Ultima volta %1$s</string>
     <string name="game_stats_last_played_for">Ultima volta %1$s, per %2$s</string>
     <string name="game_stats_today">oggi</string>
@@ -404,18 +403,8 @@
         <item quantity="one">%d giorno fa</item>
         <item quantity="other">%d giorni fa</item>
     </plurals>
-    <string name="game_stats_achievements_count">Obiettivi · %1$d/%2$d</string>
-    <string name="game_stats_see_all">Vedi tutti</string>
-    <string name="game_stats_latest">ultimo: %1$s</string>
-    <string name="game_stats_none_yet">ancora nessuno</string>
-    <string name="achievements_title">Obiettivi di %1$s</string>
-    <string name="achievements_count">%1$d di %2$d obiettivi</string>
-    <string name="achievements_count_score">%1$d di %2$d obiettivi · %3$d / %4$d G</string>
     <string name="achievements_percent">%1$d%%</string>
-    <string name="achievements_percent_all">%1$d%% · tutti!</string>
-    <string name="achievements_filter_all">Tutti</string>
     <string name="achievements_filter_unlocked">Sbloccati %1$d</string>
-    <string name="achievements_filter_locked">Da fare %1$d</string>
     <string name="achievements_all_done">Niente da fare: li hai tutti.</string>
     <string name="achievements_none_yet">Ancora nessuno: la prossima partita è quella buona.</string>
     <string name="achievements_hidden">Obiettivo nascosto</string>

@@ -448,7 +448,7 @@ public class HostLibrary {
     }
 
     /**
-     * The connection everything about this host shares (statistics, the per-game sheet, the
+     * The connection everything about this host shares (statistics, a game's page, the
      * achievement icons), made on first use. Null while the host has no address to reach.
      */
     public HostSession session() {

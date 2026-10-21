@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A game's achievements (stats/AchievementsBlockView, a vertical LinearLayout): after the
+    approved GamePage_B mock, "Achievements" with unlocked of all and the percentage, the meter,
+    the gamerscore when the game has one, All / Unlocked / Locked, then the rows.
+
+    In place of all that, either a card saying SuccessStory does not follow the game, or a row
+    saying the PC could not be reached for them, which retries.
+-->
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <LinearLayout
+        android:id="@+id/achievementsBlockHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:baselineAligned="true"
+        android:orientation="horizontal"
+        android:paddingStart="4dp"
+        android:paddingEnd="4dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:singleLine="true"
+            android:text="@string/stats_achievements"
+            android:textColor="@color/content_primary"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/achievementsBlockCount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:singleLine="true"
+            android:textColor="@color/content_secondary"
+            android:textSize="14sp"
+            tools:text="18 / 41" />
+
+        <TextView
+            android:id="@+id/achievementsBlockPercent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:fontFamily="monospace"
+            android:singleLine="true"
+            android:textColor="@color/signal"
+            android:textSize="14sp"
+            tools:text="44%" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/achievementsBlockTracked"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="4dp"
+            android:layout_marginStart="4dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="4dp"
+            android:background="@drawable/stats_meter_track">
+
+            <View
+                android:id="@+id/achievementsBlockMeter"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/stats_meter_fill_signal" />
+
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/achievementsBlockScore"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:layout_marginTop="6dp"
+            android:fontFamily="monospace"
+            android:singleLine="true"
+            android:textColor="@color/content_secondary"
+            android:textSize="13sp"
+            android:visibility="gone"
+            tools:text="365 / 1000 G" />
+
+        <com.limelight.ui.SegmentedControlView
+            android:id="@+id/achievementsBlockFilter"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/achievementsBlockList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:clipToPadding="false"
+            android:nestedScrollingEnabled="false"
+            android:overScrollMode="never"
+            android:scrollbars="none" />
+
+        <TextView
+            android:id="@+id/achievementsBlockEmpty"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:minHeight="@dimen/action_size"
+            android:padding="16dp"
+            android:textColor="@color/content_muted"
+            android:textSize="14sp"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <!-- SuccessStory doesn't follow the game: one card, nothing to focus. -->
+    <LinearLayout
+        android:id="@+id/achievementsBlockUntracked"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/game_page_card_bg"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="14dp"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="@dimen/achievement_icon_size"
+            android:layout_height="@dimen/achievement_icon_size"
+            android:background="@drawable/stats_icon_bg"
+            android:importantForAccessibility="no"
+            android:scaleType="center"
+            android:src="@drawable/ic_trophy"
+            android:tint="@color/content_muted" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:text="@string/game_page_no_achievements"
+                android:textColor="@color/content_primary"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/achievementsBlockUntrackedDetail"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="@color/content_muted"
+                android:textSize="13sp"
+                tools:text="SuccessStory doesn't follow Turing Complete." />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- The PC didn't answer for them: a stop, as the page's own failed row (A or a tap retries),
+         or a link that dropped only this request would leave nothing to ask again with. -->
+    <LinearLayout
+        android:id="@+id/achievementsBlockFailed"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/stop_bg"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:minHeight="@dimen/action_size"
+        android:orientation="vertical"
+        android:paddingStart="10dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="10dp"
+        android:paddingBottom="8dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/game_stats_failed"
+            android:textColor="@color/danger"
+            android:textSize="14sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="@string/game_page_retry"
+            android:textColor="@color/content_muted"
+            android:textSize="12sp" />
+
+    </LinearLayout>
+
+</merge>

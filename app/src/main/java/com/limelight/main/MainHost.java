@@ -6,6 +6,7 @@ import androidx.lifecycle.LiveData;
 import com.limelight.computers.HostRepository;
 import com.limelight.library.LaunchController;
 import com.limelight.pcs.HostActions;
+import com.limelight.stats.GamePageArgs;
 
 /**
  * What a section fragment may ask of the main screen.
@@ -74,4 +75,13 @@ public interface MainHost {
      * mode entered or left. The main screen asks the visible section again ({@link SectionBack}).
      */
     void backWorkChanged();
+
+    /**
+     * Opens a game's page over the section on screen, pushed on its stack so back returns to
+     * the row that led there. A section without a stack (PCs) switches to the Library first and
+     * pushes it there. A page for the same game already on that stack is left as it is; one for
+     * another game is replaced, with whatever is over it. An empty
+     * {@link GamePageArgs#originLabel} is filled with the title of the section the page lands on.
+     */
+    void openGamePage(@NonNull GamePageArgs args);
 }

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The RUNNING badge on a game page's cover: the online green, as the mocks keep blue for focus
+    and green for a game that is running.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="4dp" />
+    <solid android:color="@color/status_online" />
+</shape>

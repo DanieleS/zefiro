@@ -89,11 +89,9 @@
     <dimen name="settings_gutter">16dp</dimen>
     <dimen name="settings_category_top">20dp</dimen>
 
-    <!-- Statistics: the cards, the widest the screen grows to on a big display, and the sheets. -->
+    <!-- Statistics: the cards, and the widest the screen grows to on a big display. -->
     <dimen name="stats_card_corner">14dp</dimen>
     <dimen name="stats_max_width">1100dp</dimen>
-    <dimen name="stats_sheet_max_width">560dp</dimen>
-    <dimen name="stats_list_max_width">640dp</dimen>
     <dimen name="stats_gutter">24dp</dimen>
 
     <!--
@@ -215,5 +213,18 @@
     <dimen name="key_glyph_gap">3dp</dimen>
     <dimen name="hint_label_gap">6dp</dimen>
     <dimen name="hint_gap">14dp</dimen>
+    <!-- Screens T3: the game page. The cover beside the title, wide and compact. -->
+    <dimen name="game_page_cover_width">132dp</dimen>
+    <dimen name="game_page_cover_height">176dp</dimen>
+    <dimen name="game_page_cover_width_compact">84dp</dimen>
+    <dimen name="game_page_cover_height_compact">112dp</dimen>
+    <dimen name="game_page_column_gap">20dp</dimen>
+    <dimen name="game_page_title_size">26sp</dimen>
+    <dimen name="game_page_title_size_compact">22sp</dimen>
+    <dimen name="game_page_figure_size">18sp</dimen>
+    <dimen name="game_page_card_corner">12dp</dimen>
+    <dimen name="game_page_bars_height">52dp</dimen>
+    <dimen name="game_page_block_gap">20dp</dimen>
+    <dimen name="achievement_icon_size">40dp</dimen>
 
 </resources>

@@ -9,6 +9,7 @@ import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 
+import androidx.annotation.ColorInt;
 import androidx.core.content.ContextCompat;
 
 import com.limelight.R;
@@ -19,7 +20,7 @@ import com.limelight.R;
  * bar in focus is today's until one is picked, by touch or, while the view has focus, with the
  * d-pad's left and right. A week's bars carry their value above them ("3:20", "45′").
  *
- * <p>In compact form it is the per-game sheet's twelve-week sparkline: no labels, the last bar
+ * <p>In compact form it is the game page's twelve-week sparkline: no labels, the last bar
  * (this week) in focus, and nothing to pick.
  *
  * <p>Drawn by hand rather than with a charting library: there are at most 31 rounded bars and a
@@ -85,6 +86,15 @@ public class StatsBarsView extends View {
     public void setCompact(boolean compact) {
         this.compact = compact;
         setFocusable(!compact);
+        invalidate();
+    }
+
+    /**
+     * The colour of the bars out of focus; the outline grey by default. The game page's weeks
+     * use their own, a step towards the signal, as the mock draws them.
+     */
+    public void setBarColor(@ColorInt int color) {
+        dimPaint.setColor(color);
         invalidate();
     }
 

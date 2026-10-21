@@ -125,5 +125,7 @@
     <color name="chart_bar_zero">#FF262626</color>
     <!-- The game page's twelve-week bars, a little greyer than the Stats chart's. -->
     <color name="week_bar">#FF2C4652</color>
+    <!-- Screens T3: the text on the game page's green RUNNING badge. -->
+    <color name="on_status_online">#FF08210C</color>
 
 </resources>
