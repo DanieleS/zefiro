@@ -56,6 +56,8 @@ public class StreamControlsPanelTest {
     public void sessionLengthSwitchesToHoursPastTheHour() {
         assertEquals("0 min", StreamControlsPanel.sessionLength(res(), 20_000));
         assertEquals("59 min", StreamControlsPanel.sessionLength(res(), 59 * 60_000L));
-        assertEquals("1 h 12 min", StreamControlsPanel.sessionLength(res(), 72 * 60_000L));
+        // The Stats page's words, and a clock that ticks over rather than rounds.
+        assertEquals("1h 12m", StreamControlsPanel.sessionLength(res(), 72 * 60_000L + 59_000L));
+        assertEquals("2h", StreamControlsPanel.sessionLength(res(), 120 * 60_000L));
     }
 }

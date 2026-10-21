@@ -538,6 +538,24 @@ public class CompanionStateTest {
     }
 
     @Test
+    public void leavingTheStreamGoesBackToTheBrowsingPushedDuringIt() {
+        // The main screen re-pushes its browsing and page on start, while the finished game's
+        // activity has not been destroyed yet. No later push is owed: leaving must draw them.
+        state.enterStreaming();
+        state.setBrowsing(game("Hades", 12, false));
+        RowsPage page = rows("Escaped Tartarus");
+        state.setPage(page);
+        assertEquals(CompanionState.Content.STREAMING, state.getContent());
+
+        int before = changes;
+        state.leaveStreaming();
+        assertEquals(CompanionState.Content.BROWSING, state.getContent());
+        assertEquals("Hades", state.getBrowsingTitle());
+        assertSame(page, state.getPage());
+        assertTrue(changes > before);
+    }
+
+    @Test
     public void aPageIsKeptWhileThePanelIsOff() {
         state.setBrowsing(game("Hades", 12, false));
         state.setOwner(CompanionState.Owner.OFF);

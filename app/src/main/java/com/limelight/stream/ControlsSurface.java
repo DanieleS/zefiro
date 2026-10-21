@@ -14,7 +14,10 @@ import androidx.annotation.NonNull;
  */
 public interface ControlsSurface {
 
-    /** A surface's input, already turned from keys and sticks into intent. */
+    /**
+     * A surface's input, already turned from keys and sticks into intent. Kept apart from the
+     * companion pages' {@code PageFocus.Nav}, which has the four directions only: see there.
+     */
     enum Nav { UP, DOWN, LEFT, RIGHT, ACTIVATE, BACK, CLOSE }
 
     /** What the surface hands back to the router. */

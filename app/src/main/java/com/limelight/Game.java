@@ -1176,7 +1176,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         CompanionDisplayManager.setMenuClosedListener(this::onControlsClosed);
         // The panel can come and go mid-stream (powered off, hidden, borrowed by an app); the
         // edge handle follows it, so the controls are offered in exactly one place.
-        CompanionDisplayManager.setShowingListener(this::updateControlsHandle);
+        CompanionDisplayManager.panelShowing().observe(this, showing -> updateControlsHandle());
 
         textFocusKeyboard = new TextFocusKeyboard(new TextFocusKeyboard.Keyboards() {
             @Override
@@ -2232,7 +2232,6 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         CompanionDisplayManager.setMenuRequestListener(null);
         CompanionDisplayManager.setMenuOpenedListener(null);
         CompanionDisplayManager.setMenuClosedListener(null);
-        CompanionDisplayManager.setShowingListener(null);
         CompanionDisplayManager.hideMenu();
         // No keyboard of ours may outlive the stream it was raised for
         textFocusHandler.removeCallbacksAndMessages(null);

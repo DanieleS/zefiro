@@ -475,7 +475,7 @@
     <string name="title_checkbox_mouse_local_cursor">Use local mouse cursor</string>
     <string name="summary_checkbox_mouse_local_cursor">Default external physical mouse cursor will be captured, this option can display Android system cursor</string>
     <string name="title_checkbox_multi_touch_gestures">Enable multi-touch gestures</string>
-    <string name="summary_checkbox_multi_touch_gestures">Enable 3 finger tap for keyboard, 4 finger tap for full keyboard, 5 finger tap for quick menu when using multi-touch mode.</string>
+    <string name="summary_checkbox_multi_touch_gestures">Enable 3 finger tap for keyboard, 4 finger tap for full keyboard, 5 finger tap for the stream controls when using multi-touch mode.</string>
     <string name="title_checkbox_onscreen_style_official">Official Virtual Gamepad Skin</string>
     <string name="summary_checkbox_onscreen_style_official">If you still like the old style of official virtual gamepad buttons, you can select this option.\nButton shapes can be square if you selected the bottom virtual button [Normal buttons are square buttons]</string>
     <string name="title_checkbox_enable_perf_logging">Enable Performance Logging</string>
@@ -483,15 +483,15 @@
     <string name="title_show_overlay_zoom_toggle_button">Show overlay zoom toggle button</string>
     <string name="summary_show_overlay_zoom_toggle_button">Displays a draggable button at the top of the screen to toggle pan/zoom mode.</string>
     <string name="title_virtual_trackpad_settings">Virtual Trackpad Settings</string>
-    <string name="title_quit_dialog">Back Menu</string>
-    <string name="summary_quit_dialog">When enabled, clicking the physical back button on the streaming interface will show related options!\nSoft keyboard, performance information, touch mode switching, send special keys</string>
+    <string name="title_quit_dialog">Stream controls on Back</string>
+    <string name="summary_quit_dialog">Back, a five-finger tap or a controller\'s Start tapped then held opens the stream controls: the side panel on the right edge of the stream, or the companion screen when it is showing.</string>
     <string name="dialog_custom_resolution">Set the resolution and exit the settings page to take effect!</string>
     <string name="summary_custom_resolution">Add a custom resolution, separated by x, strange resolutions may not work.\nFor example: 1920x1080\nIf it is a non-native resolution, it may not fill the notch area by default. If the aspect ratio is the same, you can manually set to stretch the screen to fill the full screen</string>
     <string name="title_custom_resolution">Custom Resolution</string>
     <string name="title_auto_orientation">Auto Orientation</string>
     <string name="summary_auto_orientation">The streaming screen will be displayed according to the device\'s orientation when the stream begins.</string>
     <string name="title_import_special_button">Import Custom Keys</string>
-    <string name="summary_import_special_button">Available in Back Menu and special keys.\nNote: Importing will overwrite current configuration, please backup accordingly.</string>
+    <string name="summary_import_special_button">Available on the Special keys page of the stream controls.\nNote: Importing will overwrite current configuration, please backup accordingly.</string>
     <string name="summary_share_performance_logs">Share your performance with friends or the community</string>
     <string name="title_share_performance_logs_button">Share Performance Logs</string>
     <string name="title_software_update">Software Update</string>
@@ -548,7 +548,7 @@
     <string name="title_device_rumble">Force vibration on device</string>
     <string name="summary_device_rumble">If you are not satisfied with the vibration of the connected gamepad, you can enable this option.\nInvalid for forced use of Artemis\'s built-in USB driver</string>
     <string name="title_clear_default_special_button">Disable default Special Keys</string>
-    <string name="summary_clear_default_special_button">If you feel the built-in commands in the Back Menu are useless, you can disable them and use your imported ones.</string>
+    <string name="summary_clear_default_special_button">Hide the built-in combos from the Special keys page of the stream controls, leaving only your imported ones.</string>
     <string name="title_trackpad_sensitivity_x">Trackpad Sensitivity X</string>
     <string name="summary_trackpad_sensitivity_x">X axis Sensitivity of the trackpad, negative to invert direction</string>
     <string name="title_trackpad_sensitivity_y">Trackpad Sensitivity Y</string>
@@ -980,14 +980,10 @@
     <string name="stream_action_overlay">Overlay</string>
     <string name="stream_action_special_keys">Special keys</string>
     <string name="stream_action_more">More</string>
-    <string name="stream_action_quit">Quit game</string>
     <!-- The in-stream side panel's header and its edge handle. -->
     <string name="stream_controls_open">Open stream controls</string>
     <string name="stream_controls_back">Back</string>
     <string name="stream_controls_subtitle">%1$s · %2$s</string>
-    <string name="stream_controls_session_minutes">%1$d min</string>
-    <string name="stream_controls_session_hours">%1$d h %2$d min</string>
-    <string name="stream_controls_resolution_4k">4K</string>
     <string name="stream_controls_resolution_lines">%1$dp</string>
     <!-- The stream mode: a line count runs into the rate ("1080p60"), a name is spaced ("4K 120"). -->
     <string name="stream_controls_mode_lines">%1$s%2$d</string>

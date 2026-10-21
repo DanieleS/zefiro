@@ -30,7 +30,13 @@ import java.util.List;
  */
 public final class PageFocus {
 
-    /** A d-pad direction. */
+    /**
+     * A d-pad direction. Not the stream's {@code ControlsSurface.Nav}, though it reads like a
+     * subset of it: that one also carries activate, back and close, which a page leaves to its
+     * owner, and its grid ({@code ControlsGrid}) moves by other rules (nothing exits, nothing is
+     * disabled, a row lands in proportion rather than by column). One shared type would have both
+     * navigators reject half of each other's values.
+     */
     public enum Nav { UP, DOWN, LEFT, RIGHT }
 
     /** Off the first row, upwards. */

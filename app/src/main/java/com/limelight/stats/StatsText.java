@@ -24,24 +24,46 @@ public class StatsText implements StatsFormat.Words {
     private final Context context;
     private final Resources res;
     private final Locale locale;
+    private final StatsFormat.Words words;
 
     public StatsText(Context context) {
         this.context = context;
         this.res = context.getResources();
         Locale configured = res.getConfiguration().locale;
         this.locale = configured != null ? configured : Locale.getDefault();
+        this.words = words(res);
+    }
+
+    /**
+     * The duration words alone, for a surface with no StatsText of its own. The stream's session
+     * length is worded with them too, so the panel reads "1h 05m" while streaming and on Stats
+     * alike.
+     */
+    public static StatsFormat.Words words(Resources res) {
+        return new StatsFormat.Words() {
+            @Override
+            public String minutes(long minutes) {
+                return res.getString(R.string.stats_duration_minutes, (int) minutes);
+            }
+
+            @Override
+            public String hours(long hours, long minutes) {
+                return minutes == 0
+                        ? res.getString(R.string.stats_duration_hours, (int) hours)
+                        : res.getString(R.string.stats_duration_hours_minutes, (int) hours,
+                                (int) minutes);
+            }
+        };
     }
 
     @Override
     public String minutes(long minutes) {
-        return res.getString(R.string.stats_duration_minutes, (int) minutes);
+        return words.minutes(minutes);
     }
 
     @Override
     public String hours(long hours, long minutes) {
-        return minutes == 0
-                ? res.getString(R.string.stats_duration_hours, (int) hours)
-                : res.getString(R.string.stats_duration_hours_minutes, (int) hours, (int) minutes);
+        return words.hours(hours, minutes);
     }
 
     public String duration(long seconds) {

@@ -28,6 +28,8 @@ import androidx.core.content.ContextCompat;
 
 import com.limelight.R;
 import com.limelight.binding.video.PerfStats;
+import com.limelight.stats.StatsFormat;
+import com.limelight.stats.StatsText;
 
 /**
  * The phone's in-stream controls: a panel on the right edge of the stream, over a scrim, after
@@ -582,14 +584,12 @@ public class StreamControlsPanel extends FrameLayout implements ControlsSurface 
 
     // --- Formatting ------------------------------------------------------------------------
 
-    /** "1 h 12 min", or "12 min" under the hour. Also the companion strip's, so both agree. */
+    /**
+     * "1h 12m", or "12 min" under the hour: the Stats page's words, so a duration reads the same
+     * wherever the panel shows one. Also the companion strip's, so both agree.
+     */
     public static String sessionLength(Resources res, long elapsedMs) {
-        long minutes = Math.max(0, elapsedMs) / 60000;
-        if (minutes < 60) {
-            return res.getString(R.string.stream_controls_session_minutes, (int) minutes);
-        }
-        return res.getString(R.string.stream_controls_session_hours,
-                (int) (minutes / 60), (int) (minutes % 60));
+        return StatsFormat.durationMinutes(Math.max(0, elapsedMs) / 60000, StatsText.words(res));
     }
 
     /**
@@ -626,7 +626,7 @@ public class StreamControlsPanel extends FrameLayout implements ControlsSurface 
         int lines = Math.min(width, height);
         // Kept in step with modeLabel, which spaces the named sizes.
         if (lines >= 2160) {
-            return res.getString(R.string.stream_controls_resolution_4k);
+            return res.getString(R.string.resolution_4k);
         }
         return res.getString(R.string.stream_controls_resolution_lines, lines);
     }

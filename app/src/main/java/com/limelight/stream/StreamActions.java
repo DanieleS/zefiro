@@ -135,7 +135,7 @@ public final class StreamActions {
         main.add(StreamAction.of(Id.DISCONNECT, Group.DANGER)
                 .label(R.string.game_menu_disconnect).build());
         main.add(StreamAction.of(Id.QUIT, Group.DANGER)
-                .label(R.string.stream_action_quit).build());
+                .label(R.string.library_quit_game).build());
 
         return StreamAction.of(Id.ROOT, Group.LIST)
                 .label(R.string.quick_menu_title).children(main).build();

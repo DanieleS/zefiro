@@ -81,10 +81,6 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
     private Runnable menuOpenedListener;
     private Runnable menuClosedListener;
 
-    // Invoked whenever a panel comes up or goes away; the stream activity registers it to hide its
-    // own controls handle while the controls live down here instead.
-    private Runnable showingListener;
-
     // Whether the keyboard for a text field focused on the host belongs on the panel. Kept here
     // rather than on the panel itself so a re-hosted panel brings it back up.
     private boolean textKeyboardRequested;
@@ -181,7 +177,9 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
      * Whether a panel is on screen, as it changes: {@link #isShowing()} answers for the moment
      * only, and a screen that puts its lower half on the panel must hear when the panel comes or
      * goes (turned off from the host sheet, the display powered down) to lay it out inline
-     * instead. Set on the main thread, whenever the panel is attached or taken down.
+     * instead, as the stream must to offer its controls on its own screen. Set on the main thread,
+     * whenever the panel is attached or taken down, after {@link #isShowing()} already answers
+     * the new way.
      */
     @NonNull
     public static LiveData<Boolean> panelShowing() {
@@ -339,16 +337,6 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
     public static void setMenuClosedListener(Runnable listener) {
         if (instance != null) {
             instance.menuClosedListener = listener;
-        }
-    }
-
-    /**
-     * Register what should happen when a panel comes up or goes away, whatever the reason. Called
-     * on the main thread, after {@link #isShowing()} already answers the new way.
-     */
-    public static void setShowingListener(Runnable listener) {
-        if (instance != null) {
-            instance.showingListener = listener;
         }
     }
 
@@ -526,7 +514,6 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
         publishShowing();
         LimeLog.info("CompanionDisplay: attached to display " + presentationDisplayId
                 + " via " + owner.getClass().getSimpleName());
-        notifyShowingChanged();
     }
 
     /**
@@ -569,9 +556,6 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
         LimeLog.info("CompanionDisplay: re-hosted on " + owner.getClass().getSimpleName());
         if (sheetLost) {
             onMenuClosed();
-        }
-        if (previous == null) {
-            notifyShowingChanged();
         }
     }
 
@@ -616,7 +600,6 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
         if (sheetLost) {
             onMenuClosed();
         }
-        notifyShowingChanged();
 
         Display display = displayManager.getDisplay(dismissedId);
         boolean displayAlive = display != null && display.isValid()
@@ -647,13 +630,6 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
         // would go on steering the pad into nothing — the pad stuck until the stream ended.
         if (sheetLost) {
             onMenuClosed();
-        }
-        notifyShowingChanged();
-    }
-
-    private void notifyShowingChanged() {
-        if (showingListener != null) {
-            showingListener.run();
         }
     }
 

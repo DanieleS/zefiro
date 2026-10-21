@@ -32,6 +32,7 @@ import java.util.Objects;
  * ┌─ content ────────────────────────────────────────────────┐
  * │   IDLE ──enterBrowsing──▶ BROWSING ──leaveBrowsing──▶ IDLE│
  * │   IDLE ──enterStreaming─▶ STREAMING ─leaveStreaming─▶ IDLE│
+ * │                         or BROWSING, if one came meanwhile│
  * └──────────────────────────────────────────────────────────┘
  * ┌─ owner ──────────────────────────────────────────────────┐
  * │   PANEL ◀──▶ OFF            (the user's own show/hide)    │
@@ -165,7 +166,12 @@ public class CompanionState {
             statsOverTelemetry = false;
             crashedTelemetryView = null;
             streamSession = null;
-            setContent(Content.IDLE);
+            // The main screen starts again before the finished game's activity is destroyed, so
+            // its browsing (and page) usually arrived while this still said STREAMING: held, not
+            // drawn. Go back to it now rather than wait for a push that may not come. Set here,
+            // not through setContent(), which refuses BROWSING while this still says STREAMING.
+            content = browsing != null ? Content.BROWSING : Content.IDLE;
+            notifyChanged();
         }
     }
 
@@ -396,8 +402,8 @@ public class CompanionState {
      * drawn, while a game streams: the panel is the stream's then. Held rather than refused
      * because a finished game's activity is destroyed only after the main screen has started
      * again, so the main screen re-publishes its page while the content still says STREAMING;
-     * a refused push would be lost, and the page would not come back after the stream. The next
-     * browsing push, once the stream has left, draws it.
+     * a refused push would be lost, and the page would not come back after the stream. Leaving
+     * the stream draws it, with the browsing pushed alongside.
      */
     public void setPage(CompanionPage next) {
         boolean same = next == null ? page == null : next.equals(page);

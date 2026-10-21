@@ -24,7 +24,15 @@ public final class StatsFormat {
 
     /** A length of time to the nearest minute: minutes under an hour, hours and minutes above. */
     public static String duration(long seconds, Words words) {
-        long minutes = Math.round(Math.max(0, seconds) / 60.0);
+        return durationMinutes(Math.round(Math.max(0, seconds) / 60.0), words);
+    }
+
+    /**
+     * As {@link #duration}, for a length already counted in whole minutes: a running clock (the
+     * stream's session length), which has to tick over on the minute rather than round to it.
+     */
+    public static String durationMinutes(long minutes, Words words) {
+        minutes = Math.max(0, minutes);
         if (minutes < 60) {
             return words.minutes(minutes);
         }
