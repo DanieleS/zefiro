@@ -152,6 +152,32 @@ public final class StatsFormat {
     }
 
     /**
+     * Whether a game's time in a period is worth a place among its most played: at least the
+     * "1 min" {@link #duration} would print, never a "0 min" card.
+     */
+    public static boolean countsAsPlayed(long seconds) {
+        return Math.round(Math.max(0, seconds) / 60.0) > 0;
+    }
+
+    /**
+     * The chart's height for the room the window leaves it, in pixels.
+     *
+     * <p>With the companion panel showing, the top screen holds only the summary, the chart and
+     * the strip, so the chart takes whatever height the strip leaves, up to {@code max}. Inline,
+     * the lower half follows on the same scroll, so the chart keeps its {@code standard} height
+     * and only gives way in a short window, so the strip still shows under it. Never below
+     * {@code min}, where the bars would stop reading; the page scrolls from there.
+     *
+     * @param room the scroll's visible height, less everything from its top to the end of the
+     *             strip other than the chart
+     * @param split whether the companion panel is showing
+     */
+    public static int chartHeight(int room, boolean split, int min, int standard, int max) {
+        int upper = split ? max : standard;
+        return Math.max(min, Math.min(upper, room));
+    }
+
+    /**
      * Above a year's bars: whole hours ("42h" as {@code hours}), or the short form below half
      * an hour, so a month with a little play is not labelled "0h".
      *

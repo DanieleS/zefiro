@@ -12,6 +12,7 @@ import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.TextUtils;
 import android.text.style.ForegroundColorSpan;
+import android.text.style.ScaleXSpan;
 import android.text.style.StyleSpan;
 import android.text.style.TypefaceSpan;
 import android.view.KeyEvent;
@@ -112,7 +113,10 @@ import java.util.concurrent.RejectedExecutionException;
  * </pre>
  *
  * The window's width, never the device, decides the rest: the host chip or text, the crumb, and
- * the strip's row of five cards or five-column grid of covers.
+ * the strip's row of five cards or five-column grid of covers. The chart's height follows the
+ * window's height and the split ({@link #fitChart}): split, it grows into what the strip leaves;
+ * in a short window it shrinks so the strip still shows. A panel turned on or off while the page
+ * is up re-lays all of this out on the spot, keeping the period, the picked bar and the tab.
  *
  * <h3>Two screens, one focus</h3>
  *
@@ -216,6 +220,8 @@ public class StatsFragment extends Fragment
     private TextView deltaView;
     private TextView summaryLine;
     private StatsBarsView chart;
+    private TextView trackingNote;
+    private View scrollView;
     private View stripSection;
     private LinearLayout stripRow;
     private View stripLabel;
@@ -311,6 +317,8 @@ public class StatsFragment extends Fragment
         chart = view.findViewById(R.id.statsChart);
         chart.setOnSelectionChangedListener(this::onBarPicked);
         chart.setOnBarActivatedListener(this::onBarActivated);
+        trackingNote = view.findViewById(R.id.statsTrackingNote);
+        scrollView = view.findViewById(R.id.statsScroll);
 
         stripSection = view.findViewById(R.id.statsStrip);
         stripRow = view.findViewById(R.id.statsStripRow);
@@ -536,6 +544,44 @@ public class StatsFragment extends Fragment
             applyInset(contentView, side);
             applyInset(header, side);
         });
+        // The chart's height follows the room the window and the page leave it; settles after
+        // one extra pass, since the room left does not count the chart itself.
+        View.OnLayoutChangeListener fit = (v, left, top, right, bottom,
+                                          oldLeft, oldTop, oldRight, oldBottom) -> {
+            if (bottom - top != oldBottom - oldTop) {
+                // Posted: a height set inside a layout pass would wait for the next one.
+                v.post(this::fitChart);
+            }
+        };
+        scrollView.addOnLayoutChangeListener(fit);
+        contentView.addOnLayoutChangeListener(fit);
+    }
+
+    /**
+     * Fits the chart to the window ({@link StatsFormat#chartHeight}): with the panel showing it
+     * takes the height the strip leaves on this screen, so the Thor's top is not half empty;
+     * inline it keeps its height and only gives way in a short window (a phone on its side), so
+     * the strip still shows under it.
+     */
+    private void fitChart() {
+        if (getView() == null || trackedView.getVisibility() != View.VISIBLE
+                || bodyView.getVisibility() != View.VISIBLE || chart.getHeight() == 0) {
+            return;
+        }
+        // In a compact window the scroll's bottom padding sits under the navigation bar.
+        int viewport = scrollView.getHeight() - scrollView.getPaddingTop()
+                - (isCompact() ? scrollView.getPaddingBottom() : 0) - dp(16);
+        int topPart = contentView.getTop() + bodyView.getTop() + trackedView.getBottom();
+        int room = viewport - (topPart - chart.getHeight());
+        int height = StatsFormat.chartHeight(room, split,
+                getResources().getDimensionPixelSize(R.dimen.stats_chart_min_height),
+                getResources().getDimensionPixelSize(R.dimen.stats_chart_height),
+                getResources().getDimensionPixelSize(R.dimen.stats_chart_max_height));
+        ViewGroup.LayoutParams params = chart.getLayoutParams();
+        if (Math.abs(params.height - height) > 1) {
+            params.height = height;
+            chart.setLayoutParams(params);
+        }
     }
 
     private static void applyInset(@Nullable View view, int inset) {
@@ -958,6 +1004,7 @@ public class StatsFragment extends Fragment
         bindLower(s, tracked);
         updateTooltip();
         updateHints();
+        root.post(this::fitChart);
 
         // A page that lands while the d-pad is on the navigation or the panel leaves it there;
         // and a hidden section takes no focus at all.
@@ -1024,6 +1071,11 @@ public class StatsFragment extends Fragment
             if (at >= 0) {
                 int end = at + amount.length();
                 span.setSpan(new TypefaceSpan("monospace"), at, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                // A monospaced space is a whole cell wide, which reads as two in the muted
+                // line ("−3h  54m"); half of it keeps the figures apart, no more.
+                for (int i = delta.indexOf(' ', at); i >= 0 && i < end; i = delta.indexOf(' ', i + 1)) {
+                    span.setSpan(new ScaleXSpan(0.5f), i, i + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                }
                 // Only more play is good news; less is said in the line's own muted ink.
                 if (s.getTotalSeconds() > s.getPreviousTotalSeconds()) {
                     span.setSpan(new ForegroundColorSpan(ContextCompat.getColor(requireContext(),
@@ -1066,13 +1118,19 @@ public class StatsFragment extends Fragment
             }
         }
         int futureFrom = StatsDrill.firstFutureBar(s);
+        // Before GameActivity's first session nothing is known: those bars are drawn dim and
+        // cannot be picked, and a note says where the record starts.
+        int firstTracked = Math.min(StatsDrill.firstTrackedBar(s), Math.max(0, futureFrom - 1));
         int picked = model.selectedBar();
-        if (picked < 0 || picked >= futureFrom) {
+        if (picked < firstTracked || picked >= futureFrom) {
             picked = StatsDrill.defaultBar(s);
         }
         // setData reports the picked bar back (onBarPicked), which keeps the model's in step.
         chart.setData(values, labels, valueLabels, picked);
         chart.setFutureFrom(futureFrom);
+        chart.setPickableFrom(firstTracked);
+        trackingNote.setVisibility(firstTracked > 0 ? View.VISIBLE : View.GONE);
+        trackingNote.setText(firstTracked > 0 ? text.trackingNote(s) : null);
     }
 
     /**
@@ -1082,8 +1140,15 @@ public class StatsFragment extends Fragment
      */
     private void bindStrip(AppStats s) {
         stripList.removeAllViews();
-        List<AppStats.TopGame> top = s.hasActivity() ? s.getTop()
-                : Collections.<AppStats.TopGame>emptyList();
+        // A game with less than a minute in the period would read "0 min, 0%": left out.
+        List<AppStats.TopGame> top = new ArrayList<>();
+        if (s.hasActivity()) {
+            for (AppStats.TopGame g : s.getTop()) {
+                if (StatsFormat.countsAsPlayed(g.getSeconds())) {
+                    top.add(g);
+                }
+            }
+        }
         String phrase = text.periodPhrase(s);
         if (top.isEmpty()) {
             stripSection.setVisibility(View.GONE);
@@ -1273,6 +1338,7 @@ public class StatsFragment extends Fragment
         split = next;
         applySplit();
         updateHints();
+        root.post(this::fitChart);
         // The remote just went from under the d-pad, perhaps: the chart (or what stands for it)
         // takes it rather than the rail.
         if (!refocusIfTaken(hadFocus)) {

@@ -73,6 +73,27 @@ public final class StatsDrill {
         return buckets.size();
     }
 
+    /**
+     * The index of the first bar GameActivity has sessions for: the month of its first session
+     * on a year page, the day on a week's or a month's. The bars before it are not "nothing
+     * played" but "nothing known", and are drawn as such. 0 when every bar is recorded or the
+     * first session is unknown; the number of bars when none is.
+     */
+    public static int firstTrackedBar(@NonNull AppStats page) {
+        List<AppStats.Bucket> buckets = page.getBuckets();
+        String since = key(page.getRange(), page.getTrackingSince());
+        if (since == null) {
+            return 0;
+        }
+        for (int i = 0; i < buckets.size(); i++) {
+            String date = key(page.getRange(), buckets.get(i).getDate());
+            if (date != null && date.compareTo(since) >= 0) {
+                return i;
+            }
+        }
+        return buckets.size();
+    }
+
     /** Today's bar (this month's on a year page), or -1 when the page does not hold today. */
     public static int todayBar(@NonNull AppStats page) {
         List<AppStats.Bucket> buckets = page.getBuckets();

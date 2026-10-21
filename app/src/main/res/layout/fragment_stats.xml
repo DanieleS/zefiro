@@ -408,11 +408,11 @@
                         </LinearLayout>
 
                         <!-- No background: the ring is drawn around the picked bar, only while
-                             the chart has focus. -->
+                             the chart has focus. Its height is fitted to the window in code. -->
                         <com.limelight.stats.StatsBarsView
                             android:id="@+id/statsChart"
                             android:layout_width="match_parent"
-                            android:layout_height="200dp"
+                            android:layout_height="@dimen/stats_chart_height"
                             android:layout_marginTop="8dp"
                             android:clickable="true"
                             android:contentDescription="@string/stats_bars_label"
@@ -421,6 +421,20 @@
                             android:paddingTop="4dp"
                             android:paddingEnd="4dp"
                             android:paddingBottom="4dp" />
+
+                        <!-- Under a chart whose first bars predate the first recorded session:
+                             "No session data before October". -->
+                        <TextView
+                            android:id="@+id/statsTrackingNote"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="4dp"
+                            android:layout_marginTop="2dp"
+                            android:singleLine="true"
+                            android:textColor="@color/content_faint"
+                            android:textSize="12sp"
+                            android:visibility="gone"
+                            tools:text="No session data before October" />
 
                         <!-- The period's own most played: a label beside five cards (wide), or
                              over five covers (compact). -->

@@ -106,4 +106,27 @@ public class StatsDrillTest {
         assertEquals(19, StatsDrill.defaultBar(StatsPageFixtures.month(0, TODAY, 2026, 10)));
         assertEquals(29, StatsDrill.defaultBar(StatsPageFixtures.month(-1, TODAY, 2026, 9)));
     }
+
+    @Test
+    public void monthsBeforeTheFirstSessionAreUnrecorded() {
+        // Sessions from 9 October: January to September are not known, October is.
+        assertEquals(9, StatsDrill.firstTrackedBar(
+                StatsPageFixtures.year(0, TODAY, 2026, "2026-10-09")));
+        assertEquals(0, StatsDrill.firstTrackedBar(StatsPageFixtures.year(0, TODAY, 2026)));
+    }
+
+    @Test
+    public void daysBeforeTheFirstSessionAreUnrecorded() {
+        assertEquals(8, StatsDrill.firstTrackedBar(
+                StatsPageFixtures.month(0, TODAY, 2026, 10, "2026-10-09")));
+        // Recorded since before the month: every day is.
+        assertEquals(0, StatsDrill.firstTrackedBar(
+                StatsPageFixtures.month(-1, TODAY, 2026, 9, "2026-08-30")));
+    }
+
+    @Test
+    public void aYearBeforeTheFirstSessionHasNoRecordedBar() {
+        assertEquals(12, StatsDrill.firstTrackedBar(
+                StatsPageFixtures.year(-1, TODAY, 2025, "2026-10-09")));
+    }
 }
