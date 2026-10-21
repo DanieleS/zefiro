@@ -28,10 +28,12 @@
 
     <!--
         A PC is a small tile (item_pc_tile): an icon box, a name, a status line and one action,
-        four across on the Thor and two on a phone. The grid's rows take their tallest tile's
-        height, so the minimum is what a tile with its action button needs.
+        four across on the Thor and two on a phone. A tile is as tall as what it holds, and the
+        grid's rows take their tallest tile's height: a row with an action button is taller than
+        one without. The minimum only keeps Add PC, alone or beside a PC with no action, a tile
+        rather than a strip; it is below what any PC tile holds.
     -->
-    <dimen name="pc_tile_min_height">168dp</dimen>
+    <dimen name="pc_tile_min_height">112dp</dimen>
     <dimen name="pc_tile_padding">12dp</dimen>
     <!-- Half the gap between tiles: each tile's margin, so two neighbours make one gap. -->
     <dimen name="pc_tile_half_gap">6dp</dimen>

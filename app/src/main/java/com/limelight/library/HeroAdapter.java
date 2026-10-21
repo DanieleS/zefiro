@@ -1,6 +1,8 @@
 package com.limelight.library;
 
 import android.content.Context;
+import android.content.res.Configuration;
+import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -15,6 +17,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.button.MaterialButton;
 import com.limelight.R;
+import com.limelight.companion.CompanionState;
 import com.limelight.computers.HostLibrary;
 import com.limelight.grid.assets.ArtState;
 import com.limelight.grid.assets.CachedAppAssetLoader;
@@ -30,6 +33,18 @@ import java.util.Map;
 /**
  * The hero over the Library home's shelves: the game the selected host is running, with Resume
  * and Quit game. One row while the host runs something, none otherwise.
+ *
+ * <p>Its tag says where the game runs ("Running on Taverna"), and a meta line under the title
+ * says what the game is (year, genres, score) when the host has Playnite metadata for it; it is
+ * left out without, never stood in for. The mock's time in the session is not shown: no host
+ * says when a game was started.
+ *
+ * <h3>Size</h3>
+ *
+ * The card is as tall as its cover, and the cover is sized so the card takes at most a third of
+ * the window's height ({@link #coverWidthDp}): on the Thor the shelves are what the screen is
+ * for, and a hero half its height pushed them off it. The backdrop fills the card without sizing
+ * it; before, a tall background art made the card as tall as the picture.
  *
  * <h3>What counts as running</h3>
  *
@@ -65,6 +80,10 @@ final class HeroAdapter extends RecyclerView.Adapter<HeroAdapter.Holder> {
     // A phone in portrait has room for a smaller cover beside the buttons, and none for the
     // play glyph on Resume: both buttons must fit next to the cover on a 360dp-wide screen.
     private static final int COMPACT_COVER_WIDTH_DP = 84;
+    // The narrowest a wide window's cover gets to keep the card within a third of the window.
+    private static final int MIN_COVER_WIDTH_DP = 72;
+    // The card's share of the window's height, at most.
+    private static final int HEIGHT_SHARE = 3;
 
     private final Listener listener;
 
@@ -73,6 +92,11 @@ final class HeroAdapter extends RecyclerView.Adapter<HeroAdapter.Holder> {
     @Nullable
     private HostLibrary library;
     private boolean hasBackground;
+    // The tag's PC and the meta line, as last submitted; null when not known.
+    @Nullable
+    private String hostName;
+    @Nullable
+    private String meta;
     @Nullable
     private Holder bound;
 
@@ -114,16 +138,31 @@ final class HeroAdapter extends RecyclerView.Adapter<HeroAdapter.Holder> {
      */
     void submit(@Nullable LibraryApp game, @Nullable HostLibrary library,
                 @Nullable Map<String, AppMetadata> metadata) {
+        submit(game, library, metadata, null);
+    }
+
+    /**
+     * As {@link #submit(LibraryApp, HostLibrary, Map)}, naming the PC the game runs on in the
+     * tag; a change of name or of meta line redraws the card in place.
+     *
+     * @param hostName the selected PC's name; null for the plain "Continue" tag
+     */
+    void submit(@Nullable LibraryApp game, @Nullable HostLibrary library,
+                @Nullable Map<String, AppMetadata> metadata, @Nullable String hostName) {
         boolean had = this.game != null;
+        String nextMeta = game != null ? metaFor(game.app, metadata) : null;
         boolean same = had && game != null && library == this.library
                 && game.appId() == this.game.appId()
                 && equal(game.app.getAppName(), this.game.app.getAppName())
-                && game.hidden == this.game.hidden;
+                && game.hidden == this.game.hidden
+                && equal(hostName, this.hostName) && equal(nextMeta, this.meta);
         boolean background = game != null && hasBackground(game.app, metadata);
         boolean backgroundCame = background && !this.hasBackground;
         this.game = game;
         this.library = library;
         this.hasBackground = background;
+        this.hostName = hostName;
+        this.meta = nextMeta;
         if (had && game == null) {
             notifyItemRemoved(0);
         } else if (!had && game != null) {
@@ -208,8 +247,17 @@ final class HeroAdapter extends RecyclerView.Adapter<HeroAdapter.Holder> {
         holder.appId = shown.appId();
         holder.library = library;
         holder.title.setText(shown.app.getAppName());
-        holder.resume.setContentDescription(holder.itemView.getContext()
-                .getString(R.string.library_resume) + ", " + shown.app.getAppName());
+        Context context = holder.itemView.getContext();
+        holder.tag.setText(hostName != null
+                ? context.getString(R.string.library_running_on, hostName)
+                : context.getString(R.string.library_continue));
+        boolean hasMeta = meta != null && !meta.isEmpty();
+        holder.meta.setText(hasMeta ? meta : null);
+        holder.meta.setVisibility(hasMeta ? View.VISIBLE : View.GONE);
+        // With a meta line the title keeps to one line, so the card stays as tall as its cover.
+        holder.title.setMaxLines(hasMeta ? 1 : 2);
+        holder.resume.setContentDescription(context.getString(R.string.library_resume) + ", "
+                + shown.app.getAppName());
         if (!sameGame) {
             cancel(holder);
             holder.coverBitmap = null;
@@ -319,14 +367,37 @@ final class HeroAdapter extends RecyclerView.Adapter<HeroAdapter.Holder> {
         }
     }
 
-    // The cover and the play glyph by the window's width; see COMPACT_COVER_WIDTH_DP.
+    /**
+     * The cover's width, in dp, for a window: the compact one's on a phone in portrait, otherwise
+     * the full one, narrowed when the card it makes (a 3:4 cover and the card's padding above and
+     * below it) would take more than a third of the window's height. Never under
+     * {@link #MIN_COVER_WIDTH_DP}: the title and the buttons beside it need that much height.
+     *
+     * @param windowHeightDp the window's height; 0 when unknown, which keeps the full width
+     */
+    static int coverWidthDp(boolean compact, int windowHeightDp, int fullWidthDp, int paddingDp) {
+        if (compact) {
+            return COMPACT_COVER_WIDTH_DP;
+        }
+        if (windowHeightDp <= 0) {
+            return fullWidthDp;
+        }
+        int coverHeight = windowHeightDp / HEIGHT_SHARE - 2 * paddingDp;
+        int width = coverHeight * 3 / 4;
+        return Math.max(MIN_COVER_WIDTH_DP, Math.min(fullWidthDp, width));
+    }
+
+    // The cover and the play glyph by the window; see coverWidthDp and COMPACT_COVER_WIDTH_DP.
     private static void applyWindow(Holder holder) {
         Context context = holder.itemView.getContext();
-        boolean compact = WindowClass.from(context.getResources().getConfiguration().screenWidthDp)
-                == WindowClass.COMPACT;
-        int width = compact
-                ? Math.round(COMPACT_COVER_WIDTH_DP * context.getResources().getDisplayMetrics().density)
-                : context.getResources().getDimensionPixelSize(R.dimen.hero_cover_width);
+        Resources res = context.getResources();
+        Configuration config = res.getConfiguration();
+        boolean compact = WindowClass.from(config.screenWidthDp) == WindowClass.COMPACT;
+        float density = res.getDisplayMetrics().density;
+        int widthDp = coverWidthDp(compact, config.screenHeightDp,
+                Math.round(res.getDimension(R.dimen.hero_cover_width) / density),
+                Math.round(res.getDimension(R.dimen.hero_padding) / density));
+        int width = Math.round(widthDp * density);
         ViewGroup.LayoutParams lp = holder.cover.getLayoutParams();
         if (lp.width != width) {
             lp.width = width;
@@ -338,6 +409,17 @@ final class HeroAdapter extends RecyclerView.Adapter<HeroAdapter.Holder> {
         } else if (holder.resume.getIcon() == null) {
             holder.resume.setIconResource(R.drawable.ic_resume);
         }
+    }
+
+    /** The game's meta line ("2025 · Roguelike · 88%"); null without metadata for it. */
+    @Nullable
+    private static String metaFor(NvApp app, @Nullable Map<String, AppMetadata> metadata) {
+        String uuid = app.getAppUUID();
+        if (metadata == null || uuid == null || uuid.isEmpty()) {
+            return null;
+        }
+        String line = CompanionState.Browsing.metaLine(metadata.get(uuid.toUpperCase(Locale.ROOT)));
+        return line.isEmpty() ? null : line;
     }
 
     private static boolean hasBackground(NvApp app, @Nullable Map<String, AppMetadata> metadata) {
@@ -358,7 +440,9 @@ final class HeroAdapter extends RecyclerView.Adapter<HeroAdapter.Holder> {
         final ImageView backdrop;
         final View scrim;
         final GameTileView cover;
+        final TextView tag;
         final TextView title;
+        final TextView meta;
         final MaterialButton resume;
         final MaterialButton quit;
 
@@ -381,7 +465,9 @@ final class HeroAdapter extends RecyclerView.Adapter<HeroAdapter.Holder> {
             backdrop = view.findViewById(R.id.heroBackdrop);
             scrim = view.findViewById(R.id.heroScrim);
             cover = view.findViewById(R.id.heroCover);
+            tag = view.findViewById(R.id.heroTag);
             title = view.findViewById(R.id.heroTitle);
+            meta = view.findViewById(R.id.heroMeta);
             resume = view.findViewById(R.id.heroResume);
             quit = view.findViewById(R.id.heroQuit);
             // GameTileView makes itself a focusable, clickable tile; here it is only a picture.

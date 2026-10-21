@@ -1372,4 +1372,8 @@
     <string name="pcs_hint_actions_below">Actions below</string>
     <string name="pcs_hint_select">Select</string>
     <string name="pcs_hint_back">Back</string>
+
+    <!-- UI-C r1: Library and PCs -->
+    <!-- The Library hero's tag, over the running game's title: the PC it runs on. -->
+    <string name="library_running_on">Running on %1$s</string>
 </resources>

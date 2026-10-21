@@ -119,4 +119,16 @@ public class LibraryShelvesTest {
         assertEquals(LibraryShelves.SHELF_SIZE,
                 LibraryShelves.preview(apps, AppSortOrder.NAME.comparator(null, null)).size());
     }
+
+    @Test
+    public void seeAllOpensOnRecent_untilAnOrderIsPicked_whenThereIsAHistory() {
+        List<LibraryApp> played = Collections.singletonList(app("Hades II", 1, false));
+        List<LibraryApp> none = Collections.emptyList();
+
+        assertEquals(AppSortOrder.RECENT, LibraryShelves.seeAllDefault(false, played));
+        // Nothing played yet: the library's own order, as there is nothing to lead with.
+        assertEquals(null, LibraryShelves.seeAllDefault(false, none));
+        // An order picked by hand, host order included, is the user's: it stands.
+        assertEquals(null, LibraryShelves.seeAllDefault(true, played));
+    }
 }

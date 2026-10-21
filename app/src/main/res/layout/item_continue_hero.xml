@@ -1,12 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     The hero (library/HeroAdapter): the game the host is running, to go back to. After the
-    approved Shelves mock: a 12dp card with the game's cover on the left, then a "Continue" tag
-    in the signal, the title, and two pills at the foot, Resume filled and Quit game quiet.
+    approved Shelves mock: a 12dp card with the game's cover on the left, then a "Running on
+    <PC>" tag in the signal, the title, the game's meta line when the host has metadata, and two
+    pills at the foot, Resume filled and Quit game quiet.
 
-    The card's ground is the game's background art when the host has one, its cover when it
-    has not, and the plain card when there is neither; the scrim keeps the text readable on
-    whichever it is. The card is not focusable: the two buttons are the stops, at 48dp each.
+    The card is as tall as its cover, which HeroAdapter sizes to a third of the window's height
+    at most, so a shelf always shows under it. Its ground is the game's background art when the
+    host has one, its cover when it has not, and the plain card when there is neither; the
+    backdrop fills the card without sizing it (BackdropImageView), and the scrim keeps the text
+    readable on whichever it is. The card is not focusable: the two buttons are the stops, at
+    48dp each.
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -23,7 +27,7 @@
         android:layout_height="wrap_content"
         android:background="@drawable/hero_card_bg">
 
-        <ImageView
+        <com.limelight.ui.BackdropImageView
             android:id="@+id/heroBackdrop"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
@@ -63,6 +67,7 @@
                     android:id="@+id/heroTag"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:ellipsize="end"
                     android:letterSpacing="0.12"
                     android:singleLine="true"
                     android:text="@string/library_continue"
@@ -82,6 +87,19 @@
                     android:textSize="@dimen/hero_title_size"
                     android:textStyle="bold"
                     tools:text="Hades II" />
+
+                <!-- "2025 · Roguelike · 88%": gone unless the host has metadata for the game. -->
+                <TextView
+                    android:id="@+id/heroMeta"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:singleLine="true"
+                    android:textColor="@color/content_secondary"
+                    android:textSize="13sp"
+                    android:visibility="gone"
+                    tools:text="2025 · Roguelike · 88%" />
 
                 <Space
                     android:layout_width="0dp"

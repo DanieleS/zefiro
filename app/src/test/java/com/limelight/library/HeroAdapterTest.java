@@ -147,4 +147,39 @@ public class HeroAdapterTest {
 
         assertEquals(0, adapter.getItemCount());
     }
+
+    @Test
+    public void onTheThor_theCardKeepsToAThirdOfTheScreen() {
+        // The Thor's top screen, 540dp tall: the full 104dp cover makes a 163dp card, under 180.
+        int width = HeroAdapter.coverWidthDp(false, 540, 104, 12);
+        assertEquals(104, width);
+        assertTrue(width * 4 / 3 + 24 <= 540 / 3);
+    }
+
+    @Test
+    public void aShorterWindow_narrowsTheCover_downToAFloor() {
+        // A 390dp window: a third is 130, so the cover is about 79dp wide (106dp tall).
+        assertEquals(79, HeroAdapter.coverWidthDp(false, 390, 104, 12));
+        assertEquals(72, HeroAdapter.coverWidthDp(false, 200, 104, 12));
+    }
+
+    @Test
+    public void aPhoneInPortrait_andAnUnknownHeight_keepTheirCovers() {
+        assertEquals(84, HeroAdapter.coverWidthDp(true, 800, 104, 12));
+        assertEquals(104, HeroAdapter.coverWidthDp(false, 0, 104, 12));
+    }
+
+    @Test
+    public void theTag_namesThePc_andNoMetadataMeansNoMetaLine() {
+        NvApp running = game("Hades II", 2);
+        HostLibrary.Snapshot snapshot = SnapshotFixtures.ready(HOST,
+                Arrays.asList(new LibraryApp(running, true, false)), running);
+        HeroAdapter adapter = new HeroAdapter(NO_OP);
+        adapter.submit(HeroAdapter.heroFor(snapshot), null, snapshot.metadata, "Taverna");
+
+        View card = layOut(adapter).getChildAt(0);
+        assertEquals("Running on Taverna",
+                ((TextView) card.findViewById(R.id.heroTag)).getText().toString());
+        assertEquals(View.GONE, card.findViewById(R.id.heroMeta).getVisibility());
+    }
 }

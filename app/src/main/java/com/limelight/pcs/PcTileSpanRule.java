@@ -6,9 +6,13 @@ package com.limelight.pcs;
  * <pre>
  *   width (dp, the grid's own, padding excluded)    columns
  *   below 600                                       2        a phone in portrait, a split screen
- *   600 and up                                      one per 220dp, kept within 3..5
+ *   600 and up                                      one per 200dp, kept within 3..5
  *                                                   (4 on the Thor's top screen, beside the rail)
  * </pre>
+ *
+ * The Thor's top screen leaves the grid about 856dp once the rail and the gutters are out, so a
+ * tile claims 200dp: at 220 it got three across there, wider than a name and a status line need,
+ * where the mock draws four.
  *
  * A tile holds a name, a status line and a button, not art, so it needs a minimum width rather
  * than a shape: below about 160dp the name and "Playing · …" are cut to nothing, and above five
@@ -25,7 +29,7 @@ public final class PcTileSpanRule {
     /** Below this grid width, two tiles across. */
     static final int COMPACT_MAX_WIDTH_DP = 600;
     /** The width each tile claims in a wider grid. */
-    static final int TILE_WIDTH_DP = 220;
+    static final int TILE_WIDTH_DP = 200;
 
     private PcTileSpanRule() {
     }

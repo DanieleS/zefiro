@@ -37,7 +37,8 @@
         description, then Play (or Resume and Quit game while it runs) at the foot, or under the
         meta line when there is no description; for a host, its name and state. With nothing to show it
         falls back to the app name, centred, so it is never empty. The hosts row sits at the
-        bottom of it all while browsing.
+        bottom of it all while browsing, or right under Play when there is no description
+        (CompanionPresentation sizes the column to what it holds then).
     -->
     <LinearLayout
         android:id="@+id/companionIdle"

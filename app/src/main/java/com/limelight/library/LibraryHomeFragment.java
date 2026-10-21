@@ -44,7 +44,7 @@ import java.util.Objects;
  * <pre>
  *   HeaderAdapter       "Library"                                        [● Taverna ▾]
  *                                                       (none on a short window, see below)
- *   HeroAdapter         the game the host is running: Continue · Resume · Quit game   (or none)
+ *   HeroAdapter         the game the host is running: Running on … · Resume · Quit   (or none)
  *   StatePanelAdapter   offline, not paired, connecting, no games…                   (or none)
  *   ShelfAdapter        Recently played                              ›                (or none)
  *   ShelfAdapter        All games                  See all · N   …  [See all · N]     (or none)
@@ -488,7 +488,7 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
         int visible = LibraryShelves.visibleCount(apps);
         HostStatePanel.Mode mode = HostStatePanel.modeFor(s, visible);
         panel.show(mode, hostName, s != null && !apps.isEmpty() && visible == 0);
-        hero.submit(HeroAdapter.heroFor(s), library, s != null ? s.metadata : null);
+        hero.submit(HeroAdapter.heroFor(s), library, s != null ? s.metadata : null, hostName);
 
         // The host list is published on every poll of every host; only a new snapshot is a new
         // list for the shelves, so the diffs are not run every 1.5 s for nothing.

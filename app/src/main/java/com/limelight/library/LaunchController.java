@@ -136,6 +136,11 @@ public class LaunchController {
     private final Handler main = new Handler(Looper.getMainLooper());
     @Nullable
     private GamePageOpener gamePageOpener;
+    @Nullable
+    private SheetSubject sheetSubject;
+    // The actions sheet open last, while it is open: the one whose game the subject is.
+    @Nullable
+    private Dialog subjectSheet;
 
     public LaunchController(@NonNull FragmentActivity activity, @NonNull HostRepository repository,
                             @NonNull StartGate gate, @NonNull ArtExport artExport) {
@@ -206,11 +211,45 @@ public class LaunchController {
         }
     }
 
-    /** A long-press or Y on a game: everything that can be done to it, as a sheet. */
+    /**
+     * A long-press or Y on a game: everything that can be done to it, as a sheet. The
+     * {@link SheetSubject} hears which game it is for while it is open.
+     */
     @Nullable
     public Dialog showActions(@NonNull LibraryApp app) {
-        return GameActionsSheet.show(activity, app, actionState(), companionLabel(app.app),
-                this::runAction);
+        ComputerDetails computer = selectedComputer();
+        Dialog sheet = GameActionsSheet.show(activity, app, actionState(), companionLabel(app.app),
+                computer != null ? computer.name : null, this::runAction);
+        if (sheet != null) {
+            subjectSheet = sheet;
+            if (sheetSubject != null) {
+                sheetSubject.onSheetSubject(app);
+            }
+            sheet.setOnDismissListener(d -> {
+                // A sheet opened over this one has the subject now; only the last one releases.
+                if (subjectSheet == d) {
+                    subjectSheet = null;
+                    if (sheetSubject != null) {
+                        sheetSubject.onSheetSubject(null);
+                    }
+                }
+            });
+        }
+        return sheet;
+    }
+
+    /**
+     * Who follows the game an actions sheet is open for: the companion panel, which shows that
+     * game rather than the one the d-pad is on (a long-press by touch need not move focus).
+     */
+    public interface SheetSubject {
+        /** The game a sheet was opened for; null once it is closed. */
+        void onSheetSubject(@Nullable LibraryApp app);
+    }
+
+    /** Sets who hears about the actions sheet's game; null for no one. */
+    public void setSheetSubject(@Nullable SheetSubject subject) {
+        sheetSubject = subject;
     }
 
     /**
@@ -328,6 +367,10 @@ public class LaunchController {
     public void runAction(@NonNull GameActionsSheet.Item item, @NonNull LibraryApp app) {
         PreferenceConfiguration prefs = PreferenceConfiguration.readPreferences(activity);
         switch (item) {
+            case START:
+                // What a tap on the idle host's tile does: the preferred display.
+                start(app.app, prefs.useVirtualDisplay);
+                break;
             case START_PRIMARY_DISPLAY:
                 start(app.app, false);
                 break;

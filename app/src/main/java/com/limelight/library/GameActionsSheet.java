@@ -22,7 +22,8 @@ import java.util.List;
  * conditions, so nothing a user could do to a game is lost in the move:
  *
  * <pre>
- *   host idle             start in the display the tap does not use
+ *   host idle             Start on the PC (what a tap does, so the sheet raised by a long-press
+ *                         or Y still leads with it) · start in the display the tap does not use
  *   this game running     Resume · Quit
  *   another game running  Quit and start (preferred display) · Quit and start (the other one)
  *   then                  Hide (checked when hidden; not offered for the running game unless
@@ -37,13 +38,16 @@ import java.util.List;
  * is always there.
  *
  * The rows are decided by {@link #itemsFor}, a pure function of the game and the host's state,
- * so they can be tested without a screen. What a row does is the {@link Runner}'s business,
- * {@link LaunchController} in production. Main thread only.
+ * so they can be tested without a screen; the sheet leads them with Start
+ * ({@link #sheetItemsFor}), which a game's page has as its own button instead. What a row does
+ * is the {@link Runner}'s business, {@link LaunchController} in production. Main thread only.
  */
 public final class GameActionsSheet {
 
     /** One row of the sheet. The order of {@link #itemsFor}'s result is the order shown. */
     public enum Item {
+        /** "Start on <PC>": a tap's start, in the preferred display. The sheet's, not a page's. */
+        START(R.string.companion_play_on),
         START_PRIMARY_DISPLAY(R.string.applist_menu_start_primarydisplay),
         START_VIRTUAL_DISPLAY(R.string.applist_menu_start_vdisplay),
         RESUME(R.string.applist_menu_resume),
@@ -132,19 +136,39 @@ public final class GameActionsSheet {
     }
 
     /**
+     * The sheet's rows: {@link #itemsFor}, led by {@link Item#START} while the host runs nothing,
+     * so the sheet opened on a game always offers to play it first.
+     */
+    @NonNull
+    public static List<Item> sheetItemsFor(@NonNull LibraryApp app, @NonNull State state) {
+        List<Item> rows = itemsFor(app, state);
+        if (state.runningAppId != 0) {
+            return rows;
+        }
+        List<Item> items = new ArrayList<>(rows.size() + 1);
+        items.add(Item.START);
+        items.addAll(rows);
+        return Collections.unmodifiableList(items);
+    }
+
+    /**
      * Builds the sheet for a game.
      *
      * @param companionLabel the companion row's label, naming the app already chosen; null for
      *                       the plain label
+     * @param hostName       the PC Start names; null for a plain "Play"
      */
     @NonNull
     public static MenuSheet build(@NonNull Context context, @NonNull LibraryApp app,
                                   @NonNull State state, @Nullable String companionLabel,
-                                  @NonNull Runner runner) {
+                                  @Nullable String hostName, @NonNull Runner runner) {
         MenuSheet sheet = new MenuSheet(context).setTitle(app.app.getAppName());
-        for (final Item item : itemsFor(app, state)) {
+        for (final Item item : sheetItemsFor(app, state)) {
             Runnable action = () -> runner.run(item, app);
-            if (item == Item.HIDE) {
+            if (item == Item.START) {
+                sheet.add(hostName != null ? context.getString(item.label, hostName)
+                        : context.getString(R.string.companion_play), action);
+            } else if (item == Item.HIDE) {
                 sheet.addChecked(context.getString(item.label), app.hidden, action);
             } else if (item == Item.COMPANION_APP && companionLabel != null) {
                 sheet.add(companionLabel, action);
@@ -159,7 +183,7 @@ public final class GameActionsSheet {
     @NonNull
     public static Dialog show(@NonNull Context context, @NonNull LibraryApp app,
                               @NonNull State state, @Nullable String companionLabel,
-                              @NonNull Runner runner) {
-        return build(context, app, state, companionLabel, runner).showCentered(context);
+                              @Nullable String hostName, @NonNull Runner runner) {
+        return build(context, app, state, companionLabel, hostName, runner).showCentered(context);
     }
 }

@@ -254,7 +254,7 @@ public class MainActivity extends AppCompatActivity
                 findViewById(R.id.navAvatar), navBottom, this);
         Configuration config = getResources().getConfiguration();
         navChrome.apply(WindowClass.from(config.screenWidthDp),
-                WindowClass.isShortWide(config.screenWidthDp, config.screenHeightDp));
+                WindowClass.railTooShortForAvatar(config.screenHeightDp));
         installInsets();
         applySystemBars();
 
@@ -285,6 +285,8 @@ public class MainActivity extends AppCompatActivity
                 app.getAppName(), null)));
         companionFeed = new CompanionFeed(this, viewModel.repository(), launchController,
                 this::reclaimFocusFromCompanion);
+        // The panel shows the game an actions sheet is for, not the one the d-pad was left on.
+        launchController.setSheetSubject(companionFeed::holdGame);
 
         goTo(initial);
 
@@ -354,8 +356,7 @@ public class MainActivity extends AppCompatActivity
     public void onConfigurationChanged(@NonNull Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         WindowClass next = WindowClass.from(newConfig.screenWidthDp);
-        boolean shortWindow = WindowClass.isShortWide(newConfig.screenWidthDp,
-                newConfig.screenHeightDp);
+        boolean shortWindow = WindowClass.railTooShortForAvatar(newConfig.screenHeightDp);
         if (next == navChrome.windowClass()) {
             // The same widgets; only the avatar may come or go.
             navChrome.apply(next, shortWindow);

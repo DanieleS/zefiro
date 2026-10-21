@@ -25,4 +25,14 @@ public class WindowClassTest {
         // Configuration.SCREEN_WIDTH_DP_UNDEFINED: keep the system bars rather than hide them.
         assertEquals(WindowClass.COMPACT, WindowClass.from(0));
     }
+
+    @Test
+    public void aPhoneInLandscape_hasRoomForTheAvatarUnderTheRail() {
+        // About 390dp tall, the Thor's top screen 540: both fit the rail and its avatar.
+        assertEquals(false, WindowClass.railTooShortForAvatar(390));
+        assertEquals(false, WindowClass.railTooShortForAvatar(540));
+        assertEquals(false, WindowClass.railTooShortForAvatar(0));
+        // A split screen's sliver does not.
+        assertEquals(true, WindowClass.railTooShortForAvatar(300));
+    }
 }
