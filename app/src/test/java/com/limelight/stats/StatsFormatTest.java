@@ -97,9 +97,23 @@ public class StatsFormatTest {
     }
 
     @Test
-    public void sharesNeverDivideByZero() {
-        assertEquals(0f, StatsFormat.share(10, 0), 0f);
-        assertEquals(0.5f, StatsFormat.share(5, 10), 0.0001f);
-        assertEquals(1f, StatsFormat.share(15, 10), 0f);
+    public void sharePercentsRoundToTheWholePercent() {
+        assertEquals(0, StatsFormat.sharePercent(10, 0));
+        assertEquals(0, StatsFormat.sharePercent(0, 100));
+        assertEquals(22, StatsFormat.sharePercent(22, 100));
+        // Half a percent rounds up, just under it rounds down.
+        assertEquals(23, StatsFormat.sharePercent(225, 1000));
+        assertEquals(22, StatsFormat.sharePercent(2249, 10000));
+        assertEquals(33, StatsFormat.sharePercent(1, 3));
+        assertEquals(1, StatsFormat.sharePercent(1, 200));
+        assertEquals(100, StatsFormat.sharePercent(150, 100));
+    }
+
+    @Test
+    public void yearBarsSayWholeHours() {
+        assertEquals("42h", StatsFormat.yearBarValue(42 * 3600 + 20 * 60, EN));
+        assertEquals("36h", StatsFormat.yearBarValue(35 * 3600 + 50 * 60, EN));
+        assertEquals("25′", StatsFormat.yearBarValue(25 * 60, EN));
+        assertEquals("", StatsFormat.yearBarValue(0, EN));
     }
 }

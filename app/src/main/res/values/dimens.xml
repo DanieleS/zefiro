@@ -93,6 +93,8 @@
     <dimen name="stats_card_corner">14dp</dimen>
     <dimen name="stats_max_width">1100dp</dimen>
     <dimen name="stats_gutter">24dp</dimen>
+    <!-- The label beside the strip's covers in a wide window, as the mock's left column. -->
+    <dimen name="stats_strip_label_width">120dp</dimen>
 
     <!--
         The main screen's navigation. The rail is narrow and icon-only, as in the mocks: on the

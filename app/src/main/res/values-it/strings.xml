@@ -317,7 +317,6 @@
     <string name="stats_untracked">Ancora nessuna sessione registrata: per questo periodo non ce ne sono. I totali li trovi qui sotto.</string>
     <string name="stats_untracked_since">Le sessioni sono registrate dal %1$s: per questo periodo non ce ne sono. I totali li trovi qui sotto.</string>
     <string name="stats_no_activity">Installa GameActivity in Playnite per vedere quando giochi. I totali li trovi qui sotto.</string>
-    <string name="stats_played">Giocate</string>
     <string name="stats_than_week_running">della settimana scorsa a questo punto</string>
     <string name="stats_than_week_done">della settimana prima</string>
     <string name="stats_than_month_running">del mese scorso a questo punto</string>
@@ -331,14 +330,7 @@
         <item quantity="other">%d sessioni</item>
     </plurals>
     <string name="stats_average">media %1$s</string>
-    <string name="stats_top">Più giocati</string>
     <string name="stats_achievements">Obiettivi</string>
-    <plurals name="stats_unlocked">
-        <item quantity="one">sbloccato</item>
-        <item quantity="other">sbloccati</item>
-    </plurals>
-    <string name="stats_no_achievements">Niente in questo periodo.</string>
-    <string name="stats_library">Libreria</string>
     <string name="stats_hours_total">%1$s h</string>
     <string name="stats_played_total">giocate in tutto</string>
     <string name="stats_games">giochi, %1$s installati</string>
@@ -349,7 +341,6 @@
     <string name="stats_resume_detail">%1$s · %2$s</string>
     <string name="stats_achievement_detail">%1$s · %2$s</string>
     <string name="stats_bar_caption">%1$s · %2$s</string>
-    <string name="stats_hint_period">Periodo</string>
     <string name="stats_hint_range">Intervallo</string>
     <string-array name="stats_weekdays">
         <item>L</item>
@@ -381,7 +372,6 @@
     <string name="stats_today_at">Oggi alle %1$s</string>
     <string name="stats_yesterday_at">Ieri alle %1$s</string>
     <string name="stats_bars_label">Tempo di gioco</string>
-    <string name="stats_bars_hint">Scegli una barra per il dettaglio</string>
     <string name="applist_menu_stats">Statistiche e obiettivi</string>
     <string name="game_stats_loading">Caricamento…</string>
     <string name="game_stats_nothing">Ancora nessuna statistica né obiettivo per questo gioco.</string>

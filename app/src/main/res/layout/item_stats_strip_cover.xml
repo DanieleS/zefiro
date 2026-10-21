@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    One of the period's most played, in a compact window's strip (stats/StatsFragment): a
+    column of a five-column grid, its cover at 3:4 (the height is set from the column's width
+    in code) over its time, as the Stats mock's phone frame. A stop: focus or a tap opens the
+    game's page.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_weight="1"
+    android:background="@drawable/stop_bg"
+    android:clickable="true"
+    android:focusable="true"
+    android:minHeight="@dimen/action_size"
+    android:orientation="vertical"
+    android:padding="3dp">
+
+    <com.google.android.material.imageview.ShapeableImageView
+        android:id="@+id/statsStripCover"
+        android:layout_width="match_parent"
+        android:layout_height="80dp"
+        android:importantForAccessibility="no"
+        android:scaleType="centerCrop"
+        app:shapeAppearanceOverlay="@style/TileShapeSmall" />
+
+    <TextView
+        android:id="@+id/statsStripHours"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:fontFamily="monospace"
+        android:importantForAccessibility="no"
+        android:singleLine="true"
+        android:textColor="@color/content_secondary"
+        android:textSize="11sp"
+        tools:text="14h 20m" />
+
+</LinearLayout>

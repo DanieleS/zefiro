@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    One of the period's most played, in a wide window's strip (stats/StatsFragment): its cover,
+    its time and its share of the period, as the Stats mock's row of five. A stop: focus or a
+    tap opens the game's page.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_weight="1"
+    android:background="@drawable/stop_bg"
+    android:clickable="true"
+    android:focusable="true"
+    android:minHeight="@dimen/action_size"
+    android:orientation="horizontal"
+    android:padding="4dp">
+
+    <com.google.android.material.imageview.ShapeableImageView
+        android:id="@+id/statsStripCover"
+        android:layout_width="42dp"
+        android:layout_height="56dp"
+        android:importantForAccessibility="no"
+        android:scaleType="centerCrop"
+        app:shapeAppearanceOverlay="@style/TileShapeSmall" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:paddingTop="2dp">
+
+        <TextView
+            android:id="@+id/statsStripHours"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:importantForAccessibility="no"
+            android:singleLine="true"
+            android:textColor="@color/content_primary"
+            android:textSize="12sp"
+            tools:text="96h 20m" />
+
+        <TextView
+            android:id="@+id/statsStripShare"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:importantForAccessibility="no"
+            android:singleLine="true"
+            android:textColor="@color/content_muted"
+            android:textSize="11sp"
+            tools:text="22%" />
+
+    </LinearLayout>
+
+</LinearLayout>

@@ -4,8 +4,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 /**
- * Builds a game's {@link GameStats} and {@link GameAchievements} the way the host would send
- * them, for tests outside this package, whose parsers are package-private.
+ * Builds a game's {@link GameStats} and {@link GameAchievements}, and a period's
+ * {@link AppStats}, the way the host would send them, for tests outside this package, whose
+ * parsers are package-private.
  */
 public final class TestGameStats {
     private TestGameStats() {
@@ -14,6 +15,11 @@ public final class TestGameStats {
     /** {@code /appstats?appuuid=} as the host sends it. */
     public static GameStats stats(JSONObject json) {
         return GameStats.fromJson(json);
+    }
+
+    /** {@code /appstats?range=&offset=}, a period's page, as the host sends it. */
+    public static AppStats appStats(JSONObject json) {
+        return AppStats.fromJson(json);
     }
 
     /** {@code /appachievements} as the host sends it. */

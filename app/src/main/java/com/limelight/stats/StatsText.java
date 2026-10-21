@@ -109,11 +109,10 @@ public class StatsText implements StatsFormat.Words {
                 break;
         }
         String thanText = res.getString(than);
-        long diff = s.getTotalSeconds() - s.getPreviousTotalSeconds();
-        if (StatsFormat.isSame(s.getTotalSeconds(), s.getPreviousTotalSeconds())) {
+        String signed = deltaAmount(s);
+        if (signed == null) {
             return res.getString(R.string.stats_same, thanText);
         }
-        String signed = (diff > 0 ? "+" : "−") + duration(Math.abs(diff));
         return res.getString(R.string.stats_diff, signed, thanText);
     }
 
@@ -134,6 +133,14 @@ public class StatsText implements StatsFormat.Words {
 
     /** The label under a bar: the weekday, the month's initial, or every fifth day of a month. */
     public String barLabel(String range, String date, int index) {
+        return barLabel(range, date, index, false);
+    }
+
+    /**
+     * As {@link #barLabel(String, String, int)}; {@code weekly} labels a month's days a week
+     * apart ("1 8 15 22 29"), for a narrow window where every fifth day would crowd.
+     */
+    public String barLabel(String range, String date, int index, boolean weekly) {
         Calendar day = Iso8601.parseDay(date);
         if (day == null) {
             return "";
@@ -146,21 +153,125 @@ public class StatsText implements StatsFormat.Words {
             String[] months = res.getStringArray(R.array.stats_months);
             return months[day.get(Calendar.MONTH)];
         }
-        // A month: every fifth day, so thirty labels don't collide.
+        // A month: every fifth day, or every seventh, so thirty labels don't collide.
         int d = day.get(Calendar.DAY_OF_MONTH);
+        if (weekly) {
+            return (d - 1) % 7 == 0 ? String.valueOf(d) : "";
+        }
         return d == 1 || d % 5 == 0 ? String.valueOf(d) : "";
     }
 
-    /** "Wednesday 7 October · 2h 05m", or "October 2026 · 31h" for a year's month. */
-    public String barCaption(String range, String date, long seconds) {
+    /**
+     * The chart's tooltip over a bar: "Sat 17 Oct · 4h 05m", or "October · 35h 50m" for a
+     * year's month. Short, since it is drawn over the bars.
+     */
+    public String barTooltip(String range, String date, long seconds) {
         Calendar day = Iso8601.parseDay(date);
         if (day == null) {
             return "";
         }
         String when = AppStats.RANGE_YEAR.equals(range)
-                ? format(day.getTime(), "MMMMyyyy")
-                : format(day.getTime(), "EEEEdMMMM");
+                ? format(day.getTime(), "MMMM")
+                : format(day.getTime(), "EEEdMMM");
         return res.getString(R.string.stats_bar_caption, capitalize(when), duration(seconds));
+    }
+
+    /**
+     * The value over a bar: "3:20" over a week's day, "42h" over a year's month, and none over
+     * a month's 31 days, which have no room for it.
+     */
+    public String barValue(String range, long seconds) {
+        if (AppStats.RANGE_YEAR.equals(range)) {
+            return StatsFormat.yearBarValue(seconds, this);
+        }
+        return AppStats.RANGE_WEEK.equals(range) ? StatsFormat.shortDuration(seconds) : "";
+    }
+
+    /** "October": a month's name alone, for a crumb or a hint that has its year beside it. */
+    public String monthName(String date) {
+        Calendar day = Iso8601.parseDay(date);
+        return day == null ? "" : capitalize(format(day.getTime(), "MMMM"));
+    }
+
+    /**
+     * The period row's title, where the climb chip already says the year: "2026", "October",
+     * "This week", "28 Sep – 4 Oct".
+     */
+    public String periodShortTitle(AppStats s) {
+        if (AppStats.RANGE_MONTH.equals(s.getRange())) {
+            return monthName(s.getFrom());
+        }
+        return periodTitle(s);
+    }
+
+    /**
+     * The period inside a sentence: "in 2026", "in October" (or "in October 2025" for another
+     * year than today's), "this week", "last week", "in the week of 28 Sep". It follows
+     * "Played", "Most played" and an unlock count.
+     */
+    public String periodPhrase(AppStats s) {
+        Calendar from = Iso8601.parseDay(s.getFrom());
+        if (from == null) {
+            return "";
+        }
+        switch (s.getRange()) {
+            case AppStats.RANGE_YEAR:
+                return res.getString(R.string.stats_phrase_in, String.valueOf(from.get(Calendar.YEAR)));
+            case AppStats.RANGE_MONTH: {
+                Calendar today = Iso8601.parseDay(s.getToday());
+                boolean thisYear = today != null && today.get(Calendar.YEAR) == from.get(Calendar.YEAR);
+                return res.getString(R.string.stats_phrase_in, thisYear
+                        ? monthName(s.getFrom()) : capitalize(format(from.getTime(), "MMMMyyyy")));
+            }
+            default:
+                if (s.getOffset() == 0) {
+                    return res.getString(R.string.stats_phrase_this_week);
+                }
+                if (s.getOffset() == -1) {
+                    return res.getString(R.string.stats_phrase_last_week);
+                }
+                return res.getString(R.string.stats_phrase_week_of, format(from.getTime(), "dMMM"));
+        }
+    }
+
+    /**
+     * Under "Most played": what the percentages are of. With the number of games played known
+     * (only for the year under way, which the library counts), "top 5 of the 9 games played,
+     * share of the year"; otherwise "share of the month".
+     *
+     * @param shown how many games the strip shows
+     */
+    public String stripSubtitle(AppStats s, int shown) {
+        int share;
+        switch (s.getRange()) {
+            case AppStats.RANGE_YEAR:
+                share = R.string.stats_strip_share_year;
+                break;
+            case AppStats.RANGE_MONTH:
+                share = R.string.stats_strip_share_month;
+                break;
+            default:
+                share = R.string.stats_strip_share_week;
+                break;
+        }
+        int played = s.getLibrary().getPlayedThisYear();
+        if (AppStats.RANGE_YEAR.equals(s.getRange()) && s.getOffset() == 0 && played >= shown
+                && played > 0) {
+            return res.getString(R.string.stats_strip_top_of, shown, played, res.getString(share));
+        }
+        return res.getString(share);
+    }
+
+    /**
+     * The signed difference inside {@link #delta}: "+43h 30m" or "−2h", or null when the delta
+     * says "Same as" or nothing at all. The screen colours this part.
+     */
+    public String deltaAmount(AppStats s) {
+        if (!s.isComparable() || StatsFormat.isSame(s.getTotalSeconds(), s.getPreviousTotalSeconds())) {
+            return null;
+        }
+        long diff = s.getTotalSeconds() - s.getPreviousTotalSeconds();
+        return (diff > 0 ? "+" : "−") + duration(Math.abs(diff));
     }
 
     /** "October 2026", for when a game was last played. */
