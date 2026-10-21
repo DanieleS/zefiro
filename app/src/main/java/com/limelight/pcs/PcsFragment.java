@@ -250,7 +250,7 @@ public class PcsFragment extends Fragment implements SectionKeys, SectionFocus, 
     }
 
     private void showActions(HostEntry entry) {
-        HostActionsSheet.show(requireActivity(), entry, host.hostActions());
+        HostActionsSheet.show(requireActivity(), entry, host.hostActions(), null);
     }
 
     // --- Keys ---

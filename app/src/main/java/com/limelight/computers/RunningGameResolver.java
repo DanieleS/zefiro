@@ -98,17 +98,8 @@ public class RunningGameResolver {
             }
         }
 
-        String rawAppList = details.rawAppList;
-        if (rawAppList == null) {
-            try (InputStream in = CacheHelper.openCacheFileForInput(cacheDir, "applist", details.uuid)) {
-                rawAppList = CacheHelper.readInputStreamToString(in);
-            } catch (IOException e) {
-                // No list for this host yet.
-                return null;
-            }
-        }
-
-        if (rawAppList.isEmpty()) {
+        String rawAppList = readAppList(cacheDir, details);
+        if (rawAppList == null || rawAppList.isEmpty()) {
             return null;
         }
 
@@ -128,6 +119,25 @@ public class RunningGameResolver {
         }
 
         return null;
+    }
+
+    /**
+     * A host's app list as the host sent it: the one on the details when the app list poller has
+     * filled it in, otherwise the copy cached by the last library visit; null when there is
+     * neither. Shared with the repository's game count, so both read the same list.
+     *
+     * <p>Reads a file: never on the main thread.
+     */
+    static String readAppList(File cacheDir, ComputerDetails details) {
+        if (details.rawAppList != null) {
+            return details.rawAppList;
+        }
+        try (InputStream in = CacheHelper.openCacheFileForInput(cacheDir, "applist", details.uuid)) {
+            return CacheHelper.readInputStreamToString(in);
+        } catch (IOException e) {
+            // No list for this host yet.
+            return null;
+        }
     }
 
     /**

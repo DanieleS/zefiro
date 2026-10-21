@@ -75,6 +75,10 @@ public final class HostCardBinder {
      * The colour of a host's status dot: green only for a host that is online and paired, the
      * one state in which it can be played on. The Library's host chip and host sheet draw
      * their dots with it too, so a host looks the same wherever it is listed.
+     *
+     * <p>This is the colour of a host in a list, where "can it be played on" is the only
+     * question. A PC tile tells more states apart (playing, not paired) and reads its colours
+     * from {@link HostStatus} instead.
      */
     @ColorRes
     public static int statusColor(@NonNull ComputerDetails details) {

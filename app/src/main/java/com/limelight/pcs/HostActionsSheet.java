@@ -1,13 +1,16 @@
 package com.limelight.pcs;
 
-import android.app.Dialog;
 import android.content.Context;
+import android.view.View;
 
+import androidx.annotation.DrawableRes;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 
 import com.limelight.R;
 import com.limelight.computers.HostEntry;
+import com.limelight.main.WindowClass;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.PairingManager.PairState;
 import com.limelight.ui.MenuSheet;
@@ -27,13 +30,20 @@ import java.util.List;
  * <pre>
  *   offline or checking   Wake · GameStream end-of-service
  *   online, not paired    OTP pair · Legacy pair · (end-of-service | server config)
- *   online, paired        [Resume · Quit, when in a game] · (end-of-service | server config)
- *                         · View all apps · Export for frontends
- *   always, last          Test network · Delete PC · View details
+ *   online, paired        [Resume · Quit, when in a game] · View all apps
+ *                         · (end-of-service | server config) · Export for frontends
+ *   always, last          Test network · View details · Delete PC
  * </pre>
  *
  * "End-of-service" is for an NVIDIA host (GameStream is gone, the FAQ says what to do instead);
  * any other host has a web config page, guessed from its address.
+ *
+ * <p>The order is the PCs mock's: what the host is waiting for first (pairing, Wake, the game
+ * it is in), Delete PC last and in the danger tone, so the one action that cannot be undone is
+ * never the next row down from an ordinary one by accident. The set is PcView's, unchanged.
+ *
+ * <p>The sheet's header is the host's name, with its address and game count under it when
+ * they are known.
  *
  * The items are decided by {@link #itemsFor}, a pure function of the host's state, so they can
  * be tested without a screen. Main thread only.
@@ -42,24 +52,34 @@ public final class HostActionsSheet {
 
     /** One row of the sheet. The order of {@link #itemsFor}'s result is the order shown. */
     public enum Item {
-        WAKE(R.string.pcview_menu_send_wol),
-        GAMESTREAM_EOL(R.string.pcview_menu_eol),
-        PAIR_OTP(R.string.pcview_menu_pair_pc_otp),
-        PAIR(R.string.pcview_menu_pair_pc),
-        OPEN_MANAGEMENT_PAGE(R.string.pcview_menu_open_management_page),
-        RESUME(R.string.applist_menu_resume),
-        QUIT(R.string.applist_menu_quit),
-        FULL_APP_LIST(R.string.pcview_menu_app_list),
-        FRONTEND_EXPORT(R.string.frontend_export_menu),
-        TEST_NETWORK(R.string.pcview_menu_test_network),
-        DELETE(R.string.pcview_menu_delete_pc),
-        VIEW_DETAILS(R.string.pcview_menu_details);
+        WAKE(R.string.pcview_menu_send_wol, R.drawable.ic_power),
+        GAMESTREAM_EOL(R.string.pcview_menu_eol, R.drawable.ic_globe),
+        PAIR_OTP(R.string.pcview_menu_pair_pc_otp, R.drawable.ic_link),
+        PAIR(R.string.pcview_menu_pair_pc, R.drawable.ic_link),
+        OPEN_MANAGEMENT_PAGE(R.string.pcview_menu_open_management_page, R.drawable.ic_globe),
+        RESUME(R.string.applist_menu_resume, R.drawable.ic_resume),
+        QUIT(R.string.applist_menu_quit, R.drawable.ic_stop),
+        FULL_APP_LIST(R.string.pcview_menu_app_list, R.drawable.ic_apps_grid),
+        FRONTEND_EXPORT(R.string.frontend_export_menu, R.drawable.ic_file_upload),
+        TEST_NETWORK(R.string.pcview_menu_test_network, R.drawable.ic_network_test),
+        VIEW_DETAILS(R.string.pcview_menu_details, R.drawable.ic_info),
+        DELETE(R.string.pcview_menu_delete_pc, R.drawable.ic_delete, true);
 
         @StringRes
         public final int label;
+        @DrawableRes
+        public final int icon;
+        /** Drawn in the danger tone: the row cannot be undone. Delete PC alone. */
+        public final boolean danger;
 
-        Item(@StringRes int label) {
+        Item(@StringRes int label, @DrawableRes int icon) {
+            this(label, icon, false);
+        }
+
+        Item(@StringRes int label, @DrawableRes int icon, boolean danger) {
             this.label = label;
+            this.icon = icon;
+            this.danger = danger;
         }
     }
 
@@ -85,18 +105,22 @@ public final class HostActionsSheet {
                 items.add(Item.RESUME);
                 items.add(Item.QUIT);
             }
-            items.add(details.nvidiaServer ? Item.GAMESTREAM_EOL : Item.OPEN_MANAGEMENT_PAGE);
             items.add(Item.FULL_APP_LIST);
+            items.add(details.nvidiaServer ? Item.GAMESTREAM_EOL : Item.OPEN_MANAGEMENT_PAGE);
             items.add(Item.FRONTEND_EXPORT);
         }
 
         items.add(Item.TEST_NETWORK);
-        items.add(Item.DELETE);
         items.add(Item.VIEW_DETAILS);
+        items.add(Item.DELETE);
         return Collections.unmodifiableList(items);
     }
 
-    /** The sheet's header: the host's name and its state, as the context menu's header was. */
+    /**
+     * The host's name and its state, as the context menu's header was. The sheet's own header is
+     * now the name over {@link #subtitleFor}; this stays for whoever titles a dialog after the
+     * host.
+     */
     @NonNull
     public static String titleFor(@NonNull Context context, @NonNull ComputerDetails details) {
         int state;
@@ -115,22 +139,66 @@ public final class HostActionsSheet {
         return details.name + " - " + context.getString(state);
     }
 
+    /**
+     * The facts under the sheet's title: the host's address and how many games it has, each only
+     * when known, joined with a middle dot; null when neither is.
+     */
+    @Nullable
+    public static String subtitleFor(@NonNull Context context, @NonNull HostEntry host) {
+        StringBuilder facts = new StringBuilder();
+        ComputerDetails.AddressTuple address = HostStatus.address(host.details);
+        if (address != null) {
+            facts.append(HostStatus.addressText(address));
+        }
+        if (host.gameCount >= 0) {
+            if (facts.length() > 0) {
+                facts.append(" · ");
+            }
+            facts.append(context.getResources().getQuantityString(
+                    R.plurals.pcs_game_count, host.gameCount, host.gameCount));
+        }
+        return facts.length() > 0 ? facts.toString() : null;
+    }
+
     /** Builds the sheet for a host, each row running the matching {@link HostActions} call. */
     @NonNull
     public static MenuSheet build(@NonNull Context context, @NonNull HostEntry host,
                                   @NonNull HostActions actions) {
-        MenuSheet sheet = new MenuSheet(context).setTitle(titleFor(context, host.details));
+        MenuSheet sheet = new MenuSheet(context)
+                .setTitle(host.details.name)
+                .setSubtitle(subtitleFor(context, host));
         for (final Item item : itemsFor(host.details)) {
-            sheet.add(context.getString(item.label), () -> run(actions, item, host));
+            String label = context.getString(item.label);
+            Runnable action = () -> run(actions, item, host);
+            if (item.danger) {
+                sheet.addDanger(label, item.icon, action);
+            } else {
+                sheet.add(label, item.icon, action);
+            }
         }
         return sheet;
     }
 
-    /** Builds and shows the sheet, centred and focused for the d-pad. */
-    @NonNull
-    public static Dialog show(@NonNull Context context, @NonNull HostEntry host,
-                              @NonNull HostActions actions) {
-        return build(context, host, actions).showCentered(context);
+    /**
+     * Builds and shows the sheet where the window wants it: risen from the bottom in a compact
+     * window, where the thumb is; dropped from {@code anchor} in a wide one, when a control asked
+     * for it; otherwise centred, for the d-pad.
+     *
+     * @param anchor the control that opened the sheet (a tile's overflow button); null when a
+     *               key or a long-press did
+     */
+    public static void show(@NonNull Context context, @NonNull HostEntry host,
+                            @NonNull HostActions actions, @Nullable View anchor) {
+        MenuSheet sheet = build(context, host, actions);
+        boolean compact = WindowClass.from(context.getResources().getConfiguration().screenWidthDp)
+                == WindowClass.COMPACT;
+        if (compact) {
+            sheet.showBottom(context);
+        } else if (anchor != null && anchor.isShown()) {
+            sheet.showAnchored(anchor);
+        } else {
+            sheet.showCentered(context);
+        }
     }
 
     private static void run(HostActions actions, Item item, HostEntry host) {

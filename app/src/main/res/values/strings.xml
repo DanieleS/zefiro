@@ -1338,4 +1338,16 @@
         <item>Balanced, and the PC caps its frame rate to match.</item>
         <item>Never drops a frame. May add a lot of latency.</item>
     </string-array>
+
+    <!-- Screens P1: host facts and the PC actions sheet -->
+    <!-- Which of a PC's addresses answered: the "Connection" fact. -->
+    <string name="pcs_connection_local">Local</string>
+    <string name="pcs_connection_manual">Manual</string>
+    <string name="pcs_connection_ipv6">IPv6</string>
+    <string name="pcs_connection_remote">Remote</string>
+    <!-- The games the Library lists for a PC, in the actions sheet's header. -->
+    <plurals name="pcs_game_count">
+        <item quantity="one">%d game</item>
+        <item quantity="other">%d games</item>
+    </plurals>
 </resources>

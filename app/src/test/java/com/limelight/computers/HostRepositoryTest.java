@@ -178,6 +178,11 @@ public class HostRepositoryTest {
     }
 
     private HostRepository newRepository(Executor main, Executor background) {
+        return newRepository(main, background, new RunningGameResolver(context));
+    }
+
+    private HostRepository newRepository(Executor main, Executor background,
+                                         RunningGameResolver runningGames) {
         CmsGateway.Connector connector = new CmsGateway.Connector() {
             @Override
             public void connect(Callback callback) {
@@ -195,7 +200,7 @@ public class HostRepositoryTest {
             return library;
         };
         return new HostRepository(context, connector, main, background, artFetches::add, libraries,
-                new RunningGameResolver(context),
+                runningGames,
                 new ShortcutPublisher(details -> shortcutsPublished.add(details.uuid)));
     }
 
@@ -695,5 +700,82 @@ public class HostRepositoryTest {
         assertEquals(60_000, HostLibrary.probeRetryDelayMs(3));
         assertEquals(5 * 60_000, HostLibrary.probeRetryDelayMs(10));
         assertEquals(5 * 60_000, HostLibrary.probeRetryDelayMs(Integer.MAX_VALUE));
+    }
+
+    // --- Game count ---
+
+    private static final String TWO_GAMES_AND_A_SPECIAL = "<root status_code=\"200\">"
+            + "<App><AppTitle>Alpha</AppTitle><ID>1</ID><IDX>0</IDX></App>"
+            + "<App><AppTitle>Bravo</AppTitle><ID>2</ID><IDX>1</IDX></App>"
+            + "<App><AppTitle>Charlie</AppTitle><ID>3</ID><IDX>2</IDX></App>"
+            + "<App><AppTitle>Virtual Display</AppTitle><ID>90</ID><IDX>3</IDX>"
+            + "<UUID>" + NvApp.VIRTUAL_DISPLAY_UUID + "</UUID></App>"
+            + "</root>";
+
+    @Test
+    public void aPolledListGivesTheEntryTheLibrarysGameCount() {
+        context.getSharedPreferences(LibraryIntents.PREFS_HIDDEN_APPS, Context.MODE_PRIVATE).edit()
+                .putStringSet("uuid-count", new java.util.HashSet<>(java.util.Collections.singleton("2")))
+                .commit();
+        ComputerDetails live = gateway.addHost("uuid-count", "Alpha");
+        live.rawAppList = TWO_GAMES_AND_A_SPECIAL;
+
+        repo.start();
+
+        // Three games, less the special, less the hidden one.
+        assertEquals(2, repo.getHost("uuid-count").gameCount);
+    }
+
+    @Test
+    public void aCachedListCountsWhenThePollHasNone() throws IOException {
+        try (java.io.OutputStream out = com.limelight.utils.CacheHelper.openCacheFileForOutput(
+                context.getCacheDir(), "applist", "uuid-cached")) {
+            com.limelight.utils.CacheHelper.writeStringToOutputStream(out, TWO_GAMES_AND_A_SPECIAL);
+        }
+        gateway.addHost("uuid-cached", "Alpha");
+
+        repo.start();
+
+        assertEquals(3, repo.getHost("uuid-cached").gameCount);
+    }
+
+    @Test
+    public void aHostWithNoListAndNoCacheHasAnUnknownCount() {
+        gateway.addHost("uuid-never-opened", "Alpha");
+
+        repo.start();
+
+        assertEquals(HostEntry.UNKNOWN_GAME_COUNT, repo.getHost("uuid-never-opened").gameCount);
+    }
+
+    @Test
+    public void theHeroRepublishKeepsTheGameCount() {
+        final Bitmap hero = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
+        // A resolver whose image arrives at once, rather than from a host.
+        RunningGameResolver instantHero = new RunningGameResolver(context) {
+            @Override
+            public boolean fetchRunningBackground(ComputerDetails details, String uniqueId,
+                                                  Executor executor, BackgroundCallback callback) {
+                executor.execute(() -> callback.onBackground(hero));
+                return true;
+            }
+        };
+        repo = newRepository(DIRECT, DIRECT, instantHero);
+        ComputerDetails live = gateway.addHost("uuid-hero", "Alpha");
+        live.rawAppList = TWO_GAMES_AND_A_SPECIAL;
+        live.runningGameId = 1;
+        live.runningGameName = "Alpha";
+
+        repo.start();
+        assertEquals(1, artFetches.size());
+        HostEntry beforeHero = repo.getHost("uuid-hero");
+        assertNull(beforeHero.runningBackground);
+
+        drain(artFetches);
+
+        HostEntry withHero = repo.getHost("uuid-hero");
+        assertNotSame(beforeHero, withHero);
+        assertSame(hero, withHero.runningBackground);
+        assertEquals(3, withHero.gameCount);
     }
 }
