@@ -353,13 +353,11 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         if (!context.assignedControllerNumber || !isInUse(context)) {
             return;
         }
+        // Only the buttons are forgotten: their key-ups go to the controls now, so a button
+        // held through the close must not come back pressed. The sticks and triggers keep their
+        // values, which resendPads sends on close; zeroing them here would leave a trigger held
+        // through the menu centred at the host until it moved.
         context.inputMap = 0;
-        context.leftTrigger = 0;
-        context.rightTrigger = 0;
-        context.leftStickX = 0;
-        context.leftStickY = 0;
-        context.rightStickX = 0;
-        context.rightStickY = 0;
         // Sent whether or not the pad looks held: a USB-driver pad's thread may have sent a live
         // packet a moment ago that this thread cannot be sure it sees. Being sent while the
         // controls are open, the packet is neutral whatever the pads hold (see
