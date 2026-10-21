@@ -26,7 +26,7 @@ import com.limelight.library.LibraryApp;
 import com.limelight.nvstream.http.AppMetadata;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.NvApp;
-import com.limelight.pcs.HostCardBinder;
+import com.limelight.pcs.HostTileBinder;
 import com.limelight.preferences.AddComputerManually;
 
 import java.util.ArrayList;
@@ -403,7 +403,7 @@ public final class CompanionFeed implements GameFocusListener,
         boolean online = details.state == ComputerDetails.State.ONLINE;
         String meta = online && entry.runningAppName != null
                 ? context.getString(R.string.pcview_status_running, entry.runningAppName)
-                : context.getString(HostCardBinder.statusLabel(details));
+                : context.getString(HostTileBinder.statusLabel(details));
 
         NvApp running = snapshot != null && sameHost(snapshot.hostUuid, details.uuid)
                 ? snapshot.running : null;

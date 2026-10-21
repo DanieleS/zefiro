@@ -66,6 +66,13 @@
     <color name="signal_container">#FF10333F</color>
 
     <!--
+        The signal container a step deeper: a PC tile's icon box while the tile is focused. The
+        tile itself is the container then, and the box has to stay a box on it, as the PCs mock
+        draws it.
+    -->
+    <color name="pc_tile_icon_focused">#FF0B2730</color>
+
+    <!--
         Read on the signal. The accent is a light blue, so what sits on top of it is the
         ground, not white.
     -->

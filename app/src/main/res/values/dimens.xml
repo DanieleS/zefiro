@@ -27,20 +27,29 @@
     <dimen name="pc_tile_corner">12dp</dimen>
 
     <!--
-        A PC is a card rather than a tile: it carries a name, a state, an address and, when
-        the host is in a game, that game's art. The cards stack in one column and stop
-        widening at pc_card_max_width, so a PC on a TV is a card and not a banner.
+        A PC is a small tile (item_pc_tile): an icon box, a name, a status line and one action,
+        four across on the Thor and two on a phone. The grid's rows take their tallest tile's
+        height, so the minimum is what a tile with its action button needs.
     -->
-    <dimen name="pc_card_corner">14dp</dimen>
-    <dimen name="pc_card_max_width">560dp</dimen>
-    <dimen name="pc_card_min_height">120dp</dimen>
+    <dimen name="pc_tile_min_height">168dp</dimen>
+    <dimen name="pc_tile_padding">12dp</dimen>
+    <!-- Half the gap between tiles: each tile's margin, so two neighbours make one gap. -->
+    <dimen name="pc_tile_half_gap">6dp</dimen>
+    <!-- The grid's side padding: the section gutter, less the outer tiles' own half gap. -->
+    <dimen name="pc_grid_inset">10dp</dimen>
+    <dimen name="pc_tile_icon_box">48dp</dimen>
+    <dimen name="pc_tile_icon_corner">12dp</dimen>
+    <dimen name="pc_tile_glyph">26dp</dimen>
+    <!-- The status badge on the icon box's corner, ringed in the tile's own colour. -->
+    <dimen name="pc_tile_badge">12dp</dimen>
+    <dimen name="pc_tile_badge_ring">2dp</dimen>
+    <dimen name="pc_tile_badge_offset">-4dp</dimen>
+    <!-- The overflow button: a 48dp target around a 20dp glyph. -->
+    <dimen name="pc_tile_more_inset">14dp</dimen>
+    <!-- The action pill: 48dp to touch, drawn 36dp tall. -->
+    <dimen name="pc_tile_action_inset">6dp</dimen>
+    <!-- Kept from the old PC cards: See all and the Library header space their chips by it. -->
     <dimen name="pc_card_spacing">12dp</dimen>
-    <dimen name="pc_card_padding">16dp</dimen>
-    <!-- The leading slot holds either the host glyph or the running game's cover, and is the
-         width of the cover so the text starts in the same place either way. -->
-    <dimen name="pc_card_leading_width">66dp</dimen>
-    <dimen name="pc_card_leading_height">88dp</dimen>
-    <dimen name="pc_card_glyph">44dp</dimen>
     <dimen name="pc_status_dot">8dp</dimen>
 
     <!--

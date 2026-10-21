@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The Add PC tile: no fill, only a dashed outline, so it reads as a place for a PC rather than
+    as one. Focused or pressed it wears the same container and ring as a PC tile.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:exitFadeDuration="120">
+
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/pc_tile_corner" />
+            <solid android:color="@color/signal_container" />
+            <stroke
+                android:width="@dimen/tile_focus_stroke"
+                android:color="@color/signal" />
+        </shape>
+    </item>
+
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/pc_tile_corner" />
+            <solid android:color="@color/signal_container" />
+            <stroke
+                android:width="@dimen/tile_focus_stroke"
+                android:color="@color/signal" />
+        </shape>
+    </item>
+
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/pc_tile_corner" />
+            <solid android:color="@android:color/transparent" />
+            <stroke
+                android:width="1.5dp"
+                android:color="@color/outline"
+                android:dashWidth="6dp"
+                android:dashGap="4dp" />
+        </shape>
+    </item>
+
+</selector>

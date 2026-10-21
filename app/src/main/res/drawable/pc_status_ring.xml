@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The state of a PC that answers but is not paired, as a hollow dot: @drawable/pc_status_dot's
+    ring. Tinted by whoever shows it.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+
+    <size
+        android:width="@dimen/pc_status_dot"
+        android:height="@dimen/pc_status_dot" />
+    <solid android:color="@android:color/transparent" />
+    <stroke
+        android:width="1.5dp"
+        android:color="@android:color/white" />
+
+</shape>

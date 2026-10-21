@@ -16,7 +16,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.limelight.R;
 import com.limelight.nvstream.http.ComputerDetails;
-import com.limelight.pcs.HostCardBinder;
+import com.limelight.pcs.HostTileBinder;
 
 import java.util.List;
 
@@ -67,8 +67,8 @@ final class HeaderAdapter extends RecyclerView.Adapter<HeaderAdapter.Holder> {
      */
     void bind(@Nullable String hostName, @Nullable ComputerDetails details, boolean selected,
               @NonNull Context context) {
-        int color = details != null ? HostCardBinder.statusColor(details) : R.color.content_faint;
-        String state = details != null ? context.getString(HostCardBinder.statusLabel(details)) : null;
+        int color = details != null ? HostTileBinder.statusColor(details) : R.color.content_faint;
+        String state = details != null ? context.getString(HostTileBinder.statusLabel(details)) : null;
         if (selected == hostSelected && color == dotColor && equal(hostName, this.hostName)
                 && equal(state, status)) {
             return;

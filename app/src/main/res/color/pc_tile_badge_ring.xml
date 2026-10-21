@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The ring that cuts a PC tile's status badge out of its icon box: the tile's own colour, so
+    it follows the tile into its focused state.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true" android:color="@color/signal_container" />
+    <item android:state_focused="true" android:color="@color/signal_container" />
+    <item android:state_activated="true" android:color="@color/signal_container" />
+    <item android:color="@color/surface_container_low" />
+</selector>

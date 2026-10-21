@@ -1,5 +1,9 @@
 package com.limelight.pcs;
 
+import android.content.Context;
+
+import androidx.test.core.app.ApplicationProvider;
+
 import com.limelight.R;
 import com.limelight.computers.HostEntry;
 import com.limelight.nvstream.http.ComputerDetails;
@@ -10,6 +14,9 @@ import com.limelight.pcs.HostStatus.Connection;
 import com.limelight.pcs.HostStatus.Kind;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.annotation.Config;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -17,8 +24,10 @@ import static org.junit.Assert.assertSame;
 
 /**
  * A PC tile's state, and the facts about how the host is reached: only what a poll reports,
- * never a guess.
+ * never a guess. Robolectric only for the strings a tile reads.
  */
+@Config(sdk = {33})
+@RunWith(RobolectricTestRunner.class)
 public class HostStatusTest {
 
     private static final AddressTuple LOCAL = new AddressTuple("192.168.1.20", NvHTTP.DEFAULT_HTTP_PORT);
@@ -64,6 +73,22 @@ public class HostStatusTest {
         for (Kind kind : Kind.values()) {
             assertEquals(kind.name(), kind == Kind.UNPAIRED, kind.hollow);
         }
+    }
+
+    @Test
+    public void tileText_playingWithoutANameSaysOnlyThatItIsInAGame() {
+        // As HostTileBinder formats it: the name is passed, and a text without a placeholder
+        // ignores it, so a missing name never reads "Playing · null".
+        Context context = ApplicationProvider.getApplicationContext();
+        ComputerDetails playing = host(ComputerDetails.State.ONLINE, PairState.PAIRED);
+        playing.runningGameId = 7;
+
+        HostEntry unnamed = new HostEntry(playing);
+        assertEquals("In a game",
+                context.getString(HostStatus.textRes(unnamed), unnamed.runningAppName));
+        HostEntry named = new HostEntry(playing, "Sea of Stars", null);
+        assertEquals("Playing · Sea of Stars",
+                context.getString(HostStatus.textRes(named), named.runningAppName));
     }
 
     @Test
@@ -154,22 +179,5 @@ public class HostStatusTest {
         assertEquals("203.0.113.7:48010", HostStatus.addressText(REMOTE));
         assertEquals("fe80::1", HostStatus.addressText(IPV6));
         assertEquals("[fe80::1]:48010", HostStatus.addressText(new AddressTuple("fe80::1", 48010)));
-    }
-
-    @Test
-    public void primary_isTheCardAction() {
-        ComputerDetails unpaired = host(ComputerDetails.State.ONLINE, PairState.NOT_PAIRED);
-        assertEquals(HostCardBinder.ACTION_PAIR, HostStatus.primary(new HostEntry(unpaired)));
-
-        ComputerDetails offline = host(ComputerDetails.State.OFFLINE, PairState.PAIRED);
-        assertEquals(HostCardBinder.ACTION_NONE, HostStatus.primary(new HostEntry(offline)));
-        offline.macAddress = "AA:BB:CC:DD:EE:FF";
-        assertEquals(HostCardBinder.ACTION_WAKE, HostStatus.primary(new HostEntry(offline)));
-
-        ComputerDetails playing = host(ComputerDetails.State.ONLINE, PairState.PAIRED);
-        playing.runningGameId = 7;
-        assertEquals(HostCardBinder.ACTION_RESUME, HostStatus.primary(new HostEntry(playing)));
-        assertEquals(HostCardBinder.ACTION_NONE, HostStatus.primary(new HostEntry(
-                host(ComputerDetails.State.ONLINE, PairState.PAIRED))));
     }
 }

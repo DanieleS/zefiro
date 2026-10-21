@@ -17,7 +17,7 @@ import com.limelight.main.MainHost;
 import com.limelight.main.Section;
 import com.limelight.main.WindowClass;
 import com.limelight.nvstream.http.ComputerDetails;
-import com.limelight.pcs.HostCardBinder;
+import com.limelight.pcs.HostTileBinder;
 import com.limelight.ui.MenuSheet;
 
 import java.util.ArrayList;
@@ -170,9 +170,9 @@ public final class HostSheet {
                 final ComputerDetails details = row.host.details;
                 final String uuid = details.uuid;
                 String name = details.name != null ? details.name : context.getString(R.string.library_this_pc);
-                String state = context.getString(HostCardBinder.statusLabel(details));
+                String state = context.getString(HostTileBinder.statusLabel(details));
                 sheet.addStatusRow(name,
-                        ContextCompat.getColor(context, HostCardBinder.statusColor(details)),
+                        ContextCompat.getColor(context, HostTileBinder.statusColor(details)),
                         row.selected,
                         // The check is only drawn, so the chosen row says so in words.
                         context.getString(row.selected ? R.string.library_host_row_selected_a11y

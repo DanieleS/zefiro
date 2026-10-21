@@ -50,7 +50,7 @@ import com.limelight.main.StackedSectionFragment;
 import com.limelight.main.WindowClass;
 import com.limelight.nvstream.http.Achievement;
 import com.limelight.nvstream.http.AppStats;
-import com.limelight.pcs.HostCardBinder;
+import com.limelight.pcs.HostTileBinder;
 import com.limelight.ui.GamepadHintsView;
 import com.limelight.ui.SegmentedControlView;
 
@@ -488,13 +488,13 @@ public class StatsFragment extends Fragment
             chipName = getString(R.string.library_this_pc);
         }
         hostChipName.setText(chipName);
-        int dot = entry != null ? HostCardBinder.statusColor(entry.details) : R.color.content_faint;
+        int dot = entry != null ? HostTileBinder.statusColor(entry.details) : R.color.content_faint;
         ViewCompat.setBackgroundTintList(hostChipDot,
                 ColorStateList.valueOf(ContextCompat.getColor(requireContext(), dot)));
         hostChipDot.setVisibility(selected ? View.VISIBLE : View.GONE);
         hostChip.setContentDescription(entry != null
                 ? getString(R.string.library_host_chip_a11y, chipName,
-                        getString(HostCardBinder.statusLabel(entry.details)))
+                        getString(HostTileBinder.statusLabel(entry.details)))
                 : chipName);
     }
 

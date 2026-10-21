@@ -144,18 +144,18 @@ public class HostActions {
         main.removeCallbacksAndMessages(null);
     }
 
-    // --- The card's action ---
+    // --- The tile's action ---
 
-    /** Wake it, pair it, or rejoin it: what the card's button (or X on the card) says. */
+    /** Wake it, pair it, or rejoin it: what the tile's button (or X on the tile) says. */
     public void runCardAction(@NonNull HostEntry host, int action) {
         switch (action) {
-            case HostCardBinder.ACTION_WAKE:
+            case HostTileBinder.ACTION_WAKE:
                 wake(host.details);
                 break;
-            case HostCardBinder.ACTION_PAIR:
+            case HostTileBinder.ACTION_PAIR:
                 pair(host.details, null, null);
                 break;
-            case HostCardBinder.ACTION_RESUME:
+            case HostTileBinder.ACTION_RESUME:
                 resume(host);
                 break;
             default:

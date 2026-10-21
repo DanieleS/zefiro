@@ -1,13 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    The PCs section: a header ("PCs" and the Add PC chip) over one centred column of host cards.
+    The PCs section: a header ("PCs", how many are saved and online, Add PC), the grid of PC
+    tiles with the Add PC tile always last, a line saying the network is being searched, and the
+    pad's hints.
 
-    The column stops widening at pc_card_max_width. The centring is done in code, from this
-    fragment's own width rather than the screen's, because the rail takes part of the screen in
-    a wide window; the header's padding follows the list's so the title sits over the cards.
+    The grid fills the section between the gutters. Its column count comes from its own width
+    (PcTileSpanRule), so the rail's share of a wide window is already taken out. In a compact
+    window the Add PC chip loses its label and becomes a 48dp plus (PcsFragment.applyWindow).
 
-    While no host has been seen, the "searching" state stands where the cards will be, and the
-    chip is the only thing to focus.
+    While no PC has been seen, the grid holds only the Add PC tile, and the "searching" state
+    stands under it.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -32,12 +34,28 @@
         <TextView
             android:id="@+id/pcsTitle"
             style="@style/SectionTitle"
+            android:layout_width="wrap_content"
+            android:layout_weight="0"
             android:text="@string/nav_pcs" />
+
+        <!-- "3 saved · 1 online"; gone while no PC is saved. -->
+        <TextView
+            android:id="@+id/pcsSubtitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:textColor="@color/content_muted"
+            android:textSize="14sp"
+            android:visibility="gone" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/pcsAddButton"
             style="@style/Widget.Zefiro.HeaderChip"
             android:layout_marginStart="@dimen/pc_card_spacing"
+            android:contentDescription="@string/pcs_add_pc"
             android:text="@string/pcs_add_pc"
             app:icon="@drawable/ic_plus" />
 
@@ -53,21 +71,23 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipToPadding="false"
-            android:paddingStart="@dimen/section_gutter"
-            android:paddingEnd="@dimen/section_gutter"
-            android:paddingBottom="@dimen/section_gutter"
+            android:paddingStart="@dimen/pc_grid_inset"
+            android:paddingEnd="@dimen/pc_grid_inset"
+            android:paddingBottom="@dimen/pc_grid_inset"
             android:scrollbars="none"
-            tools:listitem="@layout/pc_card_item" />
+            tools:listitem="@layout/item_pc_tile" />
 
+        <!-- Under the first row of the grid, where the Add PC tile stands alone. -->
         <LinearLayout
             android:id="@+id/pcsEmpty"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="center"
+            android:layout_gravity="top|center_horizontal"
+            android:layout_marginTop="@dimen/pc_tile_min_height"
             android:gravity="center_horizontal"
-            android:maxWidth="@dimen/pc_card_max_width"
             android:orientation="vertical"
             android:paddingStart="@dimen/section_gutter"
+            android:paddingTop="32dp"
             android:paddingEnd="@dimen/section_gutter">
 
             <ProgressBar
@@ -87,5 +107,52 @@
         </LinearLayout>
 
     </FrameLayout>
+
+    <!--
+        Discovery runs exactly while the hosts are polled, which is whenever this section can be
+        seen, so the line is true whenever it shows. Gone while the "searching" state above
+        says the same thing.
+    -->
+    <LinearLayout
+        android:id="@+id/pcsLooking"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/section_gutter"
+        android:paddingTop="4dp"
+        android:paddingEnd="@dimen/section_gutter"
+        android:paddingBottom="4dp"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_refresh"
+            app:tint="@color/content_muted" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:text="@string/pcs_looking"
+            android:textColor="@color/content_muted"
+            android:textSize="13sp" />
+
+    </LinearLayout>
+
+    <!-- What A, X and Y do on the focused tile; d-pad first only. -->
+    <com.limelight.ui.GamepadHintsView
+        android:id="@+id/pcsHints"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="@dimen/section_gutter"
+        android:paddingTop="8dp"
+        android:paddingEnd="@dimen/section_gutter"
+        android:paddingBottom="12dp" />
 
 </LinearLayout>

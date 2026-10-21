@@ -21,7 +21,8 @@ import java.util.List;
 
 /**
  * Everything that can be done to one host, as a {@link MenuSheet}: the PCs section's long-press,
- * its Y button, and a tap on a card that has nothing better to do (an offline host).
+ * its Y button, a tile's overflow button, and a tap on a tile that has nothing better to do (an
+ * offline host).
  *
  * <p>It replaces {@code PcView}'s context menu, with the same items under the same conditions, so
  * nothing a user could do to a PC is lost in the move. Unpair is still not offered: PcView defined

@@ -16,7 +16,7 @@ import com.limelight.nvstream.http.PairingManager.PairState;
  * What the PCs section says about one host: its state as a dot and a word, the action it is
  * waiting for, and the facts about how it is reached.
  *
- * <p>{@link HostCardBinder#statusColor} and {@link HostCardBinder#statusLabel} stay the colours
+ * <p>{@link HostTileBinder#statusColor} and {@link HostTileBinder#statusLabel} stay the colours
  * of a host in a list (the Library's host chip, the host sheet, Stats), where "can it be played
  * on" is the only question. A PC tile says more: it tells a host that is playing from one that
  * is idle, and one that is not paired from one that is simply busy, so it reads its colours
@@ -112,14 +112,6 @@ public final class HostStatus {
             return R.string.pcview_status_running_unnamed;
         }
         return kind.label;
-    }
-
-    /**
-     * The one action a host is waiting for: Resume, Pair, Wake or none. The same answer as
-     * {@link HostCardBinder#actionFor}, so the button and X never disagree.
-     */
-    public static int primary(@NonNull HostEntry entry) {
-        return HostCardBinder.actionFor(entry);
     }
 
     /**
