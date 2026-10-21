@@ -27,6 +27,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -242,6 +243,17 @@ public class GamePageModelTest {
     }
 
     @Test
+    public void lastPlayed_aSessionOfNoMinutes_hasNoDuration() {
+        // Minecraft Dungeons: GameActivity's one session lasted seconds, Playnite counted 13 min.
+        GameStats s = stats(json("activity", true, "playtime_seconds", 780L, "play_count", 1,
+                "sessions", 1, "average_seconds", 20L,
+                "last_session", json("start", "2026-10-05T22:00:00Z", "seconds", 20L)));
+        GamePageModel.LastPlayed last = GamePageModel.lastPlayed(s, NOW);
+        assertFalse(last.hasDuration());
+        assertEquals("Last played 3 days ago", GamePageModel.lastPlayedLine(last, false, WORDS));
+    }
+
+    @Test
     public void lastPlayed_absentWithoutADate() {
         assertNull(GamePageModel.lastPlayed(launchesOnly(16, null), NOW));
         assertNull(GamePageModel.lastPlayed(null, NOW));
@@ -293,14 +305,75 @@ public class GamePageModelTest {
         assertTrue(GamePageModel.chips(null, state(0, true), true).isEmpty());
     }
 
+    @Test
+    public void figures_addThePlayPlayniteDoesNotCountYet() {
+        GamePageModel.Figures f = GamePageModel.figures(launchesOnly(16, null), 420);
+        assertEquals(147_900L + 420, f.totalSeconds);
+        assertEquals((147_900L + 420) / 16, f.averageSeconds);
+    }
+
+    // --- Read against the answer before ---
+
+    @Test
+    public void settle_a404OnPlayTheLibraryKnows_isUnreadable_notNothing() {
+        GamePageData d = GamePageData.settle(null, null, false, false, null, true);
+        assertEquals(GamePageData.State.FAILED, d.state);
+        assertTrue(d.unreadable);
+        assertTrue(d.statsFailed);
+        assertTrue(d.achievementsFailed);
+    }
+
+    @Test
+    public void settle_a404OnAGameNeverPlayed_isNothing() {
+        GamePageData d = GamePageData.settle(null, null, false, false, null, false);
+        assertEquals(GamePageData.State.NOTHING, d.state);
+        assertFalse(d.unreadable);
+    }
+
+    @Test
+    public void settle_a404AfterAnAnswer_keepsTheAnswerBefore() {
+        GamePageData before = GamePageData.settle(withSessions(),
+                achievements(json("total", 2, "unlocked", 1)), false, false, null, true);
+        GamePageData d = GamePageData.settle(null, null, false, false, before, true);
+        assertEquals(GamePageData.State.READY, d.state);
+        assertSame(before.stats, d.stats);
+        assertSame(before.achievements, d.achievements);
+        // A network failure keeps it too.
+        GamePageData failed = GamePageData.settle(null, null, true, true, before, true);
+        assertSame(before.stats, failed.stats);
+    }
+
+    @Test
+    public void settle_aNewSessionPlayniteHasNotCounted_isAddedToTheTotal() {
+        GameStats running = stats(json("activity", true, "playtime_seconds", 24_600L,
+                "play_count", 43, "sessions", 10, "average_seconds", 600L,
+                "last_session", json("start", "2026-10-08T09:00:00Z", "seconds", 300L)));
+        GameStats ended = stats(json("activity", true, "playtime_seconds", 24_600L,
+                "play_count", 43, "sessions", 11, "average_seconds", 600L,
+                "last_session", json("start", "2026-10-08T10:00:00Z", "seconds", 420L)));
+        GamePageData before = GamePageData.settle(running, null, false, false, null, true);
+        GamePageData after = GamePageData.settle(ended, null, false, false, before, true);
+        assertEquals(420L, after.unsyncedSeconds);
+        // Asked again with nothing new: still not counted, still added.
+        assertEquals(420L, GamePageData.settle(ended, null, false, false, after, true).unsyncedSeconds);
+        // Playnite caught up: its total alone.
+        GameStats synced = stats(json("activity", true, "playtime_seconds", 25_020L,
+                "play_count", 43, "sessions", 11, "average_seconds", 600L,
+                "last_session", json("start", "2026-10-08T10:00:00Z", "seconds", 420L)));
+        assertEquals(0L, GamePageData.settle(synced, null, false, false, after, true).unsyncedSeconds);
+    }
+
     // --- Metadata ---
 
     @Test
     public void metaLine_yearGenresStudio_withoutTheScore() {
         assertEquals("2023 · RPG · Sabotage Studio", GamePageModel.metaLine("2023",
                 Arrays.asList("RPG"), Arrays.asList("Sabotage Studio", "Other")));
-        assertEquals("2016 · Shooter, Simulator, Adventure", GamePageModel.metaLine("2016",
+        assertEquals("2016 · Shooter, Simulator…", GamePageModel.metaLine("2016",
                 Arrays.asList("Shooter", "Simulator", "Adventure", "Survival"), null));
+        assertEquals("2020 · Role-playing (RPG), Adventure · Mojang Studios",
+                GamePageModel.metaLine("2020", Arrays.asList("Role-playing (RPG)", "Adventure"),
+                        Arrays.asList("Mojang Studios")));
     }
 
     @Test

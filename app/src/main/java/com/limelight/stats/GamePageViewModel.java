@@ -15,6 +15,9 @@ import com.limelight.nvstream.http.GameStats;
 
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -36,13 +39,27 @@ import java.util.concurrent.RejectedExecutionException;
  * <pre>
  *   load()        request++ ──▶ (LOADING, unless quiet) ──▶ worker: stats, achievements
  *                                                              │
- *   main: request still the latest? ──yes──▶ data = answer ◀───┘
- *                                   ──no───▶ dropped
+ *   main: request still the latest? ──yes──▶ data = answer ◀───┘ read against the last answer
+ *                                   ──no───▶ dropped              (GamePageData.settle)
  * </pre>
+ *
+ * The last answer with something in it is kept past the page too, per game, for as long as the
+ * process lives: a page opened again while the host cannot read its files (a session running)
+ * still has the figures it showed last time.
  *
  * Main thread only, apart from the worker's own requests.
  */
 public class GamePageViewModel extends ViewModel {
+
+    // The last answer with something in it, per host and game; main thread only.
+    private static final int REMEMBERED = 24;
+    private static final Map<String, GamePageData> LAST = new LinkedHashMap<String, GamePageData>(
+            16, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, GamePageData> eldest) {
+            return size() > REMEMBERED;
+        }
+    };
 
     private final ExecutorService loader = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -64,9 +81,13 @@ public class GamePageViewModel extends ViewModel {
      *                FAILED at once, so the page offers the retry
      * @param quiet   keep what is on screen until the answer comes, instead of the spinner: a
      *                refresh of a page already drawn
+     * @param playKnown whether the library knows the game was played, so a 404 on its
+     *                  statistics is the host failing to read them (see GamePageData.settle)
      */
-    public void load(@Nullable HostSession session, @NonNull String appUuid, boolean quiet) {
+    public void load(@Nullable HostSession session, @NonNull String hostUuid,
+                     @NonNull String appUuid, boolean quiet, boolean playKnown) {
         final int mine = ++request;
+        final String key = hostUuid.toUpperCase(Locale.ROOT) + "/" + appUuid.toUpperCase(Locale.ROOT);
         if (session == null) {
             data.setValue(GamePageData.unreachable());
             return;
@@ -92,17 +113,35 @@ public class GamePageViewModel extends ViewModel {
                     LimeLog.warning("Game page achievements: " + e.getMessage());
                     achievementsFailed = true;
                 }
-                final GamePageData answer = GamePageData.from(stats, achievements,
-                        statsFailed, achievementsFailed);
+                final GameStats gotStats = stats;
+                final GameAchievements gotAchievements = achievements;
+                final boolean gotStatsFailed = statsFailed;
+                final boolean gotAchievementsFailed = achievementsFailed;
                 main.post(() -> {
-                    if (mine == request) {
-                        data.setValue(answer);
+                    if (mine != request) {
+                        return;
                     }
+                    GamePageData answer = GamePageData.settle(gotStats, gotAchievements,
+                            gotStatsFailed, gotAchievementsFailed, before(key), playKnown);
+                    if (answer.hasPlay() || answer.hasAchievements()) {
+                        LAST.put(key, answer);
+                    }
+                    data.setValue(answer);
                 });
             });
         } catch (RejectedExecutionException e) {
             // Cleared with the page; nothing is left to show the answer.
         }
+    }
+
+    // This page's last answer with something in it, else the one an earlier page kept.
+    @Nullable
+    private GamePageData before(@NonNull String key) {
+        GamePageData shown = data.getValue();
+        if (shown != null && (shown.hasPlay() || shown.hasAchievements())) {
+            return shown;
+        }
+        return LAST.get(key);
     }
 
     @NonNull

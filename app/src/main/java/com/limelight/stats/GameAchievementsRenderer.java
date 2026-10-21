@@ -93,7 +93,8 @@ final class GameAchievementsRenderer implements CompanionPageRenderer {
         status.findViewById(R.id.companionAchievementsStatusHint)
                 .setVisibility(failed ? View.VISIBLE : View.GONE);
         TextView text = status.findViewById(R.id.companionAchievementsStatusText);
-        text.setText(failed ? R.string.game_stats_failed : R.string.game_stats_loading);
+        text.setText(!failed ? R.string.game_stats_loading
+                : page.unreadable ? R.string.game_page_stats_unreadable : R.string.game_stats_failed);
         text.setTextColor(ContextCompat.getColor(status.getContext(),
                 failed ? R.color.danger : R.color.content_secondary));
         status.setActivated(page.focusedStop() == GameAchievementsPage.STOP_STATUS);

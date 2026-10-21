@@ -1122,11 +1122,14 @@
     <string name="game_page_joined">%1$s · %2$s</string>
     <string name="game_page_play">Play</string>
     <!-- The last-played line while the game runs: the session recorded last is the one before. -->
-    <string name="game_page_session_before">session before this: %1$s, %2$s</string>
+    <string name="game_page_session_before">Session before this: %1$s, %2$s</string>
     <!-- Under this week's figure, beside the twelve weeks' bars. -->
     <string name="game_page_this_week">this week</string>
     <!-- The failed row: A or a tap asks the PC again. -->
     <string name="game_page_retry">Press A or tap to try again.</string>
+    <!-- The failed row when the PC answered but could not read the game's statistics (often
+         while a session runs on it), rather than game_stats_failed's unreachable PC. -->
+    <string name="game_page_stats_unreadable">Couldn\'t read the statistics.</string>
     <!-- The achievements' header: unlocked of all, and gamerscore got of all. -->
     <string name="game_page_achievements_count">%1$d / %2$d</string>
     <string name="game_page_gamerscore">%1$d / %2$d G</string>

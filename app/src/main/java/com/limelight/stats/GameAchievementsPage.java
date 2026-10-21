@@ -65,6 +65,8 @@ public final class GameAchievementsPage extends CompanionPage {
     @Nullable
     public final HostSession session;
     public final long nowMillis;
+    /** FAILED although the host answered: "Couldn't read the statistics." (GamePageData#unreadable). */
+    public final boolean unreadable;
     // What the filter keeps, in the host's order: the rows, and what their stops name.
     @NonNull
     private final List<Achievement> shown;
@@ -73,7 +75,7 @@ public final class GameAchievementsPage extends CompanionPage {
                                  @Nullable GameAchievements data,
                                  @NonNull AchievementFilter.Filter filter,
                                  @NonNull Set<String> revealed, @Nullable HostSession session,
-                                 long nowMillis, int focusedStop) {
+                                 long nowMillis, boolean unreadable, int focusedStop) {
         super(focusedStop);
         this.title = title;
         this.mode = mode;
@@ -82,6 +84,7 @@ public final class GameAchievementsPage extends CompanionPage {
         this.revealed = revealed;
         this.session = session;
         this.nowMillis = nowMillis;
+        this.unreadable = unreadable;
         this.shown = data != null ? AchievementFilter.apply(data.getItems(), filter)
                 : Collections.<Achievement>emptyList();
     }
@@ -99,24 +102,34 @@ public final class GameAchievementsPage extends CompanionPage {
                                             @NonNull Set<String> revealed,
                                             @Nullable HostSession session, long nowMillis) {
         return new GameAchievementsPage(title, Mode.LIST, data, filter,
-                Collections.unmodifiableSet(new HashSet<>(revealed)), session, nowMillis, NO_STOP);
+                Collections.unmodifiableSet(new HashSet<>(revealed)), session, nowMillis, false,
+                NO_STOP);
     }
 
     /** "Loading…", while the host has not answered. */
     @NonNull
     public static GameAchievementsPage loading(@NonNull String title) {
-        return status(title, Mode.LOADING);
+        return status(title, Mode.LOADING, false);
     }
 
     /** "Couldn't reach the PC.", for the achievements; A or a tap asks again. */
     @NonNull
     public static GameAchievementsPage failed(@NonNull String title) {
-        return status(title, Mode.FAILED);
+        return failed(title, false);
     }
 
-    private static GameAchievementsPage status(String title, Mode mode) {
+    /**
+     * As {@link #failed(String)}; "Couldn't read the statistics." instead when the host answered
+     * but could not say ({@code unreadable}).
+     */
+    @NonNull
+    public static GameAchievementsPage failed(@NonNull String title, boolean unreadable) {
+        return status(title, Mode.FAILED, unreadable);
+    }
+
+    private static GameAchievementsPage status(String title, Mode mode, boolean unreadable) {
         return new GameAchievementsPage(title, mode, null, AchievementFilter.Filter.ALL,
-                Collections.<String>emptySet(), null, 0, NO_STOP);
+                Collections.<String>emptySet(), null, 0, unreadable, NO_STOP);
     }
 
     // --- Stops ---
@@ -211,7 +224,7 @@ public final class GameAchievementsPage extends CompanionPage {
     @NonNull
     public GameAchievementsPage withFilter(@NonNull AchievementFilter.Filter chosen) {
         return new GameAchievementsPage(title, mode, data, chosen, revealed, session, nowMillis,
-                focusAfterFilter(focusedStop(), chosen));
+                unreadable, focusAfterFilter(focusedStop(), chosen));
     }
 
     // --- CompanionPage ---
@@ -226,20 +239,20 @@ public final class GameAchievementsPage extends CompanionPage {
     @Override
     public GameAchievementsPage withFocus(int stop) {
         return new GameAchievementsPage(title, mode, data, filter, revealed, session, nowMillis,
-                stop);
+                unreadable, stop);
     }
 
     @Override
     protected boolean sameContent(@NonNull CompanionPage other) {
         GameAchievementsPage that = (GameAchievementsPage) other;
         return mode == that.mode && filter == that.filter && nowMillis == that.nowMillis
-                && data == that.data && session == that.session && title.equals(that.title)
+                && unreadable == that.unreadable && data == that.data && session == that.session && title.equals(that.title)
                 && revealed.equals(that.revealed);
     }
 
     @Override
     protected int contentHash() {
         return Objects.hash(title, mode, System.identityHashCode(data), filter, revealed,
-                System.identityHashCode(session), nowMillis);
+                System.identityHashCode(session), nowMillis, unreadable);
     }
 }

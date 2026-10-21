@@ -84,6 +84,7 @@ public class AchievementsBlockView extends LinearLayout {
     private final View untracked;
     private final TextView untrackedDetail;
     private final View failed;
+    private final TextView failedText;
     private final Adapter adapter = new Adapter();
     private final StatsText text;
 
@@ -109,6 +110,7 @@ public class AchievementsBlockView extends LinearLayout {
         untracked = findViewById(R.id.achievementsBlockUntracked);
         untrackedDetail = findViewById(R.id.achievementsBlockUntrackedDetail);
         failed = findViewById(R.id.achievementsBlockFailed);
+        failedText = findViewById(R.id.achievementsBlockFailedText);
         text = new StatsText(context);
 
         meter.setPivotX(0);
@@ -278,8 +280,15 @@ public class AchievementsBlockView extends LinearLayout {
                 Collections.<String>emptySet(), 0);
     }
 
-    /** The PC answered for the play statistics but not for the achievements. */
-    public void showFailed() {
+    /**
+     * The PC answered for the play statistics but not for the achievements.
+     *
+     * @param unreadable it answered for them too, but could not say (GamePageData#unreadable):
+     *                   "Couldn't read the statistics." rather than "Couldn't reach the PC."
+     */
+    public void showFailed(boolean unreadable) {
+        failedText.setText(unreadable ? R.string.game_page_stats_unreadable
+                : R.string.game_stats_failed);
         header.setVisibility(VISIBLE);
         count.setText(null);
         percent.setText(null);
@@ -328,6 +337,34 @@ public class AchievementsBlockView extends LinearLayout {
         }
         int selected = filterView.getSelectedIndex();
         return filterView.getSegmentView(selected >= 0 ? selected : 0);
+    }
+
+    /**
+     * The view inline that stands where a stop of the panel's page stood
+     * ({@link GameAchievementsPage}'s numbering): a filter segment, a row, or the failed row.
+     * Null when the block does not show it, or has not laid the row out yet.
+     */
+    @Nullable
+    public View viewForStop(int stop) {
+        if (getVisibility() != VISIBLE) {
+            return null;
+        }
+        if (stop == GameAchievementsPage.STOP_STATUS) {
+            return retryStop();
+        }
+        if (tracked.getVisibility() != VISIBLE) {
+            return null;
+        }
+        AchievementFilter.Filter segment = GameAchievementsPage.filterAt(stop);
+        if (segment != null) {
+            return filterView.getSegmentView(segment.ordinal());
+        }
+        int row = GameAchievementsPage.rowPosition(stop);
+        if (row < 0 || list.getVisibility() != VISIBLE) {
+            return null;
+        }
+        RecyclerView.ViewHolder holder = list.findViewHolderForAdapterPosition(row);
+        return holder != null ? holder.itemView : null;
     }
 
     /** The failed row, while the block shows it; null otherwise. */
