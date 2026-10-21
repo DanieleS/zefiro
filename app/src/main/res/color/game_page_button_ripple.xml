@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The game page's Play, Resume and Quit game: a press darkens them, focus does not. Focus is
+    their ring alone, so a focused button reads the same on one screen and on two, and never as
+    a dimmed, disabled-looking fill.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:color="@color/scrim_soft" android:state_pressed="true" />
+    <item android:color="@android:color/transparent" android:state_focused="true" />
+    <item android:color="@android:color/transparent" android:state_hovered="true" />
+    <item android:color="@color/scrim_soft" />
+</selector>

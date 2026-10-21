@@ -169,6 +169,8 @@ public final class GamePageModel {
 
     // A tracked total this close to Playnite's is the same time: the host rounds the average.
     private static final double TRACKED_SHARE = 0.9;
+    // Genres on the metadata line; the rest are cut, with an ellipsis.
+    private static final int MAX_GENRES = 2;
 
     private GamePageModel() {
     }
@@ -209,15 +211,25 @@ public final class GamePageModel {
     /** The figures for a game's statistics, or null when there is no play time to show. */
     @Nullable
     public static Figures figures(@Nullable GameStats s) {
+        return figures(s, 0);
+    }
+
+    /**
+     * As {@link #figures(GameStats)}, Playnite's total with the play it does not count yet added
+     * ({@link GamePageData#unsyncedSeconds}): the total then agrees with the sessions and the
+     * week that already have it.
+     */
+    @Nullable
+    public static Figures figures(@Nullable GameStats s, long unsyncedSeconds) {
         if (s == null || s.getPlaytimeSeconds() <= 0) {
             return null;
         }
-        long total = s.getPlaytimeSeconds();
+        long total = s.getPlaytimeSeconds() + Math.max(0, unsyncedSeconds);
         long launches = s.getPlayCount();
         // Without GameActivity the host reports no sessions; a stray count is not trusted either.
         boolean sessions = s.hasActivity() && s.getSessions() > 0;
         long[] weeks = sessions ? s.getWeeks() : null;
-        if (sessions && (launches <= 0 || tracksTheTotal(s))) {
+        if (sessions && (launches <= 0 || tracksTheTotal(s, total))) {
             return new Figures(total, Unit.SESSIONS, s.getSessions(), s.getAverageSeconds(), weeks);
         }
         return new Figures(total, Unit.LAUNCHES, launches,
@@ -226,14 +238,16 @@ public final class GamePageModel {
 
     // Whether GameActivity's sessions add up to (nearly) Playnite's total: then counting them
     // beside it, and dividing by them, describes the same time.
-    private static boolean tracksTheTotal(@NonNull GameStats s) {
+    private static boolean tracksTheTotal(@NonNull GameStats s, long total) {
         double tracked = (double) s.getSessions() * s.getAverageSeconds();
-        return tracked >= TRACKED_SHARE * s.getPlaytimeSeconds();
+        return tracked >= TRACKED_SHARE * total;
     }
 
     /**
      * When the game was last played: GameActivity's last session, with its length, or Playnite's
-     * last activity, without one. Null when neither has a date.
+     * last activity, without one. Null when neither has a date. A session that rounds to no
+     * minutes has no length to tell ("for 0 min" beside a total of minutes reads as an error):
+     * the day alone, as Playnite's.
      */
     @Nullable
     public static LastPlayed lastPlayed(@Nullable GameStats s, long nowMillis) {
@@ -257,7 +271,9 @@ public final class GamePageModel {
         } else {
             day = Day.DATED;
         }
-        return new LastPlayed(day, days, millis, session ? s.getLastSessionSeconds() : -1);
+        long length = session && Math.round(s.getLastSessionSeconds() / 60.0) > 0
+                ? s.getLastSessionSeconds() : -1;
+        return new LastPlayed(day, days, millis, length);
     }
 
     /**
@@ -327,8 +343,10 @@ public final class GamePageModel {
 
     /**
      * The line of metadata under the title: "2023 · RPG · Sabotage Studio", the year, up to
-     * three genres and the first developer, only the parts the host has. Empty for none. No
-     * score: a bare percentage there reads as nothing in particular.
+     * two genres and the first developer, only the parts the host has. Empty for none. No
+     * score: a bare percentage there reads as nothing in particular. More genres than two end in
+     * an ellipsis rather than run the line off the page ("Role-playing (RPG), Hack and slash/Beat
+     * 'em up, Adventure").
      */
     @NonNull
     public static String metaLine(@Nullable String year, @Nullable List<String> genres,
@@ -338,7 +356,8 @@ public final class GamePageModel {
             parts.add(year);
         }
         if (genres != null && !genres.isEmpty()) {
-            parts.add(join(", ", genres.subList(0, Math.min(3, genres.size()))));
+            String shown = join(", ", genres.subList(0, Math.min(MAX_GENRES, genres.size())));
+            parts.add(genres.size() > MAX_GENRES ? shown + "…" : shown);
         }
         if (developers != null && !developers.isEmpty() && !developers.get(0).isEmpty()) {
             parts.add(developers.get(0));

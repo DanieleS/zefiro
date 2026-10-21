@@ -278,6 +278,10 @@
     <dimen name="game_page_figure_size">18sp</dimen>
     <dimen name="game_page_card_corner">12dp</dimen>
     <dimen name="game_page_bars_height">52dp</dimen>
+    <!-- Wide, where the page has the height: a taller twelve weeks, no empty band under the chips. -->
+    <dimen name="game_page_bars_height_wide">84dp</dimen>
+    <!-- The chips' icons, before their words. -->
+    <dimen name="game_page_chip_icon">16dp</dimen>
     <dimen name="game_page_block_gap">20dp</dimen>
     <dimen name="achievement_icon_size">40dp</dimen>
     <!-- Screens T4: a game's actions as rows on the companion panel, the mock's big rows. -->

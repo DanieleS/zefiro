@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.res.ColorStateList;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -18,6 +19,7 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.content.res.AppCompatResources;
 import androidx.core.content.ContextCompat;
 import androidx.core.widget.TextViewCompat;
 import androidx.fragment.app.Fragment;
@@ -155,6 +157,9 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
     private boolean split;
     @Nullable
     private PanelFocus panelFocus;
+    // The panel's stop the d-pad was on when the panel went, for the inline block to take over;
+    // NO_STOP otherwise. Set and used within one change of panelShowing.
+    private int stopWhenPanelWent = CompanionPage.NO_STOP;
 
     // The cover: which game and art version it was asked for, and whether it shows the art.
     @Nullable
@@ -188,6 +193,7 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
     private View hero;
     private ImageView backdrop;
     private View scrim;
+    private View fades;
     private LinearLayout top;
     private LinearLayout coverColumn;
     private View coverFrame;
@@ -201,6 +207,7 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
     private TextView title;
     private TextView hostLine;
     private TextView meta;
+    private TextView lastPlayed;
     private LinearLayout body;
     private View status;
     private View statusProgress;
@@ -274,6 +281,7 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
         hero = view.findViewById(R.id.gamePageHero);
         backdrop = view.findViewById(R.id.gamePageBackdrop);
         scrim = view.findViewById(R.id.gamePageScrim);
+        fades = view.findViewById(R.id.gamePageFades);
         top = view.findViewById(R.id.gamePageTop);
         coverColumn = view.findViewById(R.id.gamePageCoverColumn);
         coverFrame = view.findViewById(R.id.gamePageCoverFrame);
@@ -287,6 +295,7 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
         title = view.findViewById(R.id.gamePageTitle);
         hostLine = view.findViewById(R.id.gamePageHost);
         meta = view.findViewById(R.id.gamePageMeta);
+        lastPlayed = view.findViewById(R.id.gamePageLastPlayed);
         body = view.findViewById(R.id.gamePageBody);
         status = view.findViewById(R.id.gamePageStatus);
         statusProgress = view.findViewById(R.id.gamePageStatusProgress);
@@ -328,6 +337,13 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
 
         // Before the first draw, so a panel already on does not show the block here for a frame.
         split = Boolean.TRUE.equals(CompanionDisplayManager.panelShowing().getValue());
+        // Before PanelFocus's observer, which forgets the d-pad's stop as it brings it back up:
+        // the stop it was on goes to the same achievement inline (onPanelShowing).
+        CompanionDisplayManager.panelShowing().observe(getViewLifecycleOwner(), showing -> {
+            if (!Boolean.TRUE.equals(showing) && split && panelFocus != null) {
+                stopWhenPanelWent = panelFocus.focusedStop();
+            }
+        });
         // Before this screen's own observer: when the panel goes, PanelFocus brings the d-pad
         // back up first, and onPanelShowing then lays the block out here.
         panelFocus = PanelFocus.attach(this, (ViewGroup) view, this);
@@ -461,6 +477,7 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
             return;
         }
         snapshot = s;
+        boolean wasRunning = app != null && app.running;
         boolean hadSession = session() != null;
         HostLibrary current = host.hostRepository().currentLibrary();
         library = current != null && current.getHostUuid().equalsIgnoreCase(args.hostUuid)
@@ -478,6 +495,10 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
         if (!hadSession && session() != null
                 && (shown == null || shown.state == GamePageData.State.FAILED)) {
             load(false);
+        } else if (wasRunning && app != null && !app.running && shown != null) {
+            // The game ended (quit from here, or on the PC): what it played is in the figures
+            // now, which would else stay as they were while it ran until the page is left.
+            load(true);
         }
     }
 
@@ -564,31 +585,29 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
     }
 
     /**
-     * The line under the title. Wide: the metadata (year, genres, studio) joined with when the
-     * game was last played. Compact: only when it was last played, under the PC. A part that is
-     * missing leaves no gap.
+     * The lines under the title. Wide: the metadata (year, genres, studio), then when the game
+     * was last played on a line of its own. Compact: only when it was last played, under the PC.
+     * A line that has nothing to say is gone, and leaves no gap.
      */
     private void renderMeta() {
         String last = lastPlayedLine();
         String metadata = "";
         boolean compact = Boolean.TRUE.equals(compactApplied);
-        if (!compact && snapshot != null) {
-            AppMetadata m = snapshot.metadata.get(args.appUuid.toUpperCase());
-            if (m != null) {
-                metadata = GamePageModel.metaLine(m.getReleaseYear(), m.getGenres(),
-                        m.getDevelopers());
-            }
+        AppMetadata m = metadata();
+        if (!compact && m != null) {
+            metadata = GamePageModel.metaLine(m.getReleaseYear(), m.getGenres(),
+                    m.getDevelopers());
         }
-        String line;
-        if (metadata.isEmpty()) {
-            line = last;
-        } else if (last.isEmpty()) {
-            line = metadata;
-        } else {
-            line = getString(R.string.game_page_joined, metadata, last);
-        }
-        meta.setText(line);
-        meta.setVisibility(line.isEmpty() ? View.GONE : View.VISIBLE);
+        meta.setText(metadata);
+        meta.setVisibility(metadata.isEmpty() ? View.GONE : View.VISIBLE);
+        lastPlayed.setText(last);
+        lastPlayed.setVisibility(last.isEmpty() ? View.GONE : View.VISIBLE);
+    }
+
+    // The game's metadata as the library has it; null when it has none.
+    @Nullable
+    private AppMetadata metadata() {
+        return snapshot != null ? snapshot.metadata.get(args.appUuid.toUpperCase()) : null;
     }
 
     private String lastPlayedLine() {
@@ -653,10 +672,20 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
         drawnCompanionLabel = companion;
 
         chips.removeAllViews();
-        LayoutInflater inflater = LayoutInflater.from(requireContext());
+        Context context = requireContext();
+        LayoutInflater inflater = LayoutInflater.from(context);
+        int iconSize = getResources().getDimensionPixelSize(R.dimen.game_page_chip_icon);
         for (final GameActionsSheet.Item item : items) {
             TextView chip = (TextView) inflater.inflate(R.layout.item_game_page_chip, chips, false);
             chip.setText(actionLabel(item, companion));
+            // The panel's rows' icons, tinted as the words (the signal while Hide is selected).
+            Drawable icon = AppCompatResources.getDrawable(context, GameActionsRenderer.iconOf(item));
+            if (icon != null) {
+                icon = icon.mutate();
+                icon.setBounds(0, 0, iconSize, iconSize);
+                chip.setCompoundDrawablesRelative(icon, null, null, null);
+                TextViewCompat.setCompoundDrawableTintList(chip, chip.getTextColors());
+            }
             // Hide is the sheet's checked row: selected while the game is hidden.
             chip.setSelected(item == GameActionsSheet.Item.HIDE && hidden);
             chip.setOnClickListener(v -> {
@@ -761,12 +790,15 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
         int visibility = background != null ? View.VISIBLE : View.GONE;
         backdrop.setVisibility(visibility);
         scrim.setVisibility(visibility);
+        fades.setVisibility(visibility);
     }
 
     // --- The host's answer ---
 
     private void load(boolean quiet) {
-        model.load(session(), args.appUuid, quiet);
+        AppMetadata m = metadata();
+        model.load(session(), args.hostUuid, args.appUuid, quiet,
+                m != null && m.getPlaytimeMinutes() > 0);
     }
 
     private void onData(@Nullable GamePageData d) {
@@ -784,14 +816,14 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
             case LOADING:
             case FAILED:
             case NOTHING:
-                showStatus(d.state);
+                showStatus(d);
                 break;
             case READY:
             default:
                 if (offersRetry(d)) {
                     // Half an answer: the play statistics failed, the achievements came. The
                     // failed row takes the figures' place, so they can be asked for again.
-                    bindStatus(GamePageData.State.FAILED);
+                    bindStatus(GamePageData.State.FAILED, d.unreadable);
                 } else {
                     status.setVisibility(View.GONE);
                 }
@@ -820,15 +852,19 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
     }
 
     /** Loading, failed or nothing: in place of the figures and the list; buttons and chips stay. */
-    private void showStatus(GamePageData.State state) {
-        bindStatus(state);
+    private void showStatus(GamePageData d) {
+        bindStatus(d.state, d.unreadable);
         figures.setVisibility(View.GONE);
         weeks.setVisibility(View.GONE);
         achievements.setVisibility(View.GONE);
     }
 
-    /** Shows the status row in one of its forms; leaves the rest of the body alone. */
-    private void bindStatus(GamePageData.State state) {
+    /**
+     * Shows the status row in one of its forms; leaves the rest of the body alone.
+     *
+     * @param unreadable failed although the host answered (GamePageData#unreadable)
+     */
+    private void bindStatus(GamePageData.State state, boolean unreadable) {
         status.setVisibility(View.VISIBLE);
         // "Nothing" is a plain line, flush with the title above it; loading and failed are
         // stops, inset inside the ring they draw when focused.
@@ -838,8 +874,8 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
         statusProgress.setVisibility(state == GamePageData.State.LOADING ? View.VISIBLE : View.GONE);
         statusHint.setVisibility(state == GamePageData.State.FAILED ? View.VISIBLE : View.GONE);
         statusText.setText(state == GamePageData.State.LOADING ? R.string.game_stats_loading
-                : state == GamePageData.State.FAILED ? R.string.game_stats_failed
-                : R.string.game_stats_nothing);
+                : state != GamePageData.State.FAILED ? R.string.game_stats_nothing
+                : unreadable ? R.string.game_page_stats_unreadable : R.string.game_stats_failed);
         statusText.setTextColor(ContextCompat.getColor(requireContext(),
                 state == GamePageData.State.FAILED ? R.color.danger : R.color.content_secondary));
         // A stop while loading and failed: a retry pressed on it keeps the d-pad there while
@@ -849,7 +885,7 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
     }
 
     private void renderFigures(GamePageData d) {
-        GamePageModel.Figures f = GamePageModel.figures(d.stats);
+        GamePageModel.Figures f = GamePageModel.figures(d.stats, d.unsyncedSeconds);
         if (f == null) {
             figures.setVisibility(View.GONE);
             weeks.setVisibility(View.GONE);
@@ -891,7 +927,7 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
             achievements.showAchievements(d.achievements, model.filter(), model.revealed(),
                     System.currentTimeMillis());
         } else if (d.achievementsFailed) {
-            achievements.showFailed();
+            achievements.showFailed(d.unreadable);
         } else {
             achievements.showUntracked(gameName());
         }
@@ -1015,7 +1051,8 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
         switch (bottomKind()) {
             case STATUS:
                 return d == null || d.state == GamePageData.State.LOADING
-                        ? GameAchievementsPage.loading(name) : GameAchievementsPage.failed(name);
+                        ? GameAchievementsPage.loading(name)
+                        : GameAchievementsPage.failed(name, d.unreadable);
             case LIST:
                 if (d == null || d.achievements == null) {
                     return null;
@@ -1125,14 +1162,47 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
             return;
         }
         boolean hadFocus = root.hasFocus();
+        int carried = stopWhenPanelWent;
+        stopWhenPanelWent = CompanionPage.NO_STOP;
         split = next;
         renderAchievements();
         applyChipsVisibility();
         publishPage();
-        if (!refocusIfTaken(hadFocus)) {
+        if (!next && carried != CompanionPage.NO_STOP && isOnScreen() && !root.isInTouchMode()) {
+            focusInline(carried);
+        } else if (!refocusIfTaken(hadFocus)) {
             placeFocusIfLost();
         }
         updateHints();
+    }
+
+    /**
+     * The panel went with the d-pad on it: the same achievement (or segment, or failed row) takes
+     * focus inline, once the block has laid its rows out. Meanwhile, and should it not be there,
+     * the d-pad waits on the page's first stop rather than fall to the rail.
+     */
+    private void focusInline(int stop) {
+        final View waiting = initialTarget();
+        if (waiting != null) {
+            waiting.requestFocus();
+        }
+        final View block = achievements;
+        block.getViewTreeObserver().addOnGlobalLayoutListener(
+                new ViewTreeObserver.OnGlobalLayoutListener() {
+                    @Override
+                    public void onGlobalLayout() {
+                        block.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                        // Not when the panel came back, or the user moved on meanwhile.
+                        if (getView() == null || split
+                                || (waiting != null && !waiting.hasFocus())) {
+                            return;
+                        }
+                        View target = achievements.viewForStop(stop);
+                        if (target != null) {
+                            target.requestFocus();
+                        }
+                    }
+                });
     }
 
     @Override
@@ -1186,8 +1256,10 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
     @Override
     public void onBottomLeft(boolean restored) {
         // Not given back (the panel went, the view the d-pad came from went): onto the first
-        // stop, unless a touch took it up, which leaves focus to the touch.
-        if (!restored && isOnScreen() && !root.isInTouchMode()) {
+        // stop, unless a touch took it up, which leaves focus to the touch. The panel going with
+        // the d-pad on an achievement leaves it to onPanelShowing, which puts it on that one.
+        if (!restored && stopWhenPanelWent == CompanionPage.NO_STOP && isOnScreen()
+                && !root.isInTouchMode()) {
             View target = initialTarget();
             if (target != null) {
                 target.requestFocus();
@@ -1411,6 +1483,20 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
         }
         primary.setLayoutParams(primaryLp);
         quit.setLayoutParams(quitLp);
+        // Wide, the buttons are as narrow as the cover: "Quit game" has room for its words only
+        // with less padding round them.
+        int buttonPadding = Math.round((compact ? 16 : 8) * density);
+        primary.setPaddingRelative(buttonPadding, primary.getPaddingTop(), buttonPadding,
+                primary.getPaddingBottom());
+        quit.setPaddingRelative(buttonPadding, quit.getPaddingTop(), buttonPadding,
+                quit.getPaddingBottom());
+        int iconPadding = Math.round((compact ? 6 : 4) * density);
+        primary.setIconPadding(iconPadding);
+        quit.setIconPadding(iconPadding);
+        ViewGroup.LayoutParams barsLp = bars.getLayoutParams();
+        barsLp.height = getResources().getDimensionPixelSize(compact
+                ? R.dimen.game_page_bars_height : R.dimen.game_page_bars_height_wide);
+        bars.setLayoutParams(barsLp);
 
         ViewGroup.LayoutParams coverLp = coverFrame.getLayoutParams();
         int oldCoverWidth = coverLp.width;
