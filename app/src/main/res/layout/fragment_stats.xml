@@ -74,13 +74,15 @@
             tools:text="Taverna" />
 
         <!-- Wide only: where the period sits, and what A does on a year. On a month a tap
-             climbs to its year, as B does (set in code). -->
+             climbs to its year, as B does (set in code). Touch only, never a d-pad stop: the
+             pad has B for that. -->
         <LinearLayout
             android:id="@+id/statsCrumb"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="12dp"
             android:clickable="false"
+            android:focusable="false"
             android:gravity="center_vertical"
             android:minHeight="@dimen/action_size"
             android:orientation="horizontal">

@@ -822,7 +822,8 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
             default:
                 if (offersRetry(d)) {
                     // Half an answer: the play statistics failed, the achievements came. The
-                    // failed row takes the figures' place, so they can be asked for again.
+                    // failed row takes the figures' place, or sits over the ones kept from the
+                    // answer before, so they can be asked for again.
                     bindStatus(GamePageData.State.FAILED, d.unreadable);
                 } else {
                     status.setVisibility(View.GONE);
@@ -843,12 +844,14 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
 
     /**
      * Whether the page offers a retry for this answer: when it failed outright, or when the play
-     * statistics failed and the achievements alone came (the achievements' own half failing has
-     * its retry in their block).
+     * statistics failed (the achievements' own half failing has its retry in their block). The
+     * figures kept from the answer before still count as failed then: only a 404 keeps them
+     * quietly (GamePageData.settle leaves statsFailed off for it), as the host's "nothing just
+     * now" during a session; a request that never got through is not passed off as fresh.
      */
     private static boolean offersRetry(@NonNull GamePageData d) {
         return d.state == GamePageData.State.FAILED
-                || (d.state == GamePageData.State.READY && d.statsFailed && !d.hasPlay());
+                || (d.state == GamePageData.State.READY && d.statsFailed);
     }
 
     /** Loading, failed or nothing: in place of the figures and the list; buttons and chips stay. */

@@ -193,7 +193,8 @@ public class MainActivity extends AppCompatActivity
     private long companionReclaimUntil;
     @Nullable
     private Runnable achievementCheck;
-    // Whether this window has had a companion display to put its panel on; see isDpadFirst.
+    // Whether this window has had a companion display to put its panel on since it was last
+    // started; see isDpadFirst.
     private boolean hadCompanionDisplay;
 
     // Key code to the down time of the press a section handled, so that press's key-up is
@@ -313,6 +314,10 @@ public class MainActivity extends AppCompatActivity
         super.onStart();
         viewModel.onStart();
         companionFeed.start();
+        // Back from elsewhere, the companion display is asked for again: a lower screen that went
+        // away while this window was hidden (or a different device altogether, the app moved to
+        // it) no longer keeps the d-pad first. One switched off while this window is shown does.
+        hadCompanionDisplay = hasCompanionDisplay();
         // A switch asked for while the state was saved is applied now, with its initial focus.
         navigator.resume();
         updateBackEnabled();
@@ -532,14 +537,14 @@ public class MainActivity extends AppCompatActivity
         if (navChrome.windowClass() != WindowClass.WIDE) {
             return false;
         }
-        if (CompanionDisplayManager.isConfigured(this)
-                && DisplayTargets.findCompanionDisplay(this, windowDisplayId()) != null) {
+        if (hasCompanionDisplay()) {
             hadCompanionDisplay = true;
             return true;
         }
         if (hadCompanionDisplay) {
-            // The lower screen switched off or gone: the same handheld, its pad still under the
-            // thumbs, so its hints and first focus stay (PCs keeps "A Library · Y Actions").
+            // The lower screen switched off or gone since this window was last started: the same
+            // handheld, its pad still under the thumbs, so its hints and first focus stay (PCs
+            // keeps "A Library · Y Actions"). onStart asks again.
             return true;
         }
         for (int id : InputDevice.getDeviceIds()) {
@@ -550,6 +555,12 @@ public class MainActivity extends AppCompatActivity
             }
         }
         return false;
+    }
+
+    // Whether a companion display is set up and present now, to put the panel on.
+    private boolean hasCompanionDisplay() {
+        return CompanionDisplayManager.isConfigured(this)
+                && DisplayTargets.findCompanionDisplay(this, windowDisplayId()) != null;
     }
 
     // The display this window is on.

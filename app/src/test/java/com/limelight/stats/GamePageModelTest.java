@@ -338,9 +338,13 @@ public class GamePageModelTest {
         assertEquals(GamePageData.State.READY, d.state);
         assertSame(before.stats, d.stats);
         assertSame(before.achievements, d.achievements);
-        // A network failure keeps it too.
+        // The 404 is kept quietly; a network failure keeps it too, but still says it failed,
+        // so the page can offer the retry over the figures kept.
+        assertFalse(d.statsFailed);
         GamePageData failed = GamePageData.settle(null, null, true, true, before, true);
         assertSame(before.stats, failed.stats);
+        assertEquals(GamePageData.State.READY, failed.state);
+        assertTrue(failed.statsFailed);
     }
 
     @Test

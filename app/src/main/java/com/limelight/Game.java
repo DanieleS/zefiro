@@ -118,6 +118,7 @@ import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.util.Rational;
 import android.view.Display;
+import android.view.DisplayCutout;
 import android.view.Gravity;
 import android.view.InputDevice;
 import android.view.KeyCharacterMap;
@@ -139,6 +140,7 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.Toast;
 import android.widget.ImageButton;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -674,17 +676,24 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
 
 
-        // The window runs under the cutout, edge to edge, whatever the resolution: the stream
-        // view is fitted to the stream's aspect and centred in the whole screen. Kept out of
-        // the cutout, a landscape window with one on its long edge lost a band that the video
-        // then sat below, off centre. The side panel keeps its rows clear of the cutout itself.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            getWindow().getAttributes().layoutInDisplayCutoutMode =
-                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS;
-        }
-        else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            getWindow().getAttributes().layoutInDisplayCutoutMode =
-                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+        // The window runs under the cutout, edge to edge: the stream view is fitted to the
+        // stream's aspect and centred in the whole screen. Kept out of the cutout, a landscape
+        // window with one on its long edge lost a band that the video then sat below, off
+        // centre. The side panel and the overlays keep clear of the cutout themselves.
+        // The one exception is "Native, clear of the cutout": a size of the screen less the
+        // cutout's band, which fills the window only while the window leaves that band out.
+        // Centred in the whole screen, half the band it was made to avoid would fall under
+        // the notch.
+        if (prefConfig.videoScaleMode == PreferenceConfiguration.ScaleMode.STRETCH
+                || !isCutoutFreeResolution(displayWidth, displayHeight)) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                getWindow().getAttributes().layoutInDisplayCutoutMode =
+                        WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS;
+            }
+            else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                getWindow().getAttributes().layoutInDisplayCutoutMode =
+                        WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+            }
         }
 
         //光标是否显示
@@ -755,6 +764,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         controlsHandle = findViewById(R.id.controlsHandle);
         // As wide as the handle's touch zone, and as far as the handle's own swipe goes.
         edgeSwipe = new EdgeSwipe(UiHelper.dpToPx(this, 24), UiHelper.dpToPx(this, 16));
+        // The window runs under the cutout; the overlays on it must not sit under the notch.
+        keepClearOfCutout(streamHud, true, true, false);
+        keepClearOfCutout(controlsHandle, false, false, true);
+        keepClearOfCutout(findViewById(R.id.overlayToggleZoomButton), false, true, false);
 
         inputCaptureProvider = InputCaptureManager.getInputCaptureProvider(this, this);
 
@@ -1956,6 +1969,60 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private boolean isRefreshRateGoodMatch(float refreshRate) {
         return refreshRate >= prefConfig.fps &&
                 Math.round(refreshRate) % prefConfig.fps <= 3;
+    }
+
+    /**
+     * Moves an overlay of the stream in by the display cutout's safe insets on the sides it sits
+     * against, over the margins its layout gives it, as StreamControlsPanel pads its rows: the
+     * window runs under the cutout, and the HUD, the zoom toggle or the handle would otherwise
+     * sit under the notch. The margins are read once, so a new cutout replaces the old one.
+     */
+    private static void keepClearOfCutout(@Nullable View view, boolean left, boolean top, boolean right) {
+        if (view == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.P
+                || !(view.getLayoutParams() instanceof ViewGroup.MarginLayoutParams)) {
+            return;
+        }
+        ViewGroup.MarginLayoutParams laid = (ViewGroup.MarginLayoutParams) view.getLayoutParams();
+        final int baseLeft = laid.leftMargin;
+        final int baseTop = laid.topMargin;
+        final int baseRight = laid.rightMargin;
+        view.setOnApplyWindowInsetsListener((v, insets) -> {
+            DisplayCutout cutout = insets.getDisplayCutout();
+            int newLeft = baseLeft + (left && cutout != null ? cutout.getSafeInsetLeft() : 0);
+            int newTop = baseTop + (top && cutout != null ? cutout.getSafeInsetTop() : 0);
+            int newRight = baseRight + (right && cutout != null ? cutout.getSafeInsetRight() : 0);
+            ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) v.getLayoutParams();
+            if (lp.leftMargin != newLeft || lp.topMargin != newTop || lp.rightMargin != newRight) {
+                // Start and end too: a margin given as start or end wins over left and right.
+                boolean rtl = v.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL;
+                lp.setMargins(newLeft, newTop, newRight, lp.bottomMargin);
+                lp.setMarginStart(rtl ? newRight : newLeft);
+                lp.setMarginEnd(rtl ? newLeft : newRight);
+                v.setLayoutParams(lp);
+            }
+            return v.onApplyWindowInsets(insets);
+        });
+    }
+
+    /**
+     * Whether the resolution is a native one the display has no mode for: the size clear of the
+     * cutout the settings offer (or a custom one), which the window must not stretch under the
+     * cutout. The display's own sizes and the standard ones are not.
+     */
+    private boolean isCutoutFreeResolution(int width, int height) {
+        if (!PreferenceConfiguration.isNativeResolution(width, height)) {
+            return false;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Display display = getActiveDisplay(Game.this, prefConfig);
+            for (Display.Mode candidate : display.getSupportedModes()) {
+                if ((width == candidate.getPhysicalWidth() && height == candidate.getPhysicalHeight()) ||
+                        (height == candidate.getPhysicalWidth() && width == candidate.getPhysicalHeight())) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     private boolean mayReduceRefreshRate() {
@@ -4130,11 +4197,14 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     /**
      * The edge opens the side panel when the handle is offered (see updateControlsHandle) and the
-     * panel is closed. A touch on the handle is left to it: it opens the panel itself.
+     * panel is closed. A touch on the handle is left to it: it opens the panel itself. Not while
+     * the on-screen controller is up: its right-hand buttons (RT, B) sit in the edge's band, and
+     * a press sliding off one inwards would open the panel instead.
      */
     private boolean isEdgeSwipeArmed(float x, float y) {
         if (controlsHandle == null || controlsHandle.getVisibility() != View.VISIBLE
-                || (controlsPanel != null && controlsPanel.isOpen())) {
+                || (controlsPanel != null && controlsPanel.isOpen())
+                || isVirtualControllerShown()) {
             return false;
         }
         int[] at = new int[2];

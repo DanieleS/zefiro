@@ -32,7 +32,9 @@ import com.limelight.nvstream.http.Iso8601;
  * {@link #settle} reads each answer against the one before (or what the library knows):
  *
  * <pre>
- *   404 or failed, an answer before had it      the one before stays (its figures, its list)
+ *   404 or failed, an answer before had it      the one before stays (its figures, its list);
+ *                                               failed stays failed, so the page offers the
+ *                                               retry over them, a 404 does not
  *   404 on the play time the library knows of   failed, "Couldn't read the statistics." (A
  *                                               retries), the achievements' 404 with it
  *   Playnite's total unchanged, a newer session the session is added to the total: Playnite
