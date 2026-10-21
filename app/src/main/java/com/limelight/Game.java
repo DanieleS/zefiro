@@ -227,7 +227,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private StreamControlsPanel controlsPanel;
     private EdgeHandleView controlsHandle;
     /**
-     * While any in-stream controls surface is open (the side panel, the companion panel's list,
+     * While any in-stream controls surface is open (the side panel, the companion panel's sheet,
      * the external display's sheet), the pad and the keys go to it through this and never reach
      * the host. Asked first in every key and joystick path.
      */
@@ -1139,6 +1139,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         // went (the panel can close it on its own).
         CompanionDisplayManager.setMenuOpenedListener(this::reclaimGamepadFocus);
         CompanionDisplayManager.setMenuClosedListener(this::onControlsClosed);
+        // The panel can come and go mid-stream (powered off, hidden, borrowed by an app); the
+        // edge handle follows it, so the controls are offered in exactly one place.
+        CompanionDisplayManager.setShowingListener(this::updateControlsHandle);
 
         textFocusKeyboard = new TextFocusKeyboard(new TextFocusKeyboard.Keyboards() {
             @Override
@@ -1755,6 +1758,30 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         });
     }
 
+    /** The negotiated codec as people name it: "HEVC", "AV1", "UNKNOWN" for none we know. */
+    private static String codecName(int videoFormat) {
+        if ((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_H264) != 0) {
+            return "H.264";
+        } else if ((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_H265) != 0) {
+            return "HEVC";
+        } else if ((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_AV1) != 0) {
+            return "AV1";
+        } else if (PyroWaveSupport.isPyroWave(videoFormat)) {
+            return "PyroWave";
+        }
+        return "UNKNOWN";
+    }
+
+    /** The companion stats header's codec, "HEVC · HDR"; null when the format is not known. */
+    private String companionCodecLabel(int videoFormat) {
+        String name = codecName(videoFormat);
+        if ("UNKNOWN".equals(name)) {
+            return null;
+        }
+        return (videoFormat & MoonBridge.VIDEO_FORMAT_MASK_10BIT) != 0
+                ? getString(R.string.companion_codec_hdr, name) : name;
+    }
+
     /** The phone's controls, for GameMenu to draw on. */
     public StreamControlsPanel getControlsPanel() {
         return controlsPanel;
@@ -1762,11 +1789,18 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     /**
      * The edge handle is there where the side panel is the controls: not on an external display
-     * (its phone has its own button) and not in picture-in-picture.
+     * (its phone has its own button), not in picture-in-picture, and not while the companion
+     * panel shows, whose sheet is the controls then — the top screen is the game and the HUD.
+     * Asked again whenever the companion panel comes or goes. Main thread only.
      */
     private void updateControlsHandle() {
+        if (controlsHandle == null) {
+            return;
+        }
         boolean pip = Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode();
-        controlsHandle.setVisibility(!onExternelDisplay && !pip ? View.VISIBLE : View.GONE);
+        boolean onCompanion = CompanionDisplayManager.isShowing();
+        controlsHandle.setVisibility(!onExternelDisplay && !pip && !onCompanion
+                ? View.VISIBLE : View.GONE);
     }
 
     private boolean isRefreshRateEqualMatch(float refreshRate) {
@@ -2079,6 +2113,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         CompanionDisplayManager.setMenuRequestListener(null);
         CompanionDisplayManager.setMenuOpenedListener(null);
         CompanionDisplayManager.setMenuClosedListener(null);
+        CompanionDisplayManager.setShowingListener(null);
         CompanionDisplayManager.hideMenu();
         // No keyboard of ours may outlive the stream it was raised for
         textFocusHandler.removeCallbacksAndMessages(null);
@@ -2190,18 +2225,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             // Add the video codec to the post-stream toast
             selectedVideoFormat += " [";
 
-            if ((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_H264) != 0) {
-                selectedVideoFormat += "H.264";
-            } else if ((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_H265) != 0) {
-                selectedVideoFormat += "HEVC";
-            } else if ((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_AV1) != 0) {
-                selectedVideoFormat += "AV1";
-            } else if (PyroWaveSupport.isPyroWave(videoFormat)) {
-                selectedVideoFormat += "PyroWave";
-            }
-            else {
-                selectedVideoFormat += "UNKNOWN";
-            }
+            selectedVideoFormat += codecName(videoFormat);
 
             if ((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_10BIT) != 0) {
                 selectedVideoFormat += " HDR";
@@ -4588,6 +4612,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
                 // The companion is showing a stream now, whether or not the panel is up to see it.
                 CompanionState.getInstance().enterStreaming();
+                // What its stats header and strip name: the game, the PC, the codec the host and
+                // the decoder settled on, and how long it has been going.
+                CompanionState.getInstance().setStreamSession(new CompanionState.StreamSession(
+                        appName, pcName, companionCodecLabel(decoderRenderer != null
+                                ? decoderRenderer.getActiveVideoFormat() : 0),
+                        streamStartUptimeMs, prefConfig.fps));
 
                 startTelemetry();
 

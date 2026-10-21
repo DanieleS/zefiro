@@ -148,6 +148,11 @@ public class CompanionState {
             // view fed by a stream that has stopped — the last frame of a dead game, forever.
             telemetryView = null;
             telemetryStream = null;
+            // The panel's choices for this stream end with it: the next game starts on its own
+            // view (if it has one), and a view that crashed this time is given another chance.
+            statsOverTelemetry = false;
+            crashedTelemetryView = null;
+            streamSession = null;
             setContent(Content.IDLE);
         }
     }
@@ -220,6 +225,70 @@ public class CompanionState {
 
     public TelemetryStream getTelemetryStream() {
         return telemetryStream;
+    }
+
+    // --- The panel's own choices for the running stream ---
+    //
+    // Held here rather than on the panel because the panel is re-hosted on every activity change
+    // (a Settings round-trip mid-stream builds a new one), and a choice the user made must not be
+    // undone by that. Both last until leaveStreaming().
+
+    /**
+     * Whether the full stats are showing in place of the game's telemetry view: the strip under a
+     * view only fits frame rate and latency, so its stats button swaps the view for the full stats,
+     * and the same button (or "Game") swaps back.
+     */
+    private boolean statsOverTelemetry;
+
+    /** A view whose renderer died, so it is not loaded again this stream; null when none has. */
+    private String crashedTelemetryView;
+
+    public boolean isStatsOverTelemetry() {
+        return statsOverTelemetry;
+    }
+
+    public void setStatsOverTelemetry(boolean over) {
+        if (statsOverTelemetry == over) {
+            return;
+        }
+        statsOverTelemetry = over;
+        notifyChanged();
+    }
+
+    /**
+     * The view's renderer crashed or was killed. Whatever took it down would most likely do it
+     * again, so for the rest of this stream that view gives way to the stats.
+     */
+    public void markTelemetryViewCrashed(String html) {
+        if (html == null || html.equals(crashedTelemetryView)) {
+            return;
+        }
+        crashedTelemetryView = html;
+        notifyChanged();
+    }
+
+    /** The telemetry view to draw: the game's, unless it crashed this stream. Null for none. */
+    public String getUsableTelemetryView() {
+        return telemetryView != null && !telemetryView.equals(crashedTelemetryView)
+                ? telemetryView : null;
+    }
+
+    // --- What the stream is ---
+
+    /** Null until the stream has connected, and again once it ends. */
+    private StreamSession streamSession;
+
+    /** What the running stream is, for the stats header and the strip's session length. */
+    public void setStreamSession(StreamSession session) {
+        if (Objects.equals(streamSession, session)) {
+            return;
+        }
+        streamSession = session;
+        notifyChanged();
+    }
+
+    public StreamSession getStreamSession() {
+        return streamSession;
     }
 
     // --- The owner region ---
@@ -462,6 +531,58 @@ public class CompanionState {
         @Override
         public String toString() {
             return kind + " " + title + (running ? " [running]" : "");
+        }
+    }
+
+    /**
+     * The running stream as the panel names it: "Hades II · Taverna", "HEVC · HDR", and when it
+     * started. Values only, read off Game when the stream connects. Immutable.
+     */
+    public static final class StreamSession {
+        /** The game's name; null when the launch did not say. */
+        public final String game;
+        /** The PC's name; null when the launch did not say. */
+        public final String host;
+        /** The video codec as people name it ("HEVC · HDR"); null while unknown. */
+        public final String codec;
+        /** {@code SystemClock.uptimeMillis()} when the stream started; 0 while unknown. */
+        public final long startUptimeMs;
+        /** The frame rate the stream was asked for, for the health dot; 0 when unknown. */
+        public final float targetFps;
+
+        public StreamSession(String game, String host, String codec, long startUptimeMs,
+                             float targetFps) {
+            this.game = game;
+            this.host = host;
+            this.codec = codec;
+            this.startUptimeMs = startUptimeMs;
+            this.targetFps = targetFps;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof StreamSession)) {
+                return false;
+            }
+            StreamSession that = (StreamSession) o;
+            return startUptimeMs == that.startUptimeMs
+                    && Float.compare(targetFps, that.targetFps) == 0
+                    && Objects.equals(game, that.game)
+                    && Objects.equals(host, that.host)
+                    && Objects.equals(codec, that.codec);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(game, host, codec, startUptimeMs, targetFps);
+        }
+
+        @Override
+        public String toString() {
+            return game + " on " + host + " (" + codec + ")";
         }
     }
 

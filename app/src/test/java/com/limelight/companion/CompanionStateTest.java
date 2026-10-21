@@ -72,6 +72,64 @@ public class CompanionStateTest {
     }
 
     @Test
+    public void thePanelsStreamChoicesEndWithTheStream() {
+        state.enterStreaming();
+        state.setTelemetryView("<html>view</html>");
+        state.setStreamSession(new CompanionState.StreamSession("Hades II", "Taverna", "HEVC",
+                1000L, 120f));
+        state.setStatsOverTelemetry(true);
+        state.markTelemetryViewCrashed("<html>view</html>");
+        assertTrue(state.isStatsOverTelemetry());
+        // A crashed view is not drawn again this stream.
+        assertNull(state.getUsableTelemetryView());
+
+        state.leaveStreaming();
+        assertFalse(state.isStatsOverTelemetry());
+        assertNull(state.getStreamSession());
+
+        // The next game starts on its own view, and the one that crashed gets another chance.
+        state.enterStreaming();
+        state.setTelemetryView("<html>view</html>");
+        assertFalse(state.isStatsOverTelemetry());
+        assertEquals("<html>view</html>", state.getUsableTelemetryView());
+    }
+
+    @Test
+    public void statsOverTheViewOutliveAPanelRedraw() {
+        state.enterStreaming();
+        state.setTelemetryView("<html></html>");
+        int before = changes;
+        state.setStatsOverTelemetry(true);
+        assertEquals(before + 1, changes);
+        // Asking again for what is already shown redraws nothing.
+        state.setStatsOverTelemetry(true);
+        assertEquals(before + 1, changes);
+        // Only the end of the stream undoes it, not leaving a state the content is not in.
+        state.leaveBrowsing();
+        assertTrue(state.isStatsOverTelemetry());
+    }
+
+    @Test
+    public void onlyTheViewThatCrashedIsSetAside() {
+        state.enterStreaming();
+        state.setTelemetryView("<html>a</html>");
+        state.markTelemetryViewCrashed("<html>a</html>");
+        assertNull(state.getUsableTelemetryView());
+        state.setTelemetryView("<html>b</html>");
+        assertEquals("<html>b</html>", state.getUsableTelemetryView());
+    }
+
+    @Test
+    public void anUnchangedStreamSessionRedrawsNothing() {
+        state.setStreamSession(new CompanionState.StreamSession("Hades II", "Taverna", null,
+                1000L, 60f));
+        int before = changes;
+        state.setStreamSession(new CompanionState.StreamSession("Hades II", "Taverna", null,
+                1000L, 60f));
+        assertEquals(before, changes);
+    }
+
+    @Test
     public void browsingIsRefusedWhileStreaming() {
         state.enterStreaming();
         state.setBrowsing(game("Late push", 3, false));

@@ -15,6 +15,7 @@ import com.limelight.LimeLog;
 import com.limelight.nvstream.http.Achievement;
 import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.stats.HostSession;
+import com.limelight.stream.ControlsSurface;
 
 import java.util.List;
 
@@ -28,10 +29,11 @@ import java.util.List;
  * visibly restarts. The re-host is make-before-break — the new panel is shown before the old
  * one is dismissed — so navigating between screens does not blink the panel.
  *
- * The panel takes the gamepad focus only while its in-game menu is open (see
- * {@link CompanionPresentation}); a back gesture then closes the menu rather than the panel. With
- * no menu up it can be dismissed with a back gesture, and turned on again from the library bar or
- * the in-stream menu.
+ * The panel never takes focus; while its controls sheet is open the stream activity steers the
+ * gamepad into it (see {@link CompanionPresentation}). A panel that goes away with the sheet still
+ * open — dismissed, re-hosted, or its display gone — reports the sheet closed on its way out, so
+ * the stream never keeps routing a pad to a sheet that no longer exists. The panel can be
+ * dismissed with a back gesture, and turned on again from the library or the in-stream controls.
  *
  * Everything here is best-effort: with no usable secondary display, or when the platform
  * refuses the window, the manager logs and stays idle so the rest of the app is unaffected.
@@ -65,6 +67,10 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
     // track whether it should be steering the gamepad into the menu drawn here.
     private Runnable menuOpenedListener;
     private Runnable menuClosedListener;
+
+    // Invoked whenever a panel comes up or goes away; the stream activity registers it to hide its
+    // own controls handle while the controls live down here instead.
+    private Runnable showingListener;
 
     // Whether the keyboard for a text field focused on the host belongs on the panel. Kept here
     // rather than on the panel itself so a re-hosted panel brings it back up.
@@ -254,6 +260,16 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
         }
     }
 
+    /**
+     * Register what should happen when a panel comes up or goes away, whatever the reason. Called
+     * on the main thread, after {@link #isShowing()} already answers the new way.
+     */
+    public static void setShowingListener(Runnable listener) {
+        if (instance != null) {
+            instance.showingListener = listener;
+        }
+    }
+
     /** The panel's menu button was pressed. */
     public static void requestOpenMenu() {
         if (instance != null && instance.menuRequestListener != null) {
@@ -346,9 +362,10 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
         return instance != null && instance.presentation != null && instance.presentation.isMenuOpen();
     }
 
-    public static void moveMenuSelection(int delta) {
+    /** Move the sheet's selection one step in a direction; the other navs are ignored. */
+    public static void moveMenuSelection(ControlsSurface.Nav nav) {
         if (isMenuOpen()) {
-            instance.presentation.moveSelection(delta);
+            instance.presentation.moveSelection(nav);
         }
     }
 
@@ -426,6 +443,7 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
         presentationDisplayId = display.getDisplayId();
         LimeLog.info("CompanionDisplay: attached to display " + presentationDisplayId
                 + " via " + owner.getClass().getSimpleName());
+        notifyShowingChanged();
     }
 
     /**
@@ -454,13 +472,23 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
         CompanionPresentation previous = presentation;
         presentation = replacement;
         presentationDisplayId = display.getDisplayId();
+        boolean sheetLost = false;
         if (previous != null) {
+            // The sheet is not carried over: it was drawn for the page stack of whoever opened
+            // it, and the replacement starts without one.
+            sheetLost = previous.isMenuOpen();
             // Its listener is cleared so this deliberate dismissal is not read as the user
             // closing the panel, and CompanionState keeps the replacement's listener.
             previous.setOnDismissListener(null);
             previous.dismiss();
         }
         LimeLog.info("CompanionDisplay: re-hosted on " + owner.getClass().getSimpleName());
+        if (sheetLost) {
+            onMenuClosed();
+        }
+        if (previous == null) {
+            notifyShowingChanged();
+        }
     }
 
     private Display findDisplay() {
@@ -496,8 +524,14 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
         }
 
         int dismissedId = presentationDisplayId;
+        boolean sheetLost = presentation.isMenuOpen();
         presentation = null;
         presentationDisplayId = Display.INVALID_DISPLAY;
+        // Told only now, with no panel left: the stream asks isMenuOpen() and must hear "no".
+        if (sheetLost) {
+            onMenuClosed();
+        }
+        notifyShowingChanged();
 
         Display display = displayManager.getDisplay(dismissedId);
         boolean displayAlive = display != null && display.isValid()
@@ -518,10 +552,23 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
         LimeLog.info("CompanionDisplay: detaching from display " + presentationDisplayId);
         // Clear the dismiss listener first so our own dismissal isn't mistaken for the user
         // closing the panel out from under us.
+        boolean sheetLost = presentation.isMenuOpen();
         presentation.setOnDismissListener(null);
         presentation.dismiss();
         presentation = null;
         presentationDisplayId = Display.INVALID_DISPLAY;
+        // A sheet that goes down with its panel never calls hideMenu() itself, so the stream
+        // would go on steering the pad into nothing — the pad stuck until the stream ended.
+        if (sheetLost) {
+            onMenuClosed();
+        }
+        notifyShowingChanged();
+    }
+
+    private void notifyShowingChanged() {
+        if (showingListener != null) {
+            showingListener.run();
+        }
     }
 
     /**

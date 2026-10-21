@@ -4,6 +4,7 @@ import android.content.res.Resources;
 
 import androidx.annotation.NonNull;
 
+import com.limelight.R;
 import com.limelight.companion.CompanionDisplayManager;
 import com.limelight.companion.CompanionMenuItem;
 
@@ -11,18 +12,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The controls as the companion panel's list, on the Thor's bottom screen: each page flattened to
- * rows, tiles and danger entries included, as the panel's menu has always drawn them. The game on
- * the top screen stays whole.
+ * The controls as a sheet on the companion panel, on the Thor's bottom screen, after the approved
+ * StreamTelemetry mock: the four tiles in a row, the list rows under them, then Disconnect and
+ * Quit game. The game on the top screen stays whole; nothing is drawn over it.
  *
- * <p>The panel's window takes no focus; Game steers the gamepad into it while the menu is up and
- * hands the moves here as {@link Nav}. Main thread only.
+ * <p>The panel's window takes no focus; Game steers the gamepad into the sheet while it is up and
+ * hands the moves here as {@link Nav}, which the panel walks in two dimensions along
+ * {@link ControlsGrid}. A touch on the sheet acts directly. Main thread only.
  */
-public final class CompanionListSurface extends PagedSurface {
+public final class CompanionSheetSurface extends PagedSurface {
 
     private final Resources res;
 
-    public CompanionListSurface(@NonNull Resources res, @NonNull Callbacks callbacks) {
+    public CompanionSheetSurface(@NonNull Resources res, @NonNull Callbacks callbacks) {
         super(callbacks);
         this.res = res;
     }
@@ -30,13 +32,20 @@ public final class CompanionListSurface extends PagedSurface {
     @Override
     protected void render(@NonNull StreamAction page) {
         List<CompanionMenuItem> items = new ArrayList<>();
+        if (!isOnRootPage()) {
+            // The way back, as the page's first row, so a thumb has one as much as the pad's B:
+            // the sheet has no system back of its own, its window never being focused.
+            items.add(new CompanionMenuItem(page.label(res), R.drawable.ic_arrow_back,
+                    StreamAction.Group.LIST, null, false, false, this::back));
+        }
         if (page.children != null) {
             for (StreamAction child : page.children) {
                 items.add(new CompanionMenuItem(child.label(res), child.iconRes, child.group,
-                        child.checked, () -> activate(child)));
+                        child.checked, child.isPage(), child.id == StreamAction.Id.QUIT,
+                        () -> activate(child)));
             }
         }
-        // False only when the panel went away since the router chose it; the menu is then simply
+        // False only when the panel went away since the router chose it; the sheet is then simply
         // gone, as it would be with the panel.
         CompanionDisplayManager.showMenu(page.label(res).toString(), items);
     }
@@ -58,10 +67,10 @@ public final class CompanionListSurface extends PagedSurface {
         }
         switch (nav) {
             case UP:
-                CompanionDisplayManager.moveMenuSelection(-1);
-                break;
             case DOWN:
-                CompanionDisplayManager.moveMenuSelection(1);
+            case LEFT:
+            case RIGHT:
+                CompanionDisplayManager.moveMenuSelection(nav);
                 break;
             case ACTIVATE:
                 CompanionDisplayManager.activateMenuSelection();
@@ -71,9 +80,6 @@ public final class CompanionListSurface extends PagedSurface {
                 break;
             case CLOSE:
                 close();
-                break;
-            default:
-                // A list: LEFT and RIGHT have nowhere to go.
                 break;
         }
         return true;

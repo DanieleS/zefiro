@@ -187,6 +187,15 @@
     <!-- The browsing surface's margin on the companion panel, and its Play pill's height. -->
     <dimen name="companion_padding">32dp</dimen>
     <dimen name="companion_play_height">60dp</dimen>
+    <!-- The streaming surface: the stats grid's margin and gaps, the strip under it (taller than
+         its 48dp controls so their pills have air), and the controls sheet's margin. -->
+    <dimen name="companion_stats_padding">16dp</dimen>
+    <dimen name="companion_stat_gap">8dp</dimen>
+    <dimen name="companion_stat_corner">10dp</dimen>
+    <dimen name="companion_strip_height">56dp</dimen>
+    <dimen name="companion_strip_pill_inset">6dp</dimen>
+    <dimen name="companion_sheet_padding">14dp</dimen>
+    <dimen name="companion_sheet_corner">16dp</dimen>
     <!-- Air above and below the state panel when it stands in for the home's shelves. -->
     <dimen name="home_state_panel_padding_vertical">48dp</dimen>
     <!-- A menu that drops from a chip sits this far under it and this far off the window's edge. -->

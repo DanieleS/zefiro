@@ -184,7 +184,6 @@
         <attr name="aperture_middle_color" format="color" />
     </declare-styleable>
 
-    <!-- Companion surface: a headline stat tile, and a label/value line for secondary detail. -->
     <!-- A section's label on the companion panel's browsing surface: "Focused", "Hosts". -->
     <style name="CompanionSectionLabel">
         <item name="android:layout_width">wrap_content</item>
@@ -195,37 +194,49 @@
         <item name="android:textAllCaps">true</item>
     </style>
 
-    <style name="CompanionTileLabel">
-        <item name="android:layout_width">wrap_content</item>
+    <!--
+        The companion panel's stats while streaming, after the approved StreamTelemetry mock: a
+        row of three tiles, each a number over its name, on a ground a step above the panel.
+    -->
+    <style name="CompanionStatRow">
+        <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:textColor">@color/content_muted</item>
-        <item name="android:textSize">10sp</item>
-        <item name="android:letterSpacing">0.16</item>
-        <item name="android:textAllCaps">true</item>
+        <item name="android:layout_marginBottom">@dimen/companion_stat_gap</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:baselineAligned">false</item>
     </style>
 
-    <style name="CompanionTileValue">
-        <item name="android:layout_width">wrap_content</item>
-        <item name="android:layout_height">wrap_content</item>
-        <item name="android:layout_marginTop">2dp</item>
-        <item name="android:textColor">@color/content_primary</item>
-        <item name="android:textSize">22sp</item>
-        <item name="android:fontFamily">sans-serif-light</item>
-    </style>
-
-    <style name="CompanionDetailLabel">
+    <style name="CompanionStatTile">
         <item name="android:layout_width">0dp</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_weight">1</item>
-        <item name="android:textColor">@color/content_faint</item>
-        <item name="android:textSize">12sp</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:background">@drawable/companion_stat_tile_bg</item>
+        <item name="android:paddingStart">12dp</item>
+        <item name="android:paddingEnd">8dp</item>
+        <item name="android:paddingTop">10dp</item>
+        <item name="android:paddingBottom">10dp</item>
     </style>
 
-    <style name="CompanionDetailValue">
+    <style name="CompanionStatValue">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:textColor">@color/content_secondary</item>
-        <item name="android:textSize">12sp</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:textColor">@color/content_primary</item>
+        <item name="android:textSize">17sp</item>
+        <item name="android:fontFamily">monospace</item>
+    </style>
+
+    <style name="CompanionStatLabel">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">3dp</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:textColor">@color/content_muted</item>
+        <item name="android:textSize">10sp</item>
+        <item name="android:letterSpacing">0.12</item>
+        <item name="android:textAllCaps">true</item>
     </style>
 
     <!-- ============================================================================

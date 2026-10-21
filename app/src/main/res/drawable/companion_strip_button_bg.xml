@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A control on the companion panel's strip (the stats button, Game, Menu): a 48dp touch target
+    drawn as the mock's smaller pill, inset top and bottom. Activated (the stats button while the
+    stats are showing) it sinks into the signal's container; a press fills with the wash and rings,
+    as on every other control. Touch only: the panel never has focus to draw.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:exitFadeDuration="120">
+
+    <item android:state_pressed="true">
+        <inset
+            android:insetTop="@dimen/companion_strip_pill_inset"
+            android:insetBottom="@dimen/companion_strip_pill_inset">
+            <shape android:shape="rectangle">
+                <corners android:radius="18dp" />
+                <solid android:color="@color/signal_wash" />
+                <stroke
+                    android:width="@dimen/tile_focus_stroke"
+                    android:color="@color/signal" />
+            </shape>
+        </inset>
+    </item>
+
+    <item android:state_activated="true">
+        <inset
+            android:insetTop="@dimen/companion_strip_pill_inset"
+            android:insetBottom="@dimen/companion_strip_pill_inset">
+            <shape android:shape="rectangle">
+                <corners android:radius="18dp" />
+                <solid android:color="@color/signal_container" />
+            </shape>
+        </inset>
+    </item>
+
+    <item>
+        <inset
+            android:insetTop="@dimen/companion_strip_pill_inset"
+            android:insetBottom="@dimen/companion_strip_pill_inset">
+            <shape android:shape="rectangle">
+                <corners android:radius="18dp" />
+                <solid android:color="@color/surface" />
+            </shape>
+        </inset>
+    </item>
+
+</selector>

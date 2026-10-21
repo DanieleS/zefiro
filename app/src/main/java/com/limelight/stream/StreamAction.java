@@ -17,11 +17,10 @@ import java.util.List;
  *
  * <h3>Why data and not a list of runnables</h3>
  *
- * The same controls are drawn in several places (the centred sheet, the companion panel's list,
- * and later the phone's side panel and the Thor bottom sheet), each with its own idea of tiles,
- * rows and pages. Kept as a tree of plain values they can be built and checked off the device
- * ({@code StreamActionsTest}) and drawn by each surface its own way, while what an entry does
- * stays in one place.
+ * The same controls are drawn in several places (the centred sheet, the phone's side panel and
+ * the Thor's bottom-screen sheet), each with its own idea of tiles, rows and pages. Kept as a
+ * tree of plain values they can be built and checked off the device ({@code StreamActionsTest})
+ * and drawn by each surface its own way, while what an entry does stays in one place.
  *
  * <h3>Pages</h3>
  *

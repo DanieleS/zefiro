@@ -14,7 +14,7 @@ import com.limelight.binding.input.GameInputDevice;
 import com.limelight.bitrate.LiveBitrate;
 import com.limelight.companion.CompanionDisplayManager;
 import com.limelight.preferences.PreferenceConfiguration;
-import com.limelight.stream.CompanionListSurface;
+import com.limelight.stream.CompanionSheetSurface;
 import com.limelight.stream.ControlsInputRouter;
 import com.limelight.stream.ControlsSurface;
 import com.limelight.stream.MenuSheetSurface;
@@ -37,12 +37,14 @@ import java.util.List;
  * <h3>Which surface</h3>
  *
  * <pre>
- *   companion panel showing                   the panel's list, so the game stays whole
+ *   companion panel showing                   the panel's controls sheet, so the game stays whole
  *   opened for the external display's phone   the centred sheet, on that phone
  *   otherwise                                 the side panel, over the game
  * </pre>
  *
- * Chosen again on every open, since the companion panel can come and go mid-stream.
+ * Chosen again on every open, since the companion panel can come and go mid-stream. While the
+ * panel shows, the controls are only ever drawn there: Game hides the side panel's edge handle
+ * too, so the top screen is the game and the HUD and nothing else.
  *
  * <h3>Open and closed</h3>
  *
@@ -104,7 +106,7 @@ public class GameMenu implements Game.GameMenuCallbacks, ControlsSurface.Callbac
         } else {
             this.mainSurface = new MenuSheetSurface(dialogScreenContext, this);
         }
-        this.companionSurface = new CompanionListSurface(game.getResources(), this);
+        this.companionSurface = new CompanionSheetSurface(game.getResources(), this);
     }
 
     public GameMenu(Game game) {
@@ -171,8 +173,8 @@ public class GameMenu implements Game.GameMenuCallbacks, ControlsSurface.Callbac
     public boolean onPageOpening(@NonNull StreamAction page) {
         if (page.id == StreamAction.Id.SERVER_COMMANDS && page.children != null
                 && page.children.isEmpty() && !(activeSurface instanceof StreamControlsPanel)) {
-            // The side panel says it on the page itself; the sheet and the companion's list
-            // have nowhere to put a paragraph, so they say it in a dialog, as it always was.
+            // The side panel says it on the page itself; the centred sheet and the companion's
+            // sheet have nowhere to put a paragraph, so they say it in a dialog, as it always was.
             Context themedContext = new ContextThemeWrapper(dialogScreenContext,
                     game.getApplicationInfo().theme);
             new MaterialAlertDialogBuilder(themedContext, R.style.ThemeOverlay_Zefiro_MaterialAlertDialog)

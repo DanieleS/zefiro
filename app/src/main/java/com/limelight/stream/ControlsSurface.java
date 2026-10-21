@@ -3,9 +3,9 @@ package com.limelight.stream;
 import androidx.annotation.NonNull;
 
 /**
- * Somewhere the {@link StreamActions} tree is drawn and driven: the centred sheet, the companion
- * panel's list, the phone's side panel ({@link StreamControlsPanel}), and later the Thor bottom
- * sheet. The router (GameMenu) picks one each time the controls open and talks to it only
+ * Somewhere the {@link StreamActions} tree is drawn and driven: the centred sheet, the phone's
+ * side panel ({@link StreamControlsPanel}), and the Thor's bottom-screen sheet
+ * ({@link CompanionSheetSurface}). The router (GameMenu) picks one each time the controls open and talks to it only
  * through this, so a new surface never touches what the entries do.
  *
  * <p>A surface keeps its own page stack: choosing a page shows it on the same surface, and

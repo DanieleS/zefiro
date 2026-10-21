@@ -582,9 +582,8 @@ public class StreamControlsPanel extends FrameLayout implements ControlsSurface 
 
     // --- Formatting ------------------------------------------------------------------------
 
-    /** "1 h 12 min", or "12 min" under the hour. */
-    @VisibleForTesting
-    static String sessionLength(Resources res, long elapsedMs) {
+    /** "1 h 12 min", or "12 min" under the hour. Also the companion strip's, so both agree. */
+    public static String sessionLength(Resources res, long elapsedMs) {
         long minutes = Math.max(0, elapsedMs) / 60000;
         if (minutes < 60) {
             return res.getString(R.string.stream_controls_session_minutes, (int) minutes);
@@ -593,9 +592,11 @@ public class StreamControlsPanel extends FrameLayout implements ControlsSurface 
                 (int) (minutes / 60), (int) (minutes % 60));
     }
 
-    /** "1080p60 · 8 ms · 80 Mb": what the stream is, how far away, how much. */
-    @VisibleForTesting
-    static String statsText(Resources res, PerfStats stats) {
+    /**
+     * "1080p60 · 8 ms · 80 Mb": what the stream is, how far away, how much. Also the companion
+     * controls sheet's header, so the two surfaces describe a stream the same way.
+     */
+    public static String statsText(Resources res, PerfStats stats) {
         String mode = modeLabel(res, stats.width, stats.height, Math.round(stats.totalFps));
         if (stats.hasBandwidth()) {
             return res.getString(R.string.stream_controls_stats, mode,
