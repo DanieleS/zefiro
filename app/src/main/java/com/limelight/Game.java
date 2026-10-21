@@ -12,7 +12,9 @@ import com.limelight.binding.PlatformBinding;
 import com.limelight.binding.audio.AndroidAudioRenderer;
 import com.limelight.binding.input.ControllerHandler;
 import com.limelight.binding.input.GameInputDevice;
+import com.limelight.binding.input.HeldMouseButtons;
 import com.limelight.binding.input.KeyboardTranslator;
+import com.limelight.binding.input.StaleGestures;
 import com.limelight.binding.input.capture.InputCaptureManager;
 import com.limelight.binding.input.capture.InputCaptureProvider;
 import com.limelight.binding.input.touch.AbsoluteTouchContext;
@@ -160,12 +162,14 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import android.view.SurfaceView;
 import android.view.ViewGroup;
 
@@ -178,6 +182,32 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     public static Game instance;
 
     private int lastButtonState = 0;
+    /**
+     * Host mouse buttons held down outside lastButtonState: a stylus or eraser touching (left or
+     * right), and a mouse's right button that Android reports as a Back key. As a
+     * {@link HeldMouseButtons} set, so opening the controls can let go of them. Main thread only.
+     */
+    private int heldPointerButtons;
+    /**
+     * The touchscreen's, touchpad's or stylus's gesture under way as the controls opened was let
+     * go of at the host; the rest of it is dropped until a new one starts, so the host never sees
+     * a contact move or lift that it was told is gone. Main thread only.
+     */
+    private final StaleGestures staleGestures = new StaleGestures();
+    /**
+     * Mouse buttons sent down through mouseButtonEvent (the on-screen keyboard's, and the
+     * root-only evdev mouse's on its own thread), as a {@link HeldMouseButtons} set, so opening
+     * the controls can let go of them. Under sideInputLock.
+     */
+    private int heldSideMouseButtons;
+    /**
+     * Taken by the input that reaches the host outside the activity's paths (mouseButtonEvent,
+     * keyboardEvent) to check the controls are shut and send a press as one step, and by the open
+     * to let go of what they hold: a press either lands before that release or is not sent.
+     */
+    private final Object sideInputLock = new Object();
+    // Touch or pen events went to the host as such, so it may have contacts down there
+    private boolean hostTouchesSent;
 
     // Only 2 touches are supported
     private final TouchContext[] touchContextMap = new TouchContext[2];
@@ -242,9 +272,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private final Handler padNavHandler = new Handler(Looper.getMainLooper());
     /**
      * The host's keyboard keys we have sent down and not yet up, so opening the controls can
-     * let go of them: their own key-ups will go to the controls instead. Main thread only.
+     * let go of them: their own key-ups will go to the controls instead. Any thread: the
+     * root-only evdev keyboard reports on its own.
      */
-    private final Set<Short> heldHostKeys = new HashSet<>();
+    private final Set<Short> heldHostKeys = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private boolean displayedFailureDialog = false;
     private boolean connecting = false;
     public boolean connected = false;
@@ -1122,12 +1153,16 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         controlsInput = new ControlsInputRouter(new ControlsInputRouter.Target() {
             @Override
             public boolean isOpen() {
-                return gameMenuCallbacks != null && gameMenuCallbacks.isMenuOpen();
+                return isHostInputBlocked();
             }
 
             @Override
             public boolean onNav(@NonNull ControlsSurface.Nav nav) {
-                navControls(nav);
+                // Only this window's surfaces are driven from here: the external display's sheet
+                // walks its own rows, and the keys are just kept from the host while it is up.
+                if (gameMenuCallbacks != null && gameMenuCallbacks.isMenuOpen()) {
+                    navControls(nav);
+                }
                 return true;
             }
         });
@@ -1675,20 +1710,86 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     /**
-     * Let go, at the host, of whatever is held right now: the keyboard keys sent down, and every
-     * pad's buttons and sticks. Their releases will go to the controls instead, so without this
-     * a key held as the controls opened would stay down in the game. Main thread only.
+     * Let go, at the host, of whatever is held right now: the keyboard keys sent down, the mouse
+     * buttons, the touches, and every pad's buttons and sticks. Their releases will go to the
+     * controls instead, so without this a key held as the controls opened would stay down in the
+     * game. Main thread only.
      */
     private void releaseHostInput() {
-        if (conn != null) {
-            for (short key : heldHostKeys) {
-                conn.sendKeyboardInput(key, KeyboardPacket.KEY_UP, (byte) 0, (byte) 0);
+        synchronized (sideInputLock) {
+            if (conn != null) {
+                for (short key : heldHostKeys) {
+                    conn.sendKeyboardInput(key, KeyboardPacket.KEY_UP, (byte) 0, (byte) 0);
+                }
             }
+            heldHostKeys.clear();
         }
-        heldHostKeys.clear();
+        releaseHostPointer();
         if (controllerHandler != null) {
             controllerHandler.sendNeutralState();
         }
+    }
+
+    /**
+     * The pointer's part of releaseHostInput. The gesture under way is cut off where it stands:
+     * the touch contexts drop it, along with a flick still moving or scrolling the mouse and a
+     * tap's release still to come (sent now); the host lets go of its touches; and the buttons a
+     * mouse or stylus holds are released. Its remaining events, still bound for the stream view
+     * under the controls, are dropped by handleMotionEvent while they are open and, for a touch,
+     * until the next one starts after the close. Main thread only.
+     */
+    private void releaseHostPointer() {
+        for (TouchContext context : touchContextMap) {
+            if (context != null) {
+                context.cancelTouch();
+                context.setPointerCount(0);
+            }
+        }
+        for (TouchContext context : trackpadContextMap) {
+            if (context != null) {
+                context.cancelTouch();
+                context.setPointerCount(0);
+            }
+        }
+        staleGestures.cutOff();
+        pointerSwiping = false;
+
+        if (conn != null) {
+            if (hostTouchesSent) {
+                conn.sendTouchEvent(MoonBridge.LI_TOUCH_EVENT_CANCEL_ALL, 0,
+                        0, 0, 0, 0, 0,
+                        MoonBridge.LI_ROT_UNKNOWN);
+                conn.sendPenEvent(MoonBridge.LI_TOUCH_EVENT_CANCEL_ALL, MoonBridge.LI_TOOL_TYPE_UNKNOWN, (byte) 0,
+                        0, 0, 0, 0, 0,
+                        MoonBridge.LI_ROT_UNKNOWN, MoonBridge.LI_TILT_UNKNOWN);
+            }
+            int held = HeldMouseButtons.fromButtonState(lastButtonState, prefConfig.mouseNavButtons)
+                    | heldPointerButtons;
+            if (isDragging) {
+                held |= HeldMouseButtons.of(MouseButtonPacket.BUTTON_LEFT);
+            }
+            synchronized (sideInputLock) {
+                HeldMouseButtons.release(conn, held | heldSideMouseButtons);
+                heldSideMouseButtons = 0;
+            }
+        }
+        hostTouchesSent = false;
+        // A button still held after the close is pressed again by its next event
+        lastButtonState = 0;
+        heldPointerButtons = 0;
+        isDragging = false;
+        pendingDrag = false;
+        synthClickPending = false;
+    }
+
+    /**
+     * Whether input must be kept from the host: some controls surface is open. That is this
+     * window's (GameMenu's) or the external display's, whose menu is a GameMenu of its own seen
+     * here only through onControlsOpened. It stays so until the close's next pass, where the
+     * pads are handed back. Main thread; other threads read controlsOpenForPads.
+     */
+    private boolean isHostInputBlocked() {
+        return controlsOpenForPads || (gameMenuCallbacks != null && gameMenuCallbacks.isMenuOpen());
     }
 
     /**
@@ -1700,6 +1801,19 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         controlsOpenForPads = true;
         releaseHostInput();
         suspendHostInput();
+        clearCommitTextQueue();
+        // In touch mode the panel does not take the focus from the stream, so a soft keyboard
+        // stays up over it, covering its bottom rows (Disconnect, Quit) while what it types is
+        // dropped. Put it away. One the host's text field raised comes back on the close, as
+        // does one a field focused meanwhile asks for; one opened by hand stays down.
+        boolean raisedOnMain = textFocusKeyboard != null
+                && textFocusKeyboard.getRaisedOn() == TextFocusKeyboard.Target.MAIN;
+        if (textFocusKeyboard != null) {
+            textFocusKeyboard.suspend();
+        }
+        if (!raisedOnMain) {
+            hideMainSoftKeyboard();
+        }
         // The side panel lives in our own window, so focus stays here and pointer capture with
         // it; let the mouse out by hand.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && streamContainer.hasPointerCapture()) {
@@ -1730,13 +1844,18 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             if (gameMenuCallbacks != null && gameMenuCallbacks.isMenuOpen()) {
                 return;
             }
-            // The USB driver's pads too, and the state they kept while shut out goes to the host.
+            // The pads too, and the state they kept while shut out goes to the host.
             controlsOpenForPads = false;
             if (controllerHandler != null) {
-                controllerHandler.resendUsbPads();
+                controllerHandler.resendPads();
             }
             if (!isFinishing() && hasWindowFocus()) {
                 resumeHostInput();
+            }
+            // A keyboard put away at the open, or asked for since, for a host field that is
+            // still focused (it will not say so again)
+            if (textFocusKeyboard != null && !isFinishing()) {
+                textFocusKeyboard.resume();
             }
         });
     }
@@ -2349,6 +2468,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 conn.sendKeyboardInput((short) KeyboardTranslator.VK_LWIN,
                         down ? KeyboardPacket.KEY_DOWN : KeyboardPacket.KEY_UP,
                         (byte) modifierFlags, (byte) 0);
+                if (down) {
+                    heldHostKeys.add((short) KeyboardTranslator.VK_LWIN);
+                } else {
+                    heldHostKeys.remove((short) KeyboardTranslator.VK_LWIN);
+                }
                 return true;
             }
             modifierMask = KeyboardPacket.MODIFIER_ALT;
@@ -2507,6 +2631,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             // care of this.
             if (!prefConfig.mouseNavButtons) {
                 conn.sendMouseButtonDown(MouseButtonPacket.BUTTON_RIGHT);
+                heldPointerButtons |= HeldMouseButtons.of(MouseButtonPacket.BUTTON_RIGHT);
             }
 
             // Always return true, otherwise the back press will be propagated
@@ -2603,6 +2728,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             // care of this.
             if (!prefConfig.mouseNavButtons) {
                 conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_RIGHT);
+                heldPointerButtons &= ~HeldMouseButtons.of(MouseButtonPacket.BUTTON_RIGHT);
             }
 
             // Always return true, otherwise the back press will be propagated
@@ -2669,12 +2795,25 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         // Nothing reaches the host while the controls are open, typed text included: a soft
         // keyboard left up under the panel must not type into the game. The text is dropped,
         // not held, the same as a key press into the controls.
-        if (gameMenuCallbacks != null && gameMenuCallbacks.isMenuOpen()) {
+        if (isHostInputBlocked()) {
             return true;
         }
 
         conn.sendUtf8Text(event.getCharacters());
         return true;
+    }
+
+    /**
+     * A keyboard key the host was sent down or up from outside this class (the on-screen
+     * keyboard's combo buttons), so opening the controls lets go of it with the others it holds.
+     * Main thread only.
+     */
+    public void noteHostKey(short key, boolean down) {
+        if (down) {
+            heldHostKeys.add(key);
+        } else {
+            heldHostKeys.remove(key);
+        }
     }
 
     public void sendKeys(short[] keys) {
@@ -3250,6 +3389,13 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 return true;
             }
         }
+        // Nor does anything else while they are open: a mouse, the touchscreen, a pad's
+        // touchpad. Over the phone the side panel's scrim and its own handler take them first;
+        // under the companion panel's menu or the external display's sheet the stream is
+        // uncovered, and they get here.
+        else if (isHostInputBlocked()) {
+            return true;
+        }
         else if ((deviceSources & InputDevice.SOURCE_CLASS_JOYSTICK) != 0 && controllerHandler.tryHandleTouchpadEvent(event)) {
             return true;
         }
@@ -3269,6 +3415,13 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                                                     event.getToolType(0) == MotionEvent.TOOL_TYPE_ERASER)) ||
                                     eventSource == 12290) // 12290 = Samsung DeX mode desktop mouse
             ) {
+                // The rest of a stylus's gesture the controls cut off: the host has let go of it
+                if ((event.getToolType(0) == MotionEvent.TOOL_TYPE_STYLUS
+                        || event.getToolType(0) == MotionEvent.TOOL_TYPE_ERASER)
+                        && staleGestures.dropPen(event.getActionMasked())) {
+                    return true;
+                }
+
                 int buttonState = event.getButtonState();
                 int changedButtons = buttonState ^ lastButtonState;
 
@@ -3344,6 +3497,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 }
                 else if (view != null && trySendPenEvent(view, event)) {
                     // If our host supports pen events, send it directly
+                    hostTouchesSent = true;
                     return true;
                 }
                 else if (view != null) {
@@ -3509,6 +3663,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
                             // Stylus is left click
                             conn.sendMouseButtonDown(MouseButtonPacket.BUTTON_LEFT);
+                            heldPointerButtons |= HeldMouseButtons.of(MouseButtonPacket.BUTTON_LEFT);
                         } else if (event.getToolType(0) == MotionEvent.TOOL_TYPE_ERASER) {
                             lastAbsTouchDownTime = event.getEventTime();
                             lastAbsTouchDownX = event.getX(0);
@@ -3516,6 +3671,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
                             // Eraser is right click
                             conn.sendMouseButtonDown(MouseButtonPacket.BUTTON_RIGHT);
+                            heldPointerButtons |= HeldMouseButtons.of(MouseButtonPacket.BUTTON_RIGHT);
                         }
                     }
                     else if (event.getActionMasked() == MotionEvent.ACTION_UP || event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
@@ -3526,6 +3682,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
                             // Stylus is left click
                             conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_LEFT);
+                            heldPointerButtons &= ~HeldMouseButtons.of(MouseButtonPacket.BUTTON_LEFT);
                         } else if (event.getToolType(0) == MotionEvent.TOOL_TYPE_ERASER) {
                             lastAbsTouchUpTime = event.getEventTime();
                             lastAbsTouchUpX = event.getX(0);
@@ -3533,6 +3690,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
                             // Eraser is right click
                             conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_RIGHT);
+                            heldPointerButtons &= ~HeldMouseButtons.of(MouseButtonPacket.BUTTON_RIGHT);
                         }
                     }
                 }
@@ -3541,6 +3699,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             }
             // This case is for fingers
             else {
+                // The rest of a gesture the controls cut off: the host has let go of it
+                if (staleGestures.dropFinger(event.getActionMasked())) {
+                    return true;
+                }
                 if (eventSource == InputDevice.SOURCE_TOUCHPAD) {
                     return handleTouchInput(event, trackpadContextMap, false);
                 } else {
@@ -3582,6 +3744,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                     if (prefConfig.enableMultiTouchScreen && !prefConfig.touchscreenTrackpad && trySendTouchEvent(view, event)) {
                         // If this host supports touch events and absolute touch is enabled,
                         // send it directly as a touch event.
+                        hostTouchesSent = true;
                         return true;
                     }
 
@@ -3842,17 +4005,22 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     }
 
     // A joystick's hat and left stick, to the controls while they are open. Returns whether it
-    // was taken; pointer input is left alone (the side panel's scrim takes the touches, and the
-    // top screen's stream keeps them while the companion panel shows the menu).
+    // was taken. The pad's sticks and triggers are still kept by ControllerHandler, unsent, so
+    // the close can send whatever is held by then. Pointer input is left alone here: the side
+    // panel's scrim takes the touches, and handleMotionEvent drops what reaches the stream.
     private boolean routeControlsMotion(MotionEvent event) {
         if (controlsInput == null
                 || (event.getSource() & InputDevice.SOURCE_JOYSTICK) != InputDevice.SOURCE_JOYSTICK) {
             return false;
         }
-        return controlsInput.onAxes(event.getAxisValue(MotionEvent.AXIS_HAT_X),
+        boolean taken = controlsInput.onAxes(event.getAxisValue(MotionEvent.AXIS_HAT_X),
                 event.getAxisValue(MotionEvent.AXIS_HAT_Y),
                 event.getAxisValue(MotionEvent.AXIS_X),
                 event.getAxisValue(MotionEvent.AXIS_Y));
+        if (taken && controllerHandler != null) {
+            controllerHandler.handleMotionEvent(event);
+        }
+        return taken;
     }
 
     // Interacting with the companion panel's display can hand the system's key focus to that
@@ -5086,13 +5254,26 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
     }
 
+    // The root-only evdev mouse and keyboard report below on their own thread, and the
+    // on-screen keyboard's touchpad and mouse buttons come through mouseMove and
+    // mouseButtonEvent; none of it passes the activity's input paths, so while the controls are
+    // open it is dropped here. Releases still go out: the open let go of what was held (the
+    // buttons are kept in heldSideMouseButtons, the keys in heldHostKeys), and a second release
+    // does no harm.
+
     @Override
     public void mouseMove(int deltaX, int deltaY) {
+        if (controlsOpenForPads) {
+            return;
+        }
         conn.sendMouseMove((short) deltaX, (short) deltaY);
     }
 
     @Override
     public void mouseButtonEvent(int buttonId, boolean down) {
+        if (down && controlsOpenForPads) {
+            return;
+        }
         byte buttonIndex;
 
         switch (buttonId)
@@ -5117,26 +5298,43 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 return;
         }
 
-        if (down) {
-            conn.sendMouseButtonDown(buttonIndex);
-        }
-        else {
-            conn.sendMouseButtonUp(buttonIndex);
+        synchronized (sideInputLock) {
+            if (down) {
+                // Checked again under the lock: the open may have let go of the buttons since
+                if (controlsOpenForPads) {
+                    return;
+                }
+                conn.sendMouseButtonDown(buttonIndex);
+                heldSideMouseButtons |= HeldMouseButtons.of(buttonIndex);
+            }
+            else {
+                conn.sendMouseButtonUp(buttonIndex);
+                heldSideMouseButtons &= ~HeldMouseButtons.of(buttonIndex);
+            }
         }
     }
 
     @Override
     public void mouseVScroll(byte amount) {
+        if (controlsOpenForPads) {
+            return;
+        }
         conn.sendMouseScroll(amount);
     }
 
     @Override
     public void mouseHScroll(byte amount) {
+        if (controlsOpenForPads) {
+            return;
+        }
         conn.sendMouseHScroll(amount);
     }
 
     @Override
     public void keyboardEvent(boolean buttonDown, short keyCode) {
+        if (buttonDown && controlsOpenForPads) {
+            return;
+        }
         short keyMap = keyboardTranslator.translate(keyCode, 0, -1);
         if (keyMap != 0) {
             // handleSpecialKeys() takes the Android keycode
@@ -5145,10 +5343,18 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             }
 
             if (buttonDown) {
-                conn.sendKeyboardInput(keyMap, KeyboardPacket.KEY_DOWN, getModifierState(), (byte)0);
+                synchronized (sideInputLock) {
+                    // Checked again under the lock: the open may have let go of the keys since
+                    if (controlsOpenForPads) {
+                        return;
+                    }
+                    conn.sendKeyboardInput(keyMap, KeyboardPacket.KEY_DOWN, getModifierState(), (byte)0);
+                    heldHostKeys.add(keyMap);
+                }
             }
             else {
                 conn.sendKeyboardInput(keyMap, KeyboardPacket.KEY_UP, getModifierState(), (byte)0);
+                heldHostKeys.remove(keyMap);
             }
         }
     }
@@ -5534,6 +5740,13 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public boolean handleCommitText(CharSequence text) {
+        // Taken and dropped while the controls are open, like the text of handleKeyMultiple: a
+        // soft keyboard left up types into the stream's editor, which keeps the focus under the
+        // panel in touch mode. Not handed back either, or the editor would turn it into key
+        // events.
+        if (isControlsTextBlocked()) {
+            return true;
+        }
         if (!prefConfig.enableCommitText || conn == null) {
             return false;
         }
@@ -5543,6 +5756,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public boolean handleDeleteSurroundingText(int beforeLength, int afterLength) {
+        // The keyboard's backspace, dropped while the controls are open as its text is
+        if (isControlsTextBlocked()) {
+            return true;
+        }
         if (!prefConfig.enableCommitText || conn == null) {
             return false;
         }
@@ -5555,6 +5772,20 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             }
         }
         return true;
+    }
+
+    /** Whether a soft keyboard's text must be kept from the host: some controls are open. */
+    private boolean isControlsTextBlocked() {
+        return isHostInputBlocked();
+    }
+
+    /**
+     * Drop the soft keyboard's text not yet sent: it goes out in chunks, and none of it may
+     * reach the host once the controls are open.
+     */
+    private void clearCommitTextQueue() {
+        commitTextHandler.removeCallbacks(flushCommitTextQueue);
+        commitTextQueue.clear();
     }
 
     private void enqueueCommitText(String text) {

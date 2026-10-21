@@ -15,6 +15,8 @@ public class RelativeTouchContext implements TouchContext {
     private int originalTouchY = 0;
     private long originalTouchTime = 0;
     private boolean cancelled;
+    // A finger of this gesture is still down, so a cancel has a drag of its to end
+    private boolean touching;
     private boolean confirmedMove;
     private boolean confirmedDrag;
     private boolean confirmedScroll;
@@ -52,37 +54,24 @@ public class RelativeTouchContext implements TouchContext {
 
     // Indexed by MouseButtonPacket.BUTTON_XXX - 1
     private final Runnable[] buttonUpRunnables = new Runnable[] {
-            new Runnable() {
-                @Override
-                public void run() {
-                    conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_LEFT);
-                }
-            },
-            new Runnable() {
-                @Override
-                public void run() {
-                    conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_MIDDLE);
-                }
-            },
-            new Runnable() {
-                @Override
-                public void run() {
-                    conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_RIGHT);
-                }
-            },
-            new Runnable() {
-                @Override
-                public void run() {
-                    conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_X1);
-                }
-            },
-            new Runnable() {
-                @Override
-                public void run() {
-                    conn.sendMouseButtonUp(MouseButtonPacket.BUTTON_X2);
-                }
-            }
+            buttonUpRunnable(MouseButtonPacket.BUTTON_LEFT),
+            buttonUpRunnable(MouseButtonPacket.BUTTON_MIDDLE),
+            buttonUpRunnable(MouseButtonPacket.BUTTON_RIGHT),
+            buttonUpRunnable(MouseButtonPacket.BUTTON_X1),
+            buttonUpRunnable(MouseButtonPacket.BUTTON_X2)
     };
+    // The buttons a tap pressed whose delayed release has not run yet, bit (button - 1)
+    private int pendingButtonUps;
+
+    private Runnable buttonUpRunnable(final byte button) {
+        return new Runnable() {
+            @Override
+            public void run() {
+                pendingButtonUps &= ~(1 << (button - 1));
+                conn.sendMouseButtonUp(button);
+            }
+        };
+    }
 
     private static final int TAP_MOVEMENT_THRESHOLD = 20;
     private static final int TAP_DISTANCE_THRESHOLD = 25;
@@ -159,6 +148,7 @@ public class RelativeTouchContext implements TouchContext {
             maxPointerCountInGesture = pointerCount;
             originalTouchTime = eventTime;
             cancelled = confirmedDrag = confirmedMove = confirmedScroll = false;
+            touching = true;
             distanceMoved = 0;
 
             if (actionIndex == 0) {
@@ -176,6 +166,7 @@ public class RelativeTouchContext implements TouchContext {
         if (cancelled) {
             return;
         }
+        touching = false;
 
         // Cancel the drag timer
         cancelDragTimer();
@@ -196,6 +187,7 @@ public class RelativeTouchContext implements TouchContext {
             Runnable buttonUpRunnable = buttonUpRunnables[buttonIndex - 1];
             handler.removeCallbacks(buttonUpRunnable);
             handler.postDelayed(buttonUpRunnable, 100);
+            pendingButtonUps |= 1 << (buttonIndex - 1);
         }
     }
 
@@ -309,9 +301,19 @@ public class RelativeTouchContext implements TouchContext {
         // Cancel the drag timer
         cancelDragTimer();
 
-        // If it was a confirmed drag, we'll need to raise the button now
-        if (confirmedDrag) {
+        // If it was a confirmed drag, we'll need to raise the button now, unless the gesture
+        // already did as it ended
+        if (confirmedDrag && touching) {
             conn.sendMouseButtonUp(getMouseButtonIndex());
+        }
+        touching = false;
+
+        // A tap's release still waiting goes out now rather than after the cancel
+        for (int i = 0; i < buttonUpRunnables.length; i++) {
+            if ((pendingButtonUps & (1 << i)) != 0) {
+                handler.removeCallbacks(buttonUpRunnables[i]);
+                buttonUpRunnables[i].run();
+            }
         }
     }
 
