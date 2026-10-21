@@ -176,7 +176,6 @@
     <string name="title_seekbar_bitrate">Taxa de bits</string>
     <string name="summary_seekbar_bitrate">Aumente para uma melhor qualidade de imagem. Diminua para melhorar o desempenho em conexões mais lentas.</string>
     <string name="resolution_prefix_native">Nativa</string>
-    <string name="resolution_prefix_native_fullscreen">Ecrã Cheio Nativo</string>
     <string name="category_audio_settings">Configurações de Áudio</string>
     <string name="summary_audio_config_list">Ativa o som Surround 5.1 ou 7.1 para sistemas de home theater</string>
     <string name="category_input_settings">Configurações de Controles</string>

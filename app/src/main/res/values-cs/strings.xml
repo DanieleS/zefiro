@@ -5,7 +5,6 @@
     <string name="conn_error_msg">Spouštění se nezdařilo</string>
     <string name="conn_client_latency_hw">zpoždění hardwarového dekodéru:</string>
     <string name="conn_terminated_title">Spojení ukončeno</string>
-    <string name="resolution_prefix_native_fullscreen">Nativní celá obrazovka</string>
     <string name="summary_checkbox_enable_audiofx">Umožňuje fungování zvukových efektů během streamování, ale může zvýšit zpoždění zvuku</string>
     <string name="early_termination_error">Na hostitelském PC se něco pokazilo při spouštění streamu.
 \n

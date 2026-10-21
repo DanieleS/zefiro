@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.limelight.R;
 import com.limelight.TestLogSuppressor;
 import com.limelight.main.Section;
+import com.limelight.preferences.SeekBarPreference;
 import com.limelight.preferences.StreamPreferencesFragment;
 
 import org.junit.BeforeClass;
@@ -25,6 +26,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
@@ -179,12 +181,31 @@ public class SettingsSectionTest {
     }
 
     @Test
+    public void theMeteredBitrateAtZero_saysWhatZeroMeans() {
+        StreamPreferencesFragment list = list(SettingsListFixture.section());
+        SeekBarPreference metered = list.findPreference("seekbar_metered_bitrate_kbps");
+        assertNotNull(metered);
+        assertEquals("¼ of video bitrate", metered.formatValue(0));
+        assertEquals("2.5 Mbps", metered.formatValue(2500));
+    }
+
+    @Test
     @Config(qualifiers = "w800dp-h360dp-land")
-    public void aPhoneTurned_scrollsTheHeaderAwayToo() {
+    public void aPhoneTurned_keepsTheFieldAndChips_andScrollsOnlyTheCardAway() {
         SettingsSectionFragment section = SettingsListFixture.section();
-        layOutRow(list(section), "list_resolution");
-        assertNotSame("A short window cannot keep the header",
-                section.requireView().findViewById(R.id.settingsHeaderSlot),
-                header(section).getParent());
+        StreamPreferencesFragment list = list(section);
+        layOutRow(list, "list_resolution");
+        View slot = section.requireView().findViewById(R.id.settingsHeaderSlot);
+        assertSame("The field and the chips stay above the list", slot, header(section).getParent());
+        assertNull("The card is not with them", header(section).findViewById(R.id.settingsCard));
+        assertNotNull("The card is the list's first item",
+                list.getListView().findViewById(R.id.settingsCard));
+
+        // Searching there is no card to scroll: it is back in the header, hidden.
+        assertTrue(section.onSectionKey(down(KeyEvent.KEYCODE_BUTTON_Y)));
+        SettingsListFixture.idle();
+        View card = header(section).findViewById(R.id.settingsCard);
+        assertNotNull(card);
+        assertEquals(View.GONE, card.getVisibility());
     }
 }

@@ -76,7 +76,6 @@
     <string name="summary_seekbar_bitrate">Αυξήστε για καλύτερη ποιότητα εικόνας. Μείωση για τη βελτίωση των επιδόσεων σε πιο αργές συνδέσεις.</string>
     <string name="suffix_seekbar_bitrate_mbps">Mbps</string>
     <string name="resolution_prefix_native">Εγγενής</string>
-    <string name="resolution_prefix_native_fullscreen">Εγγενής πλήρης οθόνη</string>
     <string name="category_audio_settings">Ρυθμίσεις ήχου</string>
     <string name="title_audio_config_list">Ρύθμιση παραμέτρων ήχου surround</string>
     <string name="summary_checkbox_vibrate_fallback">Δονεί τη συσκευή σας για να μιμηθεί το rumble αν το gamepad σας δεν το υποστηρίζει</string>

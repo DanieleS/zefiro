@@ -5,7 +5,8 @@
     does. Selected on the entry in effect (signal container, signal label, filled radio); setting
     the row selected selects its children too. Compact, as the mock's, so a list of seven fits
     over the hints: 44dp at least, still a touch target on the panel's large screen; never
-    focusable.
+    focusable there. A list setting's dialog on the main screen (SettingsListDialog) draws its
+    choices with this row too, and makes each a stop.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"

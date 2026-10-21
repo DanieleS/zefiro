@@ -280,6 +280,15 @@ public final class SettingsSearch {
     }
 
     /**
+     * The Changed chip's count: how many of the query's matches are changed, whatever filter is
+     * in force. The rows {@link Filter#CHANGED} lets through, not its {@link Result#total}, which
+     * counts every match before the filter.
+     */
+    public int changedCount(@Nullable String query, @NonNull Set<String> changedKeys) {
+        return search(query, Filter.CHANGED, changedKeys).size();
+    }
+
+    /**
      * The entry's rank for the query, or {@link #NO_MATCH}; the synonyms that alone matched a
      * token are added to {@code synonymsUsed}.
      */

@@ -159,6 +159,15 @@ public class SettingsSearchTest {
     }
 
     @Test
+    public void changedCount_countsOnlyTheChangedMatches_notEveryMatch() {
+        Set<String> changed = Collections.singleton("checkbox_vibrate_osc");
+
+        assertTrue(library().search("rumble", SettingsSearch.Filter.ALL, changed).total > 1);
+        assertEquals(1, library().changedCount("rumble", changed));
+        assertEquals(0, library().changedCount("rumble", Collections.<String>emptySet()));
+    }
+
+    @Test
     public void theQuerysWords_areMarkedInATitle_foldedAsTheSearchFolds() {
         List<int[]> ranges = SettingsSearch.matchRanges("Enable Rumble", "rumble");
         assertEquals(1, ranges.size());

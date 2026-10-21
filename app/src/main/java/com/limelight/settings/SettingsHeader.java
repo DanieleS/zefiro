@@ -10,6 +10,7 @@ import android.view.ViewGroup;
 import android.view.ViewParent;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -115,6 +116,9 @@ final class SettingsHeader {
     private final EditText field;
     private final View clear;
     private final View card;
+    // Where the card sits in the header, to put it back after it was hung in the list.
+    private final int cardIndex;
+    private final ViewGroup.LayoutParams cardParams;
     private final View profileRow;
     private final View cardRule;
     private final TextView profileName;
@@ -131,8 +135,8 @@ final class SettingsHeader {
     private final TextView alsoMatches;
 
     private boolean wide;
-    // Whether a gamepad is connected: the glyphs name its buttons, and a screen without one (a
-    // phone in the hand, the Thor's emulator) has none to name.
+    // Whether the screen is driven by the pad (MainHost.isDpadFirst): the glyphs name its
+    // buttons, and a phone in the hand has none to name.
     private boolean glyphs;
     private int changedCount;
     private boolean searching;
@@ -160,6 +164,8 @@ final class SettingsHeader {
         field = root.findViewById(R.id.settingsSearchField);
         clear = root.findViewById(R.id.settingsSearchClear);
         card = root.findViewById(R.id.settingsCard);
+        cardIndex = ((ViewGroup) root).indexOfChild(card);
+        cardParams = card.getLayoutParams();
         profileRow = root.findViewById(R.id.settingsProfileRow);
         cardRule = root.findViewById(R.id.settingsCardRule);
         profileName = root.findViewById(R.id.settingsProfileName);
@@ -175,12 +181,13 @@ final class SettingsHeader {
         changedChip = root.findViewById(R.id.settingsChangedChip);
         alsoMatches = root.findViewById(R.id.settingsAlsoMatches);
 
-        // The mocks' glyphs: Y searches, LB and RB jump between the chips.
+        // The mock's glyphs: Y searches, L1 and R1 (the Thor's shoulder buttons) jump between
+        // the chips.
         ((TextView) searchGlyph).setText("Y");
         // A key on the field, not of its colour: the hint's own key is the field's surface.
         searchGlyph.setBackgroundResource(R.drawable.settings_search_key_bg);
-        ((TextView) prevGlyph).setText("LB");
-        ((TextView) nextGlyph).setText("RB");
+        ((TextView) prevGlyph).setText("L1");
+        ((TextView) nextGlyph).setText("R1");
 
         searchRest.setOnClickListener(v -> listener.onSearchRequested());
         root.findViewById(R.id.settingsSearchBack).setOnClickListener(v -> listener.onSearchLeave());
@@ -241,10 +248,10 @@ final class SettingsHeader {
         return searching;
     }
 
-    /** True for a view inside this header. */
+    /** True for a view inside this header, its card included wherever the card hangs. */
     boolean contains(@Nullable View view) {
         for (View v = view; v != null; ) {
-            if (v == root) {
+            if (v == root || v == card) {
                 return true;
             }
             ViewParent parent = v.getParent();
@@ -265,11 +272,33 @@ final class SettingsHeader {
         return false;
     }
 
+    /**
+     * Hangs the card in {@code holder}, out of the header, so it scrolls away with the list while
+     * the field and the chips stay put (a phone in landscape, SettingsLayout.cardInList); null
+     * puts it back in its place between them.
+     */
+    void hangCard(@Nullable ViewGroup holder) {
+        ViewGroup target = holder != null ? holder : (ViewGroup) root;
+        ViewParent parent = card.getParent();
+        if (parent == target) {
+            return;
+        }
+        if (parent instanceof ViewGroup) {
+            ((ViewGroup) parent).removeView(card);
+        }
+        if (holder != null) {
+            holder.addView(card, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT));
+        } else {
+            ((ViewGroup) root).addView(card, cardIndex, cardParams);
+        }
+    }
+
     // --- Window and state ---
 
     /**
      * Lays the header out for a wide window (the Thor) or a compact one (a phone), with the
-     * gamepad glyphs (Y, LB, RB) only while a gamepad is connected.
+     * gamepad glyphs (Y, L1, R1) only on a screen driven by the pad.
      */
     void setWide(boolean wide, boolean glyphs) {
         this.wide = wide;

@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.limelight.R;
 import com.limelight.preferences.PreferenceConfiguration;
+import com.limelight.ui.GamepadHintsView;
 
 /**
  * androidx's preference adapter, plus the two things a Zefiro settings row shows that a stock
@@ -33,7 +34,8 @@ import com.limelight.preferences.PreferenceConfiguration;
  * <p>A row's description is kept short, as the mocks' compact rows are ({@link SettingsLayout}):
  * one line in a wide window, two in a compact one, and all of it on the focused row while no
  * companion panel spells it out. The host says which ({@link #setRowLines}); the lines follow
- * focus on the rows themselves, without a rebind.
+ * focus on the rows themselves, without a rebind. So does a focused list row's "A Choices"
+ * where the panel is not there to offer them, and the host asks for it.
  */
 public class SettingsAdapter extends PreferenceGroupAdapter {
 
@@ -47,6 +49,7 @@ public class SettingsAdapter extends PreferenceGroupAdapter {
     // list is never told: two lines, all of them on the focused row.
     private boolean wideRows;
     private boolean panelShowing;
+    private boolean choiceHints;
     private final View.OnFocusChangeListener linesFollowFocus = (row, hasFocus) -> applyLines(row);
 
     /**
@@ -80,7 +83,11 @@ public class SettingsAdapter extends PreferenceGroupAdapter {
     @Override
     public void onBindViewHolder(@NonNull PreferenceViewHolder holder, int position) {
         super.onBindViewHolder(holder, position);
-        bindExtras(holder, getItem(position));
+        Preference preference = getItem(position);
+        bindExtras(holder, preference);
+        // Whether A on this row opens a list of choices, for its hint.
+        holder.itemView.setTag(R.id.settingChoicesHint, preference != null
+                && SettingsIndex.kindOf(preference) == SettingsSearch.Kind.LIST);
         if (holder.findViewById(android.R.id.summary) != null) {
             holder.itemView.setOnFocusChangeListener(linesFollowFocus);
             applyLines(holder.itemView);
@@ -91,13 +98,18 @@ public class SettingsAdapter extends PreferenceGroupAdapter {
      * How long the rows' descriptions are: a wide window's rows get one line, a compact one's
      * two; the focused row gets all of it unless the panel shows it. Applied to the rows on
      * screen at once, so the panel coming or going reshapes the focused row in place.
+     *
+     * @param choiceHints whether a focused list row says "A Choices" while the panel is not
+     *                    up; shown only on a screen driven by the pad ({@link GamepadHintsView})
      */
-    public void setRowLines(boolean wide, boolean panelShowing) {
-        if (wideRows == wide && this.panelShowing == panelShowing) {
+    public void setRowLines(boolean wide, boolean panelShowing, boolean choiceHints) {
+        if (wideRows == wide && this.panelShowing == panelShowing
+                && this.choiceHints == choiceHints) {
             return;
         }
         wideRows = wide;
         this.panelShowing = panelShowing;
+        this.choiceHints = choiceHints;
         RecyclerView list = recyclerView;
         if (list != null) {
             for (int i = 0; i < list.getChildCount(); i++) {
@@ -123,6 +135,15 @@ public class SettingsAdapter extends PreferenceGroupAdapter {
         TextView text = (TextView) summary;
         if (text.getMaxLines() != lines) {
             text.setMaxLines(lines);
+        }
+        View hint = row.findViewById(R.id.settingChoicesHint);
+        if (hint instanceof GamepadHintsView) {
+            boolean shown = choiceHints && !panelShowing && row.hasFocus()
+                    && Boolean.TRUE.equals(row.getTag(R.id.settingChoicesHint));
+            ((GamepadHintsView) hint).setHints(shown
+                    ? new GamepadHintsView.Hint[] {new GamepadHintsView.Hint(
+                            row.getContext().getString(R.string.settings_choices_choices), "A")}
+                    : new GamepadHintsView.Hint[0]);
         }
     }
 

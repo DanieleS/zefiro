@@ -167,7 +167,6 @@
     <string name="nettest_text_success">Схоже що ваша мережа не блокує Moonlight. Якщо у вас й надалі проблеми з підключенням, перевірте налаштування брандмауера.
 \n
 \nЯкщо ви намагаєтеся транслювати через Інтернет, встановіть на своєму пристрої Moonlight Internet Hosting Tool, та запустіть випробування мережі щоб перевірити ваше з\'єднання до Інтернету.</string>
-    <string name="resolution_prefix_native_fullscreen">Рідний повноекранний</string>
     <string name="resolution_prefix_native">Рідна</string>
     <string name="suffix_seekbar_bitrate_mbps">Мб/с</string>
     <string name="text_native_res_dialog">Власна роздільна здатність і/або FPS можуть не підтримуватися потоковим сервером. Ймовірно, вам доведеться вручну налаштувати відповідний спеціальний режим відображення для головного ПК.

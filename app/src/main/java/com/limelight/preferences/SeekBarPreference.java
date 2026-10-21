@@ -28,6 +28,9 @@ public class SeekBarPreference extends Preference
 
     private final String dialogMessage;
     private final String suffix;
+    // What a value of 0 means where it is not a number of anything (seekbar:zeroText): the
+    // metered bitrate's 0 is "a quarter of the bitrate", not 0.0 Mbps. Null shows 0 as a number.
+    private final String zeroText;
     private final int defaultValue;
     private final int maxValue;
     private final int minValue;
@@ -59,6 +62,9 @@ public class SeekBarPreference extends Preference
         else {
             suffix = context.getString(suffixId);
         }
+
+        int zeroTextId = attrs.getAttributeResourceValue(SEEKBAR_SCHEMA_URL, "zeroText", 0);
+        zeroText = zeroTextId != 0 ? context.getString(zeroTextId) : attrs.getAttributeValue(SEEKBAR_SCHEMA_URL, "zeroText");
 
         // Get default, min, and max seekbar values
         defaultValue = attrs.getAttributeIntValue(ANDROID_SCHEMA_URL, "defaultValue", PreferenceConfiguration.getDefaultBitrate(context));
@@ -219,6 +225,9 @@ public class SeekBarPreference extends Preference
     }
 
     private String format(int value) {
+        if (value == 0 && zeroText != null) {
+            return zeroText;
+        }
         String t;
         if (divisor != 1) {
             float floatValue = value / (float)divisor;

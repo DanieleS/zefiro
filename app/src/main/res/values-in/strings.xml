@@ -136,7 +136,6 @@
     <string name="suffix_seekbar_bitrate_mbps">Mbps</string>
     <string name="title_checkbox_stretch_video">Regangkan video ke layar penuh</string>
     <string name="resolution_prefix_native">Asli</string>
-    <string name="resolution_prefix_native_fullscreen">Layar Penuh Asli</string>
     <string name="category_audio_settings">Pengaturan Audio</string>
     <string name="title_audio_config_list">Konfigurasi suara surround</string>
     <string name="title_checkbox_enable_audiofx">Aktifkan dukungan equalizer sistem</string>

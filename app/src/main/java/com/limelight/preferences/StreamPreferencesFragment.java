@@ -4,7 +4,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.content.res.Configuration;
 import android.media.MediaCodecInfo;
 import android.net.Uri;
 import android.os.Build;
@@ -78,7 +77,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -101,10 +99,6 @@ import java.util.Map;
 public class StreamPreferencesFragment extends PreferenceFragmentCompat {
     private int nativeResolutionStartIndex = Integer.MAX_VALUE;
     private boolean nativeFramerateShown = false;
-
-    // The display's own resolutions offered as entries ("Native (2328x1080)"), by value, with
-    // their name before the size: relabelled as the window turns (relabelNativeResolutions).
-    private final Map<String, String> nativeResolutionNames = new LinkedHashMap<>();
 
     private PreferenceConfiguration prevPrefConfig;
 
@@ -155,16 +149,28 @@ public class StreamPreferencesFragment extends PreferenceFragmentCompat {
         pref.setEntryValues(newValues);
     }
 
-    private void addNativeResolutionEntry(int nativeWidth, int nativeHeight, boolean insetsRemoved, boolean portrait, boolean is_custom) {
+    /**
+     * Offers a size of the display as a resolution, "Native (2400x1080)", unless the list has it
+     * already (a 1920x1080 screen is 1080p). One label on every device and either way up: the
+     * size is always the landscape one a stream has, so it needs no "(Landscape)" while a phone
+     * is held upright. Only a squarish screen, offered both ways round, says which one it is.
+     *
+     * @param clearOfCutout the size that leaves the display cutout out, offered beside the
+     *                      display's own: "Native, clear of the cutout (2328x1080)"
+     */
+    private void addNativeResolutionEntry(int nativeWidth, int nativeHeight, boolean clearOfCutout, boolean portrait, boolean is_custom) {
         ListPreference pref = (ListPreference) findPreference(PreferenceConfiguration.RESOLUTION_PREF_STRING);
 
         String newName;
 
-        if (insetsRemoved) {
-            newName = getResources().getString(R.string.resolution_prefix_native_fullscreen);
+        if (is_custom) {
+            newName = getResources().getString(R.string.resolution_prefix_custom);
+        }
+        else if (clearOfCutout) {
+            newName = getResources().getString(R.string.resolution_prefix_native_cutout);
         }
         else {
-            newName = is_custom ? getResources().getString(R.string.resolution_prefix_custom) : getResources().getString(R.string.resolution_prefix_native);
+            newName = getResources().getString(R.string.resolution_prefix_native);
         }
 
         if (PreferenceConfiguration.isSquarishScreen(nativeWidth, nativeHeight)) {
@@ -176,17 +182,9 @@ public class StreamPreferencesFragment extends PreferenceFragmentCompat {
             }
         }
 
+        newName += " ("+nativeWidth+"x"+nativeHeight+")";
+
         String newValue = nativeWidth+"x"+nativeHeight;
-        // Always the landscape size, which a stream has; held upright, the screen's own size
-        // reads the other way round, so the label says which way it is meant.
-        boolean turnable = !is_custom && !PreferenceConfiguration.isSquarishScreen(nativeWidth, nativeHeight);
-        String baseName = newName;
-        if (turnable) {
-            newName = nativeResolutionLabel(newName, nativeWidth, nativeHeight);
-        }
-        else {
-            newName += " ("+nativeWidth+"x"+nativeHeight+")";
-        }
 
         // Check if the native resolution is already present
         for (CharSequence value : pref.getEntryValues()) {
@@ -199,64 +197,14 @@ public class StreamPreferencesFragment extends PreferenceFragmentCompat {
         if (pref.getEntryValues().length < nativeResolutionStartIndex) {
             nativeResolutionStartIndex = pref.getEntryValues().length;
         }
-        if (turnable) {
-            nativeResolutionNames.put(newValue, baseName);
-        }
         appendPreferenceEntry(pref, newName, newValue);
     }
 
-    // "Native (2328x1080)", or held upright "Native (Landscape) (2328x1080)".
-    private String nativeResolutionLabel(String name, int width, int height) {
-        if (isPortraitWindow()) {
-            name += " " + getResources().getString(R.string.resolution_prefix_native_landscape);
-        }
-        return name + " (" + width + "x" + height + ")";
-    }
-
-    private boolean isPortraitWindow() {
-        return getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT;
-    }
-
-    /**
-     * Names the native resolutions again for the window's orientation now: a host that keeps
-     * this list across a rotation (the Settings section) calls it when the window turns, so an
-     * upright phone's entries say they are landscape and a turned one's do not.
-     */
-    public void relabelNativeResolutions() {
-        ListPreference pref = findPreference(PreferenceConfiguration.RESOLUTION_PREF_STRING);
-        if (pref == null || nativeResolutionNames.isEmpty() || getContext() == null) {
-            return;
-        }
-        CharSequence[] entries = pref.getEntries().clone();
-        CharSequence[] values = pref.getEntryValues();
-        boolean changed = false;
-        for (int i = 0; i < entries.length && i < values.length; i++) {
-            String value = values[i].toString();
-            String name = nativeResolutionNames.get(value);
-            String[] size = value.split("x");
-            if (name == null || size.length != 2) {
-                continue;
-            }
-            String label = nativeResolutionLabel(name, Integer.parseInt(size[0]),
-                    Integer.parseInt(size[1]));
-            if (!label.contentEquals(entries[i])) {
-                entries[i] = label;
-                changed = true;
-            }
-        }
-        if (changed) {
-            pref.setEntries(entries);
-            if (settingsAdapter != null) {
-                settingsAdapter.refreshKey(PreferenceConfiguration.RESOLUTION_PREF_STRING);
-            }
-        }
-    }
-
-    private void addNativeResolutionEntries(int nativeWidth, int nativeHeight, boolean insetsRemoved, boolean is_custom) {
+    private void addNativeResolutionEntries(int nativeWidth, int nativeHeight, boolean clearOfCutout, boolean is_custom) {
         if (PreferenceConfiguration.isSquarishScreen(nativeWidth, nativeHeight)) {
-            addNativeResolutionEntry(nativeHeight, nativeWidth, insetsRemoved, true, is_custom);
+            addNativeResolutionEntry(nativeHeight, nativeWidth, clearOfCutout, true, is_custom);
         }
-        addNativeResolutionEntry(nativeWidth, nativeHeight, insetsRemoved, false, is_custom);
+        addNativeResolutionEntry(nativeWidth, nativeHeight, clearOfCutout, false, is_custom);
     }
 
     private void addNativeFrameRateEntry(float framerate, boolean is_custom) {
@@ -696,9 +644,13 @@ public class StreamPreferencesFragment extends PreferenceFragmentCompat {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             int maxSupportedResW = 0;
 
-            // Add a native resolution with any insets included for users that don't want content
-            // behind the notch of their display
-            boolean hasInsets = false;
+            // The size clear of the display cutout, for users that don't want content behind
+            // the notch of their display. Taken from the display's mode, its real pixels, not
+            // from its metrics, which an app's window can get as its own bounds (the screen
+            // less the system bars: "1920x952" on a 1920x1080 screen). Offered after the
+            // display's own sizes, which the modes below add.
+            int cutoutFreeWidth = 0;
+            int cutoutFreeHeight = 0;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 DisplayCutout cutout;
 
@@ -716,14 +668,19 @@ public class StreamPreferencesFragment extends PreferenceFragmentCompat {
                     int heightInsets = cutout.getSafeInsetBottom() + cutout.getSafeInsetTop();
 
                     if (widthInsets != 0 || heightInsets != 0) {
+                        // The insets are for the way the display is turned now; the metrics
+                        // only say which way that is.
+                        Display.Mode mode = display.getMode();
                         DisplayMetrics metrics = new DisplayMetrics();
                         display.getRealMetrics(metrics);
+                        boolean landscapeNow = metrics.widthPixels >= metrics.heightPixels;
+                        int longSide = Math.max(mode.getPhysicalWidth(), mode.getPhysicalHeight());
+                        int shortSide = Math.min(mode.getPhysicalWidth(), mode.getPhysicalHeight());
+                        int displayWidth = landscapeNow ? longSide : shortSide;
+                        int displayHeight = landscapeNow ? shortSide : longSide;
 
-                        int width = Math.max(metrics.widthPixels - widthInsets, metrics.heightPixels - heightInsets);
-                        int height = Math.min(metrics.widthPixels - widthInsets, metrics.heightPixels - heightInsets);
-
-                        addNativeResolutionEntries(width, height, false, false);
-                        hasInsets = true;
+                        cutoutFreeWidth = Math.max(displayWidth - widthInsets, displayHeight - heightInsets);
+                        cutoutFreeHeight = Math.min(displayWidth - widthInsets, displayHeight - heightInsets);
                     }
                 }
             }
@@ -747,7 +704,7 @@ public class StreamPreferencesFragment extends PreferenceFragmentCompat {
                 // unless they report greater than 4K resolutions.
                 if (!activity.getPackageManager().hasSystemFeature(PackageManager.FEATURE_TELEVISION) ||
                         (width > 3840 || height > 2160)) {
-                    addNativeResolutionEntries(width, height, hasInsets, false);
+                    addNativeResolutionEntries(width, height, false, false);
                 }
 
                 if ((width >= 3840 || height >= 2160) && maxSupportedResW < 3840) {
@@ -763,6 +720,10 @@ public class StreamPreferencesFragment extends PreferenceFragmentCompat {
                 if (candidate.getRefreshRate() > maxSupportedFps) {
                     maxSupportedFps = candidate.getRefreshRate();
                 }
+            }
+
+            if (cutoutFreeWidth > 0 && cutoutFreeHeight > 0) {
+                addNativeResolutionEntries(cutoutFreeWidth, cutoutFreeHeight, true, false);
             }
 
             // This must be called to do runtime initialization before calling functions that evaluate
