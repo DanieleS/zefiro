@@ -23,7 +23,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
- * The stream settings list as {@code StreamSettings} shows it: one list in the catalogue's
+ * The stream settings list as the Settings section shows it: one list in the catalogue's
  * sections, every device removal already applied, and the dependencies still working after the
  * move, including the ones that now cross sections.
  */

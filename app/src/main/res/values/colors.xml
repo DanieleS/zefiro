@@ -128,4 +128,12 @@
     <!-- Screens T3: the text on the game page's green RUNNING badge. -->
     <color name="on_status_online">#FF08210C</color>
 
+    <!--
+        Screens T8: the Settings section's pinned card, after its mock: the signal's container
+        sunk half a step further, so the card reads as one block of the accent's family without
+        competing with a selected chip, and a hairline of the same family between its pins.
+    -->
+    <color name="settings_card">#FF0D2129</color>
+    <color name="settings_card_rule">#FF1E3A45</color>
+
 </resources>

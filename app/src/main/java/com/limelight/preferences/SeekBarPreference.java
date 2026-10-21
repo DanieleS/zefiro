@@ -203,6 +203,11 @@ public class SeekBarPreference extends Preference
         return format(getValue());
     }
 
+    /** Any value of this slider as {@link #getDisplayValue()} shows its own: a default, say. */
+    public String formatValue(int value) {
+        return format(value);
+    }
+
     private String format(int value) {
         String t;
         if (divisor != 1) {

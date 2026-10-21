@@ -44,6 +44,44 @@ public final class SettingValues {
         return null;
     }
 
+    /**
+     * Some value of this preference, written as its row would show it: the default a reset
+     * would put back, or the value the active profile sets in its place. A switch's is On or
+     * Off here, since there is no switch to show it. Null when the preference shows no value.
+     */
+    @Nullable
+    public static CharSequence displayFor(@NonNull Preference preference, @Nullable Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (preference instanceof ListPreference) {
+            ListPreference list = (ListPreference) preference;
+            int index = list.findIndexOfValue(String.valueOf(value));
+            CharSequence[] entries = list.getEntries();
+            return index >= 0 && entries != null && index < entries.length
+                    ? entries[index] : String.valueOf(value);
+        }
+        if (preference instanceof TwoStatePreference && value instanceof Boolean) {
+            return onOff(preference, (Boolean) value);
+        }
+        if (preference instanceof SeekBarPreference && value instanceof Number) {
+            return ((SeekBarPreference) preference).formatValue(((Number) value).intValue());
+        }
+        if (preference instanceof EditTextPreference) {
+            String text = String.valueOf(value);
+            return text.isEmpty()
+                    ? preference.getContext().getString(R.string.settings_value_not_set) : text;
+        }
+        return null;
+    }
+
+    /** A switch's state in words, for where the switch itself is not drawn (the pinned card). */
+    @NonNull
+    public static CharSequence onOff(@NonNull Preference preference, boolean on) {
+        return preference.getContext().getString(on ? R.string.settings_value_on
+                : R.string.settings_value_off);
+    }
+
     /** True for a row that leaves the app for a web page. */
     public static boolean isExternal(@NonNull Preference preference) {
         return preference instanceof WebLauncherPreference;

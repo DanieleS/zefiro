@@ -56,7 +56,7 @@ import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.NvHTTP;
 import com.limelight.pcs.HostActions;
 import com.limelight.pcs.PcsFragment;
-import com.limelight.preferences.StreamSettings;
+import com.limelight.settings.SettingsSectionFragment;
 import com.limelight.stats.AchievementToast;
 import com.limelight.stats.AchievementWatcher;
 import com.limelight.stats.GamePageArgs;
@@ -68,8 +68,8 @@ import com.limelight.utils.Dialog;
 import com.limelight.utils.UiHelper;
 
 /**
- * The main screen: Library, PCs, Stats and Search as sections of one activity, with a navigation
- * rail in wide windows and a bottom bar in compact ones.
+ * The main screen: Library, PCs, Stats, Search and Settings as sections of one activity, with a
+ * navigation rail in wide windows and a bottom bar in compact ones.
  *
  * <p>It replaced a pair of activities, a PC list with the library on top of it, each binding the
  * computer manager on its own. Here one {@link MainViewModel} owns the host state for every
@@ -117,8 +117,9 @@ import com.limelight.utils.UiHelper;
  * <h3>Back</h3>
  *
  * Back asks the visible section first ({@link SectionBack}): a section with a stack of its own
- * (the Library's See all, a screen pushed over Stats or Search) pops it, one screen at a time.
- * Only a section with nothing to undo is left, back to the Library. At the Library's home the
+ * (the Library's See all, a screen pushed over Stats or Search) pops it, one screen at a time,
+ * and Settings leaves its search first. Only a section with nothing to undo is left, back to the
+ * Library. At the Library's home the
  * callback is disabled and the system's default applies, which leaves the app; with one activity
  * there is nothing underneath to return to. Sections report every change of their back work
  * ({@link MainHost#backWorkChanged()}), so the callback's enabled state always follows it.
@@ -482,6 +483,8 @@ public class MainActivity extends AppCompatActivity
                 return new PcsFragment();
             case STATS:
                 return new StatsSectionFragment();
+            case SETTINGS:
+                return new SettingsSectionFragment();
             case SEARCH:
             default:
                 return new SearchSectionFragment();
@@ -742,11 +745,6 @@ public class MainActivity extends AppCompatActivity
         companionFeed.onSection(section);
         navigator.show(section);
         updateBackEnabled();
-    }
-
-    @Override
-    public void onSettingsChosen() {
-        startActivity(new Intent(this, StreamSettings.class));
     }
 
     @Override

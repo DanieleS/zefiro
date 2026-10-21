@@ -1147,7 +1147,7 @@
         app:iconSpaceReserved="false">
 
         <!-- The three below were buttons on the old PC list's top bar. They are wired in
-             StreamSettings: Help is hidden on Fire TV, and the companion row only shows while
+             StreamPreferencesFragment: Help is hidden on Fire TV, and the companion row only shows while
              a companion screen is configured, its title naming what a click will do. -->
         <Preference
             android:key="pref_profiles"

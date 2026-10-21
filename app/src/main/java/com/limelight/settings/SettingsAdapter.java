@@ -1,13 +1,11 @@
 package com.limelight.settings;
 
 import android.content.SharedPreferences;
-import android.content.res.ColorStateList;
 import android.view.View;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.content.ContextCompat;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceGroupAdapter;
 import androidx.preference.PreferenceScreen;
@@ -20,7 +18,9 @@ import com.limelight.preferences.PreferenceConfiguration;
 /**
  * androidx's preference adapter, plus the two things a Zefiro settings row shows that a stock
  * one does not: its value on the right ({@link SettingValues}) and a dot when that value is not
- * the default ({@link SettingsDefaults}).
+ * the default ({@link SettingsDefaults}), both drawn by {@link SettingRowBinder} as a search
+ * result's are. It also hands a long-press on a row to whoever asked
+ * ({@link #setRowLongPressListener}): the Settings section's reset and pin menu.
  *
  * <p>A preference redraws its own row when it changes through itself, but some values are
  * written behind it: a resolution or frame rate change resets the bitrate straight into
@@ -78,19 +78,32 @@ public class SettingsAdapter extends PreferenceGroupAdapter {
         if (preference == null || value == null || dot == null || external == null) {
             return;
         }
+        SettingRowBinder.bindExtras(value, dot, external, preference, defaults, prefs);
 
-        boolean changed = defaults.isChanged(preference, prefs);
-        dot.setVisibility(changed ? View.VISIBLE : View.GONE);
+        // Bound on every bind: androidx rebinds the row view, and a recycled one may have been
+        // another preference's. Only a keyed row has a menu; a header or a stray has none.
+        final RowLongPressListener listener = longPressListener;
+        if (listener != null && preference.getKey() != null) {
+            holder.itemView.setOnLongClickListener(v -> listener.onRowLongPressed(preference, v));
+        } else {
+            holder.itemView.setOnLongClickListener(null);
+            holder.itemView.setLongClickable(false);
+        }
+    }
 
-        CharSequence text = SettingValues.display(preference);
-        value.setText(text);
-        value.setVisibility(text == null ? View.GONE : View.VISIBLE);
-        // A changed value carries the signal, as in the mocks; a disabled row dims it.
-        value.setTextColor(changed && preference.isEnabled()
-                ? ColorStateList.valueOf(ContextCompat.getColor(value.getContext(), R.color.signal))
-                : ContextCompat.getColorStateList(value.getContext(), R.color.settings_value));
+    /** A long-press on a row: the Settings section's reset and pin menu. */
+    public interface RowLongPressListener {
+        /** @return true when the press was taken */
+        boolean onRowLongPressed(@NonNull Preference preference, @NonNull View row);
+    }
 
-        external.setVisibility(SettingValues.isExternal(preference) ? View.VISIBLE : View.GONE);
+    @Nullable
+    private RowLongPressListener longPressListener;
+
+    /** Where a long-press on a row goes; null for none (a profile editor's list). Main thread. */
+    public void setRowLongPressListener(@Nullable RowLongPressListener listener) {
+        this.longPressListener = listener;
+        notifyDataSetChanged();
     }
 
     /** Rebinds the row for {@code key}, and the bitrate when its default may have moved. */

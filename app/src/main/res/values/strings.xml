@@ -204,8 +204,6 @@
     <string name="addpc_wrong_sitelocal">That address doesn\'t look right. You must use your router\'s public IP address for streaming over the Internet.</string>
 
     <!-- Preferences -->
-    <string name="title_stream_settings">Streaming Settings</string>
-    <string name="settings_back">Back</string>
     <string name="category_general_settings">General Settings</string>
     <string name="category_video_settings">Video Settings</string>
     <string name="title_resolution_list">Video resolution</string>
@@ -1250,4 +1248,50 @@
     <string name="settings_opens_in_browser">Opens in the browser</string>
     <!-- Spoken for the dot on a row whose value differs from its default. -->
     <string name="settings_changed">Changed from the default</string>
+
+    <!-- Screens T8: the Settings section, header, pinned card, chips and search. -->
+    <!-- The search field at rest; the count is of the settings this device shows. -->
+    <string name="settings_search_hint">Search %1$d settings and help</string>
+    <string name="settings_search_hint_wide">Search %1$d settings and help, try “rumble” or “HDR”</string>
+    <string name="settings_search_field_hint">Search settings</string>
+    <string name="settings_search_back">Leave search</string>
+    <string name="settings_search_clear">Clear</string>
+    <!-- The pinned card. The profile is a settings profile, a named set of overrides. -->
+    <string name="settings_pin_profile">Profile</string>
+    <string name="settings_profile_none">No profile</string>
+    <string name="settings_profile_subtitle">Settings profile · %1$d changed</string>
+    <string name="settings_profile_switch">Switch</string>
+    <string name="settings_profile_manage">Manage profiles…</string>
+    <string name="settings_pin_resolution">Resolution</string>
+    <string name="settings_pin_resolution_short">Res</string>
+    <string name="settings_pin_fps">FPS</string>
+    <string name="settings_pin_bitrate">Bitrate</string>
+    <string name="settings_pin_bitrate_short">Mbps</string>
+    <string name="settings_pin_codec">Codec</string>
+    <string name="settings_pin_hdr">HDR</string>
+    <!-- Beside a pinned value the active profile sets in place of the stored one. -->
+    <string name="settings_pin_profile_tag">profile</string>
+    <!-- A switch's state where the switch is not drawn (the pinned card, a reset's default). -->
+    <string name="settings_value_on">On</string>
+    <string name="settings_value_off">Off</string>
+    <!-- The chips: the card's own, the changed count, and the filters while searching. -->
+    <string name="settings_chip_pinned">Pinned</string>
+    <string name="settings_changed_count">%1$d changed</string>
+    <string name="settings_filter_all">All</string>
+    <string name="settings_filter_changed">Changed</string>
+    <string name="settings_filter_count">%1$s %2$d</string>
+    <!-- Wide windows: where the row in focus is, "VIDEO · FRAME PACING · 8 OF 34". -->
+    <string name="settings_sticky">%1$s · %2$s · %3$d of %4$d</string>
+    <!-- Search results. -->
+    <string name="settings_also_matches">Also showing matches for %1$s</string>
+    <string name="settings_breadcrumb">%1$s › %2$s</string>
+    <string name="settings_result_needs">%1$s · Needs %2$s</string>
+    <string name="settings_no_match">No settings match “%1$s”</string>
+    <string name="settings_search_help">Search help instead</string>
+    <string name="settings_nothing_changed">Everything is at its default</string>
+    <!-- X or a long-press on a row. No single press resets a value. -->
+    <string name="settings_row_reset">Reset to default (%1$s)</string>
+    <string name="settings_row_pin">Pin to top</string>
+    <string name="settings_row_unpin">Unpin</string>
+    <string name="settings_pins_full">Up to %1$d settings can be pinned</string>
 </resources>

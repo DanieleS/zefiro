@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.Application;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.SharedPreferences;
 import android.hardware.display.DisplayManager;
 import android.os.Bundle;
 import android.os.Handler;
@@ -14,6 +15,7 @@ import android.view.WindowManager;
 import androidx.annotation.NonNull;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
+import androidx.preference.PreferenceManager;
 
 import com.limelight.LimeLog;
 import com.limelight.nvstream.http.Achievement;
@@ -85,6 +87,18 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
     // so a later "focus left the field" does not count on a keyboard that is already gone.
     private Runnable textKeyboardDismissedListener;
 
+    // The companion switches are read on every screen change, but Settings is now a section of
+    // the main screen, so switching them there changes no screen: this brings the panel up or
+    // down at once instead. A field, since SharedPreferences holds its listeners weakly.
+    private final SharedPreferences.OnSharedPreferenceChangeListener enabledChanged =
+            (sharedPreferences, key) -> {
+                if (KEY_COMPANION_DISPLAY.equals(key) || KEY_FULL_EX_DISPLAY.equals(key)) {
+                    sync();
+                }
+            };
+    private static final String KEY_COMPANION_DISPLAY = "checkbox_enable_companion_display";
+    private static final String KEY_FULL_EX_DISPLAY = "checkbox_enable_fullexdisplay";
+
     private final DisplayManager.DisplayListener displayListener = new DisplayManager.DisplayListener() {
         @Override
         public void onDisplayAdded(int displayId) {
@@ -130,6 +144,8 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
         application.registerActivityLifecycleCallbacks(manager);
         manager.displayManager.registerDisplayListener(manager.displayListener, manager.handler);
         manager.state.setOwnerListener(manager::onOwnerChanged);
+        PreferenceManager.getDefaultSharedPreferences(application)
+                .registerOnSharedPreferenceChangeListener(manager.enabledChanged);
         instance = manager;
     }
 

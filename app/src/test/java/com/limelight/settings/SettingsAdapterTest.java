@@ -33,10 +33,13 @@ public class SettingsAdapterTest {
 
     private static View rowFor(StreamPreferencesFragment fragment, String key) {
         RecyclerView list = fragment.getListView();
-        SettingsAdapter adapter = (SettingsAdapter) list.getAdapter();
+        SettingsAdapter adapter = fragment.getSettingsAdapter();
         assertNotNull(adapter);
-        int position = adapter.getPreferenceAdapterPosition(key);
-        assertTrue(key + " should be in the list", position >= 0);
+        assertNotNull(list.getAdapter());
+        // Under the Settings section's header on a phone: the rows come after it.
+        int header = list.getAdapter().getItemCount() - adapter.getItemCount();
+        int position = header + adapter.getPreferenceAdapterPosition(key);
+        assertTrue(key + " should be in the list", position >= header);
         list.scrollToPosition(position);
         list.measure(View.MeasureSpec.makeMeasureSpec(1080, View.MeasureSpec.EXACTLY),
                 View.MeasureSpec.makeMeasureSpec(1920, View.MeasureSpec.EXACTLY));

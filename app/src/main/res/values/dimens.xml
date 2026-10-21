@@ -82,10 +82,9 @@
     <dimen name="dialog_corner">24dp</dimen>
 
     <!--
-        The settings screen. A top app bar over a scrolling column of preferences, laid on
-        the ground with the same 16dp gutter the rest of the app keeps.
+        The settings list, laid on the ground with the same 16dp gutter the rest of the app
+        keeps.
     -->
-    <dimen name="settings_bar_height">56dp</dimen>
     <dimen name="settings_gutter">16dp</dimen>
     <dimen name="settings_category_top">20dp</dimen>
     <!-- A row is a stop: inset from the edges so its focus ring shows, padded back out so its
@@ -236,5 +235,20 @@
     <dimen name="achievement_icon_size">40dp</dimen>
     <!-- Screens T4: a game's actions as rows on the companion panel, the mock's big rows. -->
     <dimen name="companion_action_row_height">56dp</dimen>
+
+    <!-- Screens T8: the Settings section. -->
+    <!-- The rail's 40dp indicator inside the Settings button's 72 by 56dp rail cell. -->
+    <dimen name="nav_rail_settings_indicator_inset">16dp</dimen>
+    <dimen name="nav_rail_settings_indicator_inset_vertical">8dp</dimen>
+    <!-- The pinned card: the essentials and the user's pins, each a stop of at least 48dp. -->
+    <dimen name="settings_card_corner">12dp</dimen>
+    <dimen name="settings_pin_min_width">88dp</dimen>
+    <dimen name="settings_pill_min_width">64dp</dimen>
+    <dimen name="settings_pin_height">56dp</dimen>
+    <dimen name="settings_profile_icon_size">36dp</dimen>
+    <dimen name="settings_profile_icon_size_small">28dp</dimen>
+    <dimen name="settings_header_gap">10dp</dimen>
+    <!-- A search result: a 56dp row at least, as the list's rows are 48dp at least. -->
+    <dimen name="settings_result_min_height">56dp</dimen>
 
 </resources>

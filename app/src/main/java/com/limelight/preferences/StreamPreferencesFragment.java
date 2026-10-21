@@ -14,6 +14,7 @@ import android.os.Looper;
 import android.os.Vibrator;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
 import androidx.fragment.app.DialogFragment;
@@ -26,6 +27,7 @@ import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceManager;
 import androidx.preference.PreferenceScreen;
 import androidx.preference.TwoStatePreference;
+import androidx.recyclerview.widget.ConcatAdapter;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.text.InputFilter;
@@ -81,10 +83,11 @@ import java.util.Map;
  * The stream settings list: {@code R.xml.preferences}, trimmed to what this device can do, with
  * every listener, dialog and intent the settings have always had.
  *
- * <p>It was {@code StreamSettings.SettingsFragment}, moved out so it can be hosted by more than
- * that activity. Whatever hosts it implements {@link SettingsHost} (the parent fragment first,
- * then the activity), which is how a change that needs a fresh list, unlock FPS or a custom
- * resolution, asks for one. {@code EditProfileActivity} extends it to edit a profile in memory.
+ * <p>It was the settings activity's own fragment, moved out so the main screen's Settings section
+ * ({@code settings.SettingsSectionFragment}) can host it. Whatever hosts it implements
+ * {@link SettingsHost} (the parent fragment first, then the activity), which is how a change that
+ * needs a fresh list, unlock FPS or a custom resolution, asks for one. {@code EditProfileActivity}
+ * extends it to edit a profile in memory.
  *
  * <p>Two orders exist and must not be confused. The XML's categories are the ones the device
  * removals in {@link #initializePreferences()} name ({@code category_gamepad_settings},
@@ -347,14 +350,42 @@ public class StreamPreferencesFragment extends PreferenceFragmentCompat {
     }
 
     /**
+     * A host that puts something of its own at the top of the list, scrolling with it: the
+     * Settings section's header in a compact window. Found on the parent fragment.
+     */
+    public interface ListHeader {
+        /** The adapter for the rows above the settings; stable ids, as the settings' are. */
+        @NonNull
+        RecyclerView.Adapter<?> listHeaderAdapter();
+    }
+
+    /**
      * The list's adapter: androidx's, plus each row's value on the right and the dot that marks
-     * a value away from its default.
+     * a value away from its default; under a {@link ListHeader}'s rows when the host has some.
+     * With those, positions in the list are not the settings adapter's, which is why
+     * {@code scrollToPreference} (it refuses any adapter but androidx's) is not used then: the
+     * host offsets {@link SettingsAdapter#getPreferenceAdapterPosition(String)} itself.
      */
     @NonNull
     @Override
     protected RecyclerView.Adapter onCreateAdapter(@NonNull PreferenceScreen preferenceScreen) {
         settingsAdapter = new SettingsAdapter(preferenceScreen,
                 SettingsDefaults.read(requireContext()), getPrefs());
+        Fragment parent = getParentFragment();
+        if (parent instanceof ListHeader) {
+            ConcatAdapter.Config config = new ConcatAdapter.Config.Builder()
+                    .setIsolateViewTypes(true)
+                    .setStableIdMode(ConcatAdapter.Config.StableIdMode.ISOLATED_STABLE_IDS)
+                    .build();
+            return new ConcatAdapter(config, ((ListHeader) parent).listHeaderAdapter(),
+                    settingsAdapter);
+        }
+        return settingsAdapter;
+    }
+
+    /** The settings rows' adapter, once the list has one; null before its view or after it. */
+    @Nullable
+    public SettingsAdapter getSettingsAdapter() {
         return settingsAdapter;
     }
 
@@ -416,8 +447,12 @@ public class StreamPreferencesFragment extends PreferenceFragmentCompat {
         }
     }
 
-    /** Shows the companion row only while one is configured, titled by what a click does. */
-    private void refreshCompanionScreenEntry() {
+    /**
+     * Shows the companion row only while one is configured, titled by what a click does. Public
+     * for a host that is shown and hidden rather than resumed (the Settings section), and that
+     * hears the panel come and go while this list stays up.
+     */
+    public void refreshCompanionScreenEntry() {
         Preference companion = findPreference("pref_companion_screen");
         if (companion == null || getActivity() == null) {
             return;

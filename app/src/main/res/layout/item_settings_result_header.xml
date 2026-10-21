@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A section header among the Settings search results ("CONTROLLERS"), in the list's quiet
+    category label, so results sit under the same names the list uses. Not a stop.
+-->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:ellipsize="end"
+    android:paddingStart="@dimen/settings_gutter"
+    android:paddingTop="@dimen/settings_category_top"
+    android:paddingEnd="@dimen/settings_gutter"
+    android:paddingBottom="8dp"
+    android:singleLine="true"
+    android:textAppearance="@style/TextAppearance.Zefiro.PreferenceCategory" />

@@ -3,6 +3,7 @@ package com.limelight.profiles;
 import android.content.Intent;
 import android.os.Looper;
 
+import androidx.fragment.app.Fragment;
 import androidx.preference.Preference;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
@@ -11,8 +12,9 @@ import com.limelight.ProfilesActivity;
 import com.limelight.R;
 import com.limelight.TestLogSuppressor;
 import com.limelight.main.MainActivity;
+import com.limelight.main.Section;
 import com.limelight.preferences.StreamPreferencesFragment;
-import com.limelight.preferences.StreamSettings;
+import com.limelight.settings.SettingsSectionFragment;
 
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -27,8 +29,8 @@ import static org.junit.Assert.*;
 
 /**
  * Profiles are reached from the main screen two ways, by window: the avatar at the rail's foot in
- * a wide one, and the Profiles entry in Settings in a compact one, whose bottom bar has no room
- * for the avatar.
+ * a wide one, and the Profiles entry in the Settings section in a compact one, whose bottom bar
+ * has no room for the avatar.
  */
 @Config(sdk = {33}, shadows = {com.limelight.shadows.ShadowMoonBridge.class, com.limelight.shadows.ShadowGameManager.class})
 @RunWith(RobolectricTestRunner.class)
@@ -65,15 +67,12 @@ public class ProfilesNavigationTest {
         BottomNavigationView bottom = activity.findViewById(R.id.navBottom);
 
         bottom.findViewById(R.id.nav_settings).performClick();
-        Intent settingsIntent = Shadows.shadowOf(activity).getNextStartedActivity();
-        assertNotNull("Settings should open", settingsIntent);
-        assertEquals(StreamSettings.class.getName(), settingsIntent.getComponent().getClassName());
-
-        StreamSettings settings = Robolectric.buildActivity(StreamSettings.class, settingsIntent)
-                .setup().get();
         Shadows.shadowOf(Looper.getMainLooper()).idle();
+        Fragment section = activity.getSupportFragmentManager()
+                .findFragmentByTag(Section.SETTINGS.tag());
+        assertNotNull("Settings should show its section", section);
         StreamPreferencesFragment fragment = (StreamPreferencesFragment)
-                settings.getSupportFragmentManager().findFragmentById(R.id.stream_settings);
+                section.getChildFragmentManager().findFragmentByTag(SettingsSectionFragment.TAG_LIST);
         assertNotNull("The settings list should be up", fragment);
         Preference profiles = fragment.findPreference("pref_profiles");
         assertNotNull("Settings should offer Profiles", profiles);
@@ -81,7 +80,7 @@ public class ProfilesNavigationTest {
 
         profiles.getOnPreferenceClickListener().onPreferenceClick(profiles);
 
-        Intent next = Shadows.shadowOf(settings).getNextStartedActivity();
+        Intent next = Shadows.shadowOf(activity).getNextStartedActivity();
         assertNotNull("ProfilesActivity should be launched from Settings", next);
         assertEquals(ProfilesActivity.class.getName(), next.getComponent().getClassName());
     }

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A line among the Settings search results that is not a setting: "No settings match …",
+    "Everything is at its default". Muted and not a stop.
+-->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingStart="@dimen/settings_gutter"
+    android:paddingTop="24dp"
+    android:paddingEnd="@dimen/settings_gutter"
+    android:paddingBottom="12dp"
+    android:textColor="@color/content_muted"
+    android:textSize="15sp" />

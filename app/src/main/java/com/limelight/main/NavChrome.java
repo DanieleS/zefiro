@@ -23,12 +23,15 @@ import com.limelight.R;
  *
  * Selection follows a click (or the d-pad's confirm), never focus: moving along the rail does not
  * switch sections. A click on a section reports it through {@link Callbacks#onSectionChosen} and
- * checks the item; Settings reports {@link Callbacks#onSettingsChosen} and is refused, so the
- * check stays on the section that is on screen.
+ * checks the item. Settings is a section like the others ({@link Section#SETTINGS}).
  *
  * <p>Settings sits apart from the destinations at the rail's foot, as in the mocks. A rail item
  * cannot, so the rail's Settings item is hidden and a plain button under the rail stands in for
- * it; the bottom bar keeps the menu's item as its last one. Both report the same callback.
+ * it; the bottom bar keeps the menu's item as its last one. Both report the same section. The
+ * hidden rail item is still checked, silently, while Settings is on screen: the rail and the bar
+ * then agree on the selection, and no visible rail item looks selected. The foot button shows the
+ * selection itself, {@code activated} (the signal's container behind a signal icon), and stands
+ * in for the checked item where focus returns from the section ({@link #checkedItemView()}).
  *
  * <p>The bottom bar offers four places, as the phone mock does: Search is the rail's alone, and a
  * compact window reaches it from the See all toolbar's search button.
@@ -54,14 +57,12 @@ final class NavChrome {
         /** The user chose a section; the widgets have not checked it yet. */
         void onSectionChosen(@NonNull Section section);
 
-        /** The user chose Settings; the selection does not move. */
-        void onSettingsChosen();
-
         /** The user chose the section already on screen. */
         void onSectionReselected(@NonNull Section section);
     }
 
     private final View railColumn;
+    private final View railSettings;
     private final View avatar;
     private final NavigationRailView rail;
     private final BottomNavigationView bottom;
@@ -75,6 +76,7 @@ final class NavChrome {
     NavChrome(View railColumn, NavigationRailView rail, View railSettings, View avatar,
               BottomNavigationView bottom, Callbacks callbacks) {
         this.railColumn = railColumn;
+        this.railSettings = railSettings;
         this.avatar = avatar;
         this.rail = rail;
         this.bottom = bottom;
@@ -82,7 +84,14 @@ final class NavChrome {
 
         rail.getMenu().findItem(R.id.nav_settings).setVisible(false);
         bottom.getMenu().findItem(R.id.nav_search).setVisible(false);
-        railSettings.setOnClickListener(v -> callbacks.onSettingsChosen());
+        railSettings.setOnClickListener(v -> {
+            if (rail.getSelectedItemId() == R.id.nav_settings) {
+                callbacks.onSectionReselected(Section.SETTINGS);
+                return;
+            }
+            callbacks.onSectionChosen(Section.SETTINGS);
+            setChecked(Section.SETTINGS);
+        });
 
         rail.setOnItemSelectedListener(item -> onItemSelected(item, bottom));
         bottom.setOnItemSelectedListener(item -> onItemSelected(item, rail));
@@ -117,6 +126,7 @@ final class NavChrome {
     void setChecked(@NonNull Section section) {
         mirror(rail, section.menuId);
         mirror(bottom, section.menuId);
+        railSettings.setActivated(section == Section.SETTINGS);
     }
 
     /** Offers Stats in both widgets, or takes it away. */
@@ -128,6 +138,10 @@ final class NavChrome {
     /** The visible widget's item for the checked section, where focus lands from the content. */
     View checkedItemView() {
         NavigationBarView visible = windowClass == WindowClass.COMPACT ? bottom : rail;
+        if (visible == rail && rail.getSelectedItemId() == R.id.nav_settings) {
+            // The rail's own Settings item is hidden; its stand-in is the foot button.
+            return railSettings;
+        }
         return visible.findViewById(visible.getSelectedItemId());
     }
 
@@ -136,10 +150,6 @@ final class NavChrome {
             return true;
         }
         int id = item.getItemId();
-        if (id == R.id.nav_settings) {
-            callbacks.onSettingsChosen();
-            return false;
-        }
         Section section = Section.forMenuId(id);
         if (section == null) {
             return false;
@@ -148,6 +158,7 @@ final class NavChrome {
         // The widget that was clicked checks the item itself once this returns true; only the
         // other one needs telling.
         mirror(other, id);
+        railSettings.setActivated(section == Section.SETTINGS);
         return true;
     }
 

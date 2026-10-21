@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    A Settings search result, after the searching mock: the setting's title, where it lives
+    ("Controllers › Rumble") under it, and on the right what the list row shows there, its value,
+    its switch or the opens-in-the-browser icon. Bound from the live preference by
+    SettingRowBinder, with the list row's ids for the parts the two share.
+
+    A stop like a list row (stop_bg, 56dp at least). The switch only shows the state: the row
+    is what takes the click, so the switch is neither focusable nor clickable.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="@dimen/settings_row_inset"
+    android:layout_marginEnd="@dimen/settings_row_inset"
+    android:background="@drawable/stop_bg"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:minHeight="@dimen/settings_result_min_height"
+    android:orientation="horizontal"
+    android:paddingStart="@dimen/settings_row_padding"
+    android:paddingTop="10dp"
+    android:paddingEnd="@dimen/settings_row_padding"
+    android:paddingBottom="10dp">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <View
+                android:id="@+id/settingChangedDot"
+                android:layout_width="6dp"
+                android:layout_height="6dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/settings_changed_dot"
+                android:contentDescription="@string/settings_changed"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/settingResultTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:singleLine="true"
+                android:textAppearance="@style/TextAppearance.Zefiro.PreferenceTitle"
+                tools:text="Enable rumble" />
+
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/settingResultPlace"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:textAppearance="@style/TextAppearance.Zefiro.PreferenceSummary"
+            tools:text="Controllers › Rumble" />
+
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/settingValue"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:ellipsize="end"
+        android:fontFamily="monospace"
+        android:maxWidth="@dimen/settings_value_max_width"
+        android:singleLine="true"
+        android:textColor="@color/settings_value"
+        android:textSize="13sp"
+        android:visibility="gone" />
+
+    <ImageView
+        android:id="@+id/settingExternal"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:layout_marginStart="12dp"
+        android:contentDescription="@string/settings_opens_in_browser"
+        android:src="@drawable/ic_open_in_new"
+        android:tint="@color/content_muted"
+        android:visibility="gone" />
+
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/settingResultSwitch"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:clickable="false"
+        android:focusable="false"
+        android:importantForAccessibility="no"
+        android:visibility="gone" />
+
+</LinearLayout>

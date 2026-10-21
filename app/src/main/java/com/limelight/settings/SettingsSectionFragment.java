@@ -1,0 +1,1349 @@
+package com.limelight.settings;
+
+import android.annotation.SuppressLint;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.res.Configuration;
+import android.os.Build;
+import android.os.Bundle;
+import android.text.TextUtils;
+import android.view.Display;
+import android.view.KeyEvent;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.ViewParent;
+import android.view.ViewTreeObserver;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.FrameLayout;
+import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
+import androidx.preference.ListPreference;
+import androidx.preference.Preference;
+import androidx.preference.PreferenceGroup;
+import androidx.preference.PreferenceManager;
+import androidx.preference.PreferenceScreen;
+import androidx.preference.TwoStatePreference;
+import androidx.recyclerview.widget.ConcatAdapter;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.SimpleItemAnimator;
+
+import com.limelight.ProfilesActivity;
+import com.limelight.R;
+import com.limelight.companion.CompanionDisplayManager;
+import com.limelight.main.MainHost;
+import com.limelight.main.SectionBack;
+import com.limelight.main.SectionFocus;
+import com.limelight.main.SectionKeys;
+import com.limelight.main.WindowClass;
+import com.limelight.preferences.PreferenceConfiguration;
+import com.limelight.preferences.SeekBarPreference;
+import com.limelight.preferences.SettingsHost;
+import com.limelight.preferences.StreamPreferencesFragment;
+import com.limelight.profiles.ProfilesManager;
+import com.limelight.profiles.SettingsProfile;
+import com.limelight.ui.MenuSheet;
+import com.limelight.utils.ServerHelper;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * The Settings section, after Settings_C: every stream setting in one list, in the catalogue's
+ * sections, under a header with search, the pinned card and jump chips.
+ *
+ * <p>The list is a {@link StreamPreferencesFragment}, the same one the settings activity used to
+ * host, with all of its device removals, listeners, dialogs and intents. This section adds ways
+ * to reach and change those same {@link Preference} objects; it never stores a value itself.
+ * Every change it makes goes through {@link SettingsEditor}, which asks the preference's change
+ * listener first, so a reset, a Left on a list row and a choice in its dialog have the same
+ * effects.
+ *
+ * <h3>Layout</h3>
+ *
+ * <pre>
+ *   wide (the Thor)          compact (a phone)               searching (either)
+ *   ┌────────────────────┐   ┌────────────────────┐          ┌────────────────────┐
+ *   │ header (fixed)     │   │ ┌ list ──────────┐ │          │ header: search bar │
+ *   ├────────────────────┤   │ │ header (item 0)│ │          │         filters    │
+ *   │ list               │   │ │ VIDEO 34       │ │          ├────────────────────┤
+ *   │                    │   │ │ rows…          │ │          │ results            │
+ *   └────────────────────┘   └─┴────────────────┴─┘          └────────────────────┘
+ * </pre>
+ *
+ * There is one header view; {@link #placeHeader()} hangs it in the fixed slot or makes it the
+ * list's first item ({@link SettingsHeaderAdapter}) as the window and the search mode require.
+ * A row's position in the list is therefore the header's count plus the settings adapter's own
+ * position ({@link #scrollToKey}).
+ *
+ * <h3>Keys</h3>
+ *
+ * <pre>
+ *   A / tap            a row's own click: toggle, dialog, page; a pin goes to its row
+ *   LEFT / RIGHT       on a list, slider or switch row: the next value, in place; at an end
+ *                      (or on any other row) the key goes on, so LEFT still reaches the rail
+ *   X / long-press     reset to default and pin or unpin; no single press resets a value
+ *   Y                  search, from anywhere; a letter typed on a keyboard starts one too
+ *   LB / RB            the previous and next chip at rest (Pinned, Video, …), jumping there;
+ *                      the previous and next filter while searching
+ *   B / back           leaves the search, then the section
+ * </pre>
+ *
+ * <h3>Being a section</h3>
+ *
+ * A section is shown and hidden, not resumed, so what the settings activity did on resume
+ * (the companion row's title) is also done when the section comes back into view. The list
+ * reloads itself through {@link SettingsHost} when a change reshapes it (unlock FPS, a custom
+ * resolution), and here also when the display's size changes, as the activity did; the row that
+ * had focus has it again in the new list.
+ *
+ * <p>The companion panel shows the idle hosts surface while Settings is on screen
+ * ({@code CompanionFeed.onSection}).
+ *
+ * Main thread only; every callback checks that the view still exists.
+ */
+public class SettingsSectionFragment extends Fragment
+        implements SectionKeys, SectionFocus, SectionBack, SettingsHost,
+        StreamPreferencesFragment.ListHeader, SettingsHeader.Listener, SettingsResultsAdapter.Host {
+
+    /** The tag the settings list is added under. */
+    public static final String TAG_LIST = "settings:list";
+
+    private static final String KEY_COMPANION_DISPLAY = "checkbox_enable_companion_display";
+    private static final String KEY_FULL_EX_DISPLAY = "checkbox_enable_fullexdisplay";
+    private static final String KEY_HELP = "pref_help";
+
+    private MainHost host;
+    private PinnedSettings pinned;
+    private SharedPreferences prefs;
+
+    @Nullable
+    private SettingsHeader header;
+    @Nullable
+    private SettingsHeaderAdapter headerAdapter;
+    @Nullable
+    private FrameLayout headerSlot;
+    @Nullable
+    private View listContainer;
+    @Nullable
+    private RecyclerView results;
+    @Nullable
+    private SettingsResultsAdapter resultsAdapter;
+
+    // The list view this section is listening to, and the list fragment it belongs to; replaced
+    // on every reload.
+    @Nullable
+    private RecyclerView wiredList;
+    @Nullable
+    private StreamPreferencesFragment wiredFragment;
+
+    private boolean wide;
+    private boolean searching;
+    @NonNull
+    private SettingsSearch.Filter filter = SettingsSearch.Filter.ALL;
+    // The section of the first row in view: the "on" chip, and LB / RB's start without a row.
+    @Nullable
+    private String onSection;
+
+    // Focus memory. Survives the view, so a section shown again lands where it was left.
+    @Nullable
+    private String lastFocusedKey;
+    // Where focus was when a search began, to put it back when the search ends.
+    @Nullable
+    private String keyBeforeSearch;
+    @Nullable
+    private View viewBeforeSearch;
+    // The row to focus once a reloaded list is up.
+    @Nullable
+    private String pendingFocusKey;
+
+    private int previousDisplayPixelCount;
+
+    private final SharedPreferences.OnSharedPreferenceChangeListener storedChange =
+            (sharedPreferences, key) -> onStoredChange(key);
+
+    // The manager may notify from any thread; the section redraws on its own.
+    private final ProfilesManager.ProfileChangeListener profilesChanged = () -> {
+        View view = getView();
+        if (view != null) {
+            view.post(this::refreshHeader);
+        }
+    };
+
+    private final ViewTreeObserver.OnGlobalFocusChangeListener focusChange =
+            (oldFocus, newFocus) -> onFocusChanged(newFocus);
+
+    private final RecyclerView.OnScrollListener listScrolled = new RecyclerView.OnScrollListener() {
+        @Override
+        public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+            updateOnChip();
+        }
+    };
+
+    private final FragmentManager.FragmentLifecycleCallbacks listLifecycle =
+            new FragmentManager.FragmentLifecycleCallbacks() {
+                @Override
+                public void onFragmentViewCreated(@NonNull FragmentManager fm, @NonNull Fragment f,
+                                                  @NonNull View v, @Nullable Bundle savedInstanceState) {
+                    if (f instanceof StreamPreferencesFragment && TAG_LIST.equals(f.getTag())) {
+                        wireList((StreamPreferencesFragment) f);
+                    }
+                }
+
+                @Override
+                public void onFragmentViewDestroyed(@NonNull FragmentManager fm, @NonNull Fragment f) {
+                    if (f == wiredFragment) {
+                        unwireList();
+                    }
+                }
+            };
+
+    public SettingsSectionFragment() {
+    }
+
+    @Override
+    public void onAttach(@NonNull Context context) {
+        super.onAttach(context);
+        if (!(context instanceof MainHost)) {
+            throw new IllegalStateException("SettingsSectionFragment needs a MainHost activity");
+        }
+        host = (MainHost) context;
+        pinned = new PinnedSettings(context);
+        prefs = PreferenceManager.getDefaultSharedPreferences(context);
+    }
+
+    @Nullable
+    @Override
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
+                             @Nullable Bundle savedInstanceState) {
+        return inflater.inflate(R.layout.fragment_settings, container, false);
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        headerSlot = view.findViewById(R.id.settingsHeaderSlot);
+        listContainer = view.findViewById(R.id.settingsList);
+        results = view.findViewById(R.id.settingsResults);
+
+        View headerView = LayoutInflater.from(view.getContext())
+                .inflate(R.layout.view_settings_header, headerSlot, false);
+        header = new SettingsHeader(headerView, this);
+        headerAdapter = new SettingsHeaderAdapter(headerView);
+        wide = WindowClass.from(getResources().getConfiguration().screenWidthDp) == WindowClass.WIDE;
+        header.setWide(wide, host.isDpadFirst());
+        // Before the list is made: its adapter asks for the header's at once.
+        placeHeader();
+
+        resultsAdapter = new SettingsResultsAdapter(this);
+        results.setLayoutManager(new LinearLayoutManager(view.getContext()));
+        results.setAdapter(resultsAdapter);
+        noChangeAnimations(results);
+        // The rows take focus, never the list itself.
+        results.setFocusable(false);
+
+        getChildFragmentManager().registerFragmentLifecycleCallbacks(listLifecycle, false);
+        StreamPreferencesFragment list = list();
+        if (list == null) {
+            getChildFragmentManager().beginTransaction()
+                    .replace(R.id.settingsList, new StreamPreferencesFragment(), TAG_LIST)
+                    .commitNow();
+        } else if (list.getView() != null) {
+            wireList(list);
+        }
+
+        prefs.registerOnSharedPreferenceChangeListener(storedChange);
+        ProfilesManager.getInstance().addListener(profilesChanged);
+        view.getViewTreeObserver().addOnGlobalFocusChangeListener(focusChange);
+        // The panel shown or hidden from the host sheet while this list is up: the companion
+        // row's title says what a click does, so it follows.
+        CompanionDisplayManager.panelShowing().observe(getViewLifecycleOwner(),
+                showing -> refreshCompanionRow());
+        previousDisplayPixelCount = displayPixelCount();
+        refreshHeader();
+    }
+
+    @Override
+    public void onDestroyView() {
+        View view = getView();
+        if (view != null && view.getViewTreeObserver().isAlive()) {
+            view.getViewTreeObserver().removeOnGlobalFocusChangeListener(focusChange);
+        }
+        prefs.unregisterOnSharedPreferenceChangeListener(storedChange);
+        ProfilesManager.getInstance().removeListener(profilesChanged);
+        getChildFragmentManager().unregisterFragmentLifecycleCallbacks(listLifecycle);
+        unwireList();
+        if (results != null) {
+            results.setAdapter(null);
+        }
+        header = null;
+        headerAdapter = null;
+        headerSlot = null;
+        listContainer = null;
+        results = null;
+        resultsAdapter = null;
+        viewBeforeSearch = null;
+        super.onDestroyView();
+    }
+
+    @Override
+    public void onHiddenChanged(boolean hidden) {
+        super.onHiddenChanged(hidden);
+        if (hidden) {
+            // A keyboard left up over another section would type into nothing there.
+            hideKeyboard();
+        } else {
+            // What the settings activity did on resume: the companion may have been switched on
+            // or off, shown or hidden, while another section was up.
+            refreshCompanionRow();
+            if (header != null) {
+                // A pad may have been connected meanwhile.
+                header.setWide(wide, host.isDpadFirst());
+            }
+            refreshHeader();
+        }
+    }
+
+    @Override
+    public void onConfigurationChanged(@NonNull Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        if (header == null) {
+            return;
+        }
+        boolean nextWide = WindowClass.from(newConfig.screenWidthDp) == WindowClass.WIDE;
+        if (nextWide != wide) {
+            View focus = currentFocus();
+            boolean headerHadFocus = header.contains(focus);
+            wide = nextWide;
+            header.setWide(wide, host.isDpadFirst());
+            placeHeader();
+            refreshHeader();
+            if (headerHadFocus) {
+                // Moved between the slot and the list, and focus did not come along.
+                View target = searching ? header.field() : header.searchRest();
+                target.requestFocus();
+            }
+        }
+        // As the settings activity did: a display of another size (a foldable's other screen) is
+        // a new display, with other resolutions and frame rates to offer. The display id stays
+        // the same between a foldable's screens, so the size is what tells them apart.
+        int pixels = displayPixelCount();
+        if (pixels != previousDisplayPixelCount) {
+            reloadPreferences();
+        }
+    }
+
+    // --- The list ---
+
+    @Nullable
+    private StreamPreferencesFragment list() {
+        if (!isAdded()) {
+            return null;
+        }
+        Fragment f = getChildFragmentManager().findFragmentByTag(TAG_LIST);
+        return f instanceof StreamPreferencesFragment ? (StreamPreferencesFragment) f : null;
+    }
+
+    @Nullable
+    private PreferenceScreen screen() {
+        StreamPreferencesFragment list = list();
+        return list != null ? list.getPreferenceScreen() : null;
+    }
+
+    @Nullable
+    private SettingsAdapter settingsAdapter() {
+        StreamPreferencesFragment list = list();
+        return list != null ? list.getSettingsAdapter() : null;
+    }
+
+    @Nullable
+    private RecyclerView listView() {
+        StreamPreferencesFragment list = list();
+        return list != null && list.getView() != null ? list.getListView() : null;
+    }
+
+    @NonNull
+    @Override
+    public RecyclerView.Adapter<?> listHeaderAdapter() {
+        if (headerAdapter == null) {
+            throw new IllegalStateException("The settings list was made without this section's view");
+        }
+        return headerAdapter;
+    }
+
+    /** A list fragment's view is up: listen to it, and put back the focus a reload took. */
+    private void wireList(@NonNull StreamPreferencesFragment fragment) {
+        unwireList();
+        RecyclerView list = fragment.getListView();
+        wiredFragment = fragment;
+        wiredList = list;
+        list.addOnScrollListener(listScrolled);
+        // A value changed in place rebinds its row; the change animation would swap the row's
+        // view for a new one, and the d-pad would lose it on every Left and Right.
+        noChangeAnimations(list);
+        SettingsAdapter adapter = fragment.getSettingsAdapter();
+        if (adapter != null) {
+            adapter.setRowLongPressListener(this::showRowMenu);
+        }
+        refreshHeader();
+        if (searching) {
+            runSearch();
+        }
+        final String key = pendingFocusKey;
+        pendingFocusKey = null;
+        if (key != null && !searching) {
+            list.post(() -> scrollToKey(key, true));
+        }
+    }
+
+    private void unwireList() {
+        RecyclerView list = wiredList;
+        if (list != null) {
+            list.removeOnScrollListener(listScrolled);
+            RecyclerView.Adapter<?> adapter = list.getAdapter();
+            if (adapter instanceof ConcatAdapter && headerAdapter != null) {
+                // The header's adapter outlives the list; left in the old list's adapter, it
+                // would keep that list, and its whole settings screen, reachable.
+                ((ConcatAdapter) adapter).removeAdapter(headerAdapter);
+            }
+            list.setAdapter(null);
+        }
+        wiredList = null;
+        wiredFragment = null;
+    }
+
+    private static void noChangeAnimations(RecyclerView list) {
+        RecyclerView.ItemAnimator animator = list.getItemAnimator();
+        if (animator instanceof SimpleItemAnimator) {
+            ((SimpleItemAnimator) animator).setSupportsChangeAnimations(false);
+        }
+    }
+
+    /**
+     * Hangs the header where the window and the mode want it: in the list as its first item in a
+     * compact window at rest, in the fixed slot otherwise.
+     */
+    private void placeHeader() {
+        if (header == null || headerAdapter == null || headerSlot == null) {
+            return;
+        }
+        View view = header.view();
+        boolean inList = !wide && !searching;
+        if (inList) {
+            if (view.getParent() == headerSlot) {
+                headerSlot.removeView(view);
+            }
+            // The item's bind takes the view in.
+            headerAdapter.setShown(true);
+        } else {
+            headerAdapter.setShown(false);
+            ViewParent parent = view.getParent();
+            if (parent != headerSlot) {
+                if (parent instanceof ViewGroup) {
+                    ((ViewGroup) parent).removeView(view);
+                }
+                headerSlot.addView(view);
+            }
+        }
+    }
+
+    private int headerOffset() {
+        return headerAdapter != null ? headerAdapter.getItemCount() : 0;
+    }
+
+    /**
+     * Scrolls the list to a key's row (or a section's header) and, if asked, focuses it once it
+     * is laid out. {@code scrollToPreference} cannot be used: it refuses an adapter that is not
+     * androidx's own, and the list's is a {@link ConcatAdapter} under a header.
+     *
+     * @return false when the list does not have the key
+     */
+    private boolean scrollToKey(@NonNull String key, boolean focus) {
+        RecyclerView list = listView();
+        SettingsAdapter adapter = settingsAdapter();
+        if (list == null || adapter == null
+                || !(list.getLayoutManager() instanceof LinearLayoutManager)) {
+            return false;
+        }
+        int local = adapter.getPreferenceAdapterPosition(key);
+        if (local == RecyclerView.NO_POSITION) {
+            return false;
+        }
+        final int position = headerOffset() + local;
+        boolean sectionHeader = key.startsWith(SectionCategory.KEY_PREFIX);
+        // A row lands a little below the top, so the rows before it still say where it is.
+        int offset = sectionHeader ? 0 : list.getHeight() / 4;
+        ((LinearLayoutManager) list.getLayoutManager()).scrollToPositionWithOffset(position, offset);
+        if (focus) {
+            list.post(() -> focusPosition(position));
+        }
+        return true;
+    }
+
+    private void focusPosition(int position) {
+        RecyclerView list = listView();
+        if (list == null) {
+            return;
+        }
+        RecyclerView.ViewHolder holder = list.findViewHolderForAdapterPosition(position);
+        if (holder != null && holder.itemView.isShown()) {
+            holder.itemView.requestFocus();
+        }
+    }
+
+    /** The list row of a key on screen, or null. */
+    @Nullable
+    private View rowViewFor(@Nullable String key) {
+        RecyclerView list = listView();
+        SettingsAdapter adapter = settingsAdapter();
+        if (key == null || list == null || adapter == null || searching) {
+            return null;
+        }
+        int local = adapter.getPreferenceAdapterPosition(key);
+        if (local == RecyclerView.NO_POSITION) {
+            return null;
+        }
+        RecyclerView.ViewHolder holder = list.findViewHolderForAdapterPosition(headerOffset() + local);
+        return holder != null && holder.itemView.isShown() && holder.itemView.isFocusable()
+                ? holder.itemView : null;
+    }
+
+    /** The first row in view that takes focus, or null. */
+    @Nullable
+    private View firstRowInView() {
+        RecyclerView list = listView();
+        if (list == null) {
+            return null;
+        }
+        for (int i = 0; i < list.getChildCount(); i++) {
+            View child = list.getChildAt(i);
+            RecyclerView.ViewHolder holder = list.getChildViewHolder(child);
+            if (holder.getBindingAdapter() instanceof SettingsAdapter && child.isFocusable()
+                    && child.isShown()) {
+                return child;
+            }
+        }
+        return null;
+    }
+
+    /** The setting a focused view is the row of, in the list or among the results; else null. */
+    @Nullable
+    private Preference preferenceAt(@Nullable View focus) {
+        if (focus == null) {
+            return null;
+        }
+        RecyclerView list = listView();
+        if (!searching && list != null && isWithin(focus, list)) {
+            RecyclerView.ViewHolder holder = list.findContainingViewHolder(focus);
+            if (holder != null && holder.getBindingAdapter() instanceof SettingsAdapter) {
+                int position = holder.getBindingAdapterPosition();
+                if (position != RecyclerView.NO_POSITION) {
+                    Preference p = ((SettingsAdapter) holder.getBindingAdapter()).getItem(position);
+                    return p != null && p.getKey() != null && !(p instanceof PreferenceGroup)
+                            ? p : null;
+                }
+            }
+            return null;
+        }
+        if (searching && results != null && resultsAdapter != null && isWithin(focus, results)) {
+            RecyclerView.ViewHolder holder = results.findContainingViewHolder(focus);
+            String key = holder != null ? resultsAdapter.keyAt(holder.getBindingAdapterPosition()) : null;
+            return key != null ? find(key) : null;
+        }
+        return null;
+    }
+
+    // --- Reloading ---
+
+    @Override
+    public void reloadPreferences() {
+        if (!isAdded() || getView() == null) {
+            return;
+        }
+        Preference focused = preferenceAt(currentFocus());
+        pendingFocusKey = focused != null ? focused.getKey() : null;
+        previousDisplayPixelCount = displayPixelCount();
+        getChildFragmentManager().beginTransaction()
+                .replace(R.id.settingsList, new StreamPreferencesFragment(), TAG_LIST)
+                .commitNowAllowingStateLoss();
+    }
+
+    private int displayPixelCount() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || getActivity() == null) {
+            return 0;
+        }
+        Display display = ServerHelper.getActiveDisplay(requireActivity(),
+                PreferenceConfiguration.readPreferences(requireContext()));
+        Display.Mode mode = display.getMode();
+        return mode.getPhysicalWidth() * mode.getPhysicalHeight();
+    }
+
+    // --- Stored changes ---
+
+    private void onStoredChange(@Nullable String key) {
+        if (!isAdded() || getView() == null) {
+            return;
+        }
+        refreshHeader();
+        if (searching && resultsAdapter != null) {
+            // A result's value, a dependent's enabled state: read again from the preferences.
+            resultsAdapter.refreshValues();
+        }
+        if (KEY_COMPANION_DISPLAY.equals(key) || KEY_FULL_EX_DISPLAY.equals(key)) {
+            refreshCompanionRow();
+        }
+    }
+
+    private void refreshCompanionRow() {
+        StreamPreferencesFragment list = list();
+        if (list != null && list.getPreferenceScreen() != null) {
+            list.refreshCompanionScreenEntry();
+        }
+    }
+
+    // --- The header ---
+
+    /** Draws the header at rest from the live list: the count, the profile, the card, the chips. */
+    private void refreshHeader() {
+        PreferenceScreen screen = screen();
+        SettingsAdapter adapter = settingsAdapter();
+        if (header == null || screen == null || adapter == null || !isAdded()) {
+            return;
+        }
+        SettingsDefaults defaults = adapter.getDefaults();
+        Set<String> visible = SettingsIndex.visibleKeys(screen);
+        Set<String> changed = SettingsIndex.changedKeys(screen, defaults, prefs);
+        List<SettingsHeader.Pin> pins = new ArrayList<>();
+        SettingsProfile profile = ProfilesManager.getInstance().getActive();
+        Map<String, Object> overrides = profile != null ? profile.getOptions() : null;
+        for (String key : pinned.shown(visible)) {
+            Preference p = screen.findPreference(key);
+            if (p != null) {
+                pins.add(pinFor(p, changed.contains(key), overrides));
+            }
+        }
+        String name = ProfilesManager.getInstance().getActiveName().trim();
+        header.bindRest(visible.size(), name.isEmpty() ? null : name, changed.size(), pins,
+                SettingsIndex.sectionsShown(screen, SettingsCatalog.get()));
+        updateOnChip();
+    }
+
+    private SettingsHeader.Pin pinFor(Preference p, boolean changed,
+                                      @Nullable Map<String, Object> overrides) {
+        String key = p.getKey();
+        CharSequence label = pinLabel(p);
+        boolean fromProfile = overrides != null && overrides.containsKey(key);
+        CharSequence value;
+        if (fromProfile) {
+            Object override = overrides.get(key);
+            value = PreferenceConfiguration.BITRATE_PREF_STRING.equals(key) && !wide
+                    && override instanceof Number
+                    ? mbps(((Number) override).intValue()) : SettingValues.displayFor(p, override);
+        } else if (p instanceof TwoStatePreference) {
+            value = SettingValues.onOff(p, ((TwoStatePreference) p).isChecked());
+        } else if (PreferenceConfiguration.BITRATE_PREF_STRING.equals(key) && !wide
+                && p instanceof SeekBarPreference) {
+            // The phone card's pill is a fifth of the width: the number alone, "Mbps" below it.
+            value = mbps(((SeekBarPreference) p).getValue());
+        } else {
+            value = SettingValues.display(p);
+        }
+        return new SettingsHeader.Pin(key, label, value != null ? value : "", changed, fromProfile);
+    }
+
+    private CharSequence pinLabel(Preference p) {
+        String key = p.getKey();
+        if (PreferenceConfiguration.RESOLUTION_PREF_STRING.equals(key)) {
+            return getString(wide ? R.string.settings_pin_resolution
+                    : R.string.settings_pin_resolution_short);
+        }
+        if (PreferenceConfiguration.FPS_PREF_STRING.equals(key)) {
+            return getString(R.string.settings_pin_fps);
+        }
+        if (PreferenceConfiguration.BITRATE_PREF_STRING.equals(key)) {
+            return getString(wide ? R.string.settings_pin_bitrate : R.string.settings_pin_bitrate_short);
+        }
+        if ("video_format".equals(key)) {
+            return getString(R.string.settings_pin_codec);
+        }
+        if ("checkbox_enable_hdr".equals(key)) {
+            return getString(R.string.settings_pin_hdr);
+        }
+        return p.getTitle() != null ? p.getTitle() : key;
+    }
+
+    // "40", "40.5": a bitrate in Mbps without its unit, for the phone card.
+    private static String mbps(int kbps) {
+        return kbps % 1000 == 0 ? String.valueOf(kbps / 1000)
+                : String.format(Locale.getDefault(), "%.1f", kbps / 1000f);
+    }
+
+    /** The "on" chip follows the section of the first row in view. */
+    private void updateOnChip() {
+        RecyclerView list = listView();
+        SettingsAdapter adapter = settingsAdapter();
+        if (header == null || list == null || adapter == null || searching
+                || !(list.getLayoutManager() instanceof LinearLayoutManager)) {
+            return;
+        }
+        int first = ((LinearLayoutManager) list.getLayoutManager()).findFirstVisibleItemPosition();
+        int local = Math.max(0, first - headerOffset());
+        String section = null;
+        if (first != RecyclerView.NO_POSITION && local < adapter.getItemCount()) {
+            Preference p = adapter.getItem(local);
+            SectionCategory category = p instanceof SectionCategory ? (SectionCategory) p
+                    : p != null ? SettingsIndex.sectionOf(p) : null;
+            section = category != null ? SettingsIndex.sectionIdOf(category) : null;
+        }
+        onSection = section;
+        header.setOnSection(section);
+    }
+
+    private void updateSticky(@NonNull Preference p) {
+        if (header == null) {
+            return;
+        }
+        SectionCategory section = SettingsIndex.sectionOf(p);
+        int[] place = SettingsIndex.placeInSection(p);
+        SettingsCatalog.Subgroup subgroup = SettingsCatalog.get().subgroupOf(p.getKey());
+        if (section == null || place == null || section.getTitle() == null) {
+            header.setSticky(null);
+            return;
+        }
+        String group = subgroup != null ? getString(subgroup.title) : "";
+        header.setSticky(getString(R.string.settings_sticky, section.getTitle(), group,
+                place[0], place[1]));
+    }
+
+    // --- Focus ---
+
+    private void onFocusChanged(@Nullable View focus) {
+        if (focus == null || !isOnScreen()) {
+            return;
+        }
+        Preference p = preferenceAt(focus);
+        if (p != null && !searching) {
+            lastFocusedKey = p.getKey();
+            updateSticky(p);
+        }
+    }
+
+    @Nullable
+    @Override
+    public View restoreFocusTarget() {
+        if (!isAdded() || getView() == null || header == null) {
+            return null;
+        }
+        if (searching) {
+            View row = firstResult();
+            return row != null ? row : header.field();
+        }
+        View row = rowViewFor(lastFocusedKey);
+        if (row != null) {
+            return row;
+        }
+        row = firstRowInView();
+        return row != null ? row : header.searchRest();
+    }
+
+    @Override
+    public void requestInitialFocus() {
+        if (!isAdded() || getView() == null) {
+            return;
+        }
+        View target = restoreFocusTarget();
+        if (target != null) {
+            target.requestFocus();
+        }
+        RecyclerView list = listView();
+        if (list != null && (target == null || header == null || target == header.searchRest())) {
+            // Shown for the first time: the rows may not be laid out yet.
+            list.post(() -> {
+                if (!isOnScreen()) {
+                    return;
+                }
+                View row = rowViewFor(lastFocusedKey);
+                if (row == null) {
+                    row = firstRowInView();
+                }
+                if (row != null) {
+                    row.requestFocus();
+                }
+            });
+        }
+    }
+
+    @Nullable
+    private View firstResult() {
+        if (results == null || resultsAdapter == null) {
+            return null;
+        }
+        int position = resultsAdapter.firstStop();
+        RecyclerView.ViewHolder holder = position == RecyclerView.NO_POSITION ? null
+                : results.findViewHolderForAdapterPosition(position);
+        return holder != null && holder.itemView.isShown() ? holder.itemView : null;
+    }
+
+    // --- Back ---
+
+    @Override
+    public boolean hasBackWork() {
+        return searching;
+    }
+
+    @Override
+    public void onBack() {
+        leaveSearch();
+    }
+
+    // --- Keys ---
+
+    @Override
+    public boolean onSectionKey(KeyEvent event) {
+        if (!isOnScreen() || header == null) {
+            return false;
+        }
+        int code = event.getKeyCode();
+        boolean first = event.getRepeatCount() == 0;
+        View focus = currentFocus();
+        switch (code) {
+            case KeyEvent.KEYCODE_BUTTON_Y:
+                if (first) {
+                    enterSearch(true);
+                }
+                return true;
+            case KeyEvent.KEYCODE_BUTTON_L1:
+            case KeyEvent.KEYCODE_BUTTON_R1:
+                if (first) {
+                    cycleChip(code == KeyEvent.KEYCODE_BUTTON_R1 ? 1 : -1, focus);
+                }
+                return true;
+            case KeyEvent.KEYCODE_BUTTON_X: {
+                if (!first) {
+                    return true;
+                }
+                Preference p = preferenceAt(focus);
+                if (p == null) {
+                    String pin = header.pinKeyOf(focus);
+                    p = pin != null ? find(pin) : null;
+                }
+                return p != null && focus != null && showRowMenu(p, focus);
+            }
+            case KeyEvent.KEYCODE_DPAD_LEFT:
+            case KeyEvent.KEYCODE_DPAD_RIGHT: {
+                Preference p = preferenceAt(focus);
+                Boolean moved = p != null
+                        ? editInPlace(p, code == KeyEvent.KEYCODE_DPAD_RIGHT ? 1 : -1) : null;
+                if (moved == null) {
+                    return false;
+                }
+                // At an end the first press goes on (LEFT to the rail); a held key does not, or
+                // holding it down a list would carry focus off the row once the list ran out.
+                return moved || !first;
+            }
+            case KeyEvent.KEYCODE_BUTTON_A:
+                if (searching && focus == header.field() && first) {
+                    showKeyboard();
+                    return true;
+                }
+                return false;
+            default:
+                break;
+        }
+        // Typed on a hardware keyboard away from the field: a search starts, and since the key
+        // is not consumed, the activity hands it on to the field, where it is typed.
+        if (first && startsTyping(event) && focus != header.field()) {
+            enterSearch(false);
+        }
+        return false;
+    }
+
+    /**
+     * Left or Right on a row, without a dialog. Null for a row that has no next value (an
+     * action, a text): the key then moves focus as usual.
+     */
+    @Nullable
+    private static Boolean editInPlace(@NonNull Preference p, int dir) {
+        if (p instanceof ListPreference) {
+            return SettingsEditor.cycle((ListPreference) p, dir);
+        }
+        if (p instanceof SeekBarPreference) {
+            return SettingsEditor.step((SeekBarPreference) p, dir);
+        }
+        if (p instanceof TwoStatePreference) {
+            return SettingsEditor.set((TwoStatePreference) p, dir > 0);
+        }
+        return null;
+    }
+
+    // A letter or digit only: space and enter confirm a focused row, and a gamepad button has
+    // no character at all.
+    private static boolean startsTyping(KeyEvent event) {
+        if (event.isCtrlPressed() || event.isAltPressed() || event.isMetaPressed()) {
+            return false;
+        }
+        int c = event.getUnicodeChar();
+        return c != 0 && Character.isLetterOrDigit(c);
+    }
+
+    /**
+     * LB / RB. At rest, from the chip in focus, the card, or the section of the row in focus (of
+     * the first row in view otherwise), to the previous or next chip, jumping there. Searching,
+     * to the previous or next filter.
+     */
+    private void cycleChip(int dir, @Nullable View focus) {
+        if (header == null) {
+            return;
+        }
+        if (searching) {
+            List<SettingsSearch.Filter> filters = header.filterChips();
+            int next = filters.indexOf(filter) + dir;
+            if (next >= 0 && next < filters.size()) {
+                onFilterChosen(filters.get(next));
+                View chip = header.chipAt(next);
+                if (chip != null && header.contains(focus)) {
+                    chip.requestFocus();
+                }
+            }
+            return;
+        }
+        List<String> targets = header.jumpTargets();
+        int base;
+        String chip = header.jumpOf(focus);
+        if (!"".equals(chip)) {
+            base = targets.indexOf(chip);
+        } else if (header.isOnCard(focus)) {
+            // The card is above the first section: Pinned on a wide window's chips, before the
+            // first chip on a phone's.
+            base = targets.indexOf(null);
+        } else {
+            Preference p = preferenceAt(focus);
+            SectionCategory section = p != null ? SettingsIndex.sectionOf(p) : null;
+            String id = section != null ? SettingsIndex.sectionIdOf(section) : onSection;
+            base = id != null ? targets.indexOf(id) : -1;
+        }
+        int next = base + dir;
+        if (next < 0 || next >= targets.size()) {
+            return;
+        }
+        onJumpChosen(targets.get(next));
+    }
+
+    // --- Header choices ---
+
+    @Override
+    public void onSearchRequested() {
+        enterSearch(true);
+    }
+
+    @Override
+    public void onSearchLeave() {
+        leaveSearch();
+    }
+
+    @Override
+    public void onQueryChanged(@NonNull String query) {
+        if (!searching) {
+            return;
+        }
+        runSearch();
+    }
+
+    @Override
+    public void onQuerySubmitted() {
+        hideKeyboard();
+        if (results != null) {
+            results.post(() -> {
+                View row = firstResult();
+                if (row != null) {
+                    row.requestFocus();
+                }
+            });
+        }
+    }
+
+    @Override
+    public void onProfileRequested(@NonNull View anchor) {
+        ProfilesManager profiles = ProfilesManager.getInstance();
+        SettingsProfile active = profiles.getActive();
+        MenuSheet sheet = new MenuSheet(requireContext())
+                .setTitle(getString(R.string.settings_pin_profile));
+        for (SettingsProfile profile : profiles.getProfiles()) {
+            final SettingsProfile chosen = profile;
+            sheet.addChecked(profile.getName(),
+                    active != null && active.getUuid().equals(profile.getUuid()),
+                    () -> ProfilesManager.getInstance().setActive(chosen.getUuid()));
+        }
+        if (!profiles.getProfiles().isEmpty()) {
+            sheet.addChecked(getString(R.string.settings_profile_none), active == null,
+                    () -> ProfilesManager.getInstance().setActive(null));
+        }
+        sheet.add(getString(R.string.settings_profile_manage),
+                () -> startActivity(new Intent(requireContext(), ProfilesActivity.class)));
+        show(sheet, anchor);
+    }
+
+    @Override
+    public void onPinChosen(@NonNull String key) {
+        scrollToKey(key, true);
+    }
+
+    @Override
+    public boolean onPinLongPressed(@NonNull String key, @NonNull View pin) {
+        Preference p = find(key);
+        return p != null && showRowMenu(p, pin);
+    }
+
+    @Override
+    public void onJumpChosen(@Nullable String sectionId) {
+        if (header == null) {
+            return;
+        }
+        if (sectionId == null) {
+            focusCard();
+            return;
+        }
+        PreferenceScreen screen = screen();
+        if (screen == null) {
+            return;
+        }
+        Preference row = SettingsIndex.firstRow(screen, sectionId);
+        scrollToKey(SectionCategory.KEY_PREFIX + sectionId, false);
+        header.setOnSection(sectionId);
+        RecyclerView list = listView();
+        if (row != null && list != null) {
+            final String key = row.getKey();
+            list.post(() -> {
+                View view = rowViewFor(key);
+                if (view != null) {
+                    view.requestFocus();
+                }
+            });
+        }
+    }
+
+    private void focusCard() {
+        if (header == null) {
+            return;
+        }
+        RecyclerView list = listView();
+        if (!wide && list != null) {
+            // The card is the list's first item on a phone: back to the top for it.
+            list.scrollToPosition(0);
+            list.post(() -> {
+                View pin = header != null ? header.firstPin() : null;
+                if (pin != null) {
+                    pin.requestFocus();
+                }
+            });
+            return;
+        }
+        View pin = header.firstPin();
+        if (pin != null) {
+            pin.requestFocus();
+        }
+    }
+
+    @Override
+    public void onFilterChosen(@NonNull SettingsSearch.Filter chosen) {
+        filter = chosen;
+        runSearch();
+    }
+
+    @Override
+    public void onChangedChosen() {
+        enterSearch(false);
+        filter = SettingsSearch.Filter.CHANGED;
+        runSearch();
+        if (results != null) {
+            results.post(() -> {
+                View row = firstResult();
+                if (row != null) {
+                    row.requestFocus();
+                }
+            });
+        }
+    }
+
+    // --- Search ---
+
+    private void enterSearch(boolean keyboard) {
+        if (header == null || results == null || listContainer == null) {
+            return;
+        }
+        if (!searching) {
+            View focus = currentFocus();
+            Preference p = preferenceAt(focus);
+            keyBeforeSearch = p != null ? p.getKey() : null;
+            viewBeforeSearch = p == null ? focus : null;
+            searching = true;
+            filter = SettingsSearch.Filter.ALL;
+            header.setSearching(true);
+            header.resetChips();
+            placeHeader();
+            listContainer.setVisibility(View.GONE);
+            results.setVisibility(View.VISIBLE);
+            host.backWorkChanged();
+            runSearch();
+        }
+        header.field().requestFocus();
+        if (keyboard) {
+            showKeyboard();
+        }
+    }
+
+    private void leaveSearch() {
+        if (!searching || header == null || results == null || listContainer == null
+                || resultsAdapter == null) {
+            return;
+        }
+        hideKeyboard();
+        searching = false;
+        filter = SettingsSearch.Filter.ALL;
+        header.setSearching(false);
+        header.resetChips();
+        resultsAdapter.submit(Collections.<SettingsResultsAdapter.Item>emptyList());
+        results.setVisibility(View.GONE);
+        listContainer.setVisibility(View.VISIBLE);
+        placeHeader();
+        refreshHeader();
+        host.backWorkChanged();
+
+        final String key = keyBeforeSearch;
+        final View view = viewBeforeSearch;
+        keyBeforeSearch = null;
+        viewBeforeSearch = null;
+        if (key != null && scrollToKey(key, true)) {
+            return;
+        }
+        View target = view != null && view.isAttachedToWindow() && view.isShown() ? view
+                : header.searchRest();
+        target.requestFocus();
+        if (!target.isFocused()) {
+            // Laid out again after the header moved; ask once that is done.
+            target.post(target::requestFocus);
+        }
+    }
+
+    /** Runs the query against the live list and shows what it finds. */
+    private void runSearch() {
+        PreferenceScreen screen = screen();
+        SettingsAdapter adapter = settingsAdapter();
+        if (header == null || resultsAdapter == null || results == null || screen == null
+                || adapter == null) {
+            return;
+        }
+        // Built again each time, from the rows shown right now: a row can come and go at run
+        // time (the companion row), and 144 entries cost nothing to fold.
+        SettingsSearch search = SettingsIndex.search(screen, SettingsCatalog.get());
+        Set<String> changed = SettingsIndex.changedKeys(screen, adapter.getDefaults(), prefs);
+        String query = header.query();
+        SettingsSearch.Result result = search.search(query, filter, changed);
+        header.bindFilters(result, filter);
+        header.setAlsoMatches(result.usedSynonyms.isEmpty() ? null
+                : TextUtils.join(", ", result.usedSynonyms));
+
+        Context context = requireContext();
+        List<SettingsResultsAdapter.Item> items = new ArrayList<>();
+        if (result.groups.isEmpty()) {
+            boolean noQuery = SettingsSearch.fold(query).isEmpty();
+            if (filter.changedOnly && changed.isEmpty()) {
+                items.add(SettingsResultsAdapter.Item.note(getString(R.string.settings_nothing_changed)));
+            } else if (!noQuery) {
+                items.add(SettingsResultsAdapter.Item.note(
+                        getString(R.string.settings_no_match, query.trim())));
+                Preference help = screen.findPreference(KEY_HELP);
+                if (help != null && help.isVisible() && help.getTitle() != null) {
+                    items.add(SettingsResultsAdapter.Item.help(help.getTitle()));
+                }
+            }
+        } else {
+            for (SettingsSearch.Group group : result.groups) {
+                items.add(SettingsResultsAdapter.Item.header(group.sectionTitle));
+                for (SettingsSearch.Entry entry : group.entries) {
+                    items.add(SettingsResultsAdapter.Item.row(entry.key,
+                            SettingsIndex.breadcrumb(context, entry)));
+                }
+            }
+        }
+        boolean focusInResults = results.hasFocus();
+        resultsAdapter.submit(items);
+        if (focusInResults) {
+            // The focused row was filtered away and took focus with it: the field has it back.
+            results.post(() -> {
+                if (header != null && results != null && !results.hasFocus() && isOnScreen()
+                        && currentFocus() == null) {
+                    header.field().requestFocus();
+                }
+            });
+        }
+    }
+
+    // --- Results ---
+
+    @Nullable
+    @Override
+    public Preference find(@NonNull String key) {
+        StreamPreferencesFragment list = list();
+        return list != null ? list.findPreference(key) : null;
+    }
+
+    @Nullable
+    @Override
+    public SettingsDefaults defaults() {
+        SettingsAdapter adapter = settingsAdapter();
+        return adapter != null ? adapter.getDefaults() : null;
+    }
+
+    @Nullable
+    @Override
+    public SharedPreferences prefs() {
+        return prefs;
+    }
+
+    /**
+     * A result's click is its preference's own, as on the list: a switch flips (through its
+     * change listener), a list or slider opens its dialog, an action runs.
+     */
+    @SuppressLint("RestrictedApi") // the click a row in the list would give it, from elsewhere
+    @Override
+    public void onResultClicked(@NonNull String key) {
+        Preference p = find(key);
+        if (p != null) {
+            hideKeyboard();
+            p.performClick();
+        }
+    }
+
+    @Override
+    public boolean onResultLongPressed(@NonNull String key, @NonNull View row) {
+        Preference p = find(key);
+        return p != null && showRowMenu(p, row);
+    }
+
+    @SuppressLint("RestrictedApi")
+    @Override
+    public void onSearchHelp() {
+        Preference help = find(KEY_HELP);
+        if (help != null) {
+            hideKeyboard();
+            help.performClick();
+        }
+    }
+
+    // --- A row's menu ---
+
+    /**
+     * X or a long-press on a row or a pin: "Reset to default ({default})" while the value is
+     * not its default, and "Pin to top" or "Unpin" for anything but the essentials. No single
+     * press resets a value: the reset is always a choice in this menu.
+     *
+     * @return false when the row has nothing to offer
+     */
+    private boolean showRowMenu(@NonNull Preference p, @NonNull View anchor) {
+        final String key = p.getKey();
+        final SettingsDefaults defaults = defaults();
+        if (key == null || !isAdded()) {
+            return false;
+        }
+        MenuSheet sheet = new MenuSheet(requireContext());
+        if (p.getTitle() != null) {
+            sheet.setTitle(p.getTitle());
+        }
+        if (defaults != null && p.isEnabled() && defaults.isChanged(p, prefs)) {
+            CharSequence def = SettingValues.displayFor(p, defaults.defaultFor(key, prefs));
+            if (def != null) {
+                sheet.add(getString(R.string.settings_row_reset, def),
+                        () -> SettingsEditor.reset(p, defaults, prefs));
+            }
+        }
+        if (!PinnedSettings.isEssential(key)) {
+            if (pinned.isPinned(key)) {
+                sheet.add(getString(R.string.settings_row_unpin), () -> {
+                    pinned.unpin(key);
+                    refreshHeader();
+                });
+            } else {
+                sheet.add(getString(R.string.settings_row_pin), () -> {
+                    if (!pinned.pin(key)) {
+                        Toast.makeText(requireContext(), getString(R.string.settings_pins_full,
+                                PinnedSettings.MAX_USER_PINS), Toast.LENGTH_SHORT).show();
+                    }
+                    refreshHeader();
+                });
+            }
+        }
+        if (sheet.isEmpty()) {
+            return false;
+        }
+        show(sheet, anchor);
+        return true;
+    }
+
+    private void show(@NonNull MenuSheet sheet, @NonNull View anchor) {
+        hideKeyboard();
+        if (wide) {
+            sheet.showAnchored(anchor);
+        } else {
+            sheet.showBottom(requireContext());
+        }
+    }
+
+    // --- Keyboard ---
+
+    private void showKeyboard() {
+        InputMethodManager imm = ContextCompat.getSystemService(requireContext(), InputMethodManager.class);
+        if (imm != null && header != null) {
+            imm.showSoftInput(header.field(), 0);
+        }
+    }
+
+    private void hideKeyboard() {
+        if (!isAdded() || header == null) {
+            return;
+        }
+        InputMethodManager imm = ContextCompat.getSystemService(requireContext(), InputMethodManager.class);
+        if (imm != null) {
+            imm.hideSoftInputFromWindow(header.field().getWindowToken(), 0);
+        }
+    }
+
+    // --- Helpers ---
+
+    // The window's focused view, as Activity.getCurrentFocus() answers it, read from this
+    // section's own window so a test window that was never given window focus answers too.
+    @Nullable
+    private View currentFocus() {
+        View view = getView();
+        return view != null ? view.getRootView().findFocus() : null;
+    }
+
+    // Shown to the user: added, with a view, and the section not hidden. A hidden section's
+    // fragment is still resumed, so the lifecycle cannot tell.
+    private boolean isOnScreen() {
+        View view = getView();
+        return isAdded() && view != null && view.isShown();
+    }
+
+    private static boolean isWithin(@NonNull View view, @NonNull View ancestor) {
+        for (View v = view; v != null; ) {
+            if (v == ancestor) {
+                return true;
+            }
+            ViewParent parent = v.getParent();
+            v = parent instanceof View ? (View) parent : null;
+        }
+        return false;
+    }
+}

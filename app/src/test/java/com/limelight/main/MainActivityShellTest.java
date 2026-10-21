@@ -22,7 +22,7 @@ import com.limelight.library.SearchSectionFragment;
 import com.limelight.library.SeeAllFragment;
 import com.limelight.pcs.PcsFragment;
 import com.limelight.preferences.AddComputerManually;
-import com.limelight.preferences.StreamSettings;
+import com.limelight.settings.SettingsSectionFragment;
 import com.limelight.stats.StatsFragment;
 import com.limelight.stats.StatsSectionFragment;
 
@@ -40,6 +40,7 @@ import org.robolectric.annotation.Config;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
@@ -130,36 +131,60 @@ public class MainActivityShellTest {
 
     @Test
     @Config(qualifiers = "w900dp-h500dp-land")
-    public void settings_startsStreamSettingsAndKeepsTheSelection() {
+    public void settings_showsTheSettingsSectionAndChecksIt() {
         MainActivity activity = launch().get();
         NavigationRailView rail = activity.findViewById(R.id.navRail);
+        View foot = activity.findViewById(R.id.navRailSettings);
         // The rail's own Settings item gives way to the button at its foot.
         assertFalse(rail.getMenu().findItem(R.id.nav_settings).isVisible());
 
-        activity.findViewById(R.id.navRailSettings).performClick();
+        foot.performClick();
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
 
-        Intent next = Shadows.shadowOf(activity).getNextStartedActivity();
-        assertNotNull("Settings should open StreamSettings", next);
-        assertEquals(StreamSettings.class.getName(), next.getComponent().getClassName());
-        assertEquals(R.id.nav_library, rail.getSelectedItemId());
+        assertTrue(section(activity, Section.SETTINGS) instanceof SettingsSectionFragment);
+        assertTrue(section(activity, Section.SETTINGS).isVisible());
+        assertTrue(section(activity, Section.LIBRARY).isHidden());
+        // The hidden rail item is checked, silently, so rail and bar agree; the foot shows it.
+        assertEquals(R.id.nav_settings, rail.getSelectedItemId());
         BottomNavigationView bottom = activity.findViewById(R.id.navBottom);
-        assertEquals(R.id.nav_library, bottom.getSelectedItemId());
-        assertTrue(section(activity, Section.LIBRARY).isVisible());
+        assertEquals(R.id.nav_settings, bottom.getSelectedItemId());
+        assertTrue(foot.isActivated());
+        assertNull("Settings is a section now, not another screen",
+                Shadows.shadowOf(activity).getNextStartedActivity());
     }
 
     @Test
     @Config(qualifiers = "w400dp-h800dp-port")
-    public void settingsInTheBottomBar_startsStreamSettingsAndKeepsTheSelection() {
+    public void settingsInTheBottomBar_showsTheSettingsSectionAndChecksIt() {
         MainActivity activity = launch().get();
         BottomNavigationView bottom = activity.findViewById(R.id.navBottom);
+        NavigationRailView rail = activity.findViewById(R.id.navRail);
 
         bottom.findViewById(R.id.nav_settings).performClick();
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
 
-        Intent next = Shadows.shadowOf(activity).getNextStartedActivity();
-        assertNotNull("Settings should open StreamSettings", next);
-        assertEquals(StreamSettings.class.getName(), next.getComponent().getClassName());
-        assertEquals(R.id.nav_library, bottom.getSelectedItemId());
+        assertTrue(section(activity, Section.SETTINGS).isVisible());
+        assertEquals(R.id.nav_settings, bottom.getSelectedItemId());
+        assertEquals(R.id.nav_settings, rail.getSelectedItemId());
+        assertTrue(activity.findViewById(R.id.navRailSettings).isActivated());
+        assertNull(Shadows.shadowOf(activity).getNextStartedActivity());
+    }
+
+    @Test
+    @Config(qualifiers = "w900dp-h500dp-land")
+    public void back_fromSettingsReturnsToLibrary() {
+        MainActivity activity = launch().get();
+        NavigationRailView rail = activity.findViewById(R.id.navRail);
+        activity.findViewById(R.id.navRailSettings).performClick();
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
+
+        activity.getOnBackPressedDispatcher().onBackPressed();
+
+        assertEquals(R.id.nav_library, rail.getSelectedItemId());
         assertTrue(section(activity, Section.LIBRARY).isVisible());
+        assertTrue(section(activity, Section.SETTINGS).isHidden());
+        assertFalse(activity.findViewById(R.id.navRailSettings).isActivated());
+        assertFalse(activity.isFinishing());
     }
 
     @Test
