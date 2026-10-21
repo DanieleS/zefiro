@@ -1130,6 +1130,14 @@
     <string name="game_page_percent">%1$s%%</string>
     <string name="game_page_no_achievements">No achievements tracked for this game</string>
     <string name="game_page_no_achievements_detail">SuccessStory doesn\'t follow %1$s.</string>
+    <!-- A game page's actions, chips on top and rows on the companion panel, in the mock's
+         words; the actions sheet keeps the applist_menu_* ones. -->
+    <string name="game_page_action_start_vdisplay">Start in virtual display</string>
+    <string name="game_page_action_start_primary">Start in primary display</string>
+    <string name="game_page_action_hide">Hide from the library</string>
+    <string name="game_page_action_details">View details</string>
+    <string name="game_page_action_shortcut">Create shortcut</string>
+    <string name="game_page_action_export">Export launcher file</string>
 
     <!-- Screens T4: the game page's lower half on the companion panel. -->
     <!-- The gamepad hint for R2 while the d-pad is up top, for a game with no achievements:

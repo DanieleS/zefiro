@@ -205,6 +205,6 @@ public class GamePageNavigationTest {
                 ((TextView) page.findViewById(R.id.gamePageStatusText)).getText().toString());
         // No game in the library: neither buttons nor chips.
         assertEquals(View.GONE, page.findViewById(R.id.gamePageButtons).getVisibility());
-        assertEquals(View.GONE, page.findViewById(R.id.gamePageChipsScroll).getVisibility());
+        assertEquals(View.GONE, page.findViewById(R.id.gamePageChips).getVisibility());
     }
 }

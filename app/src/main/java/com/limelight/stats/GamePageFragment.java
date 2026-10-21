@@ -27,7 +27,6 @@ import com.google.android.material.button.MaterialButton;
 import com.limelight.R;
 import com.limelight.companion.CompanionDisplayManager;
 import com.limelight.companion.CompanionPage;
-import com.limelight.companion.CompanionState;
 import com.limelight.computers.HostEntry;
 import com.limelight.computers.HostLibrary;
 import com.limelight.computers.HostRepository;
@@ -43,6 +42,7 @@ import com.limelight.main.SectionKeys;
 import com.limelight.main.StackedSectionFragment;
 import com.limelight.main.WindowClass;
 import com.limelight.nvstream.http.Achievement;
+import com.limelight.nvstream.http.AppMetadata;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.ui.GamepadHintsView;
 import com.limelight.ui.TitleCardDrawable;
@@ -99,7 +99,10 @@ import java.util.Objects;
  * <h3>Two screens</h3>
  *
  * Whether the lower half is here or on the companion panel follows
- * {@link CompanionDisplayManager#panelShowing()}, never the device:
+ * {@link CompanionDisplayManager#panelShowing()}, never the device, and follows it live: the
+ * Thor's lower screen turned off or on while the page is open moves the lower half at once
+ * ({@link #onPanelShowing}), keeping the answer, the filter, what was revealed, the scroll and
+ * the d-pad's place. Which half goes where is {@link GamePageModel#bottom}'s, tested there:
  *
  * <pre>
  *   inline (no panel)   the achievements block under the game, real focus; R2 and L2 move it
@@ -213,8 +216,8 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
     private View weeks;
     private TextView thisWeek;
     private StatsBarsView bars;
-    private View chipsScroll;
-    private LinearLayout chips;
+    // Wraps onto as many lines as the chips need: a row that scrolled sideways cut the last one.
+    private ViewGroup chips;
     private AchievementsBlockView achievements;
     private GamepadHintsView hints;
 
@@ -299,7 +302,6 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
         weeks = view.findViewById(R.id.gamePageWeeks);
         thisWeek = view.findViewById(R.id.gamePageThisWeek);
         bars = view.findViewById(R.id.gamePageBars);
-        chipsScroll = view.findViewById(R.id.gamePageChipsScroll);
         chips = view.findViewById(R.id.gamePageChips);
         achievements = view.findViewById(R.id.gamePageAchievements);
         hints = view.findViewById(R.id.gamePageHints);
@@ -562,7 +564,7 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
     }
 
     /**
-     * The line under the title. Wide: the metadata (year, genres, score) joined with when the
+     * The line under the title. Wide: the metadata (year, genres, studio) joined with when the
      * game was last played. Compact: only when it was last played, under the PC. A part that is
      * missing leaves no gap.
      */
@@ -571,8 +573,11 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
         String metadata = "";
         boolean compact = Boolean.TRUE.equals(compactApplied);
         if (!compact && snapshot != null) {
-            metadata = CompanionState.Browsing.metaLine(
-                    snapshot.metadata.get(args.appUuid.toUpperCase()));
+            AppMetadata m = snapshot.metadata.get(args.appUuid.toUpperCase());
+            if (m != null) {
+                metadata = GamePageModel.metaLine(m.getReleaseYear(), m.getGenres(),
+                        m.getDevelopers());
+            }
         }
         String line;
         if (metadata.isEmpty()) {
@@ -625,8 +630,10 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
     }
 
     private void renderChips() {
+        HostEntry entry = host.hostRepository().getHost(args.hostUuid);
         List<GameActionsSheet.Item> items = GamePageModel.chips(app,
-                host.launchController().actionState());
+                host.launchController().actionState(),
+                entry != null && entry.details.vDisplaySupported);
         boolean hidden = app != null && app.hidden;
         String companion = app != null && items.contains(GameActionsSheet.Item.COMPANION_APP)
                 ? host.launchController().companionLabel(app.app) : null;
@@ -649,8 +656,7 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
         LayoutInflater inflater = LayoutInflater.from(requireContext());
         for (final GameActionsSheet.Item item : items) {
             TextView chip = (TextView) inflater.inflate(R.layout.item_game_page_chip, chips, false);
-            chip.setText(item == GameActionsSheet.Item.COMPANION_APP && companion != null
-                    ? companion : getString(item.label));
+            chip.setText(actionLabel(item, companion));
             // Hide is the sheet's checked row: selected while the game is hidden.
             chip.setSelected(item == GameActionsSheet.Item.HIDE && hidden);
             chip.setOnClickListener(v -> {
@@ -662,7 +668,7 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
             chips.addView(chip);
         }
         applyChipsVisibility();
-        if (focusedIndex >= 0 && chipsScroll.getVisibility() == View.VISIBLE
+        if (focusedIndex >= 0 && chips.getVisibility() == View.VISIBLE
                 && chips.getChildCount() > 0) {
             chips.getChildAt(Math.min(focusedIndex, chips.getChildCount() - 1)).requestFocus();
         } else if (focusedIndex >= 0) {
@@ -670,13 +676,19 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
         }
     }
 
+    /** An action's words, as the mock has them; the companion app's names the app set. */
+    private String actionLabel(GameActionsSheet.Item item, @Nullable String companion) {
+        return item == GameActionsSheet.Item.COMPANION_APP && companion != null
+                ? companion : getString(GameActionsRenderer.labelOf(item));
+    }
+
     /**
-     * The chip row shows while it has chips, unless the panel shows them as its rows: a game
-     * without achievements on a split page ({@link BottomKind#ACTIONS}).
+     * The chips show while there are some, unless the panel shows them as its rows: a game
+     * without achievements on a split page ({@link GamePageModel.Bottom#ACTIONS}).
      */
     private void applyChipsVisibility() {
-        boolean shown = chips.getChildCount() > 0 && bottomKind() != BottomKind.ACTIONS;
-        chipsScroll.setVisibility(shown ? View.VISIBLE : View.GONE);
+        boolean shown = chips.getChildCount() > 0 && GamePageModel.chipsOnTop(bottomKind());
+        chips.setVisibility(shown ? View.VISIBLE : View.GONE);
     }
 
     /**
@@ -818,6 +830,11 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
     /** Shows the status row in one of its forms; leaves the rest of the body alone. */
     private void bindStatus(GamePageData.State state) {
         status.setVisibility(View.VISIBLE);
+        // "Nothing" is a plain line, flush with the title above it; loading and failed are
+        // stops, inset inside the ring they draw when focused.
+        int inset = state == GamePageData.State.NOTHING ? 0
+                : Math.round(10 * getResources().getDisplayMetrics().density);
+        status.setPaddingRelative(inset, status.getPaddingTop(), inset, status.getPaddingBottom());
         statusProgress.setVisibility(state == GamePageData.State.LOADING ? View.VISIBLE : View.GONE);
         statusHint.setVisibility(state == GamePageData.State.FAILED ? View.VISIBLE : View.GONE);
         statusText.setText(state == GamePageData.State.LOADING ? R.string.game_stats_loading
@@ -863,7 +880,8 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
 
     private void renderAchievements() {
         GamePageData d = data;
-        if (split || d == null || d.state != GamePageData.State.READY) {
+        if (!GamePageModel.achievementsInline(bottomKind()) || d == null
+                || d.state != GamePageData.State.READY) {
             // Split, the panel has them.
             achievements.setVisibility(View.GONE);
             return;
@@ -982,28 +1000,11 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
 
     // --- The companion panel ---
 
-    /** What the panel shows of this page: nothing (no panel), or one of three pages. */
-    private enum BottomKind { NONE, STATUS, LIST, ACTIONS }
-
-    // From the answer alone (see the class comment): the panel's page and the chips' place
-    // follow it.
+    // From the panel and the answer alone (see the class comment): the panel's page, the
+    // achievements' and the chips' place follow it.
     @NonNull
-    private BottomKind bottomKind() {
-        if (!split) {
-            return BottomKind.NONE;
-        }
-        GamePageData d = data;
-        if (d == null || d.state == GamePageData.State.LOADING) {
-            return BottomKind.STATUS;
-        }
-        if (d.hasAchievements()) {
-            return BottomKind.LIST;
-        }
-        // Not reached for the achievements: the retry, not a claim that there are none.
-        if (d.state == GamePageData.State.FAILED || d.achievementsFailed) {
-            return BottomKind.STATUS;
-        }
-        return BottomKind.ACTIONS;
+    private GamePageModel.Bottom bottomKind() {
+        return GamePageModel.bottom(split, data);
     }
 
     @Nullable
@@ -1035,8 +1036,7 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
                 : Collections.<GameActionsSheet.Item>emptyList();
         List<String> labels = new ArrayList<>(items.size());
         for (GameActionsSheet.Item item : items) {
-            labels.add(item == GameActionsSheet.Item.COMPANION_APP && drawnCompanionLabel != null
-                    ? drawnCompanionLabel : getString(item.label));
+            labels.add(actionLabel(item, drawnCompanionLabel));
         }
         return new GameActionsPage(name, items, labels, drawnHidden);
     }
@@ -1217,7 +1217,7 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
             hints.setHints();
             return;
         }
-        String label = getString(bottomKind() == BottomKind.ACTIONS
+        String label = getString(bottomKind() == GamePageModel.Bottom.ACTIONS
                 ? R.string.game_page_hint_actions : R.string.stats_achievements);
         hints.setHints(new GamepadHintsView.Hint(label, "R2"));
     }
@@ -1275,7 +1275,7 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
         if (buttons.getVisibility() == View.VISIBLE) {
             return primary;
         }
-        if (chipsScroll.getVisibility() == View.VISIBLE && chips.getChildCount() > 0) {
+        if (chips.getVisibility() == View.VISIBLE && chips.getChildCount() > 0) {
             return chips.getChildAt(0);
         }
         return null;
