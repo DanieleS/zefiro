@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    What a launcher entry or an art:// link shows while ShortcutTrampoline finds its PC (and
+    wakes it): the ground of the connection scene, the wait told at its foot, and the scene's
+    progress line running along the bottom, so the stream's own scene takes over from it rather
+    than from a system progress dialog. Back gives the wait up, as the dialog's cancel did.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface_deep">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_margin="@dimen/connection_gutter"
+        android:singleLine="true"
+        android:text="@string/applist_connect_msg"
+        android:textColor="@color/content_secondary"
+        android:textSize="13sp" />
+
+    <ProgressBar
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/connection_progress_height"
+        android:layout_gravity="bottom"
+        android:importantForAccessibility="no"
+        android:indeterminate="true"
+        android:indeterminateTint="@color/signal"
+        android:progressBackgroundTint="@android:color/transparent" />
+</FrameLayout>

@@ -28,7 +28,6 @@ import com.limelight.utils.CacheHelper;
 import com.limelight.utils.Dialog;
 import com.limelight.utils.ServerHelper;
 import com.limelight.utils.ShortcutHelper;
-import com.limelight.utils.SpinnerDialog;
 import com.limelight.utils.UiHelper;
 
 import org.xmlpull.v1.XmlPullParserException;
@@ -53,7 +52,6 @@ public class ShortcutTrampoline extends AppCompatActivity {
 
     private int wakeHostTries = 10;
     private ComputerDetails computer;
-    private SpinnerDialog blockingLoadSpinner;
 
     private ComputerManagerService.ComputerManagerBinder managerBinder;
 
@@ -94,11 +92,6 @@ public class ShortcutTrampoline extends AppCompatActivity {
                                 getResources().getString(R.string.conn_error_title),
                                 getResources().getString(R.string.scut_pc_not_found),
                                 true);
-
-                        if (blockingLoadSpinner != null) {
-                            blockingLoadSpinner.dismiss();
-                            blockingLoadSpinner = null;
-                        }
 
                         if (managerBinder != null) {
                             unbindService(serviceConnection);
@@ -145,12 +138,6 @@ public class ShortcutTrampoline extends AppCompatActivity {
                                 runOnUiThread(new Runnable() {
                                     @Override
                                     public void run() {
-                                        // Stop showing the spinner
-                                        if (blockingLoadSpinner != null) {
-                                            blockingLoadSpinner.dismiss();
-                                            blockingLoadSpinner = null;
-                                        }
-
                                         // If the managerBinder was destroyed before this callback,
                                         // just finish the activity.
                                         if (managerBinder == null) {
@@ -574,22 +561,19 @@ public class ShortcutTrampoline extends AppCompatActivity {
                     getIntent().getBooleanExtra(Game.EXTRA_APP_HDR, false)); // HDR info still from intent
         }
 
+        // The wait for the PC on the connection scene's ground, not in the old "Establishing
+        // Connection" dialog over an empty window: the stream's scene follows it. Back still
+        // gives it up (the activity's own Back finishes it, as the dialog's cancel did).
+        setContentView(R.layout.activity_shortcut_trampoline);
+
         // Bind to the computer manager service
         bindService(new Intent(this, ComputerManagerService.class), serviceConnection,
                 Service.BIND_AUTO_CREATE);
-
-        blockingLoadSpinner = SpinnerDialog.displayDialog(this, getResources().getString(R.string.conn_establishing_title),
-                getResources().getString(R.string.applist_connect_msg), true);
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-
-        if (blockingLoadSpinner != null) {
-            blockingLoadSpinner.dismiss();
-            blockingLoadSpinner = null;
-        }
 
         Dialog.closeDialogs(this);
 
