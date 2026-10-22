@@ -273,6 +273,8 @@
     <dimen name="key_glyph_gap">3dp</dimen>
     <dimen name="hint_label_gap">6dp</dimen>
     <dimen name="hint_gap">14dp</dimen>
+    <!-- Between two lines of hints, when a narrow window wraps them. -->
+    <dimen name="hint_line_gap">6dp</dimen>
     <!-- Screens T3: the game page. The cover beside the title, wide and compact. -->
     <dimen name="game_page_cover_width">132dp</dimen>
     <dimen name="game_page_cover_height">176dp</dimen>

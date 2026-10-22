@@ -9,6 +9,7 @@ import android.view.InputDevice;
 import android.view.MotionEvent;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.VisibleForTesting;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
@@ -60,6 +61,12 @@ public final class GamepadPresence {
     @NonNull
     public static LiveData<Boolean> connected() {
         return connected;
+    }
+
+    /** Stands in for a pad connected or disconnected, until the next device change. */
+    @VisibleForTesting
+    public static void setConnectedForTest(boolean pad) {
+        connected.setValue(pad);
     }
 
     private static void refresh() {
