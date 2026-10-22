@@ -18,6 +18,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.limelight.R;
 import com.limelight.nvstream.http.Achievement;
 import com.limelight.nvstream.http.GameAchievements;
+import com.limelight.ui.ButtonGlyphs;
 import com.limelight.ui.SegmentedControlView;
 
 import java.util.Collections;
@@ -111,6 +112,8 @@ public class AchievementsBlockView extends LinearLayout {
         untrackedDetail = findViewById(R.id.achievementsBlockUntrackedDetail);
         failed = findViewById(R.id.achievementsBlockFailed);
         failedText = findViewById(R.id.achievementsBlockFailedText);
+        ButtonGlyphs.bindText(findViewById(R.id.achievementsRetryHint), R.string.game_page_retry,
+                R.string.game_page_retry_touch);
         text = new StatsText(context);
 
         meter.setPivotX(0);

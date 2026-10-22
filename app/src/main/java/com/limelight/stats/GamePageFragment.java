@@ -46,6 +46,7 @@ import com.limelight.main.WindowClass;
 import com.limelight.nvstream.http.Achievement;
 import com.limelight.nvstream.http.AppMetadata;
 import com.limelight.nvstream.http.ComputerDetails;
+import com.limelight.ui.ButtonGlyphs;
 import com.limelight.ui.GamepadHintsView;
 import com.limelight.ui.TitleCardDrawable;
 
@@ -301,6 +302,8 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
         statusProgress = view.findViewById(R.id.gamePageStatusProgress);
         statusText = view.findViewById(R.id.gamePageStatusText);
         statusHint = view.findViewById(R.id.gamePageStatusHint);
+        ButtonGlyphs.bindText((TextView) statusHint, R.string.game_page_retry,
+                R.string.game_page_retry_touch);
         figures = view.findViewById(R.id.gamePageFigures);
         total = view.findViewById(R.id.gamePageTotal);
         count = view.findViewById(R.id.gamePageCount);
@@ -320,7 +323,10 @@ public class GamePageFragment extends Fragment implements SectionKeys, SectionFo
         bars.setBarColor(ContextCompat.getColor(requireContext(), R.color.week_bar));
         origin.setText(args.originLabel);
         origin.setVisibility(args.originLabel.isEmpty() ? View.INVISIBLE : View.VISIBLE);
-        view.findViewById(R.id.gamePageBack).setOnClickListener(v -> leave());
+        ImageView back = view.findViewById(R.id.gamePageBack);
+        back.setOnClickListener(v -> leave());
+        // B leaves the page as the arrow does: with a pad connected the arrow says B.
+        ButtonGlyphs.bindImage(back, "B");
         primary.setOnClickListener(v -> onPrimary());
         quit.setOnClickListener(v -> {
             LibraryApp shown = app;

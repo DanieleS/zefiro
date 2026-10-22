@@ -123,6 +123,8 @@
     <dimen name="stats_gutter">24dp</dimen>
     <!-- Week / Month / Year on the header line, in a wide window without the panel. -->
     <dimen name="stats_header_ranges_width">216dp</dimen>
+    <!-- What the control grows by while a pad is connected: its X and Y keys, with their gaps. -->
+    <dimen name="stats_header_ranges_keys_width">64dp</dimen>
     <!-- The chart: its height inline, and the bounds it moves within to fit the window (see
          StatsFormat.chartHeight). -->
     <dimen name="stats_chart_height">200dp</dimen>
@@ -264,6 +266,8 @@
     <!-- A segmented control: a 48dp row whose segments are drawn 40dp tall in the track. -->
     <dimen name="segment_track_corner">12dp</dimen>
     <dimen name="segment_track_padding">3dp</dimen>
+    <!-- Either side of a pad key at a segmented control's end (SegmentedControlView.setKeys). -->
+    <dimen name="segment_key_gap">5dp</dimen>
     <dimen name="segment_item_inset">4dp</dimen>
     <dimen name="segment_item_corner">9dp</dimen>
     <!-- A gamepad hint: key glyphs, then the label, hints spaced apart. -->

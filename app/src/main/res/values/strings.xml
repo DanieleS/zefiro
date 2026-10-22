@@ -847,6 +847,8 @@
     <string name="stats_last_week">Last week</string>
     <string name="stats_failed_title">Can\'t read the statistics</string>
     <string name="stats_failed_hint">The PC didn\'t answer. Press A to try again.</string>
+    <!-- stats_failed_hint without a gamepad connected. -->
+    <string name="stats_failed_hint_touch">The PC didn\'t answer. Tap to try again.</string>
     <string name="stats_previous">Previous period</string>
     <string name="stats_next">Next period</string>
     <string name="stats_untracked">No sessions recorded yet, so there are none for this period. The totals are below.</string>
@@ -1123,8 +1125,9 @@
     <string name="game_page_session_before">Session before this: %1$s, %2$s</string>
     <!-- Under this week's figure, beside the twelve weeks' bars. -->
     <string name="game_page_this_week">this week</string>
-    <!-- The failed row: A or a tap asks the PC again. -->
+    <!-- The failed row: A or a tap asks the PC again; without a gamepad connected, the tap only. -->
     <string name="game_page_retry">Press A or tap to try again.</string>
+    <string name="game_page_retry_touch">Tap to try again.</string>
     <!-- The failed row when the PC answered but could not read the game's statistics (often
          while a session runs on it), rather than game_stats_failed's unreachable PC. -->
     <string name="game_page_stats_unreadable">Couldn\'t read the statistics.</string>

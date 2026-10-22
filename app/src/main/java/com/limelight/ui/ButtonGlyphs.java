@@ -4,8 +4,10 @@ import android.content.res.ColorStateList;
 import android.graphics.drawable.Drawable;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.StringRes;
 import androidx.core.content.ContextCompat;
 import androidx.core.widget.ImageViewCompat;
 import androidx.lifecycle.LifecycleOwner;
@@ -94,6 +96,16 @@ public final class ButtonGlyphs {
                 button.setScaleType(ownScale);
             }
         });
+    }
+
+    /**
+     * Says {@code withPad} ("Press A or tap to try again") while a pad is connected and
+     * {@code touch} ("Tap to try again") otherwise, for as long as {@code view} is attached: words
+     * that name a key follow the same rule as its glyph.
+     */
+    public static void bindText(@NonNull TextView view, @StringRes int withPad,
+                                @StringRes int touch) {
+        whileAttached(view, pad -> view.setText(Boolean.TRUE.equals(pad) ? withPad : touch));
     }
 
     // Applies the pad's state now, then on every change while the view is attached.
