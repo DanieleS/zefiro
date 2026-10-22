@@ -319,6 +319,8 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="6dp"
             android:layout_weight="1"
+            android:fadingEdgeLength="24dp"
+            android:requiresFadingEdge="horizontal"
             android:scrollbars="none">
 
             <LinearLayout
@@ -329,9 +331,13 @@
 
         </HorizontalScrollView>
 
+        <!-- Apart from the row, so a chip cut by the scroll's end does not read as under it. -->
         <include
             android:id="@+id/settingsChipsNextGlyph"
-            layout="@layout/view_gamepad_hint_key" />
+            layout="@layout/view_gamepad_hint_key"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/key_glyph_height"
+            android:layout_marginStart="6dp" />
 
         <TextView
             android:id="@+id/settingsChangedChip"

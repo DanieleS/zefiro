@@ -1098,7 +1098,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         // grants is only known once it is live.
         if (connectionOverlay != null) {
             connectionOverlay.setStreamFacts(
-                    getString(R.string.conn_value_resolution, displayWidth, displayHeight, prefConfig.fps),
+                    getString(R.string.conn_value_resolution, displayWidth, displayHeight,
+                            Math.round(prefConfig.fps)),
                     requestedVideoLabel(willStreamHdr, bitrate),
                     getString(vDisplay ? R.string.conn_value_virtual_display
                             : R.string.conn_value_host_display));
