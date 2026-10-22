@@ -123,8 +123,31 @@
     <string name="conn_phase_media">Preparing video and controls…</string>
     <string name="conn_phase_opening">Opening the stream…</string>
     <string name="conn_phase_ready">Ready</string>
-    <!-- Shown under the phase while the host is still bringing the app up. -->
-    <string name="conn_scene_cancel_hint">Press back to cancel</string>
+    <!-- The connection scene's tag over the game's name, in small capitals. -->
+    <string name="conn_scene_tag">Starting</string>
+    <!-- "This session": the companion panel's account of the launch, while the stream starts. -->
+    <string name="conn_session_tag">This session</string>
+    <!-- The steps the six phases are grouped into on the companion panel. -->
+    <string name="conn_step_start_game">Start game</string>
+    <string name="conn_step_connect">Connect</string>
+    <string name="conn_step_media">Video and controls</string>
+    <string name="conn_step_open">Open stream</string>
+    <!-- Labels of what the stream asked for, and of the game's history on the host. -->
+    <string name="conn_fact_resolution">Resolution</string>
+    <string name="conn_fact_video">Video</string>
+    <string name="conn_fact_display">Display</string>
+    <string name="conn_fact_last_played">Last played</string>
+    <string name="conn_fact_playtime">Playtime</string>
+    <!-- "1920×1080 · 60 fps" -->
+    <string name="conn_value_resolution">%1$d×%2$d · %3$d fps</string>
+    <!-- "HEVC · HDR · 40 Mbps": the codec asked for, HDR or SDR, the bitrate. -->
+    <string name="conn_value_video">%1$s · %2$s · %3$d Mbps</string>
+    <!-- The codec when the app lets the host choose. -->
+    <string name="conn_value_codec_auto">Auto</string>
+    <string name="conn_value_hdr">HDR</string>
+    <string name="conn_value_sdr">SDR</string>
+    <string name="conn_value_virtual_display">Virtual display</string>
+    <string name="conn_value_host_display">Host display</string>
 
     <string name="conn_error_title">Connection Error</string>
     <string name="conn_error_msg">Failed to start</string>

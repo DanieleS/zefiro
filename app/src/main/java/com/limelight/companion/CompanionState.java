@@ -31,8 +31,10 @@ import java.util.Objects;
  * <pre>
  * ┌─ content ────────────────────────────────────────────────┐
  * │   IDLE ──enterBrowsing──▶ BROWSING ──leaveBrowsing──▶ IDLE│
+ * │   any ──enterLaunching─▶ LAUNCHING ─leaveLaunching──▶ IDLE│
+ * │   LAUNCHING ──enterStreaming──▶ STREAMING                 │
  * │   IDLE ──enterStreaming─▶ STREAMING ─leaveStreaming─▶ IDLE│
- * │                         or BROWSING, if one came meanwhile│
+ * │       (leaving either: or BROWSING, if one came meanwhile)│
  * └──────────────────────────────────────────────────────────┘
  * ┌─ owner ──────────────────────────────────────────────────┐
  * │   PANEL ◀──▶ OFF            (the user's own show/hide)    │
@@ -60,6 +62,13 @@ import java.util.Objects;
  * screen up there has a lower half of its own (a game's achievements, the Stats remote), and the
  * panel is where it goes. It belongs to browsing, so leaving browsing drops it.
  *
+ * <h3>Launching</h3>
+ *
+ * From the moment the stream screen opens until the stream is live, LAUNCHING carries a
+ * {@link Launch}: the game, the steps of the wait and where it is in them, and what the stream
+ * asked for. The panel draws it as "This session", with a Cancel of its own; it is the bottom
+ * half of the connection scene on the main screen (ui/ConnectionOverlay), which pushes it.
+ *
  * The state holds values only, never callbacks: the panel's Play and host taps go back through
  * {@link CompanionDisplayManager#setBrowsingActions}, to whichever screen registered them, and a
  * page's taps through {@link CompanionDisplayManager#setPageActions}. A value can outlive the
@@ -69,7 +78,7 @@ import java.util.Objects;
 public class CompanionState {
 
     /** What there is to show. Driven by whichever screen is in the foreground. */
-    public enum Content { IDLE, BROWSING, STREAMING }
+    public enum Content { IDLE, BROWSING, LAUNCHING, STREAMING }
 
     /** Who the secondary screen belongs to right now. */
     public enum Owner {
@@ -148,9 +157,72 @@ public class CompanionState {
         }
     }
 
-    /** A stream connected. */
+    /** A stream connected. Its launch, if the panel was showing one, is over. */
     public void enterStreaming() {
+        launch = null;
         setContent(Content.STREAMING);
+    }
+
+    // --- The launch ---
+
+    /** What the stream screen is starting; null unless {@link Content#LAUNCHING}. */
+    private Launch launch;
+
+    /**
+     * The stream screen opened and is starting a game. Whatever was browsed is held, as it is
+     * while streaming, and comes back if the launch is given up.
+     */
+    public void enterLaunching(Launch next) {
+        if (next == null) {
+            throw new IllegalArgumentException("launch must not be null");
+        }
+        boolean same = next.equals(launch);
+        launch = next;
+        if (content == Content.LAUNCHING) {
+            if (!same) {
+                notifyChanged();
+            }
+            return;
+        }
+        content = Content.LAUNCHING;
+        notifyChanged();
+    }
+
+    /**
+     * The launch moved on (a step, the stream's facts, the game's history). Dropped unless that
+     * same launch is showing: a late update from a scene already gone must not bring it back, or
+     * land on the next game's.
+     */
+    public void updateLaunch(Launch next) {
+        if (content != Content.LAUNCHING || next == null || launch == null
+                || launch.startUptimeMs != next.startUptimeMs || next.equals(launch)) {
+            return;
+        }
+        launch = next;
+        notifyChanged();
+    }
+
+    /**
+     * The launch was cancelled or failed. Back to what the main screen browses, if it pushed
+     * anything meanwhile (it starts again before the stream screen is gone), as leaving a
+     * stream does. Nothing happens once the stream is live: {@link #enterStreaming} ended it.
+     *
+     * @param startUptimeMs the launch's own {@link Launch#startUptimeMs}: a stream screen torn
+     *                      down late (after the next one opened) leaves the next launch alone
+     */
+    public void leaveLaunching(long startUptimeMs) {
+        if (content != Content.LAUNCHING || launch == null
+                || launch.startUptimeMs != startUptimeMs) {
+            return;
+        }
+        launch = null;
+        content = browsing != null ? Content.BROWSING : Content.IDLE;
+        notifyChanged();
+    }
+
+    /** The launch to draw; null unless {@link Content#LAUNCHING}. */
+    public Launch getLaunch() {
+        return content == Content.LAUNCHING ? launch : null;
     }
 
     /** The stream ended; its stats and telemetry go with it. */
@@ -185,6 +257,11 @@ public class CompanionState {
         // hearing about rather than silently drawing the wrong surface.
         if (content == Content.STREAMING && next == Content.BROWSING) {
             LimeLog.warning("CompanionState: refusing BROWSING while STREAMING");
+            return;
+        }
+        // Nor while a launch is showing: the main screen can still push in the moment before it
+        // stops. Held, not drawn; leaveLaunching() goes back to it if the launch is given up.
+        if (content == Content.LAUNCHING && next == Content.BROWSING) {
             return;
         }
         content = next;
@@ -644,6 +721,103 @@ public class CompanionState {
         @Override
         public String toString() {
             return game + " on " + host + " (" + codec + ")";
+        }
+    }
+
+    /**
+     * A game being started, as the panel's "This session" draws it: the steps of the wait and
+     * where it is in them, then what the stream asked for. Values only, pushed by the connection
+     * scene as the wait moves on. Immutable; the {@code with} methods make the next one.
+     */
+    public static final class Launch {
+        /** How many steps the wait is told in: start game, connect, video and controls, open. */
+        public static final int STEP_COUNT = 4;
+
+        /** The game's name; null when the launch did not say. */
+        public final String game;
+        /** The PC's name; null when the launch did not say. */
+        public final String host;
+        /** {@code SystemClock.uptimeMillis()} when the scene opened, for its clock. */
+        public final long startUptimeMs;
+        /** The step under way, from 0; {@link #STEP_COUNT} once every step is done. */
+        public final int step;
+        /** What the step under way is doing ("Negotiating the session…"); null for nothing. */
+        public final String phase;
+        /** "1920×1080 · 60 fps"; null until the stream is configured. */
+        public final String resolution;
+        /** "HEVC · HDR · 40 Mbps", what was asked for; null until the stream is configured. */
+        public final String video;
+        /** "Virtual display" or "Host display"; null until the stream is configured. */
+        public final String display;
+        /** "2 days ago", from the host's cached metadata; null when it is not known. */
+        public final String lastPlayed;
+        /** "12h 30m", from the host's cached metadata; null when it is not known. */
+        public final String playtime;
+
+        public Launch(String game, String host, long startUptimeMs) {
+            this(game, host, startUptimeMs, 0, null, null, null, null, null, null);
+        }
+
+        private Launch(String game, String host, long startUptimeMs, int step, String phase,
+                       String resolution, String video, String display, String lastPlayed,
+                       String playtime) {
+            this.game = game;
+            this.host = host;
+            this.startUptimeMs = startUptimeMs;
+            this.step = Math.max(0, Math.min(STEP_COUNT, step));
+            this.phase = phase;
+            this.resolution = resolution;
+            this.video = video;
+            this.display = display;
+            this.lastPlayed = lastPlayed;
+            this.playtime = playtime;
+        }
+
+        public Launch withStep(int nextStep, String nextPhase) {
+            return new Launch(game, host, startUptimeMs, nextStep, nextPhase, resolution, video,
+                    display, lastPlayed, playtime);
+        }
+
+        public Launch withStream(String nextResolution, String nextVideo, String nextDisplay) {
+            return new Launch(game, host, startUptimeMs, step, phase, nextResolution, nextVideo,
+                    nextDisplay, lastPlayed, playtime);
+        }
+
+        public Launch withHistory(String nextLastPlayed, String nextPlaytime) {
+            return new Launch(game, host, startUptimeMs, step, phase, resolution, video, display,
+                    nextLastPlayed, nextPlaytime);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof Launch)) {
+                return false;
+            }
+            Launch that = (Launch) o;
+            return startUptimeMs == that.startUptimeMs
+                    && step == that.step
+                    && Objects.equals(game, that.game)
+                    && Objects.equals(host, that.host)
+                    && Objects.equals(phase, that.phase)
+                    && Objects.equals(resolution, that.resolution)
+                    && Objects.equals(video, that.video)
+                    && Objects.equals(display, that.display)
+                    && Objects.equals(lastPlayed, that.lastPlayed)
+                    && Objects.equals(playtime, that.playtime);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(game, host, startUptimeMs, step, phase, resolution, video,
+                    display, lastPlayed, playtime);
+        }
+
+        @Override
+        public String toString() {
+            return "launching " + game + " on " + host + " (step " + step + ")";
         }
     }
 

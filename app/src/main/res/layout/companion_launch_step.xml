@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    One step of the launch on the companion panel (companion_launch): its marker, its name, and,
+    for the step under way, what it is doing right now at the end of the row.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/companion_launch_step_height"
+    android:gravity="center_vertical"
+    android:orientation="horizontal">
+
+    <ImageView
+        android:id="@+id/launchStepMarker"
+        android:layout_width="@dimen/companion_launch_step_marker"
+        android:layout_height="@dimen/companion_launch_step_marker"
+        android:importantForAccessibility="no"
+        android:padding="4dp"
+        android:tint="@color/signal"
+        tools:background="@drawable/launch_step_done"
+        tools:src="@drawable/ic_check" />
+
+    <TextView
+        android:id="@+id/launchStepLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:singleLine="true"
+        android:textColor="@color/content_primary"
+        android:textSize="15sp"
+        tools:text="Connect" />
+
+    <TextView
+        android:id="@+id/launchStepPhase"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:gravity="end"
+        android:singleLine="true"
+        android:textColor="@color/content_muted"
+        android:textSize="12sp"
+        tools:text="Negotiating the session…" />
+
+</LinearLayout>

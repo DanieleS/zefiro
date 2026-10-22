@@ -202,6 +202,94 @@ public class CompanionStateTest {
 
     // --- Browsing and the hosts row ---
 
+    // --- Launching ---
+
+    @Test
+    public void aLaunchIsShownUntilTheStreamTakesOver() {
+        CompanionState.Launch launch = new CompanionState.Launch("Hades", "Taverna", 1000);
+        state.enterLaunching(launch);
+        assertEquals(CompanionState.Content.LAUNCHING, state.getContent());
+        assertSame(launch, state.getLaunch());
+
+        state.enterStreaming();
+        assertEquals(CompanionState.Content.STREAMING, state.getContent());
+        assertNull(state.getLaunch());
+        // The scene fading out afterwards does not take the stream away.
+        state.leaveLaunching(1000);
+        assertEquals(CompanionState.Content.STREAMING, state.getContent());
+    }
+
+    @Test
+    public void aLaunchGivenUpGoesBackToWhatWasBrowsedMeanwhile() {
+        state.setBrowsing(game("Hades", 12, false));
+        state.enterLaunching(new CompanionState.Launch("Hades", "Taverna", 1000));
+        assertEquals(CompanionState.Content.LAUNCHING, state.getContent());
+
+        // The main screen pushes again before it stops: held, not drawn.
+        state.setBrowsing(game("Celeste", 13, false));
+        assertEquals(CompanionState.Content.LAUNCHING, state.getContent());
+
+        state.leaveLaunching(1000);
+        assertEquals(CompanionState.Content.BROWSING, state.getContent());
+        assertEquals("Celeste", state.getBrowsingTitle());
+        assertNull(state.getLaunch());
+    }
+
+    @Test
+    public void aLaunchGivenUpWithNothingBrowsedGoesIdle() {
+        state.enterLaunching(new CompanionState.Launch("Hades", "Taverna", 1000));
+        state.leaveLaunching(1000);
+        assertEquals(CompanionState.Content.IDLE, state.getContent());
+    }
+
+    @Test
+    public void anUpdateMovesTheLaunchOnAndRedraws() {
+        CompanionState.Launch launch = new CompanionState.Launch("Hades", "Taverna", 1000);
+        state.enterLaunching(launch);
+        int before = changes;
+
+        CompanionState.Launch next = launch.withStep(1, "Reaching your PC…")
+                .withStream("1920×1080 · 60 fps", "Auto · HDR · 40 Mbps", "Virtual display");
+        state.updateLaunch(next);
+        assertSame(next, state.getLaunch());
+        assertEquals(1, state.getLaunch().step);
+        assertEquals("Virtual display", state.getLaunch().display);
+        assertTrue(changes > before);
+
+        // The same again draws nothing.
+        int after = changes;
+        state.updateLaunch(launch.withStep(1, "Reaching your PC…")
+                .withStream("1920×1080 · 60 fps", "Auto · HDR · 40 Mbps", "Virtual display"));
+        assertEquals(after, changes);
+    }
+
+    @Test
+    public void anotherLaunchesUpdatesAndEndAreIgnored() {
+        state.enterLaunching(new CompanionState.Launch("Celeste", "Taverna", 2000));
+        // A screen torn down late, after the next one opened, speaks for its own launch only.
+        state.updateLaunch(new CompanionState.Launch("Hades", "Taverna", 1000).withStep(3, "x"));
+        assertEquals("Celeste", state.getLaunch().game);
+        state.leaveLaunching(1000);
+        assertEquals(CompanionState.Content.LAUNCHING, state.getContent());
+    }
+
+    @Test
+    public void anUpdateAfterTheLaunchEndedDoesNotBringItBack() {
+        CompanionState.Launch launch = new CompanionState.Launch("Hades", "Taverna", 1000);
+        state.enterLaunching(launch);
+        state.leaveLaunching(1000);
+        state.updateLaunch(launch.withStep(2, "Preparing video and controls…"));
+        assertEquals(CompanionState.Content.IDLE, state.getContent());
+        assertNull(state.getLaunch());
+    }
+
+    @Test
+    public void aLaunchsStepStaysInRange() {
+        CompanionState.Launch launch = new CompanionState.Launch("Hades", null, 1000);
+        assertEquals(0, launch.withStep(-3, null).step);
+        assertEquals(CompanionState.Launch.STEP_COUNT, launch.withStep(9, null).step);
+    }
+
     private static CompanionState.Browsing game(String title, int appId, boolean running) {
         return new CompanionState.Browsing(CompanionState.Browsing.Kind.GAME, "HOST-A", appId,
                 title, "2023  ·  Action", "<p>About it</p>", null, running);

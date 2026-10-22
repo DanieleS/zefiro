@@ -37,6 +37,7 @@ import android.widget.TextView;
 
 import androidx.core.content.ContextCompat;
 import androidx.core.view.ViewCompat;
+import androidx.lifecycle.Observer;
 
 import com.limelight.LimeLog;
 import com.limelight.R;
@@ -53,6 +54,9 @@ import com.limelight.stream.StreamControlsPanel;
 import com.limelight.stream.StreamHealth;
 import com.limelight.stream.StreamRate;
 import com.limelight.ui.ButtonGlyphs;
+import com.limelight.ui.ConnectionOverlay;
+import com.limelight.ui.GamepadPresence;
+import com.limelight.ui.KeyGlyphDrawable;
 import com.limelight.ui.MaxHeightScrollView;
 
 import org.json.JSONObject;
@@ -70,9 +74,11 @@ import java.util.List;
  * screen shows only the game and its HUD (see the approved StreamTelemetry mock). While the
  * main screen is browsing it draws what the d-pad is on up there ({@link CompanionState.Browsing}):
  * a game's details with Play, or Resume and Quit game for the one running, or a host's state,
- * over a row of the known PCs. The rest of the time it shows nothing but the app name. A screen
- * with a lower half of its own puts it here as a {@link CompanionPage}, drawn by
- * {@link CompanionPageHost} over all of the browsing surface.
+ * over a row of the known PCs. While the stream screen starts a game it draws "This session"
+ * ({@link CompanionState.Launch}): the steps of the wait, what the stream asked for, and Cancel.
+ * The rest of the time it shows nothing but the app name. A screen with a lower half of its own
+ * puts it here as a {@link CompanionPage}, drawn by {@link CompanionPageHost} over all of the
+ * browsing surface.
  *
  * <p>Those browsing controls are touch only. The window is never focusable (see
  * {@link #onCreate}), so the d-pad stays on the main screen, which offers the same actions; a tap
@@ -118,6 +124,42 @@ public class CompanionPresentation extends android.app.Presentation
     private CompanionPageHost pageHost;
     private ImageView backdropView;
     private View backdropScrimView;
+    // "This session", while a game starts.
+    private View launchView;
+    private TextView launchElapsedView;
+    private TextView launchTitleView;
+    private TextView launchHostView;
+    private View[] launchSteps;
+    private View launchResolutionRow;
+    private View launchVideoRow;
+    private View launchDisplayRow;
+    private View launchLastPlayedRow;
+    private View launchPlaytimeRow;
+    private View launchCancelView;
+    private ImageView launchCancelGlyph;
+    // The B inside Cancel follows the pad as it comes and goes; a Presentation is no lifecycle
+    // owner, so it is observed from onStart to onStop by hand.
+    private final Observer<Boolean> padObserver = pad -> {
+        if (launchCancelGlyph != null) {
+            launchCancelGlyph.setVisibility(Boolean.TRUE.equals(pad) ? View.VISIBLE : View.GONE);
+        }
+    };
+    // The launch's clock, moved on every second while "This session" is up. Read from the start
+    // the launch carries, so a panel re-hosted mid-launch keeps the same count.
+    private final Runnable launchTick = new Runnable() {
+        @Override
+        public void run() {
+            CompanionState.Launch launch = state.getLaunch();
+            if (launchView == null || launch == null
+                    || launchView.getVisibility() != View.VISIBLE) {
+                return;
+            }
+            launchElapsedView.setText(ConnectionOverlay.formatElapsed(
+                    SystemClock.uptimeMillis() - launch.startUptimeMs));
+            launchView.postDelayed(this, ConnectionOverlay.msToNextSecond(
+                    SystemClock.uptimeMillis() - launch.startUptimeMs));
+        }
+    };
     /** The streaming surface: the view or the stats, over the strip. */
     private View streamView;
     private View statsView;
@@ -353,6 +395,40 @@ public class CompanionPresentation extends android.app.Presentation
         menuOverlay.setOnClickListener(v -> hideMenu());
         pageHost = new CompanionPageHost(findViewById(R.id.companionPage),
                 LayoutInflater.from(getContext()));
+
+        launchView = findViewById(R.id.companionLaunch);
+        launchElapsedView = findViewById(R.id.companionLaunchElapsed);
+        launchTitleView = findViewById(R.id.companionLaunchTitle);
+        launchHostView = findViewById(R.id.companionLaunchHost);
+        launchSteps = new View[]{
+                findViewById(R.id.companionLaunchStep0),
+                findViewById(R.id.companionLaunchStep1),
+                findViewById(R.id.companionLaunchStep2),
+                findViewById(R.id.companionLaunchStep3),
+        };
+        int[] stepNames = {R.string.conn_step_start_game, R.string.conn_step_connect,
+                R.string.conn_step_media, R.string.conn_step_open};
+        for (int i = 0; i < launchSteps.length; i++) {
+            ((TextView) launchSteps[i].findViewById(R.id.launchStepLabel)).setText(stepNames[i]);
+        }
+        launchResolutionRow = factRow(R.id.companionLaunchResolution, R.string.conn_fact_resolution);
+        launchVideoRow = factRow(R.id.companionLaunchVideo, R.string.conn_fact_video);
+        launchDisplayRow = factRow(R.id.companionLaunchDisplay, R.string.conn_fact_display);
+        launchLastPlayedRow = factRow(R.id.companionLaunchLastPlayed, R.string.conn_fact_last_played);
+        launchPlaytimeRow = factRow(R.id.companionLaunchPlaytime, R.string.conn_fact_playtime);
+        launchCancelView = findViewById(R.id.companionLaunchCancel);
+        launchCancelGlyph = findViewById(R.id.companionLaunchCancelGlyph);
+        TextView cancelLabel = findViewById(R.id.companionLaunchCancelLabel);
+        launchCancelGlyph.setImageDrawable(new KeyGlyphDrawable(getContext().getResources(), "B",
+                cancelLabel.getCurrentTextColor()));
+        launchCancelView.setOnClickListener(v -> CompanionDisplayManager.onLaunchCancel());
+    }
+
+    /** One of "This session"'s label and value rows, its label set once. */
+    private View factRow(int id, int label) {
+        View row = findViewById(id);
+        ((TextView) row.findViewById(R.id.launchFactLabel)).setText(label);
+        return row;
     }
 
     @Override
@@ -360,6 +436,7 @@ public class CompanionPresentation extends android.app.Presentation
         super.onStart();
 
         state.setListener(this);
+        GamepadPresence.connected().observeForever(padObserver);
         render();
     }
 
@@ -368,6 +445,10 @@ public class CompanionPresentation extends android.app.Presentation
         // Only give up the listener if it is still ours: during a re-host the replacement panel
         // has already registered by the time this one stops.
         state.clearListener(this);
+        GamepadPresence.connected().removeObserver(padObserver);
+        if (launchView != null) {
+            launchView.removeCallbacks(launchTick);
+        }
         if (followedStream != null) {
             followedStream.removeListener(this);
             followedStream = null;
@@ -451,6 +532,9 @@ public class CompanionPresentation extends android.app.Presentation
                             ? View.VISIBLE : View.GONE);
                 }
                 return;
+            case LAUNCHING:
+                showLaunch(state.getLaunch());
+                return;
             case STREAMING:
                 showStream();
                 return;
@@ -471,12 +555,101 @@ public class CompanionPresentation extends android.app.Presentation
             return false;
         }
         hideTelemetryView();
+        hideLaunch();
         idleView.setVisibility(View.GONE);
         streamView.setVisibility(View.GONE);
         statsView.setVisibility(View.GONE);
         setBackdrop(null);
         descriptionImages.setAnimating(false);
         return true;
+    }
+
+    /**
+     * "This session": the game being started, the four steps of the wait with the one under way
+     * saying what it is doing, then each fact the stream screen has given, and Cancel while the
+     * stream screen is there to hear it. Nothing else on the panel shows meanwhile.
+     */
+    private void showLaunch(CompanionState.Launch launch) {
+        hideTelemetryView();
+        idleView.setVisibility(View.GONE);
+        streamView.setVisibility(View.GONE);
+        statsView.setVisibility(View.GONE);
+        setBackdrop(null);
+        descriptionImages.setAnimating(false);
+        if (launch == null) {
+            hideLaunch();
+            return;
+        }
+        launchView.setVisibility(View.VISIBLE);
+
+        launchTitleView.setText(launch.game != null && !launch.game.isEmpty()
+                ? launch.game : getContext().getString(R.string.app_label));
+        bindOptional(launchHostView, launch.host);
+
+        for (int i = 0; i < launchSteps.length; i++) {
+            bindStep(launchSteps[i], i, launch);
+        }
+
+        bindFact(launchResolutionRow, launch.resolution);
+        bindFact(launchVideoRow, launch.video);
+        bindFact(launchDisplayRow, launch.display);
+        bindFact(launchLastPlayedRow, launch.lastPlayed);
+        bindFact(launchPlaytimeRow, launch.playtime);
+
+        launchCancelView.setVisibility(CompanionDisplayManager.hasLaunchCancelListener()
+                ? View.VISIBLE : View.GONE);
+
+        // The clock: drawn now, then on every second from the launch's own start.
+        launchView.removeCallbacks(launchTick);
+        launchTick.run();
+    }
+
+    private void bindStep(View row, int index, CompanionState.Launch launch) {
+        ImageView marker = row.findViewById(R.id.launchStepMarker);
+        TextView label = row.findViewById(R.id.launchStepLabel);
+        TextView phase = row.findViewById(R.id.launchStepPhase);
+        Context context = getContext();
+        if (index < launch.step) {
+            marker.setBackgroundResource(R.drawable.launch_step_done);
+            marker.setImageResource(R.drawable.ic_check);
+            label.setTextColor(ContextCompat.getColor(context, R.color.content_secondary));
+            phase.setVisibility(View.GONE);
+        } else if (index == launch.step) {
+            marker.setBackgroundResource(R.drawable.launch_step_current);
+            marker.setImageDrawable(null);
+            label.setTextColor(ContextCompat.getColor(context, R.color.content_primary));
+            bindOptional(phase, launch.phase);
+        } else {
+            marker.setBackgroundResource(R.drawable.launch_step_pending);
+            marker.setImageDrawable(null);
+            label.setTextColor(ContextCompat.getColor(context, R.color.content_muted));
+            phase.setVisibility(View.GONE);
+        }
+    }
+
+    private static void bindFact(View row, String value) {
+        if (value == null || value.isEmpty()) {
+            row.setVisibility(View.GONE);
+            return;
+        }
+        ((TextView) row.findViewById(R.id.launchFactValue)).setText(value);
+        row.setVisibility(View.VISIBLE);
+    }
+
+    private static void bindOptional(TextView view, String text) {
+        if (text == null || text.isEmpty()) {
+            view.setVisibility(View.GONE);
+        } else {
+            view.setText(text);
+            view.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private void hideLaunch() {
+        if (launchView != null) {
+            launchView.removeCallbacks(launchTick);
+            launchView.setVisibility(View.GONE);
+        }
     }
 
     /**
@@ -659,6 +832,7 @@ public class CompanionPresentation extends android.app.Presentation
      * that game is not the one being played.
      */
     private void showStream() {
+        hideLaunch();
         idleView.setVisibility(View.GONE);
         // The hero backdrop belongs to the browsing surface, not the stream.
         setBackdrop(null);
@@ -889,6 +1063,7 @@ public class CompanionPresentation extends android.app.Presentation
      */
     private void showSpotlight(String title, String metaLine, String html, Bitmap backdrop) {
         hideTelemetryView();
+        hideLaunch();
         if (idleTitleView == null) {
             return;
         }
