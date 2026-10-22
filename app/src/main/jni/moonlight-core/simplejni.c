@@ -26,6 +26,12 @@ Java_com_limelight_nvstream_jni_MoonBridge_sendExecServerCmd(JNIEnv *env, jclass
     LiSendExecServerCmd(cmdId);
 }
 
+JNIEXPORT jint JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_sendCaptureAction(JNIEnv *env, jclass clazz,
+                                                             jint action) {
+    return LiSendCaptureAction((uint8_t) action);
+}
+
 JNIEXPORT void JNICALL
 Java_com_limelight_nvstream_jni_MoonBridge_sendEmptyPayload(JNIEnv *env, jclass clazz) {
     LiSendEmptyPayload();
@@ -236,6 +242,11 @@ Java_com_limelight_nvstream_jni_MoonBridge_getControlStreamSilenceMs(JNIEnv *env
 JNIEXPORT jboolean JNICALL
 Java_com_limelight_nvstream_jni_MoonBridge_isDynamicFecNegotiated(JNIEnv *env, jclass clazz) {
     return LiIsDynamicFecNegotiated() ? JNI_TRUE : JNI_FALSE;
+}
+
+JNIEXPORT jint JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_getHostFeatureFlags(JNIEnv *env, jclass clazz) {
+    return (jint) LiGetHostFeatureFlags();
 }
 
 JNIEXPORT jstring JNICALL

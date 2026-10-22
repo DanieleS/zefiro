@@ -14,6 +14,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.limelight.binding.input.GameInputDevice;
 import com.limelight.bitrate.LiveBitrate;
 import com.limelight.companion.CompanionDisplayManager;
+import com.limelight.nvstream.jni.MoonBridge;
 import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.stream.CompanionSheetSurface;
 import com.limelight.stream.ControlsInputRouter;
@@ -99,6 +100,8 @@ public class GameMenu implements Game.GameMenuCallbacks, ControlsSurface.Callbac
     private List<MenuOption> deviceOptions = Collections.emptyList();
     private StreamCapabilities caps;
     private CaptureTool captureTool;
+    // Who carries the open tree's captures out; see CaptureTool.route().
+    private CaptureTool.Route captureRoute = CaptureTool.Route.NONE;
 
     public GameMenu(Game game, Context dialogScreenContext) {
         this.game = game;
@@ -126,6 +129,7 @@ public class GameMenu implements Game.GameMenuCallbacks, ControlsSurface.Callbac
         deviceOptions = options != null ? new ArrayList<>(options) : Collections.emptyList();
         PreferenceConfiguration prefs = PreferenceConfiguration.readPreferences(game);
         captureTool = prefs.captureTool;
+        captureRoute = captureTool.route(hostFeatureFlags());
         caps = capture(prefs);
 
         ControlsSurface surface = surfaceOf(ControlsPlacement.surfaceFor(
@@ -163,6 +167,7 @@ public class GameMenu implements Game.GameMenuCallbacks, ControlsSurface.Callbac
         ControlsSurface to = surfaceOf(target);
         PreferenceConfiguration prefs = PreferenceConfiguration.readPreferences(game);
         captureTool = prefs.captureTool;
+        captureRoute = captureTool.route(hostFeatureFlags());
         // Built afresh: the companion's own entry reads "show" or "hide" by whether it shows.
         caps = capture(prefs);
         activeSurface = to;
@@ -197,7 +202,7 @@ public class GameMenu implements Game.GameMenuCallbacks, ControlsSurface.Callbac
         }
 
         StreamCapabilities.Builder b = StreamCapabilities.builder()
-                .captureEnabled(captureTool.isEnabled())
+                .captureEnabled(captureRoute != CaptureTool.Route.NONE)
                 .locale(game.getResources().getConfiguration().locale)
                 .allowChangeMouseMode(game.allowChangeMouseMode)
                 .mouseModes(game.getMouseModes(), game.getMouseModeIndex())
@@ -355,10 +360,21 @@ public class GameMenu implements Game.GameMenuCallbacks, ControlsSurface.Callbac
     }
 
     private void sendCapture(CaptureTool.Action action) {
-        short[] keys = captureTool != null ? captureTool.keysFor(action) : null;
+        if (captureRoute == CaptureTool.Route.HOST && game.conn != null
+                && game.conn.sendCaptureAction(action.wireValue) != MoonBridge.LI_ERR_UNSUPPORTED) {
+            // The host presses its own tool's shortcut
+            return;
+        }
+        short[] keys = captureRoute != CaptureTool.Route.NONE && captureTool != null
+                ? captureTool.keysFor(action) : null;
         if (keys != null) {
             game.sendKeys(keys);
         }
+    }
+
+    /** The streaming host's feature flags; none before the connection has started. */
+    private int hostFeatureFlags() {
+        return game.conn != null ? game.conn.getHostFeatureFlags() : 0;
     }
 
     /**

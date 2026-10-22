@@ -407,7 +407,7 @@
     </plurals>
     <string name="achievement_toast_title_more">%1$s · %2$s</string>
     <string name="title_capture_tool">Strumento di cattura</string>
-    <string name="summary_capture_tool">L\'app sul PC usata dalle voci di screenshot e registrazione del menu di gioco, premendo le sue scorciatoie da tastiera. Disattivato nasconde quelle voci.</string>
+    <string name="summary_capture_tool">L\'app sul PC usata dalle voci di screenshot e registrazione del menu di gioco, premendo le sue scorciatoie da tastiera. Disattivato nasconde quelle voci. Un host Scirocco ignora questa scelta e usa lo strumento impostato sull\'host.</string>
     <string name="capture_tool_gamebar">Xbox Game Bar</string>
     <string name="capture_tool_nvidia">NVIDIA (GeForce Experience, app NVIDIA)</string>
     <string name="capture_tool_off">Disattivato</string>
