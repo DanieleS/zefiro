@@ -34,6 +34,7 @@ import com.limelight.nvstream.http.NvHTTP;
 import com.limelight.nvstream.http.PairingManager;
 import com.limelight.nvstream.http.PairingManager.PairState;
 import com.limelight.nvstream.wol.WakeOnLanSender;
+import com.limelight.ui.ButtonGlyphs;
 import com.limelight.utils.Dialog;
 import com.limelight.utils.FrontendExporter;
 import com.limelight.utils.HelpLauncher;
@@ -312,6 +313,7 @@ public class HostActions {
                 .setNegativeButton(context.getString(R.string.cancel), (d, which) -> d.dismiss())
                 .create();
         dialog.show();
+        ButtonGlyphs.bindCancel(dialog);
 
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
             String pin = otpInput.getText().toString();
@@ -432,13 +434,13 @@ public class HostActions {
         }
         exportComputer = computer;
         exportRomsTree = null;
-        new MaterialAlertDialogBuilder(activity)
+        ButtonGlyphs.bindCancel(new MaterialAlertDialogBuilder(activity)
                 .setTitle(R.string.frontend_export_roms_title)
                 .setMessage(R.string.frontend_export_roms_message)
                 .setPositiveButton(R.string.frontend_export_pick, (dialog, which) -> pickFolder(pickRomsFolder))
                 .setNegativeButton(android.R.string.cancel, (dialog, which) -> exportComputer = null)
                 .setOnCancelListener(dialog -> exportComputer = null)
-                .show();
+                .show());
     }
 
     /** The ROMs folder pick's result; null when the user backed out. */
@@ -451,13 +453,14 @@ public class HostActions {
             return;
         }
         exportRomsTree = romsTree;
-        new MaterialAlertDialogBuilder(activity)
+        // Skip is what backing out does (onCancel), so B fires it too.
+        ButtonGlyphs.bindCancel(new MaterialAlertDialogBuilder(activity)
                 .setTitle(R.string.frontend_export_esde_title)
                 .setMessage(R.string.frontend_export_esde_message)
                 .setPositiveButton(R.string.frontend_export_pick, (dialog, which) -> pickFolder(pickEsdeFolder))
                 .setNegativeButton(R.string.frontend_export_skip, (dialog, which) -> onEsdeFolderPicked(null))
                 .setOnCancelListener(dialog -> onEsdeFolderPicked(null))
-                .show();
+                .show());
     }
 
     /** The ES-DE folder pick's result, or null to export without ES-DE's find rules. */

@@ -17,6 +17,7 @@ import com.limelight.main.MainActivity;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.NvHTTP;
 import com.limelight.nvstream.jni.MoonBridge;
+import com.limelight.ui.ButtonGlyphs;
 import com.limelight.utils.Dialog;
 import com.limelight.utils.ServerHelper;
 import com.limelight.utils.SpinnerDialog;
@@ -397,6 +398,7 @@ public class AddComputerManually extends AppCompatActivity {
 
             AlertDialog dialog = builder.create();
             dialog.show();
+            ButtonGlyphs.bindCancel(dialog);
         }
     }
 

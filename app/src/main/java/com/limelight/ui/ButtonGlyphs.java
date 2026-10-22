@@ -1,13 +1,16 @@
 package com.limelight.ui;
 
+import android.content.DialogInterface;
 import android.content.res.ColorStateList;
 import android.graphics.drawable.Drawable;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.StringRes;
+import androidx.appcompat.app.AlertDialog;
 import androidx.core.content.ContextCompat;
 import androidx.core.widget.ImageViewCompat;
 import androidx.lifecycle.LifecycleOwner;
@@ -38,12 +41,37 @@ public final class ButtonGlyphs {
      */
     public static void bind(@NonNull LifecycleOwner owner, @NonNull MaterialButton button,
                             @NonNull String key) {
+        GamepadPresence.connected().observe(owner, glyphIn(button, key));
+    }
+
+    /** {@link #bind}, for as long as the button is attached to a window. */
+    public static void bind(@NonNull MaterialButton button, @NonNull String key) {
+        whileAttached(button, glyphIn(button, key));
+    }
+
+    /**
+     * Puts B on a shown dialog's negative button. Only for a cancelable dialog whose negative
+     * button does what cancelling it does: B cancels a dialog (the framework falls back from B
+     * to back), so the button is the one B fires. Asked again on a later show, it binds nothing
+     * twice.
+     */
+    public static void bindCancel(@NonNull AlertDialog dialog) {
+        Button button = dialog.getButton(DialogInterface.BUTTON_NEGATIVE);
+        if (button instanceof MaterialButton && button.getTag(R.id.keyGlyph) == null) {
+            button.setTag(R.id.keyGlyph, "B");
+            bind((MaterialButton) button, "B");
+        }
+    }
+
+    // The glyph in place of the button's icon while a pad is connected; its own icon otherwise.
+    @NonNull
+    private static Observer<Boolean> glyphIn(@NonNull MaterialButton button, @NonNull String key) {
         final Drawable own = button.getIcon();
         final ColorStateList ownTint = button.getIconTint();
         final int ownGravity = button.getIconGravity();
         final Drawable glyph = new KeyGlyphDrawable(button.getResources(), key,
                 button.getCurrentTextColor());
-        GamepadPresence.connected().observe(owner, pad -> {
+        return pad -> {
             if (Boolean.TRUE.equals(pad)) {
                 button.setIconTint(null);
                 button.setIcon(glyph);
@@ -53,7 +81,7 @@ public final class ButtonGlyphs {
                 button.setIconTint(ownTint);
                 button.setIconGravity(ownGravity);
             }
-        });
+        };
     }
 
     /** The same rule for a view that is not a button, such as a glyph beside a field. */
