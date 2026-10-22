@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The live dot before the connection scene's phase: the signal, pulsed from code. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <size
+        android:width="8dp"
+        android:height="8dp" />
+    <solid android:color="@color/signal" />
+</shape>

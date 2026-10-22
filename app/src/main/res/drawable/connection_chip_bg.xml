@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The PC chip in the connection scene's corner: the HUD's dark pill, read over any art. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="@dimen/connection_chip_corner" />
+    <solid android:color="@color/hud_scrim" />
+</shape>

@@ -252,6 +252,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     public NvConnection conn;
     private ConnectionOverlay connectionOverlay;
+    // The keys whose press the connection scene took, so their release is taken too.
+    private final Set<Integer> connectionSceneKeys = new HashSet<>();
     /**
      * The phone's stream controls, drawn inside this window over the stream, and the edge pill
      * that opens them. GameMenu draws on the panel; the handle is hidden where the panel is not
@@ -621,8 +623,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         clipboardManager = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
 
         // Bring up the connection scene. It is filled in with the game's cover and name
-        // once the intent extras are read below.
-        connectionOverlay = new ConnectionOverlay(findViewById(R.id.connectionOverlay));
+        // once the intent extras are read below. Its Cancel, and the panel's, give the launch up.
+        connectionOverlay = new ConnectionOverlay(findViewById(R.id.connectionOverlay), this,
+                findViewById(R.id.streamContainer), this::cancelLaunch);
+        CompanionDisplayManager.setLaunchCancelListener(this::cancelLaunch);
 
 
         Display currentDisplay = null;
@@ -865,6 +869,13 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                         ? () -> coverConn.getBoxArt(coverApp)
                         : null,
                 appName, pcName);
+        // Behind it, the game's background art when the host's metadata (the library's copy on
+        // disk) says it has one, and the game's history for the companion panel.
+        final int backgroundAppId = appId;
+        connectionOverlay.loadHostArt(getCacheDir(), pcUuid, appUUID,
+                coverConn != null && appId != StreamConfiguration.INVALID_APP_ID
+                        ? () -> coverConn.getBackgroundArt(backgroundAppId)
+                        : null);
         // The same cover, small, beside the title in the side panel's header.
         controlsPanel.setCover(boxArt);
 
@@ -1082,6 +1093,16 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 .setControlPeerTimeoutMs(prefConfig.autoReconnect ? prefConfig.networkTimeoutSeconds * 1000 : 0)
                 .build();
         streamConfig = config;
+
+        // What the stream asks for, for the companion panel's "This session": what the host
+        // grants is only known once it is live.
+        if (connectionOverlay != null) {
+            connectionOverlay.setStreamFacts(
+                    getString(R.string.conn_value_resolution, displayWidth, displayHeight, prefConfig.fps),
+                    requestedVideoLabel(willStreamHdr, bitrate),
+                    getString(vDisplay ? R.string.conn_value_virtual_display
+                            : R.string.conn_value_host_display));
+        }
 
         // Initialize the connection
         conn = new NvConnection(getApplicationContext(),
@@ -1516,6 +1537,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         if (streamContainer != null) {
             streamContainer.requestLayout();
         }
+        if (connectionOverlay != null) {
+            connectionOverlay.applyWindow(newConfig);
+        }
         hideSystemUi(50);
 
         if (virtualController != null) {
@@ -1940,6 +1964,54 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 ? R.string.companion_codec_hdr : R.string.companion_codec_sdr, name);
     }
 
+    /**
+     * "HEVC · HDR · 40 Mbps": the video the stream asks for, before the host has answered. The
+     * codec is the one the settings force, or Auto when the host picks; PyroWave, when offered,
+     * names itself.
+     */
+    private String requestedVideoLabel(boolean hdr, int bitrateKbps) {
+        String codec;
+        if (PyroWaveSupport.isPyroWave(streamConfig.getSupportedVideoFormats())) {
+            codec = "PyroWave";
+        } else {
+            switch (prefConfig.videoFormat) {
+                case FORCE_AV1:
+                    codec = "AV1";
+                    break;
+                case FORCE_HEVC:
+                    codec = "HEVC";
+                    break;
+                case FORCE_H264:
+                    codec = "H.264";
+                    break;
+                case AUTO:
+                default:
+                    codec = getString(R.string.conn_value_codec_auto);
+                    break;
+            }
+        }
+        return getString(R.string.conn_value_video, codec,
+                getString(hdr ? R.string.conn_value_hdr : R.string.conn_value_sdr),
+                Math.round(bitrateKbps / 1000f));
+    }
+
+    /**
+     * Give the launch up, from the connection scene's Cancel, the panel's, or a key that cancels
+     * (Game#handleKeyDown). The same way out as Disconnect: leaving stops the connection in
+     * onStop, which also ends a start still on its way, and the library comes back. The game the
+     * host may already have started keeps running there, as after a disconnect.
+     */
+    private void cancelLaunch() {
+        if (connectionOverlay == null || !connectionOverlay.isShowing() || isFinishing()) {
+            return;
+        }
+        LimeLog.info("Launch cancelled from the connection scene");
+        // The start this cuts short may still report itself failed before onStop: the user left,
+        // there is nothing to tell them.
+        displayedFailureDialog = true;
+        finish();
+    }
+
     /** The phone's controls, for GameMenu to draw on. */
     public StreamControlsPanel getControlsPanel() {
         return controlsPanel;
@@ -2321,6 +2393,13 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             achievementWatcher = null;
         }
         stopLiveBitrate();
+        // A launch given up (or a screen closed mid-start) takes its scene down, and the panel's
+        // "This session" with it.
+        CompanionDisplayManager.setLaunchCancelListener(null);
+        if (connectionOverlay != null) {
+            connectionOverlay.dismiss();
+            connectionOverlay = null;
+        }
         CompanionState.getInstance().leaveStreaming();
 
         if (prefConfig.enableFullExDisplay) handleDisplayRemoved();
@@ -2680,6 +2759,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             return true;
         }
 
+        if (handleConnectionSceneKeyDown(event)) {
+            return true;
+        }
+
         // Pass-through virtual navigation keys
         if ((event.getFlags() & KeyEvent.FLAG_VIRTUAL_HARD_KEY) != 0) {
             return false;
@@ -2766,6 +2849,44 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         return true;
     }
 
+    /**
+     * The keys while the connection scene is up, ahead of the pad's handler, which would take B,
+     * Back and Select and send them nowhere (there is no stream to send them to yet). B, Back,
+     * Select and Escape cancel the launch, as Cancel does; A and the confirm keys press Cancel,
+     * whether or not it holds focus (it cannot in touch mode); every other key goes on as it
+     * always did. A mouse's Back is its right button and keeps its own path. Each press taken is
+     * remembered so that its release is taken too.
+     *
+     * @return whether the key was the scene's
+     */
+    private boolean handleConnectionSceneKeyDown(KeyEvent event) {
+        int keyCode = event.getKeyCode();
+        if (connectionOverlay == null || !connectionOverlay.isShowing()) {
+            // Forgotten, so a release lost while the scene was up never eats a later one.
+            connectionSceneKeys.remove(keyCode);
+            return false;
+        }
+        int source = event.getSource();
+        if (keyCode == KeyEvent.KEYCODE_BACK && (source == InputDevice.SOURCE_MOUSE
+                || source == InputDevice.SOURCE_MOUSE_RELATIVE)) {
+            return false;
+        }
+        ConnectionOverlay.KeyAction action = ConnectionOverlay.keyAction(keyCode);
+        if (action == ConnectionOverlay.KeyAction.PASS) {
+            return false;
+        }
+        connectionSceneKeys.add(keyCode);
+        if (event.getRepeatCount() > 0) {
+            return true;
+        }
+        if (action == ConnectionOverlay.KeyAction.CANCEL) {
+            cancelLaunch();
+        } else if (action == ConnectionOverlay.KeyAction.ACTIVATE) {
+            connectionOverlay.activate();
+        }
+        return true;
+    }
+
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
         return handleKeyUp(event) || super.onKeyUp(keyCode, event);
@@ -2775,6 +2896,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     public boolean handleKeyUp(KeyEvent event) {
         // Key-ups too, and also the one of a press that closed the controls.
         if (controlsInput != null && controlsInput.onKeyUp(event.getKeyCode())) {
+            return true;
+        }
+
+        // The release of a key the connection scene took, even once the scene is gone (its press
+        // cancelled, or the stream went live in between): the host never saw it go down.
+        if (connectionSceneKeys.remove(event.getKeyCode())) {
             return true;
         }
 
@@ -5550,9 +5677,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             return;
         }
         // While the connection scene is up, back cancels the connection and leaves — the
-        // same escape the old cancelable spinner offered — rather than opening the menu.
+        // same escape the old cancelable spinner offered — rather than opening the menu. The
+        // touch and gesture Back arrive here; a key's Back is taken in handleKeyDown.
         if (connectionOverlay != null && connectionOverlay.isShowing()) {
-            finish();
+            cancelLaunch();
             return;
         }
         if(prefConfig.enableBackMenu){
