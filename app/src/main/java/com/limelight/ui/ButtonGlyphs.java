@@ -71,16 +71,21 @@ public final class ButtonGlyphs {
         final Drawable own = button.getIcon();
         final ColorStateList ownTint = button.getIconTint();
         final int ownGravity = button.getIconGravity();
+        final int ownSize = button.getIconSize();
         final Drawable glyph = new KeyGlyphDrawable(button.getResources(), key,
                 button.getCurrentTextColor());
         return pad -> {
             if (Boolean.TRUE.equals(pad)) {
                 button.setIconTint(null);
                 button.setIcon(glyph);
+                // The style's square icon size (18dp in Material3) would squeeze the key's plate:
+                // 0 lets the glyph keep its own width and height.
+                button.setIconSize(0);
                 button.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
             } else {
                 button.setIcon(own);
                 button.setIconTint(ownTint);
+                button.setIconSize(ownSize);
                 button.setIconGravity(ownGravity);
             }
         };

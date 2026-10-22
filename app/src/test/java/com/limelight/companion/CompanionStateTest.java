@@ -81,6 +81,19 @@ public class CompanionStateTest {
     }
 
     @Test
+    public void aLaunchOverAStreamNotYetLeftEndsThatStream() {
+        // The next game's stream screen opens before the last one is destroyed: its late
+        // leaveStreaming() finds LAUNCHING, so the launch itself must end the old stream.
+        state.enterStreaming();
+        state.setTelemetryView("<html></html>");
+        state.enterLaunching(new CompanionState.Launch("Hades", "Taverna", 1000));
+        state.leaveStreaming();
+        assertEquals(CompanionState.Content.LAUNCHING, state.getContent());
+        assertNull(state.getTelemetryView());
+        assertNull(state.getStats());
+    }
+
+    @Test
     public void thePanelsStreamChoicesEndWithTheStream() {
         state.enterStreaming();
         state.setTelemetryView("<html>view</html>");

@@ -626,7 +626,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         // once the intent extras are read below. Its Cancel, and the panel's, give the launch up.
         connectionOverlay = new ConnectionOverlay(findViewById(R.id.connectionOverlay), this,
                 findViewById(R.id.streamContainer), this::cancelLaunch);
-        CompanionDisplayManager.setLaunchCancelListener(this::cancelLaunch);
+        CompanionDisplayManager.setLaunchCancelListener(launchCancel);
 
 
         Display currentDisplay = null;
@@ -2001,6 +2001,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
      * onStop, which also ends a start still on its way, and the library comes back. The game the
      * host may already have started keeps running there, as after a disconnect.
      */
+    // The panel's Cancel for this screen's launch, kept to take back only this one (see onDestroy).
+    private final Runnable launchCancel = this::cancelLaunch;
+
     private void cancelLaunch() {
         if (connectionOverlay == null || !connectionOverlay.isShowing() || isFinishing()) {
             return;
@@ -2395,7 +2398,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         stopLiveBitrate();
         // A launch given up (or a screen closed mid-start) takes its scene down, and the panel's
         // "This session" with it.
-        CompanionDisplayManager.setLaunchCancelListener(null);
+        // Only this screen's own: a next game's stream screen may already have registered its own.
+        CompanionDisplayManager.clearLaunchCancelListener(launchCancel);
         if (connectionOverlay != null) {
             connectionOverlay.dismiss();
             connectionOverlay = null;
@@ -4975,6 +4979,13 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                         return;
                     }
                     finishReconnect();
+                }
+
+                if (isFinishing()) {
+                    // The launch was cancelled while this start was on its way: onStop stops the
+                    // connection, and nothing of the stream should show (or reach the panel) first.
+                    LimeLog.info("Connected after the launch was cancelled, leaving it to onStop");
+                    return;
                 }
 
                 if (connectionOverlay != null) {

@@ -176,6 +176,11 @@ public class CompanionState {
         if (next == null) {
             throw new IllegalArgumentException("launch must not be null");
         }
+        if (content == Content.STREAMING) {
+            // The last stream's screen is not destroyed yet (the next one opened first), so its
+            // leaveStreaming() would find LAUNCHING and do nothing: end that stream here.
+            clearStream();
+        }
         boolean same = next.equals(launch);
         launch = next;
         if (content == Content.LAUNCHING) {
@@ -228,17 +233,7 @@ public class CompanionState {
     /** The stream ended; its stats and telemetry go with it. */
     public void leaveStreaming() {
         if (content == Content.STREAMING) {
-            stats = null;
-            // Both belong to the game that just ended. Left behind, the panel would keep drawing a
-            // view fed by a stream that has stopped — the last frame of a dead game, forever.
-            telemetryView = null;
-            telemetryStream = null;
-            // The panel's choices for this stream end with it: the next game starts on its own
-            // view (if it has one), and a view that crashed this time is given another chance.
-            statsOverTelemetry = false;
-            crashedTelemetryView = null;
-            hostLatencySeen = false;
-            streamSession = null;
+            clearStream();
             // The main screen starts again before the finished game's activity is destroyed, so
             // its browsing (and page) usually arrived while this still said STREAMING: held, not
             // drawn. Go back to it now rather than wait for a push that may not come. Set here,
@@ -246,6 +241,21 @@ public class CompanionState {
             content = browsing != null ? Content.BROWSING : Content.IDLE;
             notifyChanged();
         }
+    }
+
+    // What belongs to the stream that ended: its stats, its view and the panel's choices for it.
+    private void clearStream() {
+        stats = null;
+        // Both belong to the game that just ended. Left behind, the panel would keep drawing a
+        // view fed by a stream that has stopped — the last frame of a dead game, forever.
+        telemetryView = null;
+        telemetryStream = null;
+        // The panel's choices for this stream end with it: the next game starts on its own
+        // view (if it has one), and a view that crashed this time is given another chance.
+        statsOverTelemetry = false;
+        crashedTelemetryView = null;
+        hostLatencySeen = false;
+        streamSession = null;
     }
 
     private void setContent(Content next) {

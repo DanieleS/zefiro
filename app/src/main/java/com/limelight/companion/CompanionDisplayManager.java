@@ -338,6 +338,16 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
         }
     }
 
+    /**
+     * Take {@code listener} away if it is still the one registered. A stream screen destroyed
+     * after the next one opened must not take the next launch's Cancel with it.
+     */
+    public static void clearLaunchCancelListener(Runnable listener) {
+        if (instance != null && instance.launchCancelListener == listener) {
+            instance.launchCancelListener = null;
+        }
+    }
+
     /** Whether a tap on the launch's Cancel would reach anyone. */
     static boolean hasLaunchCancelListener() {
         return instance != null && instance.launchCancelListener != null;
