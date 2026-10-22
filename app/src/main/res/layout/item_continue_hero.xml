@@ -6,7 +6,8 @@
     pills at the foot, Resume filled and Quit game quiet.
 
     The card is as tall as its cover, which HeroAdapter sizes to a third of the window's height
-    at most, so a shelf always shows under it. Its ground is the game's background art when the
+    at most, so a shelf always shows under it; taller only when the column beside the cover
+    needs it, so the buttons are never cut off. Its ground is the game's background art when the
     host has one, its cover when it has not, and the plain card when there is neither; the
     backdrop fills the card without sizing it (BackdropImageView), and the scrim keeps the text
     readable on whichever it is. The card is not focusable: the two buttons are the stops, at
@@ -56,9 +57,14 @@
                 android:focusable="false"
                 android:importantForAccessibility="no" />
 
+            <!-- Wrapped, and at least as tall as the cover (HeroAdapter sets its minimum), so
+                 the buttons sit at the cover's foot and a column taller than the cover (a title
+                 on two lines on a phone) makes the card taller rather than losing the buttons
+                 under its edge. At match_parent the row took only the cover's height. -->
             <LinearLayout
+                android:id="@+id/heroColumn"
                 android:layout_width="0dp"
-                android:layout_height="match_parent"
+                android:layout_height="wrap_content"
                 android:layout_marginStart="@dimen/hero_gap"
                 android:layout_weight="1"
                 android:orientation="vertical">

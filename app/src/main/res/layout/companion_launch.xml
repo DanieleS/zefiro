@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    "This session": the companion panel while a game starts (CompanionState.Launch), the lower
+    half of the connection scene up top. Read from the top: the tag and the time waited so far,
+    the game and its PC, the four steps the wait is told in (done, under way with what it is
+    doing, still to come), then what the stream asked for and the game's history on the host,
+    each row only when known. Cancel at the foot, on the right, gives the launch up.
+
+    Nothing here is focusable: the panel's window never takes focus, so Cancel is for touch, and
+    the pad's B does the same from the main screen (its glyph shows while a pad is connected).
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/companionLaunch"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface_deep"
+    android:orientation="vertical"
+    android:padding="@dimen/companion_launch_padding"
+    android:visibility="gone">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:letterSpacing="0.14"
+            android:singleLine="true"
+            android:text="@string/conn_session_tag"
+            android:textAllCaps="true"
+            android:textColor="@color/signal"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/companionLaunchElapsed"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFeatureSettings="tnum"
+            android:singleLine="true"
+            android:textColor="@color/content_muted"
+            android:textSize="13sp"
+            tools:text="0:07" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/companionLaunchTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:ellipsize="end"
+        android:singleLine="true"
+        android:textColor="@color/content_primary"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        tools:text="Hades II" />
+
+    <TextView
+        android:id="@+id/companionLaunchHost"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:ellipsize="end"
+        android:singleLine="true"
+        android:textColor="@color/content_muted"
+        android:textSize="12sp"
+        tools:text="Taverna" />
+
+    <!-- The steps and the facts take what the header and Cancel leave, and scroll when that is
+         not enough: with every fact known they ran past the Thor's 540dp panel (whose window is
+         a little shorter still) and pushed Cancel off its edge. The rows give way, Cancel never
+         does. -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="10dp"
+        android:layout_weight="1"
+        android:fadingEdgeLength="16dp"
+        android:overScrollMode="never"
+        android:requiresFadingEdge="vertical"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- The four steps. The marker's ground is the state (launch_step_done, _current,
+                 _pending); a done step also shows the check over it. -->
+            <LinearLayout
+                android:id="@+id/companionLaunchSteps"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <include
+                    android:id="@+id/companionLaunchStep0"
+                    layout="@layout/companion_launch_step" />
+
+                <include
+                    android:id="@+id/companionLaunchStep1"
+                    layout="@layout/companion_launch_step" />
+
+                <include
+                    android:id="@+id/companionLaunchStep2"
+                    layout="@layout/companion_launch_step" />
+
+                <include
+                    android:id="@+id/companionLaunchStep3"
+                    layout="@layout/companion_launch_step" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="8dp"
+                android:background="@color/divider" />
+
+            <include
+                android:id="@+id/companionLaunchResolution"
+                layout="@layout/companion_launch_fact" />
+
+            <include
+                android:id="@+id/companionLaunchVideo"
+                layout="@layout/companion_launch_fact" />
+
+            <include
+                android:id="@+id/companionLaunchDisplay"
+                layout="@layout/companion_launch_fact" />
+
+            <include
+                android:id="@+id/companionLaunchLastPlayed"
+                layout="@layout/companion_launch_fact" />
+
+            <include
+                android:id="@+id/companionLaunchPlaytime"
+                layout="@layout/companion_launch_fact" />
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- Cancel: the companion's quiet pill (no MaterialButton here, see companion_surface), with
+         the pad's B inside it while a pad is connected. -->
+    <LinearLayout
+        android:id="@+id/companionLaunchCancel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/companion_ghost_bg"
+        android:clickable="true"
+        android:focusable="false"
+        android:gravity="center_vertical"
+        android:minHeight="@dimen/action_size"
+        android:orientation="horizontal"
+        android:paddingStart="20dp"
+        android:paddingEnd="22dp">
+
+        <ImageView
+            android:id="@+id/companionLaunchCancelGlyph"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:importantForAccessibility="no"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/companionLaunchCancelLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:letterSpacing="0.02"
+            android:singleLine="true"
+            android:text="@string/cancel"
+            android:textColor="@color/content_primary"
+            android:textSize="15sp" />
+    </LinearLayout>
+
+</LinearLayout>

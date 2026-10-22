@@ -20,6 +20,7 @@ import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 
 import com.limelight.R;
+import com.limelight.ui.ButtonGlyphs;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -135,8 +136,8 @@ final class SettingsHeader {
     private final TextView alsoMatches;
 
     private boolean wide;
-    // Whether the screen is driven by the pad (MainHost.isDpadFirst): the glyphs name its
-    // buttons, and a phone in the hand has none to name.
+    // Whether a gamepad is connected (GamepadPresence): the glyphs name its buttons, and a phone
+    // in the hand has none to name.
     private boolean glyphs;
     private int changedCount;
     private boolean searching;
@@ -182,12 +183,13 @@ final class SettingsHeader {
         alsoMatches = root.findViewById(R.id.settingsAlsoMatches);
 
         // The mock's glyphs: Y searches, L1 and R1 (the Thor's shoulder buttons) jump between
-        // the chips.
+        // the chips, or step through the filters while searching, and B leaves the search.
         ((TextView) searchGlyph).setText("Y");
         // A key on the field, not of its colour: the hint's own key is the field's surface.
         searchGlyph.setBackgroundResource(R.drawable.settings_search_key_bg);
         ((TextView) prevGlyph).setText("L1");
         ((TextView) nextGlyph).setText("R1");
+        ButtonGlyphs.bindImage(root.findViewById(R.id.settingsSearchBack), "B");
 
         searchRest.setOnClickListener(v -> listener.onSearchRequested());
         root.findViewById(R.id.settingsSearchBack).setOnClickListener(v -> listener.onSearchLeave());
@@ -296,12 +298,17 @@ final class SettingsHeader {
 
     // --- Window and state ---
 
-    /**
-     * Lays the header out for a wide window (the Thor) or a compact one (a phone), with the
-     * gamepad glyphs (Y, L1, R1) only on a screen driven by the pad.
-     */
-    void setWide(boolean wide, boolean glyphs) {
+    /** Lays the header out for a wide window (the Thor) or a compact one (a phone). */
+    void setWide(boolean wide) {
         this.wide = wide;
+        applyState();
+    }
+
+    /**
+     * Shows the gamepad glyphs (Y, L1, R1) or hides them: shown while a pad is connected,
+     * whatever the window's size.
+     */
+    void setGlyphs(boolean glyphs) {
         this.glyphs = glyphs;
         applyState();
     }
@@ -321,14 +328,13 @@ final class SettingsHeader {
     private void applyState() {
         searchRest.setVisibility(searching ? View.GONE : View.VISIBLE);
         searchBar.setVisibility(searching ? View.VISIBLE : View.GONE);
-        searchGlyph.setVisibility(wide && glyphs ? View.VISIBLE : View.GONE);
+        searchGlyph.setVisibility(glyphs ? View.VISIBLE : View.GONE);
         card.setVisibility(searching ? View.GONE : View.VISIBLE);
         profileRow.setVisibility(wide ? View.GONE : View.VISIBLE);
         cardRule.setVisibility(wide ? View.GONE : View.VISIBLE);
         profilePin.setVisibility(wide ? View.VISIBLE : View.GONE);
-        boolean chipGlyphs = wide && glyphs && !searching;
-        prevGlyph.setVisibility(chipGlyphs ? View.VISIBLE : View.GONE);
-        nextGlyph.setVisibility(chipGlyphs ? View.VISIBLE : View.GONE);
+        prevGlyph.setVisibility(glyphs ? View.VISIBLE : View.GONE);
+        nextGlyph.setVisibility(glyphs ? View.VISIBLE : View.GONE);
         changedChip.setVisibility(wide && !searching && changedCount > 0 ? View.VISIBLE : View.GONE);
     }
 

@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.limelight.R;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.pcs.HostTileBinder;
+import com.limelight.ui.ButtonGlyphs;
 
 import java.util.List;
 
@@ -117,6 +118,11 @@ final class HeaderAdapter extends RecyclerView.Adapter<HeaderAdapter.Holder> {
                 .inflate(R.layout.item_library_header, parent, false);
         Holder holder = new Holder(view);
         holder.chip.setOnClickListener(listener::onHostChip);
+        // X opens the host sheet anywhere in the Library: the chip names it while a pad is in.
+        TextView glyph = view.findViewById(R.id.libraryHostChipGlyph);
+        glyph.setText("X");
+        glyph.setBackgroundResource(R.drawable.settings_search_key_bg);
+        ButtonGlyphs.bindVisibility(glyph);
         return holder;
     }
 

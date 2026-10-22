@@ -8,7 +8,7 @@ import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 
 import com.limelight.R;
-import com.limelight.main.MainHost;
+import com.limelight.ui.GamepadPresence;
 import com.limelight.ui.MenuSheet;
 
 import java.util.ArrayList;
@@ -184,14 +184,14 @@ public final class GameActionsSheet {
 
     /**
      * Builds and shows the sheet, centred and focused for the d-pad: on its first row even when
-     * a long-press opened it, on a d-pad-first screen ({@link MainHost#isDpadFirst}), so the row
+     * a long-press opened it, while a gamepad is connected ({@link GamepadPresence}), so the row
      * the pad starts on shows its ring.
      */
     @NonNull
     public static Dialog show(@NonNull Context context, @NonNull LibraryApp app,
                               @NonNull State state, @Nullable String companionLabel,
                               @Nullable String hostName, @NonNull Runner runner) {
-        boolean dpadFirst = context instanceof MainHost && ((MainHost) context).isDpadFirst();
+        boolean dpadFirst = GamepadPresence.isConnected();
         return build(context, app, state, companionLabel, hostName, runner)
                 .setFocusFromTouch(dpadFirst)
                 .showCentered(context);

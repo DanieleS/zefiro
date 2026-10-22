@@ -12,6 +12,7 @@ import androidx.preference.Preference;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.limelight.R;
+import com.limelight.ui.ButtonGlyphs;
 
 import java.util.Locale;
 
@@ -280,6 +281,7 @@ public class SeekBarPreference extends Preference
         AlertDialog dialog = getDialog();
         updateSeekbar();
         dialog.show();
+        ButtonGlyphs.bindCancel(dialog);
     }
 
     @Override

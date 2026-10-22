@@ -25,10 +25,22 @@ public class CompanionMenuItem {
     /** Whether it ends the game (Quit game): drawn in the danger hue, apart from Disconnect. */
     public final boolean warn;
     public final Runnable action;
+    /**
+     * The pad key that fires it wherever the selection is ("B" for the way back), drawn at the
+     * row's end while a pad is connected; null for none.
+     */
+    @Nullable
+    public final String padKey;
 
     public CompanionMenuItem(CharSequence label, @DrawableRes int iconRes, StreamAction.Group group,
                              @Nullable Boolean checked, boolean opensPage, boolean warn,
                              Runnable action) {
+        this(label, iconRes, group, checked, opensPage, warn, action, null);
+    }
+
+    public CompanionMenuItem(CharSequence label, @DrawableRes int iconRes, StreamAction.Group group,
+                             @Nullable Boolean checked, boolean opensPage, boolean warn,
+                             Runnable action, @Nullable String padKey) {
         this.label = label;
         this.iconRes = iconRes;
         this.group = group;
@@ -36,5 +48,6 @@ public class CompanionMenuItem {
         this.opensPage = opensPage;
         this.warn = warn;
         this.action = action;
+        this.padKey = padKey;
     }
 }

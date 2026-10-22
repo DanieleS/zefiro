@@ -9,8 +9,14 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
+import android.view.View;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.limelight.computers.ComputerDatabaseManager;
 import com.limelight.computers.ComputerManagerListener;
@@ -28,7 +34,6 @@ import com.limelight.utils.CacheHelper;
 import com.limelight.utils.Dialog;
 import com.limelight.utils.ServerHelper;
 import com.limelight.utils.ShortcutHelper;
-import com.limelight.utils.SpinnerDialog;
 import com.limelight.utils.UiHelper;
 
 import org.xmlpull.v1.XmlPullParserException;
@@ -53,7 +58,6 @@ public class ShortcutTrampoline extends AppCompatActivity {
 
     private int wakeHostTries = 10;
     private ComputerDetails computer;
-    private SpinnerDialog blockingLoadSpinner;
 
     private ComputerManagerService.ComputerManagerBinder managerBinder;
 
@@ -94,11 +98,6 @@ public class ShortcutTrampoline extends AppCompatActivity {
                                 getResources().getString(R.string.conn_error_title),
                                 getResources().getString(R.string.scut_pc_not_found),
                                 true);
-
-                        if (blockingLoadSpinner != null) {
-                            blockingLoadSpinner.dismiss();
-                            blockingLoadSpinner = null;
-                        }
 
                         if (managerBinder != null) {
                             unbindService(serviceConnection);
@@ -145,12 +144,6 @@ public class ShortcutTrampoline extends AppCompatActivity {
                                 runOnUiThread(new Runnable() {
                                     @Override
                                     public void run() {
-                                        // Stop showing the spinner
-                                        if (blockingLoadSpinner != null) {
-                                            blockingLoadSpinner.dismiss();
-                                            blockingLoadSpinner = null;
-                                        }
-
                                         // If the managerBinder was destroyed before this callback,
                                         // just finish the activity.
                                         if (managerBinder == null) {
@@ -574,24 +567,38 @@ public class ShortcutTrampoline extends AppCompatActivity {
                     getIntent().getBooleanExtra(Game.EXTRA_APP_HDR, false)); // HDR info still from intent
         }
 
+        // The wait for the PC on the connection scene's ground, not in the old "Establishing
+        // Connection" dialog over an empty window: the stream's scene follows it. Back still
+        // gives it up (the activity's own Back finishes it, as the dialog's cancel did).
+        setContentView(R.layout.activity_shortcut_trampoline);
+        enterImmersive();
+
         // Bind to the computer manager service
         bindService(new Intent(this, ComputerManagerService.class), serviceConnection,
                 Service.BIND_AUTO_CREATE);
+    }
 
-        blockingLoadSpinner = SpinnerDialog.displayDialog(this, getResources().getString(R.string.conn_establishing_title),
-                getResources().getString(R.string.applist_connect_msg), true);
+    // Full screen like the stream's scene that follows, so the bars don't come and go between the
+    // two; the wait's text and line keep clear of a cutout.
+    private void enterImmersive() {
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        WindowInsetsControllerCompat bars =
+                WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+        bars.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+        bars.hide(WindowInsetsCompat.Type.systemBars());
+        View root = findViewById(R.id.trampolineRoot);
+        ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
+            Insets cutout = insets.getInsets(WindowInsetsCompat.Type.displayCutout());
+            v.setPadding(cutout.left, cutout.top, cutout.right, cutout.bottom);
+            return insets;
+        });
     }
 
     @Override
     protected void onStop() {
         super.onStop();
 
-        if (blockingLoadSpinner != null) {
-            blockingLoadSpinner.dismiss();
-            blockingLoadSpinner = null;
-        }
-
-        Dialog.closeDialogs();
+        Dialog.closeDialogs(this);
 
         // From here on the worker no longer adds a listener, or takes back one it just added.
         synchronized (pollingListenerLock) {

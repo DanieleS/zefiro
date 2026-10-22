@@ -123,6 +123,8 @@
     <dimen name="stats_gutter">24dp</dimen>
     <!-- Week / Month / Year on the header line, in a wide window without the panel. -->
     <dimen name="stats_header_ranges_width">216dp</dimen>
+    <!-- What the control grows by while a pad is connected: its X and Y keys, with their gaps. -->
+    <dimen name="stats_header_ranges_keys_width">64dp</dimen>
     <!-- The chart: its height inline, and the bounds it moves within to fit the window (see
          StatsFormat.chartHeight). -->
     <dimen name="stats_chart_height">200dp</dimen>
@@ -264,6 +266,8 @@
     <!-- A segmented control: a 48dp row whose segments are drawn 40dp tall in the track. -->
     <dimen name="segment_track_corner">12dp</dimen>
     <dimen name="segment_track_padding">3dp</dimen>
+    <!-- Either side of a pad key at a segmented control's end (SegmentedControlView.setKeys). -->
+    <dimen name="segment_key_gap">5dp</dimen>
     <dimen name="segment_item_inset">4dp</dimen>
     <dimen name="segment_item_corner">9dp</dimen>
     <!-- A gamepad hint: key glyphs, then the label, hints spaced apart. -->
@@ -273,6 +277,8 @@
     <dimen name="key_glyph_gap">3dp</dimen>
     <dimen name="hint_label_gap">6dp</dimen>
     <dimen name="hint_gap">14dp</dimen>
+    <!-- Between two lines of hints, when a narrow window wraps them. -->
+    <dimen name="hint_line_gap">6dp</dimen>
     <!-- Screens T3: the game page. The cover beside the title, wide and compact. -->
     <dimen name="game_page_cover_width">132dp</dimen>
     <dimen name="game_page_cover_height">176dp</dimen>
@@ -317,5 +323,31 @@
     <dimen name="pc_details_button_height">48dp</dimen>
     <dimen name="pc_details_ring_gap">3dp</dimen>
     <dimen name="pc_details_gap">8dp</dimen>
+
+    <!--
+        The connection scene (activity_game, ui/ConnectionOverlay), proposal C: the game's art
+        full-bleed, the cover and title at the foot. The compact sizes fit a phone in landscape
+        (about 360dp tall); a window that is wide and not short (the Thor's top screen) takes the
+        large ones, chosen in code since the stream activity handles its own resizes.
+    -->
+    <dimen name="connection_gutter">20dp</dimen>
+    <dimen name="connection_gutter_large">40dp</dimen>
+    <dimen name="connection_cover_width">90dp</dimen>
+    <dimen name="connection_cover_height">120dp</dimen>
+    <dimen name="connection_cover_width_large">120dp</dimen>
+    <dimen name="connection_cover_height_large">160dp</dimen>
+    <dimen name="connection_title_size">34sp</dimen>
+    <dimen name="connection_title_size_large">48sp</dimen>
+    <!-- The title in a narrow (portrait) window, where 34sp leaves a word a line. -->
+    <dimen name="connection_title_size_narrow">26sp</dimen>
+    <dimen name="connection_gap">18dp</dimen>
+    <dimen name="connection_chip_corner">100dp</dimen>
+    <dimen name="connection_progress_height">3dp</dimen>
+
+    <!-- "This session" on the companion panel while a game starts (companion_launch). -->
+    <dimen name="companion_launch_padding">20dp</dimen>
+    <dimen name="companion_launch_step_marker">22dp</dimen>
+    <dimen name="companion_launch_step_height">40dp</dimen>
+    <dimen name="companion_launch_fact_height">30dp</dimen>
 
 </resources>

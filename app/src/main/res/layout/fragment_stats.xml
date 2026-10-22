@@ -74,8 +74,8 @@
             tools:text="Taverna" />
 
         <!-- Wide only: where the period sits, and what A does on a year. On a month a tap
-             climbs to its year, as B does (set in code). Touch only, never a d-pad stop: the
-             pad has B for that. -->
+             climbs to its year, as B does (set in code), and with a pad connected it starts
+             with B. Touch only, never a d-pad stop: the pad has B for that. -->
         <LinearLayout
             android:id="@+id/statsCrumb"
             android:layout_width="wrap_content"
@@ -86,6 +86,14 @@
             android:gravity="center_vertical"
             android:minHeight="@dimen/action_size"
             android:orientation="horizontal">
+
+            <include
+                android:id="@+id/statsCrumbGlyph"
+                layout="@layout/view_gamepad_hint_key"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/key_glyph_height"
+                android:layout_marginEnd="8dp"
+                android:visibility="gone" />
 
             <TextView
                 android:id="@+id/statsCrumbTag"
@@ -217,7 +225,8 @@
                         android:minHeight="@dimen/action_size"
                         android:orientation="horizontal">
 
-                        <!-- A month only: back up to its year, as B does. -->
+                        <!-- A month only: back up to its year, as B does; B first while a pad
+                             is connected. -->
                         <LinearLayout
                             android:id="@+id/statsClimb"
                             android:layout_width="wrap_content"
@@ -232,6 +241,15 @@
                             android:paddingStart="8dp"
                             android:paddingEnd="14dp"
                             android:visibility="gone">
+
+                            <include
+                                android:id="@+id/statsClimbGlyph"
+                                layout="@layout/view_gamepad_hint_key"
+                                android:layout_width="wrap_content"
+                                android:layout_height="@dimen/key_glyph_height"
+                                android:layout_marginStart="4dp"
+                                android:layout_marginEnd="4dp"
+                                android:visibility="gone" />
 
                             <ImageView
                                 android:layout_width="18dp"

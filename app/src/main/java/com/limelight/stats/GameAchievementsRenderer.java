@@ -12,6 +12,7 @@ import com.limelight.R;
 import com.limelight.companion.CompanionPage;
 import com.limelight.companion.CompanionPageRenderer;
 import com.limelight.nvstream.http.Achievement;
+import com.limelight.ui.ButtonGlyphs;
 
 /**
  * Draws a {@link GameAchievementsPage} on the companion panel: the same
@@ -38,6 +39,8 @@ final class GameAchievementsRenderer implements CompanionPageRenderer {
         View view = inflater.inflate(R.layout.companion_page_game_achievements, parent, false);
         AchievementsBlockView block = view.findViewById(R.id.companionAchievementsBlock);
         block.setInline(false);
+        ButtonGlyphs.bindText(view.findViewById(R.id.companionAchievementsStatusHint),
+                R.string.game_page_retry, R.string.game_page_retry_touch);
         return view;
     }
 

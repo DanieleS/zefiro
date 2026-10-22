@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A finished step of the launch on the companion panel: the signal's container, a check
+     drawn over it by the row (companion_launch). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="@color/signal_container" />
+</shape>

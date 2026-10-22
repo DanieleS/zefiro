@@ -23,6 +23,7 @@ import com.limelight.R;
 import com.limelight.main.WindowClass;
 import com.limelight.preferences.StreamPreferencesFragment;
 import com.limelight.settings.SettingsChoicesPage.Choice;
+import com.limelight.ui.ButtonGlyphs;
 
 import java.util.List;
 
@@ -146,6 +147,10 @@ public class SettingsListDialog extends PreferenceDialogFragmentCompat {
     @Override
     public void onStart() {
         super.onStart();
+        // Cancel closes it with nothing chosen, as B (back) does.
+        if (getDialog() instanceof AlertDialog) {
+            ButtonGlyphs.bindCancel((AlertDialog) getDialog());
+        }
         final RecyclerView list = choicesView;
         final int selected = selectedIndex;
         if (list == null || selected < 0) {

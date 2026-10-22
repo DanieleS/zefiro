@@ -123,8 +123,31 @@
     <string name="conn_phase_media">Preparing video and controls…</string>
     <string name="conn_phase_opening">Opening the stream…</string>
     <string name="conn_phase_ready">Ready</string>
-    <!-- Shown under the phase while the host is still bringing the app up. -->
-    <string name="conn_scene_cancel_hint">Press back to cancel</string>
+    <!-- The connection scene's tag over the game's name, in small capitals. -->
+    <string name="conn_scene_tag">Starting</string>
+    <!-- "This session": the companion panel's account of the launch, while the stream starts. -->
+    <string name="conn_session_tag">This session</string>
+    <!-- The steps the six phases are grouped into on the companion panel. -->
+    <string name="conn_step_start_game">Start game</string>
+    <string name="conn_step_connect">Connect</string>
+    <string name="conn_step_media">Video and controls</string>
+    <string name="conn_step_open">Open stream</string>
+    <!-- Labels of what the stream asked for, and of the game's history on the host. -->
+    <string name="conn_fact_resolution">Resolution</string>
+    <string name="conn_fact_video">Video</string>
+    <string name="conn_fact_display">Display</string>
+    <string name="conn_fact_last_played">Last played</string>
+    <string name="conn_fact_playtime">Playtime</string>
+    <!-- "1920×1080 · 60 fps" -->
+    <string name="conn_value_resolution">%1$d×%2$d · %3$d fps</string>
+    <!-- "HEVC · HDR · 40 Mbps": the codec asked for, HDR or SDR, the bitrate. -->
+    <string name="conn_value_video">%1$s · %2$s · %3$d Mbps</string>
+    <!-- The codec when the app lets the host choose. -->
+    <string name="conn_value_codec_auto">Auto</string>
+    <string name="conn_value_hdr">HDR</string>
+    <string name="conn_value_sdr">SDR</string>
+    <string name="conn_value_virtual_display">Virtual display</string>
+    <string name="conn_value_host_display">Host display</string>
 
     <string name="conn_error_title">Connection Error</string>
     <string name="conn_error_msg">Failed to start</string>
@@ -847,6 +870,8 @@
     <string name="stats_last_week">Last week</string>
     <string name="stats_failed_title">Can\'t read the statistics</string>
     <string name="stats_failed_hint">The PC didn\'t answer. Press A to try again.</string>
+    <!-- stats_failed_hint without a gamepad connected. -->
+    <string name="stats_failed_hint_touch">The PC didn\'t answer. Tap to try again.</string>
     <string name="stats_previous">Previous period</string>
     <string name="stats_next">Next period</string>
     <string name="stats_untracked">No sessions recorded yet, so there are none for this period. The totals are below.</string>
@@ -1123,8 +1148,9 @@
     <string name="game_page_session_before">Session before this: %1$s, %2$s</string>
     <!-- Under this week's figure, beside the twelve weeks' bars. -->
     <string name="game_page_this_week">this week</string>
-    <!-- The failed row: A or a tap asks the PC again. -->
+    <!-- The failed row: A or a tap asks the PC again; without a gamepad connected, the tap only. -->
     <string name="game_page_retry">Press A or tap to try again.</string>
+    <string name="game_page_retry_touch">Tap to try again.</string>
     <!-- The failed row when the PC answered but could not read the game's statistics (often
          while a session runs on it), rather than game_stats_failed's unreachable PC. -->
     <string name="game_page_stats_unreadable">Couldn\'t read the statistics.</string>

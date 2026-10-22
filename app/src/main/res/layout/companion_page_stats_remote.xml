@@ -4,7 +4,8 @@
     approved Stats mock (C)'s Thor bottom screen, top to bottom:
 
       remote    Week / Month / Year, then the period as three big buttons: previous, the one
-                shown (not a control), next
+                shown (not a control), next; with a pad connected the ranges are flanked by X
+                and Y and previous and next carry LB and RB, the keys that fire them
       tabs      "Unlocks 64" / "Pick up again 4", each only while its list has rows
       rows      the active tab's list, scrolling between the tabs and the totals
       totals    the library's four totals, pinned to the bottom with the hints under them
@@ -49,6 +50,13 @@
             android:orientation="horizontal"
             android:paddingStart="8dp"
             android:paddingEnd="8dp">
+
+            <include
+                android:id="@+id/companionStatsPreviousGlyph"
+                layout="@layout/view_gamepad_hint_key"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/key_glyph_height"
+                android:layout_marginEnd="6dp" />
 
             <ImageView
                 android:layout_width="16dp"
@@ -122,6 +130,13 @@
                 android:importantForAccessibility="no"
                 android:src="@drawable/ic_chevron_right"
                 android:tint="@color/content_secondary" />
+
+            <include
+                android:id="@+id/companionStatsNextGlyph"
+                layout="@layout/view_gamepad_hint_key"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/key_glyph_height"
+                android:layout_marginStart="6dp" />
 
         </LinearLayout>
 

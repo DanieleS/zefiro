@@ -40,8 +40,6 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.navigationrail.NavigationRailView;
 import com.limelight.LimeLog;
 import com.limelight.R;
-import com.limelight.companion.CompanionDisplayManager;
-import com.limelight.companion.DisplayTargets;
 import com.limelight.computers.HostEntry;
 import com.limelight.computers.HostLibrary;
 import com.limelight.computers.HostRepository;
@@ -193,9 +191,6 @@ public class MainActivity extends AppCompatActivity
     private long companionReclaimUntil;
     @Nullable
     private Runnable achievementCheck;
-    // Whether this window has had a companion display to put its panel on since it was last
-    // started; see isDpadFirst.
-    private boolean hadCompanionDisplay;
 
     // Key code to the down time of the press a section handled, so that press's key-up is
     // swallowed too. Keyed by the down time, not the code alone: when the handled press opens
@@ -314,10 +309,6 @@ public class MainActivity extends AppCompatActivity
         super.onStart();
         viewModel.onStart();
         companionFeed.start();
-        // Back from elsewhere, the companion display is asked for again: a lower screen that went
-        // away while this window was hidden (or a different device altogether, the app moved to
-        // it) no longer keeps the d-pad first. One switched off while this window is shown does.
-        hadCompanionDisplay = hasCompanionDisplay();
         // A switch asked for while the state was saved is applied now, with its initial focus.
         navigator.resume();
         updateBackEnabled();
@@ -340,7 +331,7 @@ public class MainActivity extends AppCompatActivity
         // As the old PC list did: an informational dialog (a PIN, a host's details) is not left
         // up behind a stream or another app. A pairing in progress carries on without its PIN
         // dialog.
-        Dialog.closeDialogs();
+        Dialog.closeDialogs(this);
         super.onStop();
     }
 
@@ -530,43 +521,6 @@ public class MainActivity extends AppCompatActivity
     @Override
     public CompanionPages companionPages() {
         return companionFeed;
-    }
-
-    @Override
-    public boolean isDpadFirst() {
-        if (navChrome.windowClass() != WindowClass.WIDE) {
-            return false;
-        }
-        if (hasCompanionDisplay()) {
-            hadCompanionDisplay = true;
-            return true;
-        }
-        if (hadCompanionDisplay) {
-            // The lower screen switched off or gone since this window was last started: the same
-            // handheld, its pad still under the thumbs, so its hints and first focus stay (PCs
-            // keeps "A Library · Y Actions"). onStart asks again.
-            return true;
-        }
-        for (int id : InputDevice.getDeviceIds()) {
-            InputDevice device = InputDevice.getDevice(id);
-            if (device != null && !device.isVirtual() && (device.getSources()
-                    & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    // Whether a companion display is set up and present now, to put the panel on.
-    private boolean hasCompanionDisplay() {
-        return CompanionDisplayManager.isConfigured(this)
-                && DisplayTargets.findCompanionDisplay(this, windowDisplayId()) != null;
-    }
-
-    // The display this window is on.
-    @SuppressWarnings("deprecation")
-    private int windowDisplayId() {
-        return getWindowManager().getDefaultDisplay().getDisplayId();
     }
 
     @Override

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     The companion surface. Exactly one of its surfaces is visible at a time: the browsing
-    surface (or, with nothing to browse, the app name), or, while streaming, a game's telemetry
-    view or the stats, over the panel's strip.
+    surface (or, with nothing to browse, the app name), "This session" while a game starts, or,
+    while streaming, a game's telemetry view or the stats, over the panel's strip.
 
     The window never takes key focus (see CompanionPresentation), so every control drawn here
     is a touch target, at 48dp, and none of them is focusable.
@@ -576,6 +576,9 @@
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>
+
+    <!-- "This session", while a game starts (CompanionState.Launch); gone the rest of the time. -->
+    <include layout="@layout/companion_launch" />
 
     <!-- The keyboard raised when the host reports a focused text field. Above the panel's
          content, strip included, and below the controls sheet so the sheet still opens over it

@@ -171,11 +171,12 @@ public final class HostTileBinder {
     /**
      * Draws the host onto the tile.
      *
-     * @param gamepadPresent with a gamepad the tile holds focus in touch mode, as the library's
-     *                       tiles do, and its action wears the letter of the button that fires
-     *                       it, because a d-pad cannot reach a button inside the focused tile.
-     *                       Touch-only devices get neither: no ring stranded by a tap, and no
-     *                       letter for a button the user does not have.
+     * @param gamepadPresent whether a gamepad is connected ({@link com.limelight.ui.GamepadPresence}):
+     *                       the tile then holds focus in touch mode, as the library's tiles do,
+     *                       and its action wears the letter of the button that fires it, because
+     *                       a d-pad cannot reach a button inside the focused tile. Touch-only
+     *                       devices get neither: no ring stranded by a tap, and no letter for a
+     *                       button the user does not have.
      */
     public void bind(@NonNull TileViews views, @NonNull HostEntry host, boolean gamepadPresent) {
         final ComputerDetails details = host.details;

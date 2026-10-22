@@ -52,7 +52,9 @@ import com.limelight.main.WindowClass;
 import com.limelight.nvstream.http.Achievement;
 import com.limelight.nvstream.http.AppStats;
 import com.limelight.pcs.HostTileBinder;
+import com.limelight.ui.ButtonGlyphs;
 import com.limelight.ui.GamepadHintsView;
+import com.limelight.ui.GamepadPresence;
 import com.limelight.ui.SegmentedControlView;
 
 import java.util.ArrayList;
@@ -211,6 +213,8 @@ public class StatsFragment extends Fragment
     private LinearLayout periodRow;
     private SegmentedControlView ranges;
     private View climbView;
+    @Nullable
+    private View crumbGlyph;
     private TextView climbLabel;
     private TextView periodTitle;
     private ImageView previousView;
@@ -303,6 +307,9 @@ public class StatsFragment extends Fragment
         ranges.setSegments(getString(R.string.stats_range_week),
                 getString(R.string.stats_range_month), getString(R.string.stats_range_year));
         ranges.setOnSegmentChosenListener(index -> setRange(RANGES[index]));
+        // X and Y step through the ranges from anywhere, the bumpers through the periods, and B
+        // climbs from a month: with a pad connected, the controls they fire say so.
+        ranges.setKeys("X", "Y");
         climbView = view.findViewById(R.id.statsClimb);
         climbLabel = view.findViewById(R.id.statsClimbLabel);
         climbView.setOnClickListener(v -> climb());
@@ -311,11 +318,22 @@ public class StatsFragment extends Fragment
         nextView = view.findViewById(R.id.statsNext);
         previousView.setOnClickListener(v -> stepPeriod(-1));
         nextView.setOnClickListener(v -> stepPeriod(1));
+        ButtonGlyphs.bindImage((ImageView) previousView, "LB");
+        ButtonGlyphs.bindImage((ImageView) nextView, "RB");
+        TextView climbGlyph = view.findViewById(R.id.statsClimbGlyph);
+        climbGlyph.setText("B");
+        // On the chip's own colour: the hint's key would vanish into it.
+        climbGlyph.setBackgroundResource(R.drawable.settings_search_key_bg);
+        ButtonGlyphs.bindVisibility(getViewLifecycleOwner(), climbGlyph);
+        crumbGlyph = view.findViewById(R.id.statsCrumbGlyph);
+        ((TextView) crumbGlyph).setText("B");
 
         statusView = view.findViewById(R.id.statsStatus);
         statusProgress = view.findViewById(R.id.statsStatusProgress);
         statusTitle = view.findViewById(R.id.statsStatusTitle);
         statusHint = view.findViewById(R.id.statsStatusHint);
+        ButtonGlyphs.bindText((TextView) statusHint, R.string.stats_failed_hint,
+                R.string.stats_failed_hint_touch);
         statusView.setOnClickListener(v -> load());
         bodyView = view.findViewById(R.id.statsBody);
 
@@ -372,6 +390,10 @@ public class StatsFragment extends Fragment
 
         installLayout(view);
         applyWindow();
+        GamepadPresence.connected().observe(getViewLifecycleOwner(), pad -> {
+            applyCrumbGlyph();
+            fitHeaderRanges();
+        });
         focusWatch = (oldFocus, newFocus) -> {
             if (newFocus != null && isInside(newFocus)) {
                 lastFocused = newFocus;
@@ -678,8 +700,8 @@ public class StatsFragment extends Fragment
         LinearLayout.LayoutParams nextParams = new LinearLayout.LayoutParams(button, button);
         nextParams.setMarginStart(dp(6));
         if (inHeader) {
-            rangeParams = new LinearLayout.LayoutParams(getResources().getDimensionPixelSize(
-                    R.dimen.stats_header_ranges_width), ViewGroup.LayoutParams.WRAP_CONTENT);
+            rangeParams = new LinearLayout.LayoutParams(headerRangesWidth(),
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
             rangeParams.setMarginStart(dp(12));
             previousParams.setMarginStart(dp(8));
             headerRemote.addView(ranges, rangeParams);
@@ -915,7 +937,7 @@ public class StatsFragment extends Fragment
     /**
      * The pad's shortcuts, as the state has them ({@link StatsRemotePage#hints}): here, or, while
      * the panel has the lower half, on the panel under the remote, as the mock draws them. Shown
-     * only on a screen driven by the pad. The panel's page is handed over again with them, so
+     * only while a gamepad is connected (GamepadHintsView). The panel's page is handed over again with them, so
      * every caller of this keeps the panel current too.
      */
     private void updateHints() {
@@ -1090,6 +1112,36 @@ public class StatsFragment extends Fragment
         }
     }
 
+    // The range control's width on the header line: wider by its X and Y while a pad is
+    // connected, so the three ranges keep their room.
+    private int headerRangesWidth() {
+        int width = getResources().getDimensionPixelSize(R.dimen.stats_header_ranges_width);
+        if (GamepadPresence.isConnected()) {
+            width += getResources().getDimensionPixelSize(R.dimen.stats_header_ranges_keys_width);
+        }
+        return width;
+    }
+
+    private void fitHeaderRanges() {
+        if (!remoteInHeader || ranges == null) {
+            return;
+        }
+        ViewGroup.LayoutParams params = ranges.getLayoutParams();
+        int width = headerRangesWidth();
+        if (params.width != width) {
+            params.width = width;
+            ranges.setLayoutParams(params);
+        }
+    }
+
+    // B on the crumb while it climbs (a month's) and a pad is connected.
+    private void applyCrumbGlyph() {
+        if (crumbGlyph != null && crumb != null) {
+            crumbGlyph.setVisibility(crumb.isClickable() && GamepadPresence.isConnected()
+                    ? View.VISIBLE : View.GONE);
+        }
+    }
+
     // The period's title in the remote, and the crumb: "Year 2026 › pick a month" (without the
     // tag while the range control is beside it), "‹ 2026 / October", which a tap climbs.
     private void bindPeriod(AppStats s) {
@@ -1114,6 +1166,7 @@ public class StatsFragment extends Fragment
             appendStrong(line, text.periodTitle(s));
         }
         crumbText.setText(line);
+        applyCrumbGlyph();
     }
 
     private void appendStrong(SpannableStringBuilder line, String part) {

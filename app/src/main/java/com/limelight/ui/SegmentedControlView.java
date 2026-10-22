@@ -2,6 +2,7 @@ package com.limelight.ui;
 
 import android.content.Context;
 import android.util.AttributeSet;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.LinearLayout;
@@ -31,6 +32,9 @@ import java.util.List;
  *            next bind draws it
  * </pre>
  *
+ * <p>Pad keys that step through the choices from anywhere (Stats' X and Y) can be named at the
+ * track's ends ({@link #setKeys}); they show while a gamepad is connected.
+ *
  * Every segment is a 48dp touch target, its pill drawn inset. Main thread only.
  */
 public class SegmentedControlView extends LinearLayout {
@@ -52,6 +56,11 @@ public class SegmentedControlView extends LinearLayout {
     private int virtualFocus = NO_FOCUS;
     @Nullable
     private OnSegmentChosenListener listener;
+    // The keys at the track's ends, once set; kept outside the segments' indices.
+    @Nullable
+    private TextView keyBefore;
+    @Nullable
+    private TextView keyAfter;
 
     public SegmentedControlView(Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
@@ -85,11 +94,53 @@ public class SegmentedControlView extends LinearLayout {
             if (virtualFocus >= labels.length) {
                 virtualFocus = NO_FOCUS;
             }
+            addKeys();
             applyMode();
         }
         for (int i = 0; i < labels.length; i++) {
             segments.get(i).setText(labels[i]);
         }
+    }
+
+    /**
+     * Names the pad keys that step back and forth through the segments, at the track's start and
+     * end ("X Week Month Year Y"), shown while a gamepad is connected. Only for keys that do so
+     * wherever focus is.
+     */
+    public void setKeys(@NonNull String before, @NonNull String after) {
+        if (keyBefore == null) {
+            keyBefore = newKey();
+            keyAfter = newKey();
+            addKeys();
+        }
+        keyBefore.setText(before);
+        keyAfter.setText(after);
+    }
+
+    @NonNull
+    private TextView newKey() {
+        TextView key = (TextView) LayoutInflater.from(getContext())
+                .inflate(R.layout.view_gamepad_hint_key, this, false);
+        LayoutParams params = (LayoutParams) key.getLayoutParams();
+        int gap = getResources().getDimensionPixelSize(R.dimen.segment_key_gap);
+        params.setMarginStart(gap);
+        params.setMarginEnd(gap);
+        params.gravity = Gravity.CENTER_VERTICAL;
+        // On the track's own colour: the hint's key would vanish into it.
+        key.setBackgroundResource(R.drawable.settings_search_key_bg);
+        ButtonGlyphs.bindVisibility(key);
+        return key;
+    }
+
+    // The keys around the segments, after the segments were made again.
+    private void addKeys() {
+        if (keyBefore == null || keyAfter == null) {
+            return;
+        }
+        removeView(keyBefore);
+        removeView(keyAfter);
+        addView(keyBefore, 0);
+        addView(keyAfter);
     }
 
     /** Chooses a segment, drawing it filled; -1 for none. Does not tell the listener. */

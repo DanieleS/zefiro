@@ -7,6 +7,7 @@ import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -29,6 +30,8 @@ import com.limelight.main.SectionFocus;
 import com.limelight.main.SectionKeys;
 import com.limelight.main.WindowClass;
 import com.limelight.nvstream.http.NvApp;
+import com.limelight.ui.ButtonGlyphs;
+import com.limelight.ui.GamepadPresence;
 import com.limelight.ui.MenuSheet;
 
 import java.util.ArrayList;
@@ -84,7 +87,7 @@ import java.util.List;
  *
  * The Library's home pushes it, from the All games shelf's link or its trailing tile, and back
  * pops it; the back arrow (compact only) shows only when there is something under it to go back
- * to. On a d-pad-first screen (the Thor with its companion panel) the first tile is focused as
+ * to. With a gamepad connected (the Thor, or a phone with a pad) the first tile is focused as
  * it opens, even from a tap, so the panel shows a game and the grid its focus ring. X raises
  * the host sheet here as on the home; the Library's frame handles it for both.
  *
@@ -146,7 +149,7 @@ public class SeeAllFragment extends Fragment
     private boolean lastFocusedChip;
     // Initial focus went to the chip only for want of a tile; hand it on when one arrives.
     private boolean focusAwaitingTiles;
-    // A d-pad-first screen's opening focus, taken out of touch mode, is placed once.
+    // The opening focus with a pad connected, taken out of touch mode, is placed once.
     private boolean openFocusPlaced;
 
     public SeeAllFragment() {
@@ -230,6 +233,8 @@ public class SeeAllFragment extends Fragment
         backButton = view.findViewById(R.id.seeAllBack);
         backButton.setOnClickListener(v ->
                 requireActivity().getOnBackPressedDispatcher().onBackPressed());
+        // It does what B does: with a pad connected it shows B.
+        ButtonGlyphs.bindImage((ImageView) backButton, "B");
         searchButton.setOnClickListener(v -> host.showSection(Section.SEARCH));
 
         // The chip and the toolbar's button are one control in two shapes.
@@ -714,8 +719,8 @@ public class SeeAllFragment extends Fragment
         boolean waiting = isSortControl(target) && (adapter == null || adapter.getItemCount() == 0);
         boolean placed;
         if (!openFocusPlaced && target.isInTouchMode() && !isSortControl(target)
-                && host.isDpadFirst()) {
-            // Opened by a tap on a d-pad-first screen: requestFocus would refuse in touch mode,
+                && GamepadPresence.isConnected()) {
+            // Opened by a tap with a gamepad connected: requestFocus would refuse in touch mode,
             // and the panel would show the host, not the game the grid is on. Once.
             openFocusPlaced = true;
             placed = target.requestFocusFromTouch();

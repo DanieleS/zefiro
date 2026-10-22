@@ -1,8 +1,11 @@
 package com.limelight.ui;
 
+import android.app.Activity;
 import android.content.Context;
 import android.util.TypedValue;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.TextView;
 
 import androidx.appcompat.view.ContextThemeWrapper;
 import androidx.test.core.app.ApplicationProvider;
@@ -12,9 +15,11 @@ import com.limelight.R;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -78,16 +83,98 @@ public class SharedWidgetsTest {
     }
 
     @Test
-    public void hintsShowAwayFromTheMainScreenAndHideWhenEmpty() {
+    public void segmentKeysSitAtTheTrackEndsAndShowOnlyWithAPad() {
+        GamepadPresence.setConnectedForTest(false);
+        SegmentedControlView control = new SegmentedControlView(context, null);
+        control.setSegments("Week", "Month", "Year");
+        control.setKeys("X", "Y");
+        assertEquals(5, control.getChildCount());
+        TextView before = (TextView) control.getChildAt(0);
+        TextView after = (TextView) control.getChildAt(4);
+        assertEquals("X", before.getText().toString());
+        assertEquals("Y", after.getText().toString());
+        assertEquals(View.GONE, before.getVisibility());
+        assertEquals(control.getChildAt(1), control.getSegmentView(0));
+
+        // A new set of segments keeps the keys at the ends.
+        control.setSegments("All", "Unlocked");
+        assertEquals(4, control.getChildCount());
+        assertEquals(before, control.getChildAt(0));
+        assertEquals(after, control.getChildAt(3));
+        assertEquals(2, control.getSegmentCount());
+
+        Activity activity = Robolectric.buildActivity(Activity.class).create().visible().get();
+        activity.setTheme(R.style.AppTheme);
+        SegmentedControlView attached = new SegmentedControlView(activity, null);
+        attached.setSegments("Week", "Month", "Year");
+        attached.setKeys("X", "Y");
+        activity.setContentView(attached);
+        GamepadPresence.setConnectedForTest(true);
+        assertEquals(View.VISIBLE, attached.getChildAt(0).getVisibility());
+        assertEquals(View.VISIBLE, attached.getChildAt(4).getVisibility());
+        GamepadPresence.setConnectedForTest(false);
+        assertEquals(View.GONE, attached.getChildAt(0).getVisibility());
+    }
+
+    @Test
+    public void hintsShowWhileAPadIsConnectedAndHideWhenEmpty() {
+        GamepadPresence.setConnectedForTest(false);
         GamepadHintsView hints = new GamepadHintsView(context, null);
         assertEquals(View.GONE, hints.getVisibility());
 
-        // No MainHost around this context: the panel's case, where hints are shown.
+        // No pad: a phone in the hand, nothing to name.
+        hints.setHints(new GamepadHintsView.Hint("Up", "B"));
+        assertEquals(View.GONE, hints.getVisibility());
+        assertEquals("one group per hint", 1, hints.getChildCount());
+        assertEquals("a glyph and its label", 2,
+                ((ViewGroup) hints.getChildAt(0)).getChildCount());
+
+        GamepadPresence.setConnectedForTest(true);
         hints.setHints(new GamepadHintsView.Hint("Up", "B"));
         assertEquals(View.VISIBLE, hints.getVisibility());
-        assertEquals("a glyph and its label", 2, hints.getChildCount());
 
         hints.setHints();
         assertEquals(View.GONE, hints.getVisibility());
+        GamepadPresence.setConnectedForTest(false);
+    }
+
+    @Test
+    public void attachedHintsFollowThePadLive() {
+        GamepadPresence.setConnectedForTest(false);
+        Activity activity = Robolectric.buildActivity(Activity.class).create().visible().get();
+        activity.setTheme(R.style.AppTheme);
+        GamepadHintsView hints = new GamepadHintsView(activity, null);
+        hints.setHints(new GamepadHintsView.Hint("Up", "B"));
+        activity.setContentView(hints);
+        assertEquals(View.GONE, hints.getVisibility());
+
+        GamepadPresence.setConnectedForTest(true);
+        assertEquals(View.VISIBLE, hints.getVisibility());
+
+        GamepadPresence.setConnectedForTest(false);
+        assertEquals(View.GONE, hints.getVisibility());
+
+        // Off the window it no longer listens.
+        activity.setContentView(new View(activity));
+        GamepadPresence.setConnectedForTest(true);
+        assertEquals(View.GONE, hints.getVisibility());
+        GamepadPresence.setConnectedForTest(false);
+    }
+
+    @Test
+    public void hintsWrapOntoMoreLinesWholeAndInOrder() {
+        // All fit: one line.
+        assertArrayEquals(new int[] {0, 0, 0},
+                GamepadHintsView.breakLines(new int[] {50, 50, 50}, 10, 170));
+        // The third does not: it starts the next line.
+        assertArrayEquals(new int[] {0, 0, 1},
+                GamepadHintsView.breakLines(new int[] {50, 50, 50}, 10, 169));
+        // One wider than the row has a line of its own, and the next starts another.
+        assertArrayEquals(new int[] {0, 1, 2},
+                GamepadHintsView.breakLines(new int[] {50, 300, 50}, 10, 200));
+        // A first hint wider than the row stays on the first line.
+        assertArrayEquals(new int[] {0, 1},
+                GamepadHintsView.breakLines(new int[] {300, 50}, 10, 200));
+        assertArrayEquals(new int[0], GamepadHintsView.breakLines(new int[0], 10, 200));
     }
 }

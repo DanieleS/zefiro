@@ -11,11 +11,12 @@
     the results' filters, and the card goes.
 
     Which parts a window shows (SettingsHeader.setWide):
-      wide     the profile as the card's first pin, "{n} changed" (hidden at none), and with
-               on a screen driven by the pad (the Thor) the Y glyph on the field and L1 / R1
-               around the chips
-      compact  the profile as a row with Switch above five value pills, no glyphs, no Pinned
-               chip (the card is right above the chips)
+      wide     the profile as the card's first pin, "{n} changed" (hidden at none)
+      compact  the profile as a row with Switch above five value pills, no Pinned chip (the
+               card is right above the chips)
+
+    Either way, while a gamepad is connected (SettingsHeader.setGlyphs), the Y glyph on the
+    field and L1 / R1 around the chips, and B in place of the search's back arrow.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -318,6 +319,8 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="6dp"
             android:layout_weight="1"
+            android:fadingEdgeLength="24dp"
+            android:requiresFadingEdge="horizontal"
             android:scrollbars="none">
 
             <LinearLayout
@@ -328,9 +331,13 @@
 
         </HorizontalScrollView>
 
+        <!-- Apart from the row, so a chip cut by the scroll's end does not read as under it. -->
         <include
             android:id="@+id/settingsChipsNextGlyph"
-            layout="@layout/view_gamepad_hint_key" />
+            layout="@layout/view_gamepad_hint_key"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/key_glyph_height"
+            android:layout_marginStart="6dp" />
 
         <TextView
             android:id="@+id/settingsChangedChip"

@@ -16,6 +16,7 @@ import androidx.annotation.NonNull;
 import com.limelight.R;
 import com.limelight.companion.CompanionPage;
 import com.limelight.companion.CompanionPageRenderer;
+import com.limelight.ui.ButtonGlyphs;
 import com.limelight.ui.GamepadHintsView;
 import com.limelight.ui.SegmentedControlView;
 
@@ -56,6 +57,14 @@ final class StatsRemoteRenderer implements CompanionPageRenderer {
                 context.getString(R.string.stats_range_month),
                 context.getString(R.string.stats_range_year));
         ranges.setInline(false);
+        // The keys that fire them from anywhere, shown while a pad is connected.
+        ranges.setKeys("X", "Y");
+        TextView previousGlyph = view.findViewById(R.id.companionStatsPreviousGlyph);
+        previousGlyph.setText("LB");
+        ButtonGlyphs.bindVisibility(previousGlyph);
+        TextView nextGlyph = view.findViewById(R.id.companionStatsNextGlyph);
+        nextGlyph.setText("RB");
+        ButtonGlyphs.bindVisibility(nextGlyph);
         return view;
     }
 

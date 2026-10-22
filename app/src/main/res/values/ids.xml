@@ -6,4 +6,6 @@
     <item name="coverAppUuid" type="id" />
     <!-- The unlock toast, so a newer one can find and replace the one still showing. -->
     <item name="achievementToast" type="id" />
+    <!-- On a dialog button that already wears its key's glyph (ButtonGlyphs.bindCancel). -->
+    <item name="keyGlyph" type="id" />
 </resources>

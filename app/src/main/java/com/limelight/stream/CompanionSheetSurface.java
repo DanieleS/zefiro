@@ -41,9 +41,10 @@ public final class CompanionSheetSurface extends PagedSurface {
         List<CompanionMenuItem> items = new ArrayList<>();
         if (!isOnRootPage()) {
             // The way back, as the page's first row, so a thumb has one as much as the pad's B:
-            // the sheet has no system back of its own, its window never being focused.
+            // the sheet has no system back of its own, its window never being focused. B fires
+            // it from any row, so the row says B.
             items.add(new CompanionMenuItem(page.label(res), R.drawable.ic_arrow_back,
-                    StreamAction.Group.LIST, null, false, false, this::back));
+                    StreamAction.Group.LIST, null, false, false, this::back, "B"));
         }
         if (page.children != null) {
             for (StreamAction child : page.children) {

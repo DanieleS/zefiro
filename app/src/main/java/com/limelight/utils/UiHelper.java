@@ -15,7 +15,6 @@ import android.os.LocaleList;
 import android.text.Html;
 import android.text.method.LinkMovementMethod;
 import android.util.TypedValue;
-import android.view.InputDevice;
 import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowManager;
@@ -28,9 +27,9 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.limelight.Game;
 import com.limelight.LimeLog;
 import com.limelight.R;
-import com.limelight.binding.input.ControllerHandler;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.preferences.PreferenceConfiguration;
+import com.limelight.ui.ButtonGlyphs;
 
 public class UiHelper {
 
@@ -106,21 +105,6 @@ public class UiHelper {
             });
             view.requestApplyInsets();
         }
-    }
-
-    /**
-     * A gamepad (built into the Thor, or plugged into a phone) means the user drives the library
-     * with a d-pad, so the tiles should keep focus through a touch entry. A touch-only phone
-     * leaves this off, so a tap does not strand a focus ring on a tile.
-     */
-    public static boolean isGamepadConnected() {
-        for (int id : InputDevice.getDeviceIds()) {
-            InputDevice device = InputDevice.getDevice(id);
-            if (device != null && ControllerHandler.isGameControllerDevice(device)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     public static void notifyNewRootView(final Activity activity)
@@ -246,9 +230,19 @@ public class UiHelper {
         if (btnNoText != null) {
             builder.setNegativeButton(btnNoText, dialogClickListener);
         }
+        // Cancelling (Back, the pad's B, a tap outside) is the No: it used to close the dialog
+        // without onNo, leaving a caller that waits on the answer (the trampoline) with nothing.
+        // A click on No dismisses rather than cancels, so onNo runs once either way.
+        if (onNo != null) {
+            builder.setOnCancelListener(dialog -> onNo.run());
+        }
         AlertDialog dialog = builder.create();
         dialog.show();
         ((TextView)dialog.findViewById(android.R.id.message)).setMovementMethod(LinkMovementMethod.getInstance());
+        // Now that B does what No does, No carries B.
+        if (btnNoText != null) {
+            ButtonGlyphs.bindCancel(dialog);
+        }
     }
 
     public static void displayVdisplayConfirmationDialog(Activity parent, ComputerDetails computer, final Runnable onYes, final Runnable onNo) {
