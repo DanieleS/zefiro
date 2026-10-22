@@ -29,6 +29,7 @@ import com.limelight.LimeLog;
 import com.limelight.R;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.preferences.PreferenceConfiguration;
+import com.limelight.ui.ButtonGlyphs;
 
 public class UiHelper {
 
@@ -229,9 +230,19 @@ public class UiHelper {
         if (btnNoText != null) {
             builder.setNegativeButton(btnNoText, dialogClickListener);
         }
+        // Cancelling (Back, the pad's B, a tap outside) is the No: it used to close the dialog
+        // without onNo, leaving a caller that waits on the answer (the trampoline) with nothing.
+        // A click on No dismisses rather than cancels, so onNo runs once either way.
+        if (onNo != null) {
+            builder.setOnCancelListener(dialog -> onNo.run());
+        }
         AlertDialog dialog = builder.create();
         dialog.show();
         ((TextView)dialog.findViewById(android.R.id.message)).setMovementMethod(LinkMovementMethod.getInstance());
+        // Now that B does what No does, No carries B.
+        if (btnNoText != null) {
+            ButtonGlyphs.bindCancel(dialog);
+        }
     }
 
     public static void displayVdisplayConfirmationDialog(Activity parent, ComputerDetails computer, final Runnable onYes, final Runnable onNo) {
