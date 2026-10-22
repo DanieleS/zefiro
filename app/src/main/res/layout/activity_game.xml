@@ -260,7 +260,10 @@
                         tools:text="Hades II" />
 
                     <!-- Wrapped, so the clock follows the phase rather than the column's end;
-                         a phase too long for the room is the one that gives way (ellipsized). -->
+                         a phase too long for the room is the one that gives way (ellipsized).
+                         The phase wraps its text too, weighted only to shrink: at 0dp a new
+                         phase was laid out in the width of the first one ("Getting ready…"),
+                         since a TextView of fixed width never asks for a new measure. -->
                     <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -276,7 +279,7 @@
 
                         <TextView
                             android:id="@+id/connectionPhase"
-                            android:layout_width="0dp"
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="8dp"
                             android:layout_weight="1"
