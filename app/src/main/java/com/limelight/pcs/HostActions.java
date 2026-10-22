@@ -260,7 +260,7 @@ public class HostActions {
                 repository.resumePolling();
             }
 
-            Dialog.closeDialogs();
+            Dialog.closeDialogs(activity);
 
             if (success) {
                 // What the old library did when opened with "newly paired": force the host's

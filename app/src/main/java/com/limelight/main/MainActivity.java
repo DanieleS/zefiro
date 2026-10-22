@@ -331,7 +331,7 @@ public class MainActivity extends AppCompatActivity
         // As the old PC list did: an informational dialog (a PIN, a host's details) is not left
         // up behind a stream or another app. A pairing in progress carries on without its PIN
         // dialog.
-        Dialog.closeDialogs();
+        Dialog.closeDialogs(this);
         super.onStop();
     }
 

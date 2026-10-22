@@ -591,7 +591,7 @@ public class ShortcutTrampoline extends AppCompatActivity {
             blockingLoadSpinner = null;
         }
 
-        Dialog.closeDialogs();
+        Dialog.closeDialogs(this);
 
         // From here on the worker no longer adds a listener, or takes back one it just added.
         synchronized (pollingListenerLock) {

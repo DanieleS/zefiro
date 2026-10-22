@@ -267,7 +267,7 @@ public class AddComputerManually extends AppCompatActivity {
     protected void onStop() {
         super.onStop();
 
-        Dialog.closeDialogs();
+        Dialog.closeDialogs(this);
         SpinnerDialog.closeDialogs(this);
     }
 

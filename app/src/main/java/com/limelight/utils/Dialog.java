@@ -1,6 +1,7 @@
 package com.limelight.utils;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 
 import android.app.Activity;
 import android.content.DialogInterface;
@@ -29,16 +30,25 @@ public class Dialog implements Runnable {
         this.runOnDismiss = runOnDismiss;
     }
 
-    public static void closeDialogs()
+    /**
+     * Close the dialogs the given activity put up, without running what they would on dismiss.
+     * Only that activity's: an activity stopping under another (the library under a launcher
+     * entry's trampoline) used to close the newcomer's error too, leaving it up and empty with
+     * nothing left to finish it.
+     */
+    public static void closeDialogs(Activity activity)
     {
         synchronized (rundownDialogs) {
-            for (Dialog d : rundownDialogs) {
-                if (d.alert.isShowing()) {
-                    d.alert.dismiss();
+            Iterator<Dialog> i = rundownDialogs.iterator();
+            while (i.hasNext()) {
+                Dialog d = i.next();
+                if (d.activity == activity) {
+                    i.remove();
+                    if (d.alert.isShowing()) {
+                        d.alert.dismiss();
+                    }
                 }
             }
-
-            rundownDialogs.clear();
         }
     }
 

@@ -2464,7 +2464,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         super.onStop();
 
         SpinnerDialog.closeDialogs(this);
-        Dialog.closeDialogs();
+        Dialog.closeDialogs(this);
 
         if (virtualController != null) {
             virtualController.hide();
