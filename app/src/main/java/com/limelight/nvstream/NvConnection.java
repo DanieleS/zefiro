@@ -584,6 +584,19 @@ public class NvConnection {
             MoonBridge.sendExecServerCmd(cmdId);
         }
     }
+
+    /** See {@link MoonBridge#sendCaptureAction(int)}. */
+    public int sendCaptureAction(final int action) {
+        if (isMonkey) {
+            return MoonBridge.LI_ERR_UNSUPPORTED;
+        }
+        return MoonBridge.sendCaptureAction(action);
+    }
+
+    /** See {@link MoonBridge#getHostFeatureFlags()}; none while monkey testing. */
+    public int getHostFeatureFlags() {
+        return isMonkey ? 0 : MoonBridge.getHostFeatureFlags();
+    }
     
     public void sendMouseMove(final short deltaX, final short deltaY)
     {

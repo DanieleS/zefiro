@@ -88,6 +88,16 @@ public class MoonBridge {
 
     public static final int LI_ERR_UNSUPPORTED = -5501;
 
+    // Host feature flags (see getHostFeatureFlags()). Capture actions are a Vibepollo/Scirocco
+    // protocol extension: the host carries them out with the capture tool configured on it.
+    public static final int LI_FF_CAPTURE_ACTIONS   = 0x20000;
+    public static final int LI_FF_CAPTURE_AVAILABLE = 0x40000;
+
+    // Actions for sendCaptureAction()
+    public static final int LI_CAPTURE_SCREENSHOT       = 0x01;
+    public static final int LI_CAPTURE_SAVE_REPLAY      = 0x02;
+    public static final int LI_CAPTURE_TOGGLE_RECORDING = 0x03;
+
     public static final byte LI_TOUCH_EVENT_HOVER       = 0x00;
     public static final byte LI_TOUCH_EVENT_DOWN        = 0x01;
     public static final byte LI_TOUCH_EVENT_UP          = 0x02;
@@ -380,6 +390,10 @@ public class MoonBridge {
 
     public static native void sendExecServerCmd(int cmdId);
 
+    // Asks the host to carry out a capture action (LI_CAPTURE_*). Returns LI_ERR_UNSUPPORTED
+    // unless the host advertised LI_FF_CAPTURE_ACTIONS, 0 on success and -1 if it wasn't sent.
+    public static native int sendCaptureAction(int action);
+
     public static native void sendEmptyPayload();
 
     public static native void sendMouseMove(short deltaX, short deltaY);
@@ -445,6 +459,10 @@ public class MoonBridge {
     // Whether this stream negotiated dynamic FEC (see LiIsDynamicFecNegotiated()). Valid once the
     // connection has started.
     public static native boolean isDynamicFecNegotiated();
+
+    // The host's extended feature flags (see LiGetHostFeatureFlags()). Valid once the
+    // connection has started.
+    public static native int getHostFeatureFlags();
 
     public static native String getLaunchUrlQueryParameters();
 

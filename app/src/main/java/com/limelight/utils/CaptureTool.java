@@ -1,9 +1,17 @@
 package com.limelight.utils;
 
+import com.limelight.nvstream.jni.MoonBridge;
+
 /**
  * The capture tool on the host PC that the in-game menu's Screenshot, "Save last 30 s" and
- * recording entries drive. Zefiro presses the tool's own keyboard shortcuts over the stream,
- * as you would at the PC, the same way CouchPilot's CaptureService does:
+ * recording entries drive.
+ *
+ * <p>A host that carries capture actions out itself (Scirocco/Vibepollo, advertising
+ * {@link MoonBridge#LI_FF_CAPTURE_ACTIONS}) is told which action, and presses the shortcut of the
+ * tool configured on it; this preference is not used then. See {@link #route}.
+ *
+ * <p>With any other host Zefiro presses the tool's own keyboard shortcuts over the stream, as you
+ * would at the PC, the same way CouchPilot's CaptureService does:
  *
  * <pre>
  *                 Game Bar           NVIDIA (GeForce Experience, NVIDIA app)
@@ -22,9 +30,26 @@ public enum CaptureTool {
     OFF("off");
 
     public enum Action {
-        SCREENSHOT,
-        SAVE_REPLAY,
-        TOGGLE_RECORDING
+        SCREENSHOT(MoonBridge.LI_CAPTURE_SCREENSHOT),
+        SAVE_REPLAY(MoonBridge.LI_CAPTURE_SAVE_REPLAY),
+        TOGGLE_RECORDING(MoonBridge.LI_CAPTURE_TOGGLE_RECORDING);
+
+        /** The action's value on the wire, for {@link MoonBridge#sendCaptureAction(int)}. */
+        public final int wireValue;
+
+        Action(int wireValue) {
+            this.wireValue = wireValue;
+        }
+    }
+
+    /** Who carries a capture out for a stream. */
+    public enum Route {
+        /** The host, with the tool configured on it. */
+        HOST,
+        /** Zefiro, pressing this preference's shortcuts. */
+        KEYS,
+        /** Nobody: the menu offers no captures. */
+        NONE
     }
 
     private static final short VK_LWIN = 0x5B;
@@ -57,9 +82,21 @@ public enum CaptureTool {
         return GAME_BAR;
     }
 
-    /** Whether the menu should offer captures at all. */
+    /** Whether the menu should offer captures at all, with a host that leaves them to Zefiro. */
     public boolean isEnabled() {
         return this != OFF;
+    }
+
+    /**
+     * Who carries captures out with a host that advertised {@code hostFeatureFlags}. A host that
+     * handles them decides, including turning them off for everyone; this preference only
+     * matters with one that doesn't.
+     */
+    public Route route(int hostFeatureFlags) {
+        if ((hostFeatureFlags & MoonBridge.LI_FF_CAPTURE_ACTIONS) != 0) {
+            return (hostFeatureFlags & MoonBridge.LI_FF_CAPTURE_AVAILABLE) != 0 ? Route.HOST : Route.NONE;
+        }
+        return isEnabled() ? Route.KEYS : Route.NONE;
     }
 
     /**
