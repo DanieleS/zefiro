@@ -76,6 +76,10 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
     // Where a page's taps go; registered alongside the browsing actions.
     private PageActions pageActions;
 
+    // Invoked when the launch's Cancel is tapped on the panel; the stream activity registers it
+    // while it is starting a game, as it does the menu request.
+    private Runnable launchCancelListener;
+
     // Invoked when the panel's menu opens and closes; the stream activity registers these to
     // track whether it should be steering the gamepad into the menu drawn here.
     private Runnable menuOpenedListener;
@@ -320,6 +324,30 @@ public class CompanionDisplayManager implements Application.ActivityLifecycleCal
             return;
         }
         instance.pageActions.onPageTap(page, stopId);
+    }
+
+    // --- The launch ---
+
+    /**
+     * Register what the launch's Cancel does, or null to take it away. The stream activity sets
+     * it while the connection scene is up; the panel hides Cancel when nobody would hear it.
+     */
+    public static void setLaunchCancelListener(Runnable listener) {
+        if (instance != null) {
+            instance.launchCancelListener = listener;
+        }
+    }
+
+    /** Whether a tap on the launch's Cancel would reach anyone. */
+    static boolean hasLaunchCancelListener() {
+        return instance != null && instance.launchCancelListener != null;
+    }
+
+    /** The launch's Cancel was tapped on the panel. */
+    static void onLaunchCancel() {
+        if (instance != null && instance.launchCancelListener != null) {
+            instance.launchCancelListener.run();
+        }
     }
 
     // --- The in-game menu, when it is drawn on the companion panel ---

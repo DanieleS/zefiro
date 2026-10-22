@@ -8,6 +8,8 @@ import android.graphics.BitmapFactory;
 import android.os.SystemClock;
 import android.util.LruCache;
 
+import androidx.annotation.Nullable;
+
 import com.limelight.LimeLog;
 import com.limelight.R;
 import com.limelight.grid.AppSortOrder;
@@ -45,6 +47,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -1094,6 +1097,35 @@ public class HostLibrary {
         } catch (XmlPullParserException | IOException e) {
             return null;
         }
+    }
+
+    /**
+     * A game's metadata as this host last served it, read from the copy the library keeps on
+     * disk; null when the host never answered, or has nothing for that game. For a screen that
+     * runs without a library open, the stream's connection scene above all, which must not ask
+     * the host for it again while the host is busy starting the game. Disk I/O: never on the
+     * main thread.
+     */
+    @Nullable
+    public static AppMetadata cachedMetadata(File cacheDir, String hostUuid, String appUuid) {
+        if (hostUuid == null || appUuid == null || appUuid.isEmpty()) {
+            return null;
+        }
+        String raw;
+        try (InputStream in = CacheHelper.openCacheFileForInput(cacheDir, METADATA_CACHE, hostUuid)) {
+            raw = CacheHelper.readInputStreamToString(in);
+        } catch (IOException e) {
+            return null;
+        }
+        return AppMetadata.parseAll(raw).get(appUuid.toUpperCase(Locale.ROOT));
+    }
+
+    /**
+     * A game's background art as the host sends it, decoded down to the size the library keeps
+     * it at. Blocking, for a caller that fetched the stream itself (see {@link #cachedMetadata}).
+     */
+    public static Bitmap decodeBackground(InputStream in) throws IOException {
+        return decodeSampled(in, BACKGROUND_MAX_WIDTH);
     }
 
     // Decode a stream down to at most maxWidth px wide, so a 4K hero image doesn't blow up memory.
