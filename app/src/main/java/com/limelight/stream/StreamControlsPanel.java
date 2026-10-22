@@ -36,6 +36,7 @@ import com.limelight.binding.video.PerfStats;
 import com.limelight.grid.assets.DiskAssetLoader;
 import com.limelight.stats.StatsFormat;
 import com.limelight.stats.StatsText;
+import com.limelight.ui.ButtonGlyphs;
 
 import java.io.File;
 
@@ -459,6 +460,8 @@ public class StreamControlsPanel extends FrameLayout implements ControlsSurface 
                     android.graphics.Typeface.BOLD);
             back.setContentDescription(res.getString(R.string.stream_controls_back));
             back.setOnClickListener(v -> back());
+            // B steps back from any row: with a pad connected the row says so.
+            ButtonGlyphs.addKey((ViewGroup) back, "B");
         }
 
         boolean afterRow = false;

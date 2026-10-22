@@ -3,7 +3,9 @@ package com.limelight.ui;
 import android.content.DialogInterface;
 import android.content.res.ColorStateList;
 import android.graphics.drawable.Drawable;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -97,6 +99,26 @@ public final class ButtonGlyphs {
     public static void bindVisibility(@NonNull View glyph) {
         whileAttached(glyph, pad ->
                 glyph.setVisibility(Boolean.TRUE.equals(pad) ? View.VISIBLE : View.GONE));
+    }
+
+    /**
+     * Ends {@code row} (a horizontal row, such as a menu row) with {@code key}'s glyph, shown
+     * while a pad is connected for as long as it is attached: for a row that key fires wherever
+     * the d-pad is ("← Video  B").
+     */
+    @NonNull
+    public static TextView addKey(@NonNull ViewGroup row, @NonNull String key) {
+        TextView glyph = (TextView) LayoutInflater.from(row.getContext())
+                .inflate(R.layout.view_gamepad_hint_key, row, false);
+        glyph.setText(key);
+        ViewGroup.LayoutParams params = glyph.getLayoutParams();
+        if (params instanceof ViewGroup.MarginLayoutParams) {
+            ((ViewGroup.MarginLayoutParams) params).setMarginStart(
+                    row.getResources().getDimensionPixelSize(R.dimen.hint_label_gap));
+        }
+        row.addView(glyph, params);
+        bindVisibility(glyph);
+        return glyph;
     }
 
     /**

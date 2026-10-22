@@ -52,6 +52,7 @@ import com.limelight.stream.StreamAction;
 import com.limelight.stream.StreamControlsPanel;
 import com.limelight.stream.StreamHealth;
 import com.limelight.stream.StreamRate;
+import com.limelight.ui.ButtonGlyphs;
 import com.limelight.ui.MaxHeightScrollView;
 
 import org.json.JSONObject;
@@ -1307,6 +1308,9 @@ public class CompanionPresentation extends android.app.Presentation
             end.setImageResource(trailing);
             end.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(getContext(), tint)));
             end.setVisibility(View.VISIBLE);
+        }
+        if (item.padKey != null) {
+            ButtonGlyphs.addKey((ViewGroup) row, item.padKey);
         }
         menuItemsView.addView(row);
         return row;
