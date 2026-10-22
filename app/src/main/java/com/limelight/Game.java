@@ -322,6 +322,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private float lastAbsTouchDownX, lastAbsTouchDownY;
 
     private boolean quitOnStop = false;
+    // The launch was cancelled: once the connection is stopped, the game is quit on the host if
+    // this launch is the one that started it (NvConnection#quitLaunchedApp).
+    private boolean quitLaunchOnStop = false;
     private boolean overlayToggleZoomButtonShown;
     /**
      * The one line over the stream: the numbers when {@link #hudVisible}, the reconnect status
@@ -1999,8 +2002,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     /**
      * Give the launch up, from the connection scene's Cancel, the panel's, or a key that cancels
      * (Game#handleKeyDown). The same way out as Disconnect: leaving stops the connection in
-     * onStop, which also ends a start still on its way, and the library comes back. The game the
-     * host may already have started keeps running there, as after a disconnect.
+     * onStop, and the library comes back. The start still on its way gives up at its next step;
+     * and a game this launch started is quit on the host, so a cancelled launch does not leave a
+     * heavy game open on the PC. A game that was already running there (a resume) is left alone.
      */
     // The panel's Cancel for this screen's launch, kept to take back only this one (see onDestroy).
     private final Runnable launchCancel = this::cancelLaunch;
@@ -2013,7 +2017,31 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         // The start this cuts short may still report itself failed before onStop: the user left,
         // there is nothing to tell them.
         displayedFailureDialog = true;
+        if (conn != null) {
+            conn.giveUpStart();
+            quitLaunchOnStop = true;
+        }
         finish();
+    }
+
+    /**
+     * The quit of a cancelled launch: on the stopping thread, after the connection is down.
+     * Nothing when the start only resumed a game or never asked for one; a host that will not
+     * quit is only logged, the user having already left. A success says so as Quit game does.
+     */
+    private static void quitCancelledLaunch(@NonNull NvConnection connection,
+                                            @NonNull Context appContext, @Nullable String name) {
+        try {
+            if (connection.quitLaunchedApp()) {
+                LimeLog.info("Cancelled launch: quit the game it started");
+                new Handler(Looper.getMainLooper()).post(() -> Toast.makeText(appContext,
+                        appContext.getString(R.string.applist_quit_success)
+                                + (name != null ? " " + name : ""),
+                        Toast.LENGTH_SHORT).show());
+            }
+        } catch (Exception e) {
+            LimeLog.warning("Cancelled launch: the host did not quit the game: " + e);
+        }
     }
 
     /** The phone's controls, for GameMenu to draw on. */
@@ -4721,10 +4749,19 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             // thread to keep things smooth for the UI. Inside moonlight-common,
             // we prevent another thread from starting a connection before and
             // during the process of stopping this one.
+            final boolean quitLaunch = quitLaunchOnStop;
+            final NvConnection stopping = conn;
+            final Context appContext = getApplicationContext();
+            final String stoppingName = appName;
             new Thread() {
                 public void run() {
                     if (holdsConnection) {
                         conn.stop();
+                    }
+                    // Not tied to the activity, which is finishing: the thread runs on its own,
+                    // through a wait for a /launch still on its way.
+                    if (quitLaunch) {
+                        quitCancelledLaunch(stopping, appContext, stoppingName);
                     }
                     if (httpConn != null && quitOnStop) {
                         try {

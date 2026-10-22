@@ -63,6 +63,19 @@ public class NvConnection {
     // The host requests of the start under way, so abortStart() can cancel one in progress
     private volatile NvHTTP startHttp;
 
+    // Whether a start of this connection sent the host a /launch: a game it started, rather than
+    // one it resumed, which quitLaunchedApp() may quit again. LAUNCH_SENT while that request is
+    // on its way. Guarded by launchLock, which also orders it against a start being given up:
+    // once giveUpStart() or abortStart() has returned, a /launch not yet marked sent never goes.
+    private static final int LAUNCH_NONE = 0;
+    private static final int LAUNCH_SENT = 1;
+    private static final int LAUNCH_DONE = 2;
+    private final Object launchLock = new Object();
+    private int launchState = LAUNCH_NONE;
+    // How long quitLaunchedApp() waits for a /launch on its way to come back before quitting
+    // anyway. A host answers /launch once the game's process is up, which is seconds, not this.
+    private static final long LAUNCH_WAIT_MS = 60_000;
+
     public NvConnection(Context appContext, ComputerDetails.AddressTuple host, int httpsPort, String uniqueId, StreamConfiguration config, LimelightCryptoProvider cryptoProvider, X509Certificate serverCert)
     {
         this.appContext = appContext;
@@ -114,12 +127,55 @@ public class NvConnection {
     // inside LiStartConnection() is interrupted, but one that gets past the last check just as
     // this is called may still connect, so the caller must be ready for connectionStarted().
     public void abortStart() {
-        startAborted = true;
+        synchronized (launchLock) {
+            startAborted = true;
+        }
         NvHTTP h = startHttp;
         if (h != null) {
             h.cancelRequests();
         }
         MoonBridge.interruptConnection();
+    }
+
+    // The user gave the start up (the connection scene's Cancel), from any thread. As
+    // abortStart(), except that a /launch already sent is let come back rather than cancelled:
+    // the host may be starting the game, and quitLaunchedApp() then waits for it to be up
+    // before quitting it, where a /cancel sent while the game is still starting could miss it.
+    public void giveUpStart() {
+        synchronized (launchLock) {
+            startAborted = true;
+        }
+        MoonBridge.interruptConnection();
+    }
+
+    /**
+     * Quits the game on the host if a start of this connection launched it, and does nothing if
+     * it only resumed one already running (that session is the user's, not this launch's) or
+     * never got as far as asking. A /launch still on its way is waited for first (at most
+     * {@link #LAUNCH_WAIT_MS}), so a game that comes up right after a cancel is quit as well.
+     * Network I/O, and possibly a wait: never on the main thread. Call it after giveUpStart(),
+     * so no /launch can follow it.
+     *
+     * @return whether the host was asked to quit and said it did
+     */
+    public boolean quitLaunchedApp() throws IOException, XmlPullParserException, InterruptedException {
+        synchronized (launchLock) {
+            long until = System.currentTimeMillis() + LAUNCH_WAIT_MS;
+            while (launchState == LAUNCH_SENT) {
+                long left = until - System.currentTimeMillis();
+                if (left <= 0) {
+                    LimeLog.warning("The /launch of a cancelled start has not come back; quitting anyway");
+                    break;
+                }
+                launchLock.wait(left);
+            }
+            if (launchState == LAUNCH_NONE) {
+                return false;
+            }
+        }
+        // A client of its own: the start's may have had its requests cancelled.
+        NvHTTP h = new NvHTTP(context.serverAddress, context.httpsPort, uniqueId, context.serverCert, cryptoProvider);
+        return h.quitApp();
     }
 
     public void stop() {
@@ -444,8 +500,23 @@ public class NvConnection {
     
     private boolean launchNotRunningApp(NvHTTP h, ConnectionContext context)
             throws IOException, XmlPullParserException {
-        // Launch the app since it's not running
-        if (!h.launchApp(context, "launch", context.streamConfig.getApp().getAppUUID(), context.streamConfig.getApp().getAppId(), context.negotiatedHdr)) {
+        // Launch the app since it's not running. Marked sent first, under the lock a give-up
+        // takes: either the start was given up and nothing goes, or the launch is on record
+        // for quitLaunchedApp().
+        synchronized (launchLock) {
+            throwIfStartAborted();
+            launchState = LAUNCH_SENT;
+        }
+        boolean launched;
+        try {
+            launched = h.launchApp(context, "launch", context.streamConfig.getApp().getAppUUID(), context.streamConfig.getApp().getAppId(), context.negotiatedHdr);
+        } finally {
+            synchronized (launchLock) {
+                launchState = LAUNCH_DONE;
+                launchLock.notifyAll();
+            }
+        }
+        if (!launched) {
             context.connListener.displayMessage("Failed to launch application");
             return false;
         }
