@@ -35,7 +35,7 @@ import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.PairingManager.PairState;
 import com.limelight.preferences.AddComputerManually;
 import com.limelight.ui.GamepadHintsView;
-import com.limelight.utils.UiHelper;
+import com.limelight.ui.GamepadPresence;
 
 import java.util.Collections;
 import java.util.List;
@@ -262,12 +262,9 @@ public class PcsFragment extends Fragment
                 this::onPanelShowing);
 
         host.hostRepository().getHosts().observe(getViewLifecycleOwner(), this::onHosts);
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-        refreshGamepad();
+        // A pad plugged in or out, even while another section is showing: the tiles' X and
+        // their focus in touch mode follow.
+        GamepadPresence.connected().observe(getViewLifecycleOwner(), pad -> refreshGamepad());
     }
 
     @Override
@@ -280,8 +277,6 @@ public class PcsFragment extends Fragment
             }
             return;
         }
-        // A pad plugged in while another section was showing still gets its letter.
-        refreshGamepad();
         // The focused tile's page goes back on the panel, as it stands now.
         publishPage();
         updateHints();
@@ -887,7 +882,7 @@ public class PcsFragment extends Fragment
 
     private void refreshGamepad() {
         if (adapter != null) {
-            adapter.setGamepadPresent(UiHelper.isGamepadConnected());
+            adapter.setGamepadPresent(GamepadPresence.isConnected());
         }
     }
 }
