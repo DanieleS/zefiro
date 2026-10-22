@@ -1,5 +1,7 @@
 package com.limelight.nvstream;
 
+import java.util.concurrent.atomic.AtomicInteger;
+import android.os.SystemClock;
 import static java.lang.Thread.sleep;
 
 import android.app.ActivityManager;
@@ -75,6 +77,17 @@ public class NvConnection {
     // How long quitLaunchedApp() waits for a /launch on its way to come back before quitting
     // anyway. A host answers /launch once the game's process is up, which is seconds, not this.
     private static final long LAUNCH_WAIT_MS = 60_000;
+    // When the /launch came back (elapsed realtime), for quitLaunchedApp()'s settle. Guarded by
+    // launchLock.
+    private long launchDoneAt;
+    // How long a launched game is given before a cancelled launch quits it. A /cancel that
+    // reaches the host while the store's launcher is still bringing the game up (Steam, seen on
+    // Apollo) ends the host's session but misses the game, which then runs on untracked.
+    private static final long LAUNCH_SETTLE_MS = 20_000;
+    // Counts starts in this process, so a cancelled launch's late quit can tell the user has
+    // started something since (that game, or the same one again, is not its to quit).
+    private static final AtomicInteger startGeneration = new AtomicInteger();
+    private volatile int myStartGeneration;
 
     public NvConnection(Context appContext, ComputerDetails.AddressTuple host, int httpsPort, String uniqueId, StreamConfiguration config, LimelightCryptoProvider cryptoProvider, X509Certificate serverCert)
     {
@@ -152,9 +165,10 @@ public class NvConnection {
      * Quits the game on the host if a start of this connection launched it, and does nothing if
      * it only resumed one already running (that session is the user's, not this launch's) or
      * never got as far as asking. A /launch still on its way is waited for first (at most
-     * {@link #LAUNCH_WAIT_MS}), so a game that comes up right after a cancel is quit as well.
-     * Network I/O, and possibly a wait: never on the main thread. Call it after giveUpStart(),
-     * so no /launch can follow it.
+     * {@link #LAUNCH_WAIT_MS}), so a game that comes up right after a cancel is quit as well;
+     * then the game is given {@link #LAUNCH_SETTLE_MS} to be fully up, and is quit only if it is
+     * still the host's game and nothing was started here since. Network I/O and waits of many
+     * seconds: never on the main thread. Call it after giveUpStart(), so no /launch can follow it.
      *
      * @return whether the host was asked to quit and said it did
      */
@@ -173,8 +187,24 @@ public class NvConnection {
                 return false;
             }
         }
+        long settle;
+        synchronized (launchLock) {
+            settle = launchDoneAt + LAUNCH_SETTLE_MS - SystemClock.elapsedRealtime();
+        }
+        if (settle > 0) {
+            Thread.sleep(settle);
+        }
+        if (startGeneration.get() != myStartGeneration) {
+            LimeLog.info("Not quitting the cancelled launch's game: another stream started since");
+            return false;
+        }
         // A client of its own: the start's may have had its requests cancelled.
         NvHTTP h = new NvHTTP(context.serverAddress, context.httpsPort, uniqueId, context.serverCert, cryptoProvider);
+        int running = h.getCurrentGame(h.getServerInfo(true));
+        if (running != context.streamConfig.getApp().getAppId()) {
+            LimeLog.info("Not quitting the cancelled launch's game: the host runs " + running + " now");
+            return false;
+        }
         return h.quitApp();
     }
 
@@ -513,6 +543,7 @@ public class NvConnection {
         } finally {
             synchronized (launchLock) {
                 launchState = LAUNCH_DONE;
+                launchDoneAt = SystemClock.elapsedRealtime();
                 launchLock.notifyAll();
             }
         }
@@ -530,6 +561,7 @@ public class NvConnection {
     {
         // On the caller's thread, so an abortStart() made after this call is never lost
         startAborted = false;
+        myStartGeneration = startGeneration.incrementAndGet();
         new Thread(new Runnable() {
             public void run() {
                 if (context.reconnectAttempt) {
