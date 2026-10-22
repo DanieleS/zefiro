@@ -347,7 +347,7 @@
     <!-- "This session" on the companion panel while a game starts (companion_launch). -->
     <dimen name="companion_launch_padding">20dp</dimen>
     <dimen name="companion_launch_step_marker">22dp</dimen>
-    <dimen name="companion_launch_step_height">44dp</dimen>
-    <dimen name="companion_launch_fact_height">32dp</dimen>
+    <dimen name="companion_launch_step_height">40dp</dimen>
+    <dimen name="companion_launch_fact_height">30dp</dimen>
 
 </resources>

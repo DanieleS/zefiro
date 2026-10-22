@@ -72,64 +72,78 @@
         android:textSize="12sp"
         tools:text="Taverna" />
 
-    <!-- The four steps. The marker's ground is the state (launch_step_done, _current, _pending);
-         a done step also shows the check over it. -->
-    <LinearLayout
-        android:id="@+id/companionLaunchSteps"
+    <!-- The steps and the facts take what the header and Cancel leave, and scroll when that is
+         not enough: with every fact known they ran past the Thor's 540dp panel (whose window is
+         a little shorter still) and pushed Cancel off its edge. The rows give way, Cancel never
+         does. -->
+    <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="14dp"
-        android:orientation="vertical">
-
-        <include
-            android:id="@+id/companionLaunchStep0"
-            layout="@layout/companion_launch_step" />
-
-        <include
-            android:id="@+id/companionLaunchStep1"
-            layout="@layout/companion_launch_step" />
-
-        <include
-            android:id="@+id/companionLaunchStep2"
-            layout="@layout/companion_launch_step" />
-
-        <include
-            android:id="@+id/companionLaunchStep3"
-            layout="@layout/companion_launch_step" />
-    </LinearLayout>
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_marginTop="12dp"
-        android:layout_marginBottom="8dp"
-        android:background="@color/divider" />
-
-    <include
-        android:id="@+id/companionLaunchResolution"
-        layout="@layout/companion_launch_fact" />
-
-    <include
-        android:id="@+id/companionLaunchVideo"
-        layout="@layout/companion_launch_fact" />
-
-    <include
-        android:id="@+id/companionLaunchDisplay"
-        layout="@layout/companion_launch_fact" />
-
-    <include
-        android:id="@+id/companionLaunchLastPlayed"
-        layout="@layout/companion_launch_fact" />
-
-    <include
-        android:id="@+id/companionLaunchPlaytime"
-        layout="@layout/companion_launch_fact" />
-
-    <Space
-        android:layout_width="0dp"
         android:layout_height="0dp"
+        android:layout_marginTop="10dp"
         android:layout_weight="1"
-        android:minHeight="12dp" />
+        android:fadingEdgeLength="16dp"
+        android:overScrollMode="never"
+        android:requiresFadingEdge="vertical"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- The four steps. The marker's ground is the state (launch_step_done, _current,
+                 _pending); a done step also shows the check over it. -->
+            <LinearLayout
+                android:id="@+id/companionLaunchSteps"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <include
+                    android:id="@+id/companionLaunchStep0"
+                    layout="@layout/companion_launch_step" />
+
+                <include
+                    android:id="@+id/companionLaunchStep1"
+                    layout="@layout/companion_launch_step" />
+
+                <include
+                    android:id="@+id/companionLaunchStep2"
+                    layout="@layout/companion_launch_step" />
+
+                <include
+                    android:id="@+id/companionLaunchStep3"
+                    layout="@layout/companion_launch_step" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="8dp"
+                android:background="@color/divider" />
+
+            <include
+                android:id="@+id/companionLaunchResolution"
+                layout="@layout/companion_launch_fact" />
+
+            <include
+                android:id="@+id/companionLaunchVideo"
+                layout="@layout/companion_launch_fact" />
+
+            <include
+                android:id="@+id/companionLaunchDisplay"
+                layout="@layout/companion_launch_fact" />
+
+            <include
+                android:id="@+id/companionLaunchLastPlayed"
+                layout="@layout/companion_launch_fact" />
+
+            <include
+                android:id="@+id/companionLaunchPlaytime"
+                layout="@layout/companion_launch_fact" />
+        </LinearLayout>
+    </ScrollView>
 
     <!-- Cancel: the companion's quiet pill (no MaterialButton here, see companion_surface), with
          the pad's B inside it while a pad is connected. -->
@@ -138,6 +152,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="end"
+        android:layout_marginTop="12dp"
         android:background="@drawable/companion_ghost_bg"
         android:clickable="true"
         android:focusable="false"
