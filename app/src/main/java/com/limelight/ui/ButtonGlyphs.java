@@ -3,16 +3,27 @@ package com.limelight.ui;
 import android.content.res.ColorStateList;
 import android.graphics.drawable.Drawable;
 import android.view.View;
+import android.widget.ImageView;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
+import androidx.core.widget.ImageViewCompat;
 import androidx.lifecycle.LifecycleOwner;
+import androidx.lifecycle.Observer;
 
 import com.google.android.material.button.MaterialButton;
+import com.limelight.R;
 
 /**
  * Puts the gamepad button that fires a button inside it ("B Cancel") while a pad is connected,
  * and takes it out again when the pad goes ({@link GamepadPresence}). Only for a button a key
  * fires wherever focus is; a button that A presses once focused carries no glyph.
+ *
+ * <p>A button with text keeps it, the glyph taking the icon's place ({@link #bind}); an icon-only
+ * button (a back arrow, a chevron) shows the glyph instead of its icon ({@link #bindImage}); any
+ * other control gets a {@code view_gamepad_hint_key} of its own beside or inside it, shown by
+ * {@link #bindVisibility}. The variants without a lifecycle owner follow the pad while the view
+ * is attached, for views that outlive no screen of their own: a list item, the companion panel.
  */
 public final class ButtonGlyphs {
 
@@ -47,5 +58,61 @@ public final class ButtonGlyphs {
     public static void bindVisibility(@NonNull LifecycleOwner owner, @NonNull View glyph) {
         GamepadPresence.connected().observe(owner, pad ->
                 glyph.setVisibility(Boolean.TRUE.equals(pad) ? View.VISIBLE : View.GONE));
+    }
+
+    /**
+     * Shows {@code glyph} (a {@code view_gamepad_hint_key}) while a pad is connected, for as long
+     * as it is attached to a window.
+     */
+    public static void bindVisibility(@NonNull View glyph) {
+        whileAttached(glyph, pad ->
+                glyph.setVisibility(Boolean.TRUE.equals(pad) ? View.VISIBLE : View.GONE));
+    }
+
+    /**
+     * Shows {@code key} in place of an icon-only button's icon while a pad is connected, for as
+     * long as the button is attached to a window: "B" on a back arrow, "LB" on a chevron. The
+     * icon, its tint and its scale come back when the pad goes. The glyph is drawn in the icon's
+     * tint, untinted itself so its key stays readable on its plate.
+     */
+    public static void bindImage(@NonNull ImageView button, @NonNull String key) {
+        final Drawable own = button.getDrawable();
+        final ColorStateList ownTint = ImageViewCompat.getImageTintList(button);
+        final ImageView.ScaleType ownScale = button.getScaleType();
+        int color = ownTint != null ? ownTint.getDefaultColor()
+                : ContextCompat.getColor(button.getContext(), R.color.content_primary);
+        final Drawable glyph = new KeyGlyphDrawable(button.getResources(), key, color);
+        whileAttached(button, pad -> {
+            if (Boolean.TRUE.equals(pad)) {
+                ImageViewCompat.setImageTintList(button, null);
+                // At its own size: fitted to the icon's box, the key would be blown up.
+                button.setScaleType(ImageView.ScaleType.CENTER);
+                button.setImageDrawable(glyph);
+            } else {
+                button.setImageDrawable(own);
+                ImageViewCompat.setImageTintList(button, ownTint);
+                button.setScaleType(ownScale);
+            }
+        });
+    }
+
+    // Applies the pad's state now, then on every change while the view is attached.
+    private static void whileAttached(@NonNull View view, @NonNull Observer<Boolean> apply) {
+        view.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+            @Override
+            public void onViewAttachedToWindow(@NonNull View v) {
+                GamepadPresence.connected().observeForever(apply);
+            }
+
+            @Override
+            public void onViewDetachedFromWindow(@NonNull View v) {
+                GamepadPresence.connected().removeObserver(apply);
+            }
+        });
+        if (view.isAttachedToWindow()) {
+            GamepadPresence.connected().observeForever(apply);
+        } else {
+            apply.onChanged(GamepadPresence.isConnected());
+        }
     }
 }
