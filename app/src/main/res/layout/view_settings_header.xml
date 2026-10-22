@@ -11,11 +11,12 @@
     the results' filters, and the card goes.
 
     Which parts a window shows (SettingsHeader.setWide):
-      wide     the profile as the card's first pin, "{n} changed" (hidden at none), and with
-               on a screen driven by the pad (the Thor) the Y glyph on the field and L1 / R1
-               around the chips
-      compact  the profile as a row with Switch above five value pills, no glyphs, no Pinned
-               chip (the card is right above the chips)
+      wide     the profile as the card's first pin, "{n} changed" (hidden at none)
+      compact  the profile as a row with Switch above five value pills, no Pinned chip (the
+               card is right above the chips)
+
+    Either way, while a gamepad is connected (SettingsHeader.setGlyphs), the Y glyph on the
+    field, B beside the search's back arrow, and L1 / R1 around the chips.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -86,6 +87,11 @@
             android:scaleType="fitCenter"
             android:src="@drawable/ic_arrow_back"
             app:tint="@color/content_secondary" />
+
+        <!-- B leaves the search as the arrow does; shown while a pad is connected. -->
+        <include
+            android:id="@+id/settingsSearchBackGlyph"
+            layout="@layout/view_gamepad_hint_key" />
 
         <EditText
             android:id="@+id/settingsSearchField"

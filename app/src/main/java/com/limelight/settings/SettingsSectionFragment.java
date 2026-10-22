@@ -5,7 +5,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
-import android.hardware.input.InputManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Parcelable;
@@ -55,6 +54,7 @@ import com.limelight.preferences.SettingsHost;
 import com.limelight.preferences.StreamPreferencesFragment;
 import com.limelight.profiles.ProfilesManager;
 import com.limelight.profiles.SettingsProfile;
+import com.limelight.ui.GamepadPresence;
 import com.limelight.ui.MenuSheet;
 import com.limelight.utils.ServerHelper;
 
@@ -284,24 +284,6 @@ public class SettingsSectionFragment extends Fragment
         }
     };
 
-    // A gamepad connected or gone: the header's Y, L1 and R1 glyphs follow.
-    private final InputManager.InputDeviceListener padsChanged = new InputManager.InputDeviceListener() {
-        @Override
-        public void onInputDeviceAdded(int deviceId) {
-            applyGlyphs();
-        }
-
-        @Override
-        public void onInputDeviceRemoved(int deviceId) {
-            applyGlyphs();
-        }
-
-        @Override
-        public void onInputDeviceChanged(int deviceId) {
-            applyGlyphs();
-        }
-    };
-
     private final FragmentManager.FragmentLifecycleCallbacks listLifecycle =
             new FragmentManager.FragmentLifecycleCallbacks() {
                 @Override
@@ -359,7 +341,7 @@ public class SettingsSectionFragment extends Fragment
         Configuration config = getResources().getConfiguration();
         wide = WindowClass.from(config.screenWidthDp) == WindowClass.WIDE;
         shortWindow = WindowClass.isShortWide(config.screenWidthDp, config.screenHeightDp);
-        header.setWide(wide, host.isDpadFirst());
+        header.setWide(wide);
         // Before the list is made: its adapter asks for the header's at once.
         placeHeader();
 
@@ -384,10 +366,8 @@ public class SettingsSectionFragment extends Fragment
         ProfilesManager.getInstance().addListener(profilesChanged);
         view.getViewTreeObserver().addOnGlobalFocusChangeListener(focusChange);
         view.getViewTreeObserver().addOnTouchModeChangeListener(touchModeChange);
-        InputManager input = ContextCompat.getSystemService(requireContext(), InputManager.class);
-        if (input != null) {
-            input.registerInputDeviceListener(padsChanged, null);
-        }
+        // A gamepad connected or gone: the header's Y, L1, R1 and B glyphs follow.
+        GamepadPresence.connected().observe(getViewLifecycleOwner(), pad -> applyGlyphs());
         // The panel shown or hidden while this list is up: from the host sheet, or the Thor's
         // lower screen switched off and on. The companion row's title says what a click does,
         // so it follows; so do the count it is part of, the rows' description lines, where a
@@ -396,7 +376,6 @@ public class SettingsSectionFragment extends Fragment
         CompanionDisplayManager.panelShowing().observe(getViewLifecycleOwner(), showing -> {
             panelUp = Boolean.TRUE.equals(showing);
             refreshCompanionRow();
-            applyGlyphs();
             applyRowLines();
             refreshHeader();
             publishPage();
@@ -414,10 +393,6 @@ public class SettingsSectionFragment extends Fragment
                 view.getViewTreeObserver().removeOnGlobalFocusChangeListener(focusChange);
                 view.getViewTreeObserver().removeOnTouchModeChangeListener(touchModeChange);
             }
-        }
-        InputManager input = ContextCompat.getSystemService(requireContext(), InputManager.class);
-        if (input != null) {
-            input.unregisterInputDeviceListener(padsChanged);
         }
         markDefaultFocus(null);
         clearPage();
@@ -480,7 +455,7 @@ public class SettingsSectionFragment extends Fragment
             boolean headerHadFocus = header.contains(focus);
             wide = nextWide;
             shortWindow = nextShort;
-            header.setWide(wide, host.isDpadFirst());
+            header.setWide(wide);
             placeHeader();
             applyRowLines();
             refreshHeader();
@@ -1623,12 +1598,12 @@ public class SettingsSectionFragment extends Fragment
 
     // --- Glyphs ---
 
-    // The header's Y, L1 and R1, and a focused list row's "A Choices", on a screen driven by the
-    // pad as every other screen's hints are (MainHost.isDpadFirst): the Thor, with its panel or
-    // a pad; never a phone in the hand.
+    // The header's Y, L1, R1 and B while a gamepad is connected, as every other screen's hints
+    // are (GamepadPresence): the Thor, a phone with a pad; never a phone in the hand. A focused
+    // list row's "A Choices" follows on its own (GamepadHintsView).
     private void applyGlyphs() {
         if (header != null) {
-            header.setWide(wide, host.isDpadFirst());
+            header.setGlyphs(GamepadPresence.isConnected());
         }
     }
 
