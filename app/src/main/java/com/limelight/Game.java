@@ -1326,7 +1326,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         decoderRenderer.setRenderTarget(streamContainer.getSurface(),
                 streamContainer.getSurfaceView().getWidth(), streamContainer.getSurfaceView().getHeight());
 
-        // Starten Sie die NvConnection
+        // Starten Sie die NvConnection. From here leaving must stop it (stopConnection), and a
+        // cancelled launch must quit what it started.
+        connecting = true;
         conn.start(new AndroidAudioRenderer(Game.this, prefConfig.playHostAudio),
                 decoderRenderer, Game.this);
     }

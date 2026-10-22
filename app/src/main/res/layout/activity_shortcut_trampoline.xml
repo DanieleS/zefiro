@@ -6,6 +6,8 @@
     than from a system progress dialog. Back gives the wait up, as the dialog's cancel did.
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/trampolineRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/surface_deep">
@@ -20,13 +22,15 @@
         android:textColor="@color/content_secondary"
         android:textSize="13sp" />
 
-    <ProgressBar
-        style="?android:attr/progressBarStyleHorizontal"
+    <!-- A Material indicator: the platform's horizontal bar draws nothing at the line's 3dp. -->
+    <com.google.android.material.progressindicator.LinearProgressIndicator
         android:layout_width="match_parent"
-        android:layout_height="@dimen/connection_progress_height"
+        android:layout_height="wrap_content"
         android:layout_gravity="bottom"
         android:importantForAccessibility="no"
         android:indeterminate="true"
-        android:indeterminateTint="@color/signal"
-        android:progressBackgroundTint="@android:color/transparent" />
+        app:indicatorColor="@color/signal"
+        app:trackColor="@android:color/transparent"
+        app:trackCornerRadius="0dp"
+        app:trackThickness="@dimen/connection_progress_height" />
 </FrameLayout>
