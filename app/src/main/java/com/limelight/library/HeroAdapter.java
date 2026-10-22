@@ -43,7 +43,9 @@ import java.util.Map;
  *
  * The card is as tall as its cover, and the cover is sized so the card takes at most a third of
  * the window's height ({@link #coverWidthDp}): on the Thor the shelves are what the screen is
- * for, and a hero half its height pushed them off it. The backdrop fills the card without sizing
+ * for, and a hero half its height pushed them off it. The column beside the cover is at least as
+ * tall as the cover and may be taller: a title on two lines, or a meta line, on a phone's small
+ * cover makes the card grow rather than cut the buttons off. The backdrop fills the card without sizing
  * it; before, a tall background art made the card as tall as the picture.
  *
  * <h3>What counts as running</h3>
@@ -404,6 +406,11 @@ final class HeroAdapter extends RecyclerView.Adapter<HeroAdapter.Holder> {
             holder.cover.setLayoutParams(lp);
         }
         holder.coverWidthPx = width;
+        // The column's floor is the cover's 3:4 height, so the buttons sit at the cover's foot.
+        int coverHeight = width * 4 / 3;
+        if (holder.column.getMinimumHeight() != coverHeight) {
+            holder.column.setMinimumHeight(coverHeight);
+        }
         if (compact) {
             holder.resume.setIcon(null);
         } else if (holder.resume.getIcon() == null) {
@@ -437,6 +444,7 @@ final class HeroAdapter extends RecyclerView.Adapter<HeroAdapter.Holder> {
 
     static final class Holder extends RecyclerView.ViewHolder {
         final View card;
+        final View column;
         final ImageView backdrop;
         final View scrim;
         final GameTileView cover;
@@ -462,6 +470,7 @@ final class HeroAdapter extends RecyclerView.Adapter<HeroAdapter.Holder> {
         Holder(@NonNull View view) {
             super(view);
             card = view.findViewById(R.id.heroCard);
+            column = view.findViewById(R.id.heroColumn);
             backdrop = view.findViewById(R.id.heroBackdrop);
             scrim = view.findViewById(R.id.heroScrim);
             cover = view.findViewById(R.id.heroCover);
