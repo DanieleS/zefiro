@@ -25,6 +25,7 @@ import com.limelight.computers.HostLibrary;
 import com.limelight.computers.HostRepository;
 import com.limelight.grid.AppSortOrder;
 import com.limelight.main.MainHost;
+import com.limelight.ui.GamepadPresence;
 import com.limelight.main.Section;
 import com.limelight.main.SectionFocus;
 import com.limelight.main.SectionKeys;
@@ -95,9 +96,9 @@ import java.util.Objects;
  *        ─▶ the panel's way out (Wake on an offline host) ─▶ the host chip
  * </pre>
  *
- * A d-pad-first screen ({@link MainHost#isDpadFirst}) is given that focus at launch even
- * though it starts in touch mode, once, so the companion panel shows a game rather than the
- * host. Focus placed by this screen, and not moved since, moves up when a row earlier in the
+ * With a gamepad connected ({@link GamepadPresence}) the screen is given that focus at launch
+ * even though it starts in touch mode, once, so the companion panel shows a game rather than the
+ * host and the pad's hints name something on screen. Focus placed by this screen, and not moved since, moves up when a row earlier in the
  * order arrives: the history behind Recently played is read after the games are listed.
  * Focus left on the chip only for want of anything else moves on when the games arrive; focus
  * in the content when the panel comes or goes is placed again by that order, which is how an
@@ -589,15 +590,15 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
     }
 
     /**
-     * Focuses the view. A d-pad-first screen still in touch mode at launch has its first game
-     * focused anyway, once: requestFocus would refuse in touch mode, and the companion panel
+     * Focuses the view. With a gamepad connected, a screen still in touch mode at launch has its
+     * first game focused anyway, once: requestFocus would refuse in touch mode, and the companion panel
      * would show only the host until the first press. The chip does not count: it is where focus
      * waits for the games, not where it is meant to be.
      */
     private boolean placeFocus(@NonNull View target) {
         boolean placed;
         if (!launchFocusPlaced && target.isInTouchMode() && header != null
-                && !header.isChip(target) && host.isDpadFirst()) {
+                && !header.isChip(target) && GamepadPresence.isConnected()) {
             launchFocusPlaced = true;
             placed = target.requestFocusFromTouch();
         } else {

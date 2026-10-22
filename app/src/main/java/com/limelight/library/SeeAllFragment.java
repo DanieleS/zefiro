@@ -24,6 +24,7 @@ import com.limelight.grid.AppSortOrder;
 import com.limelight.grid.AutofitGridLayoutManager;
 import com.limelight.grid.GridSpacingItemDecoration;
 import com.limelight.main.MainHost;
+import com.limelight.ui.GamepadPresence;
 import com.limelight.main.Section;
 import com.limelight.main.SectionFocus;
 import com.limelight.main.SectionKeys;
@@ -714,8 +715,8 @@ public class SeeAllFragment extends Fragment
         boolean waiting = isSortControl(target) && (adapter == null || adapter.getItemCount() == 0);
         boolean placed;
         if (!openFocusPlaced && target.isInTouchMode() && !isSortControl(target)
-                && host.isDpadFirst()) {
-            // Opened by a tap on a d-pad-first screen: requestFocus would refuse in touch mode,
+                && GamepadPresence.isConnected()) {
+            // Opened by a tap with a gamepad connected: requestFocus would refuse in touch mode,
             // and the panel would show the host, not the game the grid is on. Once.
             openFocusPlaced = true;
             placed = target.requestFocusFromTouch();
