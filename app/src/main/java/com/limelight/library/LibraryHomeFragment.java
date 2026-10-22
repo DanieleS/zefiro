@@ -25,11 +25,11 @@ import com.limelight.computers.HostLibrary;
 import com.limelight.computers.HostRepository;
 import com.limelight.grid.AppSortOrder;
 import com.limelight.main.MainHost;
-import com.limelight.ui.GamepadPresence;
 import com.limelight.main.Section;
 import com.limelight.main.SectionFocus;
 import com.limelight.main.SectionKeys;
 import com.limelight.main.WindowClass;
+import com.limelight.ui.GamepadPresence;
 
 import java.util.Collections;
 import java.util.List;

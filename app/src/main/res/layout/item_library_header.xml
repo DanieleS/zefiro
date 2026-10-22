@@ -3,7 +3,8 @@
     The Library home's header (library/HeaderAdapter): "Library" and the host chip, after the
     approved Shelves mock's phone frame. The chip names the selected PC behind its status dot,
     with a chevron saying it opens something; it opens the host sheet, as X does anywhere in
-    the Library. It is the header's one focusable stop.
+    the Library, so while a gamepad is connected it wears the X glyph first. It is the header's
+    one focusable stop.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
@@ -34,6 +35,14 @@
         android:orientation="horizontal"
         android:paddingStart="14dp"
         android:paddingEnd="12dp">
+
+        <!-- X, while a pad is connected (HeaderAdapter). -->
+        <include
+            android:id="@+id/libraryHostChipGlyph"
+            layout="@layout/view_gamepad_hint_key"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/key_glyph_height"
+            android:layout_marginEnd="8dp" />
 
         <View
             android:id="@+id/libraryHostChipDot"

@@ -7,6 +7,7 @@ import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -24,12 +25,13 @@ import com.limelight.grid.AppSortOrder;
 import com.limelight.grid.AutofitGridLayoutManager;
 import com.limelight.grid.GridSpacingItemDecoration;
 import com.limelight.main.MainHost;
-import com.limelight.ui.GamepadPresence;
 import com.limelight.main.Section;
 import com.limelight.main.SectionFocus;
 import com.limelight.main.SectionKeys;
 import com.limelight.main.WindowClass;
 import com.limelight.nvstream.http.NvApp;
+import com.limelight.ui.ButtonGlyphs;
+import com.limelight.ui.GamepadPresence;
 import com.limelight.ui.MenuSheet;
 
 import java.util.ArrayList;
@@ -231,6 +233,8 @@ public class SeeAllFragment extends Fragment
         backButton = view.findViewById(R.id.seeAllBack);
         backButton.setOnClickListener(v ->
                 requireActivity().getOnBackPressedDispatcher().onBackPressed());
+        // It does what B does: with a pad connected it shows B.
+        ButtonGlyphs.bindImage((ImageView) backButton, "B");
         searchButton.setOnClickListener(v -> host.showSection(Section.SEARCH));
 
         // The chip and the toolbar's button are one control in two shapes.
