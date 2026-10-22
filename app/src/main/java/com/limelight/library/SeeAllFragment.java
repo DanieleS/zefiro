@@ -87,7 +87,7 @@ import java.util.List;
  *
  * The Library's home pushes it, from the All games shelf's link or its trailing tile, and back
  * pops it; the back arrow (compact only) shows only when there is something under it to go back
- * to. On a d-pad-first screen (the Thor with its companion panel) the first tile is focused as
+ * to. With a gamepad connected (the Thor, or a phone with a pad) the first tile is focused as
  * it opens, even from a tap, so the panel shows a game and the grid its focus ring. X raises
  * the host sheet here as on the home; the Library's frame handles it for both.
  *
@@ -149,7 +149,7 @@ public class SeeAllFragment extends Fragment
     private boolean lastFocusedChip;
     // Initial focus went to the chip only for want of a tile; hand it on when one arrives.
     private boolean focusAwaitingTiles;
-    // A d-pad-first screen's opening focus, taken out of touch mode, is placed once.
+    // The opening focus with a pad connected, taken out of touch mode, is placed once.
     private boolean openFocusPlaced;
 
     public SeeAllFragment() {

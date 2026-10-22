@@ -100,7 +100,7 @@ public class SettingsAdapter extends PreferenceGroupAdapter {
      * screen at once, so the panel coming or going reshapes the focused row in place.
      *
      * @param choiceHints whether a focused list row says "A Choices" while the panel is not
-     *                    up; shown only on a screen driven by the pad ({@link GamepadHintsView})
+     *                    up; shown only while a gamepad is connected ({@link GamepadHintsView})
      */
     public void setRowLines(boolean wide, boolean panelShowing, boolean choiceHints) {
         if (wideRows == wide && this.panelShowing == panelShowing

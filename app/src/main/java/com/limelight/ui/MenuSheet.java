@@ -156,8 +156,8 @@ public class MenuSheet {
     }
 
     /**
-     * Land focus on the first row even when the menu was opened by touch: a d-pad-first screen
-     * (a handheld with its pad), where the next press is the pad's and must start on a row that
+     * Land focus on the first row even when the menu was opened by touch: with a gamepad
+     * connected ({@link GamepadPresence}), where the next press may be the pad's and must start on a row that
      * shows it is focused. Elsewhere a touch-opened menu shows no ring, as a tapped one should.
      */
     public MenuSheet setFocusFromTouch(boolean fromTouch) {

@@ -937,7 +937,7 @@ public class StatsFragment extends Fragment
     /**
      * The pad's shortcuts, as the state has them ({@link StatsRemotePage#hints}): here, or, while
      * the panel has the lower half, on the panel under the remote, as the mock draws them. Shown
-     * only on a screen driven by the pad. The panel's page is handed over again with them, so
+     * only while a gamepad is connected (GamepadHintsView). The panel's page is handed over again with them, so
      * every caller of this keeps the panel current too.
      */
     private void updateHints() {

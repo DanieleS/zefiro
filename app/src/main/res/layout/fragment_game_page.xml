@@ -491,7 +491,7 @@
                                 app:chipSpacingVertical="0dp"
                                 app:singleLine="false" />
 
-                            <!-- R2 and L2 between this screen and what is below it; d-pad first only. -->
+                            <!-- R2 and L2 between this screen and what is below it; with a pad connected only. -->
                             <com.limelight.ui.GamepadHintsView
                                 android:id="@+id/gamePageHints"
                                 android:layout_width="match_parent"

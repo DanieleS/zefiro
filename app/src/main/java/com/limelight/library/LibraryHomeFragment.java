@@ -175,7 +175,7 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
     // screen (a game's page) leaves focus to the stack, which returns it to the remembered spot.
     private boolean seeAllOpen;
     private boolean focusSettlePosted;
-    // A d-pad-first screen's launch focus, taken out of touch mode, is placed once.
+    // The launch focus with a pad connected, taken out of touch mode, is placed once.
     private boolean launchFocusPlaced;
     // The view this screen focused on its own, until the user moves off it: while it holds
     // focus, a row that arrives ahead of it in the order (Recently played, once the history is
