@@ -16,7 +16,7 @@
                card is right above the chips)
 
     Either way, while a gamepad is connected (SettingsHeader.setGlyphs), the Y glyph on the
-    field, B beside the search's back arrow, and L1 / R1 around the chips.
+    field and L1 / R1 around the chips, and B in place of the search's back arrow.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -87,11 +87,6 @@
             android:scaleType="fitCenter"
             android:src="@drawable/ic_arrow_back"
             app:tint="@color/content_secondary" />
-
-        <!-- B leaves the search as the arrow does; shown while a pad is connected. -->
-        <include
-            android:id="@+id/settingsSearchBackGlyph"
-            layout="@layout/view_gamepad_hint_key" />
 
         <EditText
             android:id="@+id/settingsSearchField"

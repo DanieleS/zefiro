@@ -366,7 +366,7 @@ public class SettingsSectionFragment extends Fragment
         ProfilesManager.getInstance().addListener(profilesChanged);
         view.getViewTreeObserver().addOnGlobalFocusChangeListener(focusChange);
         view.getViewTreeObserver().addOnTouchModeChangeListener(touchModeChange);
-        // A gamepad connected or gone: the header's Y, L1, R1 and B glyphs follow.
+        // A gamepad connected or gone: the header's Y, L1 and R1 glyphs follow.
         GamepadPresence.connected().observe(getViewLifecycleOwner(), pad -> applyGlyphs());
         // The panel shown or hidden while this list is up: from the host sheet, or the Thor's
         // lower screen switched off and on. The companion row's title says what a click does,
@@ -1598,7 +1598,7 @@ public class SettingsSectionFragment extends Fragment
 
     // --- Glyphs ---
 
-    // The header's Y, L1, R1 and B while a gamepad is connected, as every other screen's hints
+    // The header's Y, L1 and R1 while a gamepad is connected, as every other screen's hints
     // are (GamepadPresence): the Thor, a phone with a pad; never a phone in the hand. A focused
     // list row's "A Choices" follows on its own (GamepadHintsView).
     private void applyGlyphs() {

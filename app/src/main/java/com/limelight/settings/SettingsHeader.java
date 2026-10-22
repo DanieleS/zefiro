@@ -20,6 +20,7 @@ import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 
 import com.limelight.R;
+import com.limelight.ui.ButtonGlyphs;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -129,7 +130,6 @@ final class SettingsHeader {
     private final LinearLayout pins;
     private final View prevGlyph;
     private final View nextGlyph;
-    private final View backGlyph;
     private final HorizontalScrollView chipsScroll;
     private final LinearLayout chips;
     private final TextView changedChip;
@@ -177,7 +177,6 @@ final class SettingsHeader {
         pins = root.findViewById(R.id.settingsPins);
         prevGlyph = root.findViewById(R.id.settingsChipsPrevGlyph);
         nextGlyph = root.findViewById(R.id.settingsChipsNextGlyph);
-        backGlyph = root.findViewById(R.id.settingsSearchBackGlyph);
         chipsScroll = root.findViewById(R.id.settingsChipsScroll);
         chips = root.findViewById(R.id.settingsChips);
         changedChip = root.findViewById(R.id.settingsChangedChip);
@@ -190,7 +189,7 @@ final class SettingsHeader {
         searchGlyph.setBackgroundResource(R.drawable.settings_search_key_bg);
         ((TextView) prevGlyph).setText("L1");
         ((TextView) nextGlyph).setText("R1");
-        ((TextView) backGlyph).setText("B");
+        ButtonGlyphs.bindImage(root.findViewById(R.id.settingsSearchBack), "B");
 
         searchRest.setOnClickListener(v -> listener.onSearchRequested());
         root.findViewById(R.id.settingsSearchBack).setOnClickListener(v -> listener.onSearchLeave());
@@ -306,7 +305,7 @@ final class SettingsHeader {
     }
 
     /**
-     * Shows the gamepad glyphs (Y, L1, R1, B) or hides them: shown while a pad is connected,
+     * Shows the gamepad glyphs (Y, L1, R1) or hides them: shown while a pad is connected,
      * whatever the window's size.
      */
     void setGlyphs(boolean glyphs) {
@@ -330,7 +329,6 @@ final class SettingsHeader {
         searchRest.setVisibility(searching ? View.GONE : View.VISIBLE);
         searchBar.setVisibility(searching ? View.VISIBLE : View.GONE);
         searchGlyph.setVisibility(glyphs ? View.VISIBLE : View.GONE);
-        backGlyph.setVisibility(glyphs ? View.VISIBLE : View.GONE);
         card.setVisibility(searching ? View.GONE : View.VISIBLE);
         profileRow.setVisibility(wide ? View.GONE : View.VISIBLE);
         cardRule.setVisibility(wide ? View.GONE : View.VISIBLE);
