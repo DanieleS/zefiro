@@ -5,6 +5,7 @@ import android.content.Context;
 import android.util.TypedValue;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.TextView;
 
 import androidx.appcompat.view.ContextThemeWrapper;
 import androidx.test.core.app.ApplicationProvider;
@@ -79,6 +80,40 @@ public class SharedWidgetsTest {
         for (int i = 0; i < 3; i++) {
             assertFalse(control.getChildAt(i).isActivated());
         }
+    }
+
+    @Test
+    public void segmentKeysSitAtTheTrackEndsAndShowOnlyWithAPad() {
+        GamepadPresence.setConnectedForTest(false);
+        SegmentedControlView control = new SegmentedControlView(context, null);
+        control.setSegments("Week", "Month", "Year");
+        control.setKeys("X", "Y");
+        assertEquals(5, control.getChildCount());
+        TextView before = (TextView) control.getChildAt(0);
+        TextView after = (TextView) control.getChildAt(4);
+        assertEquals("X", before.getText().toString());
+        assertEquals("Y", after.getText().toString());
+        assertEquals(View.GONE, before.getVisibility());
+        assertEquals(control.getChildAt(1), control.getSegmentView(0));
+
+        // A new set of segments keeps the keys at the ends.
+        control.setSegments("All", "Unlocked");
+        assertEquals(4, control.getChildCount());
+        assertEquals(before, control.getChildAt(0));
+        assertEquals(after, control.getChildAt(3));
+        assertEquals(2, control.getSegmentCount());
+
+        Activity activity = Robolectric.buildActivity(Activity.class).create().visible().get();
+        activity.setTheme(R.style.AppTheme);
+        SegmentedControlView attached = new SegmentedControlView(activity, null);
+        attached.setSegments("Week", "Month", "Year");
+        attached.setKeys("X", "Y");
+        activity.setContentView(attached);
+        GamepadPresence.setConnectedForTest(true);
+        assertEquals(View.VISIBLE, attached.getChildAt(0).getVisibility());
+        assertEquals(View.VISIBLE, attached.getChildAt(4).getVisibility());
+        GamepadPresence.setConnectedForTest(false);
+        assertEquals(View.GONE, attached.getChildAt(0).getVisibility());
     }
 
     @Test
