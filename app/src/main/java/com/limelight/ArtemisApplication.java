@@ -8,6 +8,7 @@ import com.limelight.companion.CompanionDisplayManager;
 import com.limelight.grid.assets.MemoryAssetLoader;
 import com.limelight.preferences.PreferenceConfiguration;
 import com.limelight.profiles.ProfilesManager;
+import com.limelight.ui.GamepadPresence;
 
 public class ArtemisApplication extends Application {
     @Override
@@ -19,6 +20,7 @@ public class ArtemisApplication extends Application {
         }
 
         CompanionDisplayManager.install(this);
+        GamepadPresence.install(this);
 
         // The PyroWave probe creates a Vulkan device: run it now, off the UI thread, so that
         // starting a stream finds the result cached
