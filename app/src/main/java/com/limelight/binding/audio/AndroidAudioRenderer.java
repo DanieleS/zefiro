@@ -8,6 +8,7 @@ import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.media.audiofx.AudioEffect;
 import android.os.Build;
+import android.os.SystemClock;
 
 import com.limelight.LimeLog;
 import com.limelight.nvstream.av.audio.AudioRenderer;
@@ -19,6 +20,17 @@ public class AndroidAudioRenderer implements AudioRenderer {
     private final boolean enableAudioFx;
 
     private AudioTrack track;
+    private long nativeAudio;
+    private AudioBufferPolicy bufferPolicy;
+    private long lastBufferCheckMs;
+    private int channelConfig, sampleRate, samplesPerFrame, channels;
+    private boolean stopped;
+
+    private static native long nativeOpenAudio(int sampleRate);
+    private static native boolean nativeWriteAudio(long handle, short[] samples, int length);
+    private static native int[] nativeAudioStats(long handle);
+    private static native int nativeAudioBuffer(long handle, int frames);
+    private static native void nativeCloseAudio(long handle);
 
     public AndroidAudioRenderer(Context context, boolean enableAudioFx) {
         this.context = context;
@@ -65,9 +77,12 @@ public class AndroidAudioRenderer implements AudioRenderer {
     }
 
     @Override
-    public int setup(MoonBridge.AudioConfiguration audioConfiguration, int sampleRate, int samplesPerFrame) {
-        int channelConfig;
-        int bytesPerFrame;
+    public synchronized int setup(MoonBridge.AudioConfiguration audioConfiguration, int sampleRate, int samplesPerFrame) {
+        this.sampleRate = sampleRate;
+        this.samplesPerFrame = samplesPerFrame;
+        this.channels = audioConfiguration.channelCount;
+        stopped = false;
+        lastBufferCheckMs = 0;
 
         switch (audioConfiguration.channelCount)
         {
@@ -93,7 +108,21 @@ public class AndroidAudioRenderer implements AudioRenderer {
 
         LimeLog.info("Audio channel config: "+String.format("0x%X", channelConfig));
 
-        bytesPerFrame = audioConfiguration.channelCount * samplesPerFrame * 2;
+        if (AudioBufferPolicy.useAAudio(Build.VERSION.SDK_INT, channels, enableAudioFx, sampleRate,
+                AudioTrack.getNativeOutputSampleRate(AudioManager.STREAM_MUSIC))) {
+            nativeAudio = nativeOpenAudio(sampleRate);
+            if (nativeAudio != 0) {
+                int[] stats = nativeAudioStats(nativeAudio);
+                bufferPolicy = new AudioBufferPolicy(stats[0], stats[1], stats[2], stats[3], SystemClock.uptimeMillis());
+                LimeLog.info("Audio output: AAudio low latency");
+                return 0;
+            }
+        }
+        return setupAudioTrack();
+    }
+
+    private int setupAudioTrack() {
+        int bytesPerFrame = channels * samplesPerFrame * 2;
 
         // We're not supposed to request less than the minimum
         // buffer size for our buffer, but it appears that we can
@@ -159,7 +188,15 @@ public class AndroidAudioRenderer implements AudioRenderer {
             }
 
             try {
-                track = createAudioTrack(channelConfig, sampleRate, bufferSize, lowLatency);
+                // Keep spare capacity so the buffer can grow after underruns
+                int capacityBytes = Build.VERSION.SDK_INT >= Build.VERSION_CODES.N ?
+                        Math.max(bufferSize, bytesPerFrame * 8) : bufferSize;
+                track = createAudioTrack(channelConfig, sampleRate, capacityBytes, lowLatency);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    int actual = track.setBufferSizeInFrames(bufferSize / (channels * 2));
+                    bufferPolicy = new AudioBufferPolicy(samplesPerFrame, track.getBufferCapacityInFrames(),
+                            actual > 0 ? actual : track.getBufferSizeInFrames(), track.getUnderrunCount(), SystemClock.uptimeMillis());
+                }
                 track.play();
 
                 // Successfully created working AudioTrack. We're done here.
@@ -186,16 +223,58 @@ public class AndroidAudioRenderer implements AudioRenderer {
     }
 
     @Override
-    public void playDecodedAudio(short[] audioData) {
+    public synchronized void playDecodedAudio(short[] audioData) {
+        if (stopped) return;
         // Only queue up to 40 ms of pending audio data in addition to what AudioTrack is buffering for us.
         if (MoonBridge.getPendingAudioDuration() < 40) {
+            if (nativeAudio != 0 && bufferPolicy.needsFallback() &&
+                    !fallbackToAudioTrack("AAudio keeps underrunning at its maximum reserve")) {
+                return;
+            }
+            if (nativeAudio != 0) {
+                if (nativeWriteAudio(nativeAudio, audioData, audioData.length)) {
+                    tuneBuffer();
+                    return;
+                }
+                if (!fallbackToAudioTrack("AAudio disconnected")) {
+                    return;
+                }
+            }
             // This will block until the write is completed. That can cause a backlog
             // of pending audio data, so we do the above check to be able to bound
             // latency at 40 ms in that situation.
             track.write(audioData, 0, audioData.length);
+            tuneBuffer();
         }
         else {
             LimeLog.info("Too much pending audio data: " + MoonBridge.getPendingAudioDuration() +" ms");
+        }
+    }
+
+    private boolean fallbackToAudioTrack(String reason) {
+        LimeLog.warning(reason + "; falling back to AudioTrack");
+        nativeCloseAudio(nativeAudio);
+        nativeAudio = 0;
+        bufferPolicy = null;
+        if (setupAudioTrack() != 0) {
+            stopped = true;
+            return false;
+        }
+        return true;
+    }
+
+    // Grows the jitter reserve after underruns and shrinks it again after a clean stretch
+    private void tuneBuffer() {
+        long now = SystemClock.uptimeMillis();
+        if (bufferPolicy == null || now - lastBufferCheckMs < 1000) return;
+        lastBufferCheckMs = now;
+        if (nativeAudio != 0) {
+            int[] stats = nativeAudioStats(nativeAudio);
+            int target = bufferPolicy.sample(stats[3], now);
+            if (target != stats[2]) bufferPolicy.applied(nativeAudioBuffer(nativeAudio, target));
+        } else if (track != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            int target = bufferPolicy.sample(track.getUnderrunCount(), now);
+            if (target != track.getBufferSizeInFrames()) bufferPolicy.applied(track.setBufferSizeInFrames(target));
         }
     }
 
@@ -212,7 +291,8 @@ public class AndroidAudioRenderer implements AudioRenderer {
     }
 
     @Override
-    public void stop() {
+    public synchronized void stop() {
+        stopped = true;
         if (enableAudioFx) {
             // Close our audio effect control session when we're stopping
             Intent i = new Intent(AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION);
@@ -223,11 +303,19 @@ public class AndroidAudioRenderer implements AudioRenderer {
     }
 
     @Override
-    public void cleanup() {
+    public synchronized void cleanup() {
+        stopped = true;
+        if (nativeAudio != 0) {
+            nativeCloseAudio(nativeAudio);
+            nativeAudio = 0;
+            bufferPolicy = null;
+        }
+        if (track == null) return;
         // Immediately drop all pending data
         track.pause();
         track.flush();
 
         track.release();
+        track = null;
     }
 }
