@@ -148,6 +148,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
     private Context context;
     private Activity activity;
+    private PerformanceBoostManager perfBoostManager;
     private MediaCodec videoDecoder;
     private Thread rendererThread;
     private boolean needsSpsBitstreamFixup, isExynos4;
@@ -738,6 +739,14 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         // Avoid setting KEY_FRAME_RATE on Lollipop and earlier to reduce compatibility risk
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             videoFormat.setInteger(MediaFormat.KEY_FRAME_RATE, refreshRate);
+        }
+
+        // Let the codec discard frames that are already late instead of queueing delay. Not in the
+        // modes that promise to never drop a frame.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                && prefs.framePacing != PreferenceConfiguration.FRAME_PACING_MAX_SMOOTHNESS
+                && prefs.framePacing != PreferenceConfiguration.FRAME_PACING_CAP_FPS) {
+            videoFormat.setInteger(MediaFormat.KEY_ALLOW_FRAME_DROP, 1);
         }
 
         // Populate keys for adaptive playback
@@ -1476,6 +1485,12 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
                 int    tryAgainStreak          = 0;
 
+                // Tell the system the renderer thread's real per-frame load
+                final PerformanceBoostManager boost = perfBoostManager;
+                if (boost != null) {
+                    boost.createHintSession(refreshRate);
+                }
+
                 BufferInfo info = new BufferInfo();
                 long lastOutputNs = System.nanoTime();
                 while (!stopping) {
@@ -1500,6 +1515,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                         }
 
                         if (outIndex >= 0) {
+                            final long workStartNs = System.nanoTime();
                             // --- flags per gestire le statistiche in modo robusto ---
                             boolean statsUpdated = false;
                             boolean frameDropped = false;
@@ -1591,6 +1607,10 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                             // If we didn't update the stats in-branch and the frame wasn't dropped,
                             if (!statsUpdated && !frameDropped) {
                                 updateDecodeLatencyStats(presentationTimeUs);
+                            }
+
+                            if (boost != null) {
+                                boost.reportActualWorkDuration(System.nanoTime() - workStartNs);
                             }
 
                         } else {
@@ -1718,6 +1738,12 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             startPyroWaveStatsThread();
             return;
         }
+        if (perfBoostManager == null) {
+            perfBoostManager = new PerformanceBoostManager(context);
+            perfBoostManager.startThermalMonitoring(status ->
+                    LimeLog.warning("Severe thermal throttling (status " + status
+                            + "): the decoder may drop frames"));
+        }
         startRendererThread();
         startChoreographerThread();
     }
@@ -1798,6 +1824,13 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             // handle that here, we will re-interrupt the thread to set the interrupt
             // status back to true.
             Thread.currentThread().interrupt();
+        }
+
+        // The renderer thread is gone: release the hint session and the thermal listener
+        PerformanceBoostManager boost = perfBoostManager;
+        perfBoostManager = null;
+        if (boost != null) {
+            boost.close();
         }
     }
 
