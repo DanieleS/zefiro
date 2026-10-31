@@ -70,7 +70,8 @@ public class SettingsCatalogTest {
                 extra.isEmpty());
         // 144 until the stream side panel dropped the floating button, the companion stats
         // switch and the three perf overlay variants.
-        assertEquals(139, catalogue.size());
+        // 141 with the host-clock pacing switch and its profile.
+        assertEquals(141, catalogue.size());
     }
 
     @Test
