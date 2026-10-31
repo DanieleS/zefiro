@@ -97,6 +97,8 @@ public class PreferenceConfiguration {
 //    static final String TOUCHSCREEN_TRACKPAD_PREF_STRING = "checkbox_touchscreen_trackpad";
     private static final String LATENCY_TOAST_PREF_STRING = "checkbox_enable_post_stream_toast";
     private static final String VSYNC_TARGET_PREF_STRING = "checkbox_vsync_target_present";
+    private static final String VRR_PACING_PREF_STRING = "checkbox_vrr_pacing";
+    private static final String VRR_PACING_MODE_PREF_STRING = "list_vrr_pacing_mode";
     private static final String FRAME_PACING_PREF_STRING = "frame_pacing";
     static final String UPSCALING_PREF_STRING = "upscaling_mode";
     static final String UPSCALING_SHARPNESS_PREF_STRING = "upscaling_sharpness";
@@ -316,6 +318,9 @@ public class PreferenceConfiguration {
     public boolean enablePerfLogging;
     public boolean enableLatencyToast;
     public boolean vsyncTargetPresent;
+    // Present each frame at its RTP time + a learned delay (VrrPacing), instead of on arrival
+    public boolean enableVrrPacing;
+    public int vrrPacingMode;
     public boolean enableBackMenu;
     public boolean showOverlayZoomToggleButton;
 
@@ -999,6 +1004,12 @@ private static int getFramePacingValue(Context context) {
 //        config.touchscreenTrackpad = prefs.getBoolean(TOUCHSCREEN_TRACKPAD_PREF_STRING, DEFAULT_TOUCHSCREEN_TRACKPAD);
         config.enableLatencyToast = prefs.getBoolean(LATENCY_TOAST_PREF_STRING, DEFAULT_LATENCY_TOAST);
         config.vsyncTargetPresent = prefs.getBoolean(VSYNC_TARGET_PREF_STRING, DEFAULT_VSYNC_TARGET);
+        config.enableVrrPacing = prefs.getBoolean(VRR_PACING_PREF_STRING, false);
+        try {
+            config.vrrPacingMode = Integer.parseInt(prefs.getString(VRR_PACING_MODE_PREF_STRING, "1"));
+        } catch (NumberFormatException e) {
+            config.vrrPacingMode = 1;
+        }
         config.enableBackMenu = prefs.getBoolean(CHECKBOX_ENABLE_QUIT_DIALOG,true);
         config.showOverlayZoomToggleButton = prefs.getBoolean(CHECKBOX_SHOW_OVERLAY_ZOOM_TOGGLE_BUTTON, DEFAULT_SHOW_OVERLAY_TOGGLE_BUTTON);
         config.autoOrientation = prefs.getBoolean(CHECKBOX_AUTO_ORIENTATION,false);
