@@ -448,6 +448,9 @@ public class MoonBridge {
 
     public static native int getPendingAudioDuration();
 
+    /** The Opus concealer for the AAudio callback, a C function pointer (aaudio_output.c). */
+    public static native long audioConcealer();
+
     public static native int getPendingVideoFrames();
 
     public static native int testClientConnectivity(String testServerHostName, int referencePort, int testFlags);
