@@ -38,6 +38,7 @@ import com.limelight.binding.video.MediaCodecHelper;
 import com.limelight.binding.video.PerfOverlayListener;
 import com.limelight.binding.video.PerfStats;
 import com.limelight.binding.video.PyroWaveSupport;
+import com.limelight.binding.video.StagedStreamExit;
 import com.limelight.bitrate.BitrateSteps;
 import com.limelight.bitrate.LiveBitrate;
 import com.limelight.companion.CompanionAppLauncher;
@@ -2442,6 +2443,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     protected void onDestroy() {
         super.onDestroy();
 
+        // A staged exit still waiting on the display ends here with the activity.
+        exitHandler.removeCallbacksAndMessages(null);
+        exitFinished = true;
+        endExitDisplayWatch();
         instance = null;
         timerHandler.removeCallbacksAndMessages(null);
         padNavHandler.removeCallbacksAndMessages(null);
@@ -4808,6 +4813,147 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         return true;
     }
 
+    // Experimental: on Android TV, an HDR stream ends in stages (stop the connection and release
+    // the decoder, hide the video output, let the display settle, give the display mode back,
+    // settle again, then finish) so the HDR to SDR switch and the mode revert never overlap and
+    // wedge the TV's HDMI link. Everything else finishes at once, as always. See StagedStreamExit.
+    private final StagedStreamExit stagedExit = new StagedStreamExit();
+    private final Handler exitHandler = new Handler(Looper.getMainLooper());
+    private final Runnable stagedExitRunnable = this::stagedExitTick;
+    private DisplayManager.DisplayListener exitDisplayListener;
+    private volatile Thread connectionStopThread;
+    private volatile boolean hdrOutputActive;
+    private Surface videoSurface;
+    // True from the first finish() of a staged exit on; isFinishing() reports it so every
+    // "is this stream ending" check in this class holds while the exit is staged.
+    private volatile boolean exiting;
+    private boolean exitFinished;
+
+    @Override
+    public boolean isFinishing() {
+        return exiting || super.isFinishing();
+    }
+
+    @Override
+    public void finish() {
+        if (exitFinished) {
+            super.finish();
+        } else if (exiting) {
+            LimeLog.info("Exit: already in progress, ignoring finish()");
+        } else if (stagedExitApplies()) {
+            beginStagedExit();
+        } else {
+            exitFinished = true;
+            super.finish();
+        }
+    }
+
+    private boolean stagedExitApplies() {
+        boolean tv = getPackageManager().hasSystemFeature(PackageManager.FEATURE_TELEVISION) ||
+                getPackageManager().hasSystemFeature(PackageManager.FEATURE_LEANBACK);
+        return !isDestroyed() && attemptedConnection && !isOnExternalDisplay() &&
+                StagedStreamExit.applies(tv, hdrOutputActive);
+    }
+
+    private void beginStagedExit() {
+        if (!stagedExit.begin(SystemClock.uptimeMillis())) {
+            return;
+        }
+        exiting = true;
+        LimeLog.info("Exit: staged (Android TV, HDR stream, Experimental)");
+        setInputGrabState(false);
+        startExitDisplayWatch();
+        LimeLog.info("Exit: stopping the connection and releasing the decoder");
+        stopConnection();
+        exitHandler.post(stagedExitRunnable);
+    }
+
+    private void startExitDisplayWatch() {
+        DisplayManager displayManager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
+        exitDisplayListener = new DisplayManager.DisplayListener() {
+            @Override
+            public void onDisplayAdded(int displayId) {
+                stagedExit.onDisplayChanged(SystemClock.uptimeMillis());
+            }
+
+            @Override
+            public void onDisplayRemoved(int displayId) {
+                stagedExit.onDisplayChanged(SystemClock.uptimeMillis());
+            }
+
+            @Override
+            public void onDisplayChanged(int displayId) {
+                stagedExit.onDisplayChanged(SystemClock.uptimeMillis());
+            }
+        };
+        displayManager.registerDisplayListener(exitDisplayListener, exitHandler);
+    }
+
+    private void endExitDisplayWatch() {
+        if (exitDisplayListener != null) {
+            ((DisplayManager) getSystemService(Context.DISPLAY_SERVICE)).unregisterDisplayListener(exitDisplayListener);
+            exitDisplayListener = null;
+        }
+    }
+
+    private void stagedExitTick() {
+        if (exitFinished || isDestroyed()) {
+            return;
+        }
+        long now = SystemClock.uptimeMillis();
+        Thread stopping = connectionStopThread;
+        if (stopping == null || !stopping.isAlive()) {
+            stagedExit.onStopFinished();
+        }
+        switch (stagedExit.poll(now)) {
+            case RELEASE_OUTPUT:
+                LimeLog.info(stagedExit.stopTimedOut() ?
+                        "Exit: connection stop still running after " + StagedStreamExit.STOP_TIMEOUT_MS +
+                                " ms, releasing the video output anyway" :
+                        "Exit: decoder released, releasing the video output");
+                releaseVideoOutput();
+                break;
+            case RESTORE_DISPLAY_MODE:
+                LimeLog.info("Exit: display settled, restoring the display mode");
+                restoreDisplayMode();
+                break;
+            case FINISH:
+                LimeLog.info("Exit: display settled, finishing");
+                exitFinished = true;
+                endExitDisplayWatch();
+                super.finish();
+                return;
+            default:
+                break;
+        }
+        exitHandler.postDelayed(stagedExitRunnable, StagedStreamExit.POLL_MS);
+    }
+
+    // Tears the video surface down, which ends the HDR output. The stop thread has released the
+    // decoder by now (or timed out; the surface callbacks then stop it as they always do).
+    private void releaseVideoOutput() {
+        if (streamContainer != null) {
+            streamContainer.setVisibility(View.GONE);
+        }
+    }
+
+    // Gives back what prepareDisplayForRendering() and the frame-rate vote asked of the display,
+    // instead of leaving it to the window going away at the same time as something else.
+    private void restoreDisplayMode() {
+        try {
+            WindowManager.LayoutParams attributes = getWindow().getAttributes();
+            attributes.preferredDisplayModeId = 0;
+            attributes.preferredRefreshRate = 0;
+            getWindow().setAttributes(attributes);
+            Surface surface = videoSurface;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && surface != null && surface.isValid()) {
+                surface.setFrameRate(0, Surface.FRAME_RATE_COMPATIBILITY_DEFAULT);
+            }
+        } catch (RuntimeException e) {
+            LimeLog.warning("Exit: could not restore the display mode: " + e);
+        }
+    }
+
     private void stopConnection() {
         // Leaving ends a reconnect too. Between attempts no connection is held, so then only the
         // rest of the teardown runs.
@@ -4839,7 +4985,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             final NvConnection stopping = conn;
             final Context appContext = getApplicationContext();
             final String stoppingName = appName;
-            new Thread() {
+            Thread stopThread = new Thread() {
                 public void run() {
                     if (holdsConnection) {
                         conn.stop();
@@ -4859,7 +5005,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                         }
                     }
                 }
-            }.start();
+            };
+            connectionStopThread = stopThread;
+            stopThread.start();
         }
     }
 
@@ -5468,6 +5616,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     @Override
     public void setHdrMode(boolean enabled, byte[] hdrMetadata) {
         LimeLog.info("Display HDR mode: " + (enabled ? "enabled" : "disabled"));
+        hdrOutputActive = enabled;
         decoderRenderer.setHdrMode(enabled, hdrMetadata);
     }
 
@@ -5605,6 +5754,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         float desiredFrameRate;
 
         surfaceCreated = true;
+        videoSurface = holder.getSurface();
 
         // Android will pick the lowest matching refresh rate for a given frame rate value, so we want
         // to report the true FPS value if refresh rate reduction is enabled. We also report the true
@@ -5641,6 +5791,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         if (!surfaceCreated) {
             throw new IllegalStateException("Surface destroyed before creation!");
         }
+        videoSurface = null;
 
         if (refreshMeter != null) {
             // The connection hadn't started yet. It starts when the surface is back.
@@ -5836,6 +5987,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public void onBackPressed() {
+        // A second Back while the stream is ending in stages is ignored.
+        if (exiting) {
+            return;
+        }
         // Open controls step back a page, or close from the first. Only a fallback: a Back key
         // is taken by the router in handleKeyDown and handleKeyUp first, so this is for a Back
         // that skipped the key path, such as a programmatic onBackPressed.
@@ -6118,6 +6273,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
     @Override
     public void showGameMenu(GameInputDevice device) {
+        if (exiting) {
+            return;
+        }
         if(isOnExternalDisplay()) {
             ExternalDisplayControlActivity.toggleGameMenu();
         } else {
