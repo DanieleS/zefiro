@@ -3,6 +3,7 @@ package com.limelight.pcs;
 import android.app.ActivityManager;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
+import android.content.Intent;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
@@ -20,6 +21,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.FragmentActivity;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.limelight.BenchmarkActivity;
 import com.limelight.LimeLog;
 import com.limelight.R;
 import com.limelight.binding.PlatformBinding;
@@ -495,6 +497,20 @@ public class HostActions {
             exportComputer = null;
             toast(R.string.frontend_export_no_picker, Toast.LENGTH_LONG);
         }
+    }
+
+    // --- Benchmark ---
+
+    /** Opens the settings benchmark for a host that offers its Benchmark app. */
+    public void benchmark(@NonNull ComputerDetails computer) {
+        if (computer.state != ComputerDetails.State.ONLINE) {
+            toast(R.string.error_pc_offline, Toast.LENGTH_SHORT);
+            return;
+        }
+        Intent intent = new Intent(activity, BenchmarkActivity.class);
+        intent.putExtra(BenchmarkActivity.EXTRA_PC_UUID, computer.uuid);
+        intent.putExtra(BenchmarkActivity.EXTRA_PC_NAME, computer.name);
+        activity.startActivity(intent);
     }
 
     // --- Information ---

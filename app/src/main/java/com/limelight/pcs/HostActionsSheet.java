@@ -36,6 +36,7 @@ import java.util.List;
  *   online, not paired    OTP pair · Legacy pair · (end-of-service | server config)
  *   online, paired        [Resume · Quit, when in a game] · View all apps
  *                         · (end-of-service | server config) · Export for frontends
+ *                         · [Benchmark, when the host offers its Benchmark app]
  *   always, last          Test network · View details · Delete PC
  * </pre>
  *
@@ -65,6 +66,7 @@ public final class HostActionsSheet {
         QUIT(R.string.applist_menu_quit, R.drawable.ic_stop),
         FULL_APP_LIST(R.string.pcview_menu_app_list, R.drawable.ic_apps_grid),
         FRONTEND_EXPORT(R.string.frontend_export_menu, R.drawable.ic_file_upload),
+        BENCHMARK(R.string.pcview_menu_benchmark, R.drawable.ic_benchmark),
         TEST_NETWORK(R.string.pcview_menu_test_network, R.drawable.ic_network_test),
         VIEW_DETAILS(R.string.pcview_menu_details, R.drawable.ic_info),
         DELETE(R.string.pcview_menu_delete_pc, R.drawable.ic_delete, true);
@@ -112,6 +114,10 @@ public final class HostActionsSheet {
             items.add(Item.FULL_APP_LIST);
             items.add(details.nvidiaServer ? Item.GAMESTREAM_EOL : Item.OPEN_MANAGEMENT_PAGE);
             items.add(Item.FRONTEND_EXPORT);
+            // Only a host that announced its hidden Benchmark app (a peer without it shows nothing)
+            if (details.benchmarkAppId > 0 && details.benchmarkAppUuid != null) {
+                items.add(Item.BENCHMARK);
+            }
         }
 
         items.add(Item.TEST_NETWORK);
@@ -270,6 +276,9 @@ public final class HostActionsSheet {
                 break;
             case FRONTEND_EXPORT:
                 actions.frontendExport(details);
+                break;
+            case BENCHMARK:
+                actions.benchmark(details);
                 break;
             case TEST_NETWORK:
                 actions.testNetwork();
