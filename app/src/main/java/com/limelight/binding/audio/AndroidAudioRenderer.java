@@ -26,10 +26,11 @@ public class AndroidAudioRenderer implements AudioRenderer {
     private int channelConfig, sampleRate, samplesPerFrame, channels;
     private boolean stopped;
 
-    private static native long nativeOpenAudio(int sampleRate);
+    private static native long nativeOpenAudio(int sampleRate, long concealer);
     private static native boolean nativeWriteAudio(long handle, short[] samples, int length);
     private static native int[] nativeAudioStats(long handle);
     private static native int nativeAudioBuffer(long handle, int frames);
+    private static native boolean nativeAudioSkipLate(long handle, int frames, int pendingFrames);
     private static native void nativeCloseAudio(long handle);
 
     public AndroidAudioRenderer(Context context, boolean enableAudioFx) {
@@ -110,10 +111,10 @@ public class AndroidAudioRenderer implements AudioRenderer {
 
         if (AudioBufferPolicy.useAAudio(Build.VERSION.SDK_INT, channels, enableAudioFx, sampleRate,
                 AudioTrack.getNativeOutputSampleRate(AudioManager.STREAM_MUSIC))) {
-            nativeAudio = nativeOpenAudio(sampleRate);
+            nativeAudio = nativeOpenAudio(sampleRate, MoonBridge.audioConcealer());
             if (nativeAudio != 0) {
                 int[] stats = nativeAudioStats(nativeAudio);
-                bufferPolicy = new AudioBufferPolicy(stats[0], stats[1], stats[2], stats[3], SystemClock.uptimeMillis());
+                bufferPolicy = new AudioBufferPolicy(stats[0], stats[1], stats[2], policyUnderruns(stats), SystemClock.uptimeMillis());
                 LimeLog.info("Audio output: AAudio low latency");
                 return 0;
             }
@@ -225,8 +226,15 @@ public class AndroidAudioRenderer implements AudioRenderer {
     @Override
     public synchronized void playDecodedAudio(short[] audioData) {
         if (stopped) return;
+        int pendingMs = MoonBridge.getPendingAudioDuration();
+        // A stall's packets whose time Opus already concealed: playing them would keep latency up by the stall.
+        // The packets waiting behind this one refill the reserve, so only the excess over it is skipped.
+        if (nativeAudio != 0 && channels > 0 && skipLateNativeAudio(audioData.length / channels,
+                (int)((long)Math.max(0, pendingMs) * sampleRate / 1000))) {
+            return;
+        }
         // Only queue up to 40 ms of pending audio data in addition to what AudioTrack is buffering for us.
-        if (MoonBridge.getPendingAudioDuration() < 40) {
+        if (pendingMs < 40) {
             if (nativeAudio != 0 && bufferPolicy.needsFallback() &&
                     !fallbackToAudioTrack("AAudio keeps underrunning at its maximum reserve")) {
                 return;
@@ -247,12 +255,37 @@ public class AndroidAudioRenderer implements AudioRenderer {
             tuneBuffer();
         }
         else {
-            LimeLog.info("Too much pending audio data: " + MoonBridge.getPendingAudioDuration() +" ms");
+            LimeLog.info("Too much pending audio data: " + pendingMs +" ms");
         }
+    }
+
+    /**
+     * Whether this packet's time already went to Opus concealment during a stall and the pendingFrames
+     * waiting behind it still fill the reserve without it (aaudio_output.c).
+     */
+    private boolean skipLateNativeAudio(int frames, int pendingFrames) {
+        return nativeAudioSkipLate(nativeAudio, frames, pendingFrames);
+    }
+
+    private int framesToMs(int frames) {
+        return sampleRate > 0 ? (int)((long)frames * 1000 / sampleRate) : 0;
+    }
+
+    // What the reserve grows on: hardware xruns and jitter gaps. A stall is concealed instead; growing
+    // the reserve for it holds that much latency for minutes and still starves on the next one.
+    private static int policyUnderruns(int[] stats) {
+        return Math.max(0, stats[5]) + stats[9];
+    }
+
+    private void logAudioSummary() {
+        int[] stats = nativeAudioStats(nativeAudio);
+        LimeLog.info("AAudio summary: underruns " + stats[6] + " (stalls " + stats[10] + "), xruns " + stats[5] +
+                ", concealed " + framesToMs(stats[7]) + " ms, skipped late " + framesToMs(stats[8]) + " ms");
     }
 
     private boolean fallbackToAudioTrack(String reason) {
         LimeLog.warning(reason + "; falling back to AudioTrack");
+        logAudioSummary();
         nativeCloseAudio(nativeAudio);
         nativeAudio = 0;
         bufferPolicy = null;
@@ -270,7 +303,7 @@ public class AndroidAudioRenderer implements AudioRenderer {
         lastBufferCheckMs = now;
         if (nativeAudio != 0) {
             int[] stats = nativeAudioStats(nativeAudio);
-            int target = bufferPolicy.sample(stats[3], now);
+            int target = bufferPolicy.sample(policyUnderruns(stats), now);
             if (target != stats[2]) bufferPolicy.applied(nativeAudioBuffer(nativeAudio, target));
         } else if (track != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             int target = bufferPolicy.sample(track.getUnderrunCount(), now);
@@ -306,6 +339,7 @@ public class AndroidAudioRenderer implements AudioRenderer {
     public synchronized void cleanup() {
         stopped = true;
         if (nativeAudio != 0) {
+            logAudioSummary();
             nativeCloseAudio(nativeAudio);
             nativeAudio = 0;
             bufferPolicy = null;
