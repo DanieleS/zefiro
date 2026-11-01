@@ -120,7 +120,7 @@ public final class SettingsCatalog {
                             "checkbox_swap_select_and_touchpad"),
                     new Subgroup(R.string.settings_group_motion,
                             "checkbox_gamepad_motion_sensors", "checkbox_gamepad_motion_fallback",
-                            "checkbox_force_device_motion"),
+                            "checkbox_force_device_motion", "checkbox_device_motion_handheld"),
                     new Subgroup(R.string.settings_group_extras,
                             "checkbox_enable_joyconfix", "checkbox_gamepad_enable_battery_report"),
                     new Subgroup(R.string.settings_group_rumble,

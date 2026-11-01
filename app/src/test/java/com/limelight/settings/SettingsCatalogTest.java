@@ -72,7 +72,8 @@ public class SettingsCatalogTest {
         // switch and the three perf overlay variants.
         // 141 with the host-clock pacing switch and its profile.
         // 142 with the swap between View and the touchpad click.
-        assertEquals(142, catalogue.size());
+        // 143 with the device-held-upright motion switch.
+        assertEquals(143, catalogue.size());
     }
 
     @Test
