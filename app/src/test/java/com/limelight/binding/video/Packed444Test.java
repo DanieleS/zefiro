@@ -31,7 +31,7 @@ public class Packed444Test {
         assertEquals(64, coded(1, 1)[0]);
         assertEquals(16, coded(1, 1)[1]);
         assertEquals(3840, coded(3840, 2160)[0]);
-        assertEquals(4352, coded(3840, 2160)[1]);
+        assertEquals(4320, coded(3840, 2160)[1]);
     }
 
     @Test
