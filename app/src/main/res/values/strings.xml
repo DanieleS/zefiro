@@ -156,6 +156,8 @@
     <string name="conn_error_title">Connection Error</string>
     <string name="conn_error_msg">Failed to start</string>
     <string name="conn_terminated_title">Connection Terminated</string>
+    <string name="decoder_failed">The video decoder stopped working: %1$s\n\nStart the stream again. If it happens again, lower the resolution or the frame rate, or try another render option in the settings.</string>
+    <string name="decoder_failure_unknown">unknown error</string>
     <string name="conn_terminated_msg">The connection was terminated.</string>
     <string name="error_code_prefix">Error code:</string>
 
