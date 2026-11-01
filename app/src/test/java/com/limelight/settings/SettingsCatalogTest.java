@@ -71,7 +71,8 @@ public class SettingsCatalogTest {
         // 144 until the stream side panel dropped the floating button, the companion stats
         // switch and the three perf overlay variants.
         // 141 with the host-clock pacing switch and its profile.
-        assertEquals(141, catalogue.size());
+        // 142 with the device-held-upright motion switch.
+        assertEquals(142, catalogue.size());
     }
 
     @Test
