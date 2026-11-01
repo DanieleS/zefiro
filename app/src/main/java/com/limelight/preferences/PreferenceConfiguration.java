@@ -119,6 +119,9 @@ public class PreferenceConfiguration {
     private static final String ENABLE_RUMBLE_PREF_STRING = "checkbox_enable_rumble";
     private static final String PREVENT_PACKET_LOSS_PREF_STRING = "checkbox_prevent_packet_loss";
     private static final String AUTO_RECONNECT_PREF_STRING = "checkbox_auto_reconnect";
+    // Client roaming (experimental): off by default; mobile data only by choice.
+    static final String CLIENT_ROAMING_PREF_STRING = "checkbox_client_roaming";
+    static final String ROAMING_MOBILE_DATA_PREF_STRING = "checkbox_roaming_mobile_data";
     private static final String NETWORK_TIMEOUT_PREF_STRING = "seekbar_network_timeout_seconds";
     private static final String RECONNECT_WINDOW_PREF_STRING = "seekbar_reconnect_window_seconds";
 
@@ -440,6 +443,10 @@ public class PreferenceConfiguration {
     public boolean preventPacketLoss;
     // Reconnect after a network drop, keeping the last frame on screen (off by default)
     public boolean autoReconnect;
+    // Follow network changes without reconnecting, if the host supports it (off by default)
+    public boolean clientRoaming;
+    // Keep going on mobile data and other metered networks too (off by default)
+    public boolean clientRoamingMobileData;
     // How long a silent connection is held before it counts as lost
     public int networkTimeoutSeconds;
     // How long to keep trying to reconnect once it is lost
@@ -1115,6 +1122,8 @@ private static int getFramePacingValue(Context context) {
         config.enableRumble = prefs.getBoolean(ENABLE_RUMBLE_PREF_STRING, DEFAULT_ENABLE_RUMBLE);
         config.preventPacketLoss = prefs.getBoolean(PREVENT_PACKET_LOSS_PREF_STRING, DEFAULT_PREVENT_PACKET_LOSS);
         config.autoReconnect = prefs.getBoolean(AUTO_RECONNECT_PREF_STRING, DEFAULT_AUTO_RECONNECT);
+        config.clientRoaming = prefs.getBoolean(CLIENT_ROAMING_PREF_STRING, false);
+        config.clientRoamingMobileData = prefs.getBoolean(ROAMING_MOBILE_DATA_PREF_STRING, false);
         config.networkTimeoutSeconds = prefs.getInt(NETWORK_TIMEOUT_PREF_STRING, DEFAULT_NETWORK_TIMEOUT_SECONDS);
         config.reconnectWindowSeconds = prefs.getInt(RECONNECT_WINDOW_PREF_STRING, DEFAULT_RECONNECT_WINDOW_SECONDS);
 

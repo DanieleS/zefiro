@@ -644,6 +644,7 @@ public class NvConnection {
                             context.streamConfig.getColorSpace(),
                             context.streamConfig.getColorRange(),
                             context.streamConfig.getControlPeerTimeoutMs(),
+                            context.streamConfig.getClientRoaming(),
                             context.streamConfig.getEnableTextFocusHints(),
                             context.streamConfig.getVideoFecMode(),
                             context.streamConfig.getVideoFecPercentage(),
