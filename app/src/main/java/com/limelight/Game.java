@@ -5112,7 +5112,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         // Perform a connection test if the failure could be due to a blocked port
         // This does network I/O, so don't do it on the main thread.
         final int portFlags = MoonBridge.getPortFlagsFromTerminationErrorCode(errorCode);
-        final int portTestResult = MoonBridge.testClientConnectivity(ServerHelper.CONNECTION_TEST_SERVER,443, portFlags);
+        // A decoder failure on this device says nothing about the network
+        final int portTestResult = errorCode == MoonBridge.CLIENT_ERROR_DECODER ?
+                MoonBridge.ML_TEST_RESULT_INCONCLUSIVE :
+                MoonBridge.testClientConnectivity(ServerHelper.CONNECTION_TEST_SERVER,443, portFlags);
 
         runOnUiThread(new Runnable() {
             @Override
@@ -5192,6 +5195,13 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                         case MoonBridge.ML_ERROR_FRAME_CONVERSION:
                             message = getResources().getString(R.string.frame_conversion_error);
                             break;
+
+                        case MoonBridge.CLIENT_ERROR_DECODER: {
+                            String reason = decoderRenderer != null ? decoderRenderer.getDecoderFailure() : null;
+                            message = getResources().getString(R.string.decoder_failed,
+                                    reason != null ? reason : getResources().getString(R.string.decoder_failure_unknown));
+                            break;
+                        }
 
                         default:
                             String errorCodeString;

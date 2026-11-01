@@ -29,6 +29,7 @@ import android.annotation.SuppressLint;
 import android.util.LongSparseArray;
 import android.annotation.TargetApi;
 import android.app.Activity;
+import android.app.ActivityManager;
 import android.content.Context;
 import android.media.MediaCodec;
 import android.os.Bundle;
@@ -327,6 +328,10 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     private static final int CR_FLAG_ALL = CR_FLAG_INPUT_THREAD | CR_FLAG_RENDER_THREAD | CR_FLAG_CHOREOGRAPHER;
     private int codecRecoveryThreadQuiescedFlags = 0;
     private int codecRecoveryAttempts = 0;
+    // Recoveries in a row that bring no frame wait longer each time, then end the stream
+    private final DecoderRecoveryBackoff recoveryBackoff = new DecoderRecoveryBackoff();
+    // Why the decoder was given up and the stream ended, or null while it has not been
+    private volatile String decoderFailure;
 
     private MediaFormat inputFormat;
     private MediaFormat outputFormat;
@@ -1423,6 +1428,11 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                     }
                 }
 
+                // Recoveries in a row that bring no frame back off, then give the decoder up.
+                if (codecRecoveryType.get() != CR_RECOVERY_TYPE_NONE && !backOffBeforeRecovery()) {
+                    return true;
+                }
+
                 // We don't count flushes as codec recovery attempts
                 if (codecRecoveryType.get() != CR_RECOVERY_TYPE_NONE) {
                     codecRecoveryAttempts++;
@@ -1494,12 +1504,10 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                         stopping = true;
                         codecRecoveryType.set(CR_RECOVERY_TYPE_NONE);
                     } catch (IllegalStateException e) {
-                        // If we failed to recover after all of these attempts, just crash
-                        if (!reportedCrash) {
-                            reportedCrash = true;
-                            crashListener.notifyCrash(e);
-                        }
-                        throw new RendererException(this, e);
+                        // Not even a decoder set up from scratch works: end the stream.
+                        e.printStackTrace();
+                        failDecoder(decoderName() + " could not be set up again after it failed (" + e + ")", e);
+                        return true;
                     }
                 }
 
@@ -1528,6 +1536,85 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             }
         }
 
+        return true;
+    }
+
+    /** Why the decoder was given up, or null while it has not been. */
+    public String getDecoderFailure() {
+        return decoderFailure;
+    }
+
+    // The decoder cannot go on: recoveries keep failing, or it stopped taking input. Throwing here
+    // crashed the app (a renderer thread) or froze the picture (the engine drops the exception),
+    // so the stream ends and says what happened. Every thread then leaves the codec alone.
+    // cause: the exception for the crash report, or null to report the reason itself.
+    private void failDecoder(String reason, Exception cause) {
+        synchronized (codecRecoveryMonitor) {
+            if (decoderFailure != null) return;
+            ActivityManager.MemoryInfo memory = lowMemory();
+            if (memory != null) {
+                reason += "; this device is low on memory (" + memory.availMem / (1024 * 1024) + " MB free)";
+            }
+            decoderFailure = reason;
+            stopping = true;
+            // Wake any thread waiting for a recovery that will not come.
+            codecRecoveryType.set(CR_RECOVERY_TYPE_NONE);
+            codecRecoveryThreadQuiescedFlags = 0;
+            codecRecoveryMonitor.notifyAll();
+        }
+        LimeLog.severe("Decoder failed, ending the stream: " + reason);
+        if (!reportedCrash) {
+            reportedCrash = true;
+            if (crashListener != null) {
+                crashListener.notifyCrash(new RendererException(this, cause != null ? cause : new IllegalStateException(reason)));
+            }
+        }
+        MoonBridge.bridgeClConnectionTerminated(MoonBridge.CLIENT_ERROR_DECODER);
+    }
+
+    private ActivityManager.MemoryInfo lowMemory() {
+        ActivityManager am = context != null ? (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE) : null;
+        if (am == null) return null;
+        ActivityManager.MemoryInfo memory = new ActivityManager.MemoryInfo();
+        am.getMemoryInfo(memory);
+        return memory.lowMemory ? memory : null;
+    }
+
+    private String decoderName() {
+        String name = configuredCodecName;
+        return name != null ? name : "The decoder";
+    }
+
+    // With every thread quiesced: waits before a recovery that follows others without a frame, or
+    // gives the decoder up after too many (a decoder out of memory fails each reset at once).
+    // False when the stream is ending instead; the quiesced threads have been woken then.
+    private boolean backOffBeforeRecovery() {
+        long delayMs = recoveryBackoff.beforeRecovery(numFramesOut);
+        if (delayMs < 0) {
+            failDecoder(decoderName() + " failed again after " + (recoveryBackoff.recoveriesWithoutFrame() - 1) +
+                    " recoveries in a row without a frame at " + initialWidth + "x" + initialHeight +
+                    " (out of memory, or no free decoder)", null);
+            return false;
+        }
+        if (delayMs > 0) {
+            LimeLog.warning("Decoder failed again without a frame; waiting " + delayMs + " ms before recovery " +
+                    recoveryBackoff.recoveriesWithoutFrame());
+            long deadlineNs = System.nanoTime() + delayMs * 1_000_000L;
+            try {
+                // wait() lets prepareForStop() in; it ends the recovery.
+                for (long left = delayMs; left > 0 && !stopping; left = (deadlineNs - System.nanoTime()) / 1_000_000L) {
+                    codecRecoveryMonitor.wait(left);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            if (stopping || Thread.currentThread().isInterrupted()) {
+                codecRecoveryType.set(CR_RECOVERY_TYPE_NONE);
+                codecRecoveryThreadQuiescedFlags = 0;
+                codecRecoveryMonitor.notifyAll();
+                return false;
+            }
+        }
         return true;
     }
 
@@ -1626,12 +1713,11 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             if (initialException != null) {
                 // This isn't the first time we've had an exception processing video
                 if (SystemClock.uptimeMillis() - initialExceptionTimestamp >= EXCEPTION_REPORT_DELAY_MS) {
-                    // It's been over 3 seconds and we're still getting exceptions. Throw the original now.
-                    if (!reportedCrash) {
-                        reportedCrash = true;
-                        crashListener.notifyCrash(initialException);
-                    }
-                    throw initialException;
+                    // It's been over 3 seconds and we're still getting exceptions: end the stream.
+                    // Throwing crashed the app here, as the codec may be released by now.
+                    Exception first = (Exception) initialException.getCause();
+                    failDecoder(decoderName() + " kept failing after " + codecRecoveryAttempts + " recoveries (" +
+                            first + ")", first);
                 }
             }
             else {
@@ -2067,12 +2153,8 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             // We've been hung for 5 seconds and no other exception was reported,
             // so generate a decoder hung exception
             if (deltaMs >= 5000 && initialException == null) {
-                DecoderHungException decoderHungException = new DecoderHungException(deltaMs);
-                if (!reportedCrash) {
-                    reportedCrash = true;
-                    crashListener.notifyCrash(decoderHungException);
-                }
-                throw new RendererException(this, decoderHungException);
+                // The engine drops an exception thrown here, which left the picture frozen.
+                failDecoder(decoderName() + " took no input for " + deltaMs + " ms", new DecoderHungException(deltaMs));
             }
 
             return false;
@@ -2885,11 +2967,8 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         if (decodeUnitLength > nextInputBuffer.limit() - nextInputBuffer.position()) {
             IllegalArgumentException exception = new IllegalArgumentException(
                     "Decode unit length "+decodeUnitLength+" too large for input buffer "+nextInputBuffer.limit());
-            if (!reportedCrash) {
-                reportedCrash = true;
-                crashListener.notifyCrash(exception);
-            }
-            throw new RendererException(this, exception);
+            failDecoder(decoderName() + " takes no frame this large: " + exception.getMessage(), exception);
+            return MoonBridge.DR_NEED_IDR;
         }
 
         // Copy data from our buffer list into the input buffer

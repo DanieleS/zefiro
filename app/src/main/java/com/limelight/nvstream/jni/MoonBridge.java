@@ -71,6 +71,8 @@ public class MoonBridge {
     public static final int ML_ERROR_UNEXPECTED_EARLY_TERMINATION = -102;
     public static final int ML_ERROR_PROTECTED_CONTENT = -103;
     public static final int ML_ERROR_FRAME_CONVERSION = -104;
+    // This device's own code, never sent by a PC: the video decoder failed and recovering it did not help
+    public static final int CLIENT_ERROR_DECODER = -107;
 
     public static final int ML_PORT_INDEX_TCP_47984 = 0;
     public static final int ML_PORT_INDEX_TCP_47989 = 1;
