@@ -512,6 +512,39 @@ public class MediaCodecHelper {
         return false;
     }
 
+    private static final java.util.Map<String, List<String>> snapdragonExtrasCache =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * The Snapdragon extras this decoder declares (Android 12 and newer), probed once per decoder.
+     * Empty below Android 12 or when the codec can't be created.
+     */
+    private static List<String> declaredSnapdragonExtras(String decoderName) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            return Collections.emptyList();
+        }
+        List<String> cached = snapdragonExtrasCache.get(decoderName);
+        if (cached != null) {
+            return cached;
+        }
+        List<String> declared = Collections.emptyList();
+        MediaCodec testCodec = null;
+        try {
+            testCodec = MediaCodec.createByCodecName(decoderName);
+            declared = SnapdragonDeclaredExtras.declaredIn(testCodec.getSupportedVendorParameters());
+        } catch (Exception e) {
+            // Tolerate buggy codecs
+            e.printStackTrace();
+        } finally {
+            if (testCodec != null) {
+                testCodec.release();
+            }
+        }
+        LimeLog.info(decoderName + " declares Snapdragon extras: " + declared);
+        snapdragonExtrasCache.put(decoderName, declared);
+        return declared;
+    }
+
     private static boolean decoderSupportsMaxOperatingRate(String decoderName) {
         // Operate at maximum rate to lower latency as much as possible on
         // some Qualcomm platforms. We could also set KEY_PRIORITY to 0 (realtime)
@@ -611,6 +644,15 @@ public class MediaCodecHelper {
                             decoderInfo.getName().toLowerCase(java.util.Locale.US).startsWith("omx.qcom");
                     safeSet(videoFormat, "vendor.qti-ext-dec-picture-order.enable", __isOmxQcom ? 0 : 1);
                     setNewOption = true;
+                }
+                if (tryNumber < 1) {
+                    // MISR checksum off, instant decode, slice concealment: only the ones this
+                    // decoder declares, and on the first try alone so a decoder that rejects one
+                    // still gets the confirmed keys below on the next tries.
+                    for (String key : declaredSnapdragonExtras(decoderInfo.getName())) {
+                        videoFormat.setInteger(key, 1);
+                        setNewOption = true;
+                    }
                 }
                 if (tryNumber < 5) {
                     videoFormat.setInteger("vendor.qti-ext-dec-low-latency.enable", 1);
