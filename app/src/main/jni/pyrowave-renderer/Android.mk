@@ -12,7 +12,7 @@ ifeq ($(TARGET_ARCH_ABI),arm64-v8a)
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := pyrowave-renderer
-LOCAL_SRC_FILES := pyrowave_renderer.cpp pyrowaveframing.cpp
+LOCAL_SRC_FILES := pyrowave_renderer.cpp pyrowaveframing.cpp gpu_keep_busy.cpp
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/../moonlight-core/moonlight-common-c/src
 LOCAL_CPPFLAGS := -std=c++17 -Wall -Wextra -Wno-missing-field-initializers
 LOCAL_CPP_FEATURES := exceptions rtti

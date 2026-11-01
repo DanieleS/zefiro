@@ -25,6 +25,7 @@
 
 #include <pyrowave.h>
 
+#include "gpu_keep_busy.h"
 #include "pyrowave_renderer.h"
 #include "pyrowaveframing.h"
 #include "shaders_spv.h"
@@ -658,6 +659,8 @@ public:
              width, height, m_Chroma444 ? "4:4:4" : "4:2:0",
              m_FragmentPath ? "fragment" : "compute");
 
+        startKeepBusy();
+
         m_Thread = std::thread([this] { renderLoop(); });
         return true;
     }
@@ -710,6 +713,31 @@ public:
         m_FrameCv.notify_one();
     }
 
+    // Work for the GPU between decodes, so it keeps its clock up (GpuKeepBusy). Off unless
+    // `adb shell setprop debug.pyrowave.gpu_keep_busy 1`; each piece of it takes about
+    // `debug.pyrowave.gpu_keep_busy_chunk_us` (500, 100-5000) with
+    // `debug.pyrowave.gpu_keep_busy_groups` (4, 1-1024) workgroups. It holds the GPU at its top
+    // clock for the whole stream, so more power and heat.
+    void startKeepBusy()
+    {
+        const std::string enabled = debugProperty("debug.pyrowave.gpu_keep_busy");
+        if (enabled.empty() || atoi(enabled.c_str()) == 0) {
+            return;
+        }
+        int64_t chunkNs = 500000;
+        const std::string chunkUs = debugProperty("debug.pyrowave.gpu_keep_busy_chunk_us");
+        if (atoi(chunkUs.c_str()) > 0) {
+            chunkNs = int64_t(std::clamp(atoi(chunkUs.c_str()), 100, 5000)) * 1000;
+        }
+        uint32_t groups = 4;
+        const std::string groupCount = debugProperty("debug.pyrowave.gpu_keep_busy_groups");
+        if (atoi(groupCount.c_str()) > 0) {
+            groups = uint32_t(std::clamp(atoi(groupCount.c_str()), 1, 1024));
+        }
+        m_KeepBusy.start(vk().GetInstanceProcAddr, m_Ctx.instance, m_Ctx.physicalDevice, m_Ctx.queueFamily,
+                         chunkNs, groups);
+    }
+
     // Idempotent: called by pyroWaveStop() and again by the destructor.
     void shutdown()
     {
@@ -725,6 +753,7 @@ public:
         if (m_Thread.joinable()) {
             m_Thread.join();
         }
+        m_KeepBusy.stop();
         if (m_Ctx.device == VK_NULL_HANDLE) {
             // initialize() failed after creating the surface but before the device
             if (m_Surface != VK_NULL_HANDLE) {
@@ -1592,6 +1621,7 @@ public:
 private:
 
     VulkanContext m_Ctx;
+    GpuKeepBusy m_KeepBusy;
     ANativeWindow* m_Window = nullptr;
     VkSurfaceKHR m_Surface = VK_NULL_HANDLE;
     int m_Width = 0;
