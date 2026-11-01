@@ -73,7 +73,8 @@ public class SettingsCatalogTest {
         // 141 with the host-clock pacing switch and its profile.
         // 142 with the swap between View and the touchpad click.
         // 143 with the device-held-upright motion switch.
-        assertEquals(143, catalogue.size());
+        // 144 with the experimental full chroma (packed 4:4:4) switch.
+        assertEquals(144, catalogue.size());
     }
 
     @Test

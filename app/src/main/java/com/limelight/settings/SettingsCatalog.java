@@ -102,7 +102,7 @@ public final class SettingsCatalog {
                             "balance_shift"),
                     new Subgroup(R.string.settings_group_hdr_codec,
                             "checkbox_enable_hdr", "video_format", "checkbox_enable_pyrowave",
-                            "seekbar_pyrowave_bitrate_kbps", "checkbox_full_range"),
+                            "seekbar_pyrowave_bitrate_kbps", "checkbox_packed_444", "checkbox_full_range"),
                     new Subgroup(R.string.settings_group_refresh_rate,
                             "checkbox_unlock_fps", "checkbox_reduce_refresh_rate")),
             new Section("audio", R.string.settings_section_audio, R.string.settings_section_audio,
