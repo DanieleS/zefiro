@@ -302,6 +302,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private float desiredRefreshRate;
     private StreamConfiguration streamConfig;
     private DisplayRefreshMeter refreshMeter;
+    // Asking whether to stream at a frame rate that doesn't divide the refresh rate
+    private AlertDialog refreshMismatchDialog;
     private boolean measureRefreshRate;
 
     private InputCaptureProvider inputCaptureProvider;
@@ -1208,11 +1210,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                     LimeLog.info("Surface is available, measuring the display refresh rate...");
                     refreshMeter = DisplayRefreshMeter.measure(streamDisplay, desiredRefreshRate, refreshHz -> {
                         refreshMeter = null;
-                        startConnection(refreshHz);
+                        confirmRefreshRateThenConnect(streamDisplay, refreshHz);
                     });
                 }
                 else {
-                    startConnection(0);
+                    confirmRefreshRateThenConnect(streamDisplay, 0);
                 }
             }
         }));
@@ -1324,6 +1326,36 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 // The frame rate hint is issued once, from surfaceCreated().
             }
         } catch (Throwable ignored) {}
+    }
+
+    // A stream whose frame rate doesn't divide the display's refresh rate (60 fps at 144 Hz, or
+    // 120 fps at 90 Hz) can't be paced evenly: frames stay on screen for different numbers of
+    // vsyncs, or are dropped. Asks whether to go ahead anyway before connecting. Rates within 2%
+    // of a whole number of vsyncs count as dividing it. Input-only sessions show nothing, so
+    // they aren't asked.
+    private void confirmRefreshRateThenConnect(Display display, double measuredRefreshHz) {
+        double refreshHz = measuredRefreshHz > 0 ? measuredRefreshHz : display.getRefreshRate();
+        int streamFps = streamConfig.getRefreshRate();
+        if (isFinishing() || NvApp.isRemoteInputUuid(appUUID) || streamFps <= 0 || refreshHz <= 0 ||
+                DisplayRefreshMeter.clientRefreshRateX100(refreshHz, streamFps) > 0) {
+            startConnection(measuredRefreshHz);
+            return;
+        }
+
+        LimeLog.warning(String.format(Locale.ROOT, "%d FPS stream doesn't divide the %.2f Hz display", streamFps, refreshHz));
+        refreshMismatchDialog = new MaterialAlertDialogBuilder(this, R.style.ThemeOverlay_Zefiro_MaterialAlertDialog)
+                .setTitle(R.string.refresh_mismatch_title)
+                .setMessage(getString(R.string.refresh_mismatch_msg, streamFps, (float) refreshHz))
+                .setCancelable(false)
+                .setPositiveButton(R.string.refresh_mismatch_continue, (dialog, which) -> {
+                    refreshMismatchDialog = null;
+                    startConnection(measuredRefreshHz);
+                })
+                .setNegativeButton(R.string.refresh_mismatch_stop, (dialog, which) -> {
+                    refreshMismatchDialog = null;
+                    finish();
+                })
+                .show();
     }
 
     private void startConnection(double measuredRefreshHz) {
@@ -2417,6 +2449,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         if (refreshMeter != null) {
             refreshMeter.cancel();
             refreshMeter = null;
+        }
+        if (refreshMismatchDialog != null) {
+            refreshMismatchDialog.dismiss();
+            refreshMismatchDialog = null;
         }
 
         // Nothing is left to reconnect: give back a decoder kept for it
@@ -5610,6 +5646,13 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             // The connection hadn't started yet. It starts when the surface is back.
             refreshMeter.cancel();
             refreshMeter = null;
+            attemptedConnection = false;
+        }
+        if (refreshMismatchDialog != null) {
+            // Likewise, and the display may be different when the surface is back, so it's
+            // measured and asked about again
+            refreshMismatchDialog.dismiss();
+            refreshMismatchDialog = null;
             attemptedConnection = false;
         }
 
