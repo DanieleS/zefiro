@@ -5,7 +5,13 @@ import static org.junit.Assert.assertEquals;
 import com.limelight.nvstream.jni.MoonBridge;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.annotation.Config;
 
+// StreamConfiguration touches MoonBridge, whose static initializer loads the native library
+@Config(sdk = {33}, shadows = {com.limelight.shadows.ShadowMoonBridge.class})
+@RunWith(RobolectricTestRunner.class)
 public class StreamConfigurationRoamingTest {
     private static int flags(boolean enabled, boolean allowMetered) {
         return new StreamConfiguration.Builder().setClientRoaming(enabled, allowMetered).build().getClientRoaming();
