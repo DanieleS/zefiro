@@ -158,6 +158,14 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     private final ArrayList<byte[]> ppsBuffers = new ArrayList<>();
     private boolean submittedCsd;
     private byte[] currentHdrMetadata;
+    // The host's last HDR-mode message; only read for packed full-chroma streams
+    private Boolean currentHdrMode;
+    // Packed full chroma (see Packed444): the logical size and the modes the probe verified,
+    // both set by preparePacked444Modes() before the connection, and the active geometry once
+    // the host took it
+    private int packedWidth, packedHeight, packedModes;
+    private Packed444 packing;
+    private boolean packingFailed;
 
     private int nextInputBufferIndex = -1;
     private ByteBuffer nextInputBuffer;
@@ -445,6 +453,19 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         float panelHz = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ?
                 display.getMode().getRefreshRate() : display.getRefreshRate();
         upscalingPolicy = new UpscalingPolicy(Math.max(1, Math.min(refreshRate, Math.round(panelHz))));
+        if (packing != null) {
+            // Packed full chroma always goes through the GL path: it rebuilds the picture
+            if (renderTarget == null) {
+                upscalingPolicy.fail(UpscalingPolicy.Reason.UNSUPPORTED);
+                return;
+            }
+            upscaler = new GlesUpscaler(context, renderTarget, UpscalingPolicy.Mode.BILINEAR,
+                    initialWidth, initialHeight, prefs.videoScaleMode == PreferenceConfiguration.ScaleMode.STRETCH,
+                    0, upscalingPolicy, packing, (videoFormat & MoonBridge.VIDEO_FORMAT_MASK_10BIT) != 0,
+                    currentHdrMetadata);
+            if (currentHdrMode != null) upscaler.setHdrMode(currentHdrMode, currentHdrMetadata);
+            return;
+        }
         if (prefs.upscalingMode == UpscalingPolicy.Mode.OFF || prefs.renderMode != 0 ||
                 Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
             // The 3D render modes hand the decoder a surface of their own, which stays direct
@@ -468,6 +489,15 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             if (upscalingPolicy.getReason() != UpscalingPolicy.Reason.NONE) closeUpscaler();
         } else {
             notifyUpscalingFallback();
+        }
+    }
+
+    // A packed stream has no direct output, so a decoder restart gets a fresh upscaler (and
+    // input surface) instead of falling back
+    private void restartPackedUpscaler() {
+        if (packing != null && upscalingPolicy.getReason() == UpscalingPolicy.Reason.NONE) {
+            closeUpscaler();
+            setupUpscaling();
         }
     }
 
@@ -509,6 +539,9 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     // The perf log's upscaling lines, or an empty string when the setting is off
     private String upscalingStats() {
         UpscalingPolicy policy = upscalingPolicy;
+        if (packing != null) {
+            return "Packed full chroma (GPU reconstruction, coded " + initialWidth + "x" + initialHeight + ")";
+        }
         if (prefs.upscalingMode == UpscalingPolicy.Mode.OFF || policy == null) return "";
         boolean active = upscaler != null;
         String mode = active ? context.getResources().getStringArray(R.array.upscaling_names)[prefs.upscalingMode.ordinal()] :
@@ -529,8 +562,26 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     private void checkUpscaling() {
         GlesUpscaler current = upscaler;
         if (current == null || stopping) return;
+        if (packing != null && (videoFormat & MoonBridge.VIDEO_FORMAT_MASK_10BIT) != 0 &&
+                !packedHdrAvailable()) {
+            upscalingPolicy.fail(UpscalingPolicy.Reason.HDR);
+        }
         current.checkHealth();
         if (upscalingPolicy.getReason() != UpscalingPolicy.Reason.NONE) {
+            if (packing != null) {
+                // There is no direct output for a packed picture: the stream cannot go on
+                if (!packingFailed) {
+                    packingFailed = true;
+                    String message = "Packed full-chroma presentation stopped: " +
+                            upscalingReason(upscalingPolicy.getReason());
+                    LimeLog.warning(message);
+                    activity.runOnUiThread(() -> {
+                        if (!stopping) Toast.makeText(context, message, Toast.LENGTH_LONG).show();
+                    });
+                    MoonBridge.bridgeClConnectionTerminated(-1);
+                }
+                return;
+            }
             synchronized (codecRecoveryMonitor) {
                 if (stopping) return;
                 codecRecoveryAttempts = 0;
@@ -557,6 +608,20 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
     private void checkUpscalingOutputFormat() {
         if (upscaler == null || outputFormat == null) return;
+        if (packing != null) {
+            // The decoder's colour tags and 10-bit buffers are expected here: only the picture
+            // geometry may not change, since the shader indexes the packed regions by it
+            int width = outputFormat.getInteger(MediaFormat.KEY_WIDTH);
+            int height = outputFormat.getInteger(MediaFormat.KEY_HEIGHT);
+            if (outputFormat.containsKey("crop-right")) width = outputFormat.getInteger("crop-right") + 1;
+            if (outputFormat.containsKey("crop-bottom")) height = outputFormat.getInteger("crop-bottom") + 1;
+            if (width != initialWidth || height != initialHeight ||
+                    (outputFormat.containsKey("crop-left") && outputFormat.getInteger("crop-left") != 0) ||
+                    (outputFormat.containsKey("crop-top") && outputFormat.getInteger("crop-top") != 0)) {
+                upscalingPolicy.fail(UpscalingPolicy.Reason.SIZE_CHANGED);
+            }
+            return;
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && outputFormat.containsKey(MediaFormat.KEY_COLOR_TRANSFER)) {
             int transfer = outputFormat.getInteger(MediaFormat.KEY_COLOR_TRANSFER);
             if (transfer == MediaFormat.COLOR_TRANSFER_ST2084 || transfer == MediaFormat.COLOR_TRANSFER_HLG) {
@@ -712,6 +777,76 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         return false;
     }
 
+    // The packed 4:4:4 modes (bit 0 HEVC 8-bit, 1 HEVC 10-bit, 2 AV1 8-bit, 3 AV1 10-bit, as in
+    // STREAM_CONFIGURATION.packed444Modes) this device has verified it can rebuild for a
+    // logical width x height stream: a hardware decoder that takes the coded size and rate, and a
+    // lossless probe frame that comes back bit-exact through the decoder and the GL pipeline.
+    // 10-bit also needs the display to report HDR10 and the 10-bit formats to be on offer, which
+    // Game does only when HDR is on. 0 when the setting is off or nothing passes. Runs the probe
+    // (up to a few seconds), so call it off the main thread.
+    @Override
+    public int preparePacked444Modes(int formats, int width, int height, int fps) {
+        packedModes = 0;
+        if (!prefs.experimentalPacked444) return 0;
+        String reason = null;
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) reason = "it needs Android 10 or later";
+        else if (prefs.renderMode != 0 || invertResolution || renderTarget == null) reason = "it needs the standard video surface";
+        else if (width < 64 || height < 64 || width > 16384 || height > 8192) reason = "the stream size is not supported";
+        if (reason != null) {
+            LimeLog.info("Experimental full chroma unavailable: " + reason);
+            notifyPackedUnavailable(reason);
+            return 0;
+        }
+        Packed444 geometry = new Packed444(width, height, 0, 0);
+        MediaCodecInfo[] decoders = {hevcDecoder, av1Decoder};
+        int[] formatBits = {MoonBridge.VIDEO_FORMAT_H265, MoonBridge.VIDEO_FORMAT_H265_MAIN10,
+                MoonBridge.VIDEO_FORMAT_AV1_MAIN8, MoonBridge.VIDEO_FORMAT_AV1_MAIN10};
+        int modes = 0;
+        for (int codec = 0; codec < 2; codec++) {
+            MediaCodecInfo decoder = decoders[codec];
+            if (decoder == null || !decoder.isHardwareAccelerated() || decoder.isSoftwareOnly()) continue;
+            String mime = codec == 0 ? "video/hevc" : "video/av01";
+            try {
+                MediaCodecInfo.VideoCapabilities caps = decoder.getCapabilitiesForType(mime).getVideoCapabilities();
+                if (!caps.areSizeAndRateSupported(geometry.paddedWidth, geometry.paddedHeight * 2, fps)) continue;
+                for (int depth = 0; depth < 2; depth++) {
+                    int bit = codec * 2 + depth;
+                    if ((formats & formatBits[bit]) == 0 || (depth == 1 && !packedHdrAvailable())) continue;
+                    if (Packed444.verifySampling(context, decoder.getName(), codec == 0 ? "hevc" : "av1", depth == 1)) {
+                        modes |= 1 << bit;
+                    }
+                }
+            } catch (IllegalArgumentException e) {
+                LimeLog.warning("Packed chroma decoder geometry is unsupported: " + e);
+            }
+        }
+        if (modes == 0) {
+            notifyPackedUnavailable("no hardware decoder passed the raw 4:4:4 sampling check at this size and rate");
+        }
+        packedWidth = width;
+        packedHeight = height;
+        packedModes = modes;
+        return modes;
+    }
+
+    private void notifyPackedUnavailable(String reason) {
+        activity.runOnUiThread(() -> Toast.makeText(context,
+                "Experimental full chroma unavailable: " + reason + ". Streaming normally.",
+                Toast.LENGTH_LONG).show());
+    }
+
+    private boolean packedHdrAvailable() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false;
+        Display display = activity.getWindowManager().getDefaultDisplay();
+        Display.HdrCapabilities capabilities = display.getHdrCapabilities();
+        if (capabilities != null) {
+            for (int type : capabilities.getSupportedHdrTypes()) {
+                if (type == Display.HdrCapabilities.HDR_TYPE_HDR10) return true;
+            }
+        }
+        return false;
+    }
+
     public int getPreferredColorSpace() {
         // Default to Rec 709 which is probably better supported on modern devices.
         //
@@ -801,7 +936,18 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
     private void configureAndStartDecoder(MediaFormat format) {
         // Set HDR metadata if present
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        if (packing != null) {
+            // The decoder hands over raw samples at both depths: no colour tags, no HDR metadata
+            Packed444.sampleDataFormat(format);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                format.removeKey(MediaFormat.KEY_HDR_STATIC_INFO);
+            }
+            if (upscaler == null || upscaler.getInputSurface() == null ||
+                    upscalingPolicy.getReason() != UpscalingPolicy.Reason.NONE) {
+                throw new IllegalStateException("Packed full-chroma reconstruction is unavailable");
+            }
+        }
+        else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             if (currentHdrMetadata != null) {
                 ByteBuffer hdrStaticInfo = ByteBuffer.allocate(25).order(ByteOrder.LITTLE_ENDIAN);
                 ByteBuffer hdrMetadata = ByteBuffer.wrap(currentHdrMetadata).order(ByteOrder.LITTLE_ENDIAN);
@@ -831,7 +977,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
         LimeLog.info("Configuring with format: "+format);
 
-        if (upscaler != null) {
+        if (upscaler != null && packing == null) {
             if ((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_10BIT) != 0 || currentHdrMetadata != null) {
                 upscalingPolicy.fail(UpscalingPolicy.Reason.HDR);
             }
@@ -1079,6 +1225,29 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         this.videoFormat = format;
         this.refreshRate = redrawRate;
 
+        packing = null;
+        packingFailed = false;
+        if (MoonBridge.getNegotiatedChromaPacking() == 1) {
+            // setup() gets the coded size: the logical one was kept by preparePacked444Modes()
+            Packed444 geometry = new Packed444(packedWidth, packedHeight, getPreferredColorSpace(),
+                    getPreferredColorRange() == MoonBridge.COLOR_RANGE_FULL ? 1 : 0);
+            if (packedModes == 0 || invertResolution || prefs.renderMode != 0 ||
+                    width != geometry.paddedWidth || height != geometry.paddedHeight * 2) {
+                LimeLog.severe("Packed full chroma was negotiated but cannot be shown at " + width + "x" + height);
+                return -1;
+            }
+            packing = geometry;
+            this.initialWidth = width;
+            this.initialHeight = height;
+        }
+        else if (packedModes != 0) {
+            // The user asked for it and the decoder can do it, but the host did not take it
+            LimeLog.info("Experimental full chroma unavailable: the host does not offer a matching mode");
+            activity.runOnUiThread(() -> Toast.makeText(context,
+                    "Experimental full chroma unavailable: the host does not offer a matching mode. Streaming normally.",
+                    Toast.LENGTH_LONG).show());
+        }
+
         if (PyroWaveSupport.isPyroWave(format)) {
             pyroWave = true;
             setupUpscaling();
@@ -1130,8 +1299,9 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             // This is the final thread to quiesce, so let's perform the codec recovery now.
             if (codecRecoveryThreadQuiescedFlags == CR_FLAG_ALL) {
                 if (upscaler != null) {
-                    // A flush can strand frames in the texture queue. Restart onto direct output.
-                    upscalingPolicy.fail(UpscalingPolicy.Reason.GPU_ERROR);
+                    // A flush can strand frames in the texture queue. Restart onto direct output,
+                    // or onto a fresh upscaler for a packed stream, which has no direct output.
+                    if (packing == null) upscalingPolicy.fail(UpscalingPolicy.Reason.GPU_ERROR);
                     codecRecoveryType.compareAndSet(CR_RECOVERY_TYPE_FLUSH, CR_RECOVERY_TYPE_RESTART);
                 }
                 // Input and output buffers are invalidated by stop() and reset().
@@ -1167,6 +1337,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                     LimeLog.warning("Trying to restart decoder after CodecException");
                     try {
                         videoDecoder.stop();
+                        restartPackedUpscaler();
                         configureAndStartDecoder(configuredFormat);
                         codecRecoveryType.set(CR_RECOVERY_TYPE_NONE);
                     } catch (IllegalArgumentException e) {
@@ -1190,6 +1361,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                     LimeLog.warning("Trying to reset decoder after CodecException");
                     try {
                         videoDecoder.reset();
+                        restartPackedUpscaler();
                         configureAndStartDecoder(configuredFormat);
                         codecRecoveryType.set(CR_RECOVERY_TYPE_NONE);
                     } catch (IllegalArgumentException e) {
@@ -1951,6 +2123,20 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             // Only 8-bit PyroWave is offered, which the host always sends in SDR
             return;
         }
+        if (packing != null) {
+            // The packed shader follows the host's flag: whether the codes in a 10-bit stream are
+            // HDR10 or SDR. The decoder is never restarted for it, and it never sees the metadata.
+            // An 8-bit packed stream ignores it.
+            if ((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_10BIT) == 0) return;
+            currentHdrMode = enabled;
+            currentHdrMetadata = enabled && hdrMetadata != null ? hdrMetadata.clone() : null;
+            GlesUpscaler current = upscaler;
+            if (current != null) {
+                if (enabled && !packedHdrAvailable()) upscalingPolicy.fail(UpscalingPolicy.Reason.HDR);
+                else current.setHdrMode(enabled, currentHdrMetadata);
+            }
+            return;
+        }
         // HDR metadata is only supported in Android 7.0 and later, so don't bother
         // restarting the codec on anything earlier than that.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -2099,7 +2285,8 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                                  long rttInfo, boolean hasHostLatency,
                                  float minHostLatencyMs, float maxHostLatencyMs, float avgHostLatencyMs) {
         StringBuilder sb = new StringBuilder();
-        sb.append(context.getString(R.string.perf_overlay_streamdetails, initialWidth + "x" + initialHeight, totalFps));
+        sb.append(context.getString(R.string.perf_overlay_streamdetails,
+                packing != null ? packing.width + "x" + packing.height : initialWidth + "x" + initialHeight, totalFps));
         if (Stereo3DRenderer.isActive) {
             sb.append('\n');
             sb.append(" ");

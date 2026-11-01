@@ -26,6 +26,7 @@ public class StreamConfiguration {
     private int remote;
     private MoonBridge.AudioConfiguration audioConfiguration;
     private int supportedVideoFormats;
+    private boolean packed444;
     private int attachedGamepadMask;
     private int encryptionFlags;
     private int colorRange;
@@ -140,6 +141,11 @@ public class StreamConfiguration {
         
         public StreamConfiguration.Builder setSupportedVideoFormats(int supportedVideoFormats) {
             config.supportedVideoFormats = supportedVideoFormats;
+            return this;
+        }
+
+        public StreamConfiguration.Builder setPacked444(boolean packed444) {
+            config.packed444 = packed444;
             return this;
         }
 
@@ -269,6 +275,11 @@ public class StreamConfiguration {
     
     public int getSupportedVideoFormats() {
         return supportedVideoFormats;
+    }
+
+    // Whether the user asked for packed 4:4:4 ("experimental full chroma")
+    public boolean getPacked444() {
+        return packed444;
     }
 
     public int getAttachedGamepadMask() {
