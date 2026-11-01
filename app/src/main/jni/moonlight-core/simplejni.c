@@ -244,6 +244,26 @@ Java_com_limelight_nvstream_jni_MoonBridge_isDynamicFecNegotiated(JNIEnv *env, j
     return LiIsDynamicFecNegotiated() ? JNI_TRUE : JNI_FALSE;
 }
 
+JNIEXPORT jboolean JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_isClientRoamingNegotiated(JNIEnv *env, jclass clazz) {
+    return LiIsClientRoamingNegotiated() ? JNI_TRUE : JNI_FALSE;
+}
+
+JNIEXPORT void JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_notifyNetworkChanged(JNIEnv *env, jclass clazz, jboolean metered) {
+    LiNotifyNetworkChanged(metered != JNI_FALSE);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_getClientRoamingStatus(JNIEnv *env, jclass clazz) {
+    return LiGetClientRoamingStatus();
+}
+
+JNIEXPORT jint JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_getClientRoamingCount(JNIEnv *env, jclass clazz) {
+    return (jint) LiGetClientRoamingCount();
+}
+
 JNIEXPORT jint JNICALL
 Java_com_limelight_nvstream_jni_MoonBridge_getHostFeatureFlags(JNIEnv *env, jclass clazz) {
     return (jint) LiGetHostFeatureFlags();

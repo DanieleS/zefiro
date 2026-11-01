@@ -35,6 +35,7 @@ public class StreamConfiguration {
     private boolean persistGamepadsAfterDisconnect;
     private boolean enableUltraLowLatency;
     private int controlPeerTimeoutMs;
+    private int clientRoaming;
     private boolean enableTextFocusHints;
 
     public static class Builder {
@@ -171,6 +172,14 @@ public class StreamConfiguration {
             return this;
         }
 
+        // Follow network changes without reconnecting; only takes effect with a host that
+        // advertises roaming.
+        public StreamConfiguration.Builder setClientRoaming(boolean enabled, boolean allowMetered) {
+            config.clientRoaming = enabled ?
+                    MoonBridge.ROAMING_ENABLED | (allowMetered ? MoonBridge.ROAMING_ALLOW_METERED : 0) : 0;
+            return this;
+        }
+
         // Ask the host to report text field focus. Only Vibepollo hosts with the option on do.
         public StreamConfiguration.Builder setEnableTextFocusHints(boolean enable) {
             config.enableTextFocusHints = enable;
@@ -302,6 +311,10 @@ public class StreamConfiguration {
 
     public int getControlPeerTimeoutMs() {
         return controlPeerTimeoutMs;
+    }
+
+    public int getClientRoaming() {
+        return clientRoaming;
     }
 
     public boolean getEnableTextFocusHints() {

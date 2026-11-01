@@ -50,6 +50,7 @@ import com.limelight.stats.HostSession;
 import com.limelight.nvstream.NvConnection;
 import com.limelight.nvstream.NvConnectionListener;
 import com.limelight.nvstream.ReconnectPolicy;
+import com.limelight.nvstream.RoamingNetworkWatch;
 import com.limelight.nvstream.StreamConfiguration;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.NvApp;
@@ -1094,6 +1095,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 // the reconnect starts once the host has let go); otherwise moonlight-common-c's
                 // default of 10 s applies
                 .setControlPeerTimeoutMs(prefConfig.autoReconnect ? prefConfig.networkTimeoutSeconds * 1000 : 0)
+                .setClientRoaming(prefConfig.clientRoaming, prefConfig.clientRoamingMobileData)
                 .build();
         streamConfig = config;
 
@@ -4428,6 +4430,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private DecoderParking decoderParking;
     private boolean reconnectStatusShown;
     private ConnectivityManager.NetworkCallback reconnectNetworkCallback;
+    // Client roaming's own network callback, while a stream that negotiated roaming runs. It does not
+    // replace the reconnect callback above: reconnecting stays the safety net when a move fails.
+    private RoamingNetworkWatch roamingWatch;
     private final Random reconnectRandom = new Random();
 
     private final Runnable silenceWatchdog = new Runnable() {
@@ -4508,7 +4513,23 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
     }
 
+    // Only once the host has announced roaming and the setting is on (see LiIsClientRoamingNegotiated)
+    private void startRoamingWatch() {
+        stopRoamingWatch();
+        if (prefConfig.clientRoaming && MoonBridge.isClientRoamingNegotiated()) {
+            roamingWatch = RoamingNetworkWatch.start(this);
+        }
+    }
+
+    private void stopRoamingWatch() {
+        if (roamingWatch != null) {
+            roamingWatch.stop();
+            roamingWatch = null;
+        }
+    }
+
     private void stopNetworkWatch() {
+        stopRoamingWatch();
         if (reconnectNetworkCallback == null) {
             return;
         }
@@ -5088,6 +5109,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 startAchievementWatcher();
 
                 startLiveBitrate();
+
+                startRoamingWatch();
 
                 if (prefConfig.autoReconnect) {
                     // Watch for the network going quiet, and follow Android's view of it

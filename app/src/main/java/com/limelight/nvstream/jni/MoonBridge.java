@@ -42,6 +42,13 @@ public class MoonBridge {
     public static final int COLOR_RANGE_FULL = 1;
 
     // Dynamic video FEC modes, mirroring LI_FEC_* in Limelight.h
+    // Client roaming flags for startConnection() (LI_ROAMING_*) and the status getClientRoamingStatus() returns
+    public static final int ROAMING_ENABLED = 0x01;
+    public static final int ROAMING_ALLOW_METERED = 0x02;
+    public static final int ROAMING_IDLE = 0;
+    public static final int ROAMING_MOVING = 1;
+    public static final int ROAMING_HELD = 2;
+
     public static final int FEC_DISABLED = 0;
     public static final int FEC_HOST_DEFAULT = 1;
     public static final int FEC_AUTOMATIC = 2;
@@ -381,6 +388,7 @@ public class MoonBridge {
                                               int videoCapabilities,
                                               int colorSpace, int colorRange,
                                               int controlPeerTimeoutMs,
+                                              int clientRoaming,
                                               boolean enableTextFocusHints,
                                               int videoFecMode, int videoFecPercentage);
 
@@ -459,6 +467,20 @@ public class MoonBridge {
     // Whether this stream negotiated dynamic FEC (see LiIsDynamicFecNegotiated()). Valid once the
     // connection has started.
     public static native boolean isDynamicFecNegotiated();
+
+    // Whether the host advertised client roaming and it is enabled (see LiIsClientRoamingNegotiated()).
+    // Valid once the connection has started.
+    public static native boolean isClientRoamingNegotiated();
+
+    // The default network changed; metered is whether the new one is metered. No-op unless roaming
+    // was negotiated.
+    public static native void notifyNetworkChanged(boolean metered);
+
+    // ROAMING_IDLE, ROAMING_MOVING or ROAMING_HELD
+    public static native int getClientRoamingStatus();
+
+    // Successful moves in this connection
+    public static native int getClientRoamingCount();
 
     // The host's extended feature flags (see LiGetHostFeatureFlags()). Valid once the
     // connection has started.

@@ -40,6 +40,7 @@ final class SettingsSynonyms {
             {"audio", "sound", "surround"},
             {"clipboard", "copy", "paste"},
             {"reconnect", "timeout", "disconnect"},
+            {"roaming", "network change", "mobile data", "cellular"},
             {"help", "guide", "wiki", "troubleshooting"},
     };
 
