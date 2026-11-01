@@ -1,6 +1,12 @@
 package com.limelight.nvstream.av.video;
 
 public abstract class VideoDecoderRenderer {
+    // The packed 4:4:4 modes (bit meaning of LI_PACKED444_MODE_*) this renderer verified for a
+    // logical width x height stream, or 0. Called before the connection starts, off the main thread.
+    public int preparePacked444Modes(int formats, int width, int height, int fps) {
+        return 0;
+    }
+
     public abstract int setup(int format, int width, int height, int redrawRate);
 
     public abstract void start();

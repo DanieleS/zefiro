@@ -972,7 +972,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         // PyroWave is opt-in: it trades hundreds of Mbps for its latency. It goes on top of the
         // formats above, which stay as the fallback for hosts without it (or with another
         // PyroWave revision). The Vulkan probe only runs when it is enabled.
-        if (prefConfig.enablePyroWave) {
+        if (prefConfig.enablePyroWave && prefConfig.experimentalPacked444) {
+            // Provisional: packed full chroma needs the 10-bit formats PyroWave would strip, and
+            // the two never combine, so the option wins while it is on
+            LimeLog.info("PyroWave is not offered while experimental full chroma is on");
+        }
+        else if (prefConfig.enablePyroWave) {
             boolean pyroWaveSupported = false;
             if (prefConfig.renderMode != 0) {
                 // The 3D modes render through a GL SurfaceTexture, not a Surface Vulkan can own
@@ -1083,6 +1088,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 .setMaxPacketSize(1392)
                 .setRemoteConfiguration(StreamConfiguration.STREAM_CFG_AUTO) // NvConnection will perform LAN and VPN detection
                 .setSupportedVideoFormats(supportedVideoFormats)
+                .setPacked444(prefConfig.experimentalPacked444)
                 .setAttachedGamepadMask(gamepadMask)
                 .setClientRefreshRateX100(clientRefreshRateX100)
                 .setAudioConfiguration(prefConfig.audioConfiguration)

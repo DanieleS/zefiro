@@ -390,7 +390,8 @@ public class MoonBridge {
                                               int controlPeerTimeoutMs,
                                               int clientRoaming,
                                               boolean enableTextFocusHints,
-                                              int videoFecMode, int videoFecPercentage);
+                                              int videoFecMode, int videoFecPercentage,
+                                              int packed444Modes);
 
     public static native void stopConnection();
 
@@ -481,6 +482,10 @@ public class MoonBridge {
 
     // Successful moves in this connection
     public static native int getClientRoamingCount();
+
+    // 1 when the stream negotiated packed 4:4:4 (chroma packing v1), else 0 (see
+    // LiGetNegotiatedChromaPacking()). Valid once the RTSP handshake is done, so from setup().
+    public static native int getNegotiatedChromaPacking();
 
     // The host's extended feature flags (see LiGetHostFeatureFlags()). Valid once the
     // connection has started.

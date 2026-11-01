@@ -618,6 +618,15 @@ public class NvConnection {
 
                 // Moonlight-core is not thread-safe with respect to connection start and stop, so
                 // we must not invoke that functionality in parallel.
+                // The decoder probe (a few seconds at most) runs here, off the main thread and
+                // before the connection lock. 0 means the engine must not ask for packing.
+                int packed444Modes = 0;
+                if (context.streamConfig.getPacked444()) {
+                    packed444Modes = videoDecoderRenderer.preparePacked444Modes(context.supportedVideoFormats,
+                            context.negotiatedWidth, context.negotiatedHeight,
+                            context.streamConfig.getRefreshRate());
+                }
+
                 synchronized (MoonBridge.class) {
                     MoonBridge.setupBridge(videoDecoderRenderer, audioRenderer, connectionListener);
                     int ret = MoonBridge.startConnection(context.serverAddress.address,
@@ -638,7 +647,8 @@ public class NvConnection {
                             context.streamConfig.getClientRoaming(),
                             context.streamConfig.getEnableTextFocusHints(),
                             context.streamConfig.getVideoFecMode(),
-                            context.streamConfig.getVideoFecPercentage());
+                            context.streamConfig.getVideoFecPercentage(),
+                            packed444Modes);
                     if (ret != 0) {
                         // LiStartConnection() failed, so the caller is not expected
                         // to stop the connection themselves. We need to release their

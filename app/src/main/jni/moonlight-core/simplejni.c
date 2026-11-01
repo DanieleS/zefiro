@@ -265,6 +265,11 @@ Java_com_limelight_nvstream_jni_MoonBridge_getClientRoamingCount(JNIEnv *env, jc
 }
 
 JNIEXPORT jint JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_getNegotiatedChromaPacking(JNIEnv *env, jclass clazz) {
+    return LiGetNegotiatedChromaPacking();
+}
+
+JNIEXPORT jint JNICALL
 Java_com_limelight_nvstream_jni_MoonBridge_getHostFeatureFlags(JNIEnv *env, jclass clazz) {
     return (jint) LiGetHostFeatureFlags();
 }
