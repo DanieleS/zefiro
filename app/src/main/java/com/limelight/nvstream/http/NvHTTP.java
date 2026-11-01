@@ -464,10 +464,38 @@ public class NvHTTP {
         // The MJOLNIR codename was used by GFE but never by any third-party server
         details.nvidiaServer = getXmlString(serverInfo, "state", true).contains("MJOLNIR");
 
+        // The hidden Benchmark app, announced to paired clients only; absent otherwise
+        details.benchmarkAppId = parseBenchmarkAppId(serverInfo);
+        details.benchmarkAppUuid = parseBenchmarkAppUuid(serverInfo);
+        try {
+            details.serverCodecModeSupport = getServerCodecModeSupport(serverInfo);
+        } catch (NumberFormatException e) {
+            details.serverCodecModeSupport = 0;
+        }
+
         // We could reach it so it's online
         details.state = ComputerDetails.State.ONLINE;
 
         return details;
+    }
+
+    /** The id of the host's hidden Benchmark app; 0 when absent, not a number or not positive. */
+    static int parseBenchmarkAppId(String serverInfo) throws XmlPullParserException, IOException {
+        String id = getXmlString(serverInfo, "BenchmarkAppId", false);
+        if (id == null) {
+            return 0;
+        }
+        try {
+            return Math.max(0, Integer.parseInt(id.trim()));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    /** The UUID of the host's hidden Benchmark app; null when absent or empty. */
+    static String parseBenchmarkAppUuid(String serverInfo) throws XmlPullParserException, IOException {
+        String uuid = getXmlString(serverInfo, "BenchmarkAppUuid", false);
+        return uuid != null && !uuid.trim().isEmpty() ? uuid.trim() : null;
     }
 
     public String getCurrentGameUUID(String serverInfo) throws IOException, XmlPullParserException {
