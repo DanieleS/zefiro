@@ -16,6 +16,8 @@ import org.jcodec.codecs.h264.io.model.VUIParameters;
 import com.limelight.BuildConfig;
 import com.limelight.LimeLog;
 import com.limelight.R;
+import com.limelight.benchmark.BenchmarkTypes;
+import com.limelight.benchmark.PresentHistogram;
 import com.limelight.bitrate.AdaptiveBitrateController;
 import com.limelight.nvstream.av.video.VideoDecoderRenderer;
 import com.limelight.nvstream.jni.MoonBridge;
@@ -99,6 +101,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             boolean immediate = preferLowerDelays && (frameTimeNanos <= now + 300_000L);
             if (immediate) {
                 videoDecoder.releaseOutputBuffer(bufferIndex, true);
+                benchmarkPresented(bufferIndex, now);
             } else if (prefs != null && prefs.vsyncTargetPresent) {
                 long target = vsyncTargeter.targetFor(frameTimeNanos, now);
                 // Recorded before the release: the render callback can fire before it returns
@@ -106,8 +109,10 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                     vsyncTargeter.noteTarget(ptsUsByBufferIndex[bufferIndex], target);
                 }
                 videoDecoder.releaseOutputBuffer(bufferIndex, target);
+                benchmarkPresented(bufferIndex, target);
             } else {
                 videoDecoder.releaseOutputBuffer(bufferIndex, frameTimeNanos);
+                benchmarkPresented(bufferIndex, frameTimeNanos);
             }
         } catch (Throwable t) {
             try {
@@ -130,6 +135,13 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             }
         }
         if (enqNs != null) {
+            long decNs = System.nanoTime() - enqNs;
+            if (decNs >= 0 && decNs < 1_000_000_000L) {
+                synchronized (benchLock) {
+                    benchDecodeSumUs += decNs / 1000;
+                    benchDecodedFrames++;
+                }
+            }
             long decMs = (System.nanoTime() - enqNs) / 1_000_000L;
             if (decMs >= 0 && decMs < 1000) {
                 activeWindowVideoStats.decoderTimeMs += decMs;
@@ -141,6 +153,89 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     }
 
     public void setPreferLowerDelays(boolean v) { this.preferLowerDelays = v; }
+
+    // Benchmark (com.limelight.benchmark): whole-session sums, published once per stats window as
+    // an immutable snapshot that Game reads from the UI thread. VideoStats counts in whole
+    // milliseconds, which is too coarse for a decode or a queue time, so these keep microseconds.
+    private final Object benchLock = new Object();
+    private final long[] benchDequeueNs = new long[256]; // by output buffer index
+    private long benchDecodeSumUs;
+    private long benchDecodedFrames;
+    private long benchQueueSumUs;
+    private long benchReceiveSumUs;
+    private double benchRttSumMs;
+    private double benchRttVarianceSumMs;
+    private long benchRttSamples;
+    private long benchLastPresentNs;
+    private final PresentHistogram benchPresents = new PresentHistogram();
+    private volatile BenchmarkTypes.RawStats benchPublished;
+
+    /** Benchmark: an output buffer just came out of the decoder. */
+    private void benchmarkDequeued(int bufferIndex) {
+        synchronized (benchLock) {
+            benchDequeueNs[bufferIndex & 0xFF] = System.nanoTime();
+        }
+    }
+
+    /**
+     * Benchmark: a frame handed to SurfaceFlinger to appear at targetNs. The time from its dequeue
+     * to that target is what pacing adds on this device (a vsync wait, the learned delay for VRR
+     * pacing), and the time between two targets is the interval the viewer sees. A target already
+     * behind us means "as soon as possible", so the present is now. Every path that presents a
+     * frame must call this.
+     */
+    private void benchmarkPresented(int bufferIndex, long targetNs) {
+        long presentNs = Math.max(targetNs, System.nanoTime());
+        synchronized (benchLock) {
+            long dequeuedNs = benchDequeueNs[bufferIndex & 0xFF];
+            if (dequeuedNs > 0 && presentNs >= dequeuedNs && presentNs - dequeuedNs < 1_000_000_000L) {
+                benchQueueSumUs += (presentNs - dequeuedNs) / 1000;
+            }
+            long deltaNs = presentNs - benchLastPresentNs;
+            // Ignore pathological intervals (stream pauses, codec recovery)
+            if (benchLastPresentNs > 0 && deltaNs > 0 && deltaNs < 1_000_000_000L) {
+                benchPresents.record(deltaNs / 1_000_000.0);
+            }
+            benchLastPresentNs = presentNs;
+        }
+    }
+
+    private void publishBenchmarkStats() {
+        long rttInfo = MoonBridge.getEstimatedRttInfo();
+        BenchmarkTypes.RawStats stats = new BenchmarkTypes.RawStats();
+        synchronized (benchLock) {
+            if (rttInfo != -1) {
+                benchRttSumMs += rttInfo >> 32;
+                benchRttVarianceSumMs += rttInfo & 0xFFFFFFFFL;
+                benchRttSamples++;
+            }
+            stats.decodeSumUs = benchDecodeSumUs;
+            stats.framesDecoded = benchDecodedFrames;
+            stats.queueSumUs = benchQueueSumUs;
+            stats.receiveSumUs = benchReceiveSumUs;
+            stats.rttSumMs = benchRttSumMs;
+            stats.rttVarianceSumMs = benchRttVarianceSumMs;
+            stats.rttSamples = benchRttSamples;
+            stats.presents = new PresentHistogram(benchPresents);
+        }
+        // A clock: runs subtract two of them
+        stats.elapsedUs = System.nanoTime() / 1000.0;
+        stats.framesTotal = globalVideoStats.totalFrames;
+        stats.framesNetworkLost = globalVideoStats.framesLost;
+        stats.framesReceived = globalVideoStats.totalFramesReceived;
+        stats.framesRendered = globalVideoStats.totalFramesRendered;
+        stats.hostLatencySum = globalVideoStats.totalHostProcessingLatency;
+        stats.hostLatencyFrames = globalVideoStats.framesWithHostProcessingLatency;
+        benchPublished = stats;
+    }
+
+    /**
+     * Benchmark: everything measured since the stream started, as of the last stats window (about
+     * once a second); null before the first one. Any thread.
+     */
+    public BenchmarkTypes.RawStats snapshotBenchmarkStats() {
+        return benchPublished;
+    }
 
 
     private static final boolean USE_FRAME_RENDER_TIME = false;
@@ -598,11 +693,13 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         GlesUpscaler current = upscaler;
         if (current == null) {
             videoDecoder.releaseOutputBuffer(index, targetNs);
+            benchmarkPresented(index, targetNs);
         } else if (upscalingPolicy.getReason() != UpscalingPolicy.Reason.NONE) {
             // Falling back: drop frames until the restart points the decoder at the display
             videoDecoder.releaseOutputBuffer(index, false);
         } else {
             videoDecoder.releaseOutputBuffer(index, current.releaseFrame(targetNs));
+            benchmarkPresented(index, targetNs);
         }
     }
 
@@ -1652,6 +1749,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         try {
             int outIndex = videoDecoder.dequeueOutputBuffer(info, getOutputDequeueTimeoutUs());
             if (outIndex >= 0) {
+                benchmarkDequeued(outIndex);
                 numFramesOut++;
                 long nowNs = System.nanoTime();
                 Long rtpNs;
@@ -1773,6 +1871,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                             long presentationTimeUs = info.presentationTimeUs;
                             int lastIndex = outIndex;
                             notePtsForBuffer(outIndex, presentationTimeUs);
+                            benchmarkDequeued(outIndex);
 
                             numFramesOut++;
 
@@ -1789,6 +1888,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                                     lastIndex = outIndex;
                                     presentationTimeUs = info.presentationTimeUs;
                                     notePtsForBuffer(lastIndex, presentationTimeUs);
+                                    benchmarkDequeued(lastIndex);
                                 }
 
                                 // NB: no frame age based drops here. They discarded the newest decoded
@@ -2507,6 +2607,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                         queueDelayMs));
             }
             globalVideoStats.add(activeWindowVideoStats);
+            publishBenchmarkStats();
             lastWindowVideoStats.copy(activeWindowVideoStats);
             activeWindowVideoStats.clear();
             activeWindowVideoStats.measurementStartTimestamp = SystemClock.uptimeMillis();
@@ -2741,6 +2842,9 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             // We will count DU queue time as part of decoding, because it is directly
             // caused by a slow decoder.
             activeWindowVideoStats.totalTimeMs += VideoStats.receiveTimeMs(receiveTimeUs, enqueueTimeUs);
+        }
+        synchronized (benchLock) {
+            benchReceiveSumUs += Math.max(0, enqueueTimeUs - receiveTimeUs);
         }
 
         if (!fetchNextInputBuffer()) {

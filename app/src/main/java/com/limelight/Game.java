@@ -8,6 +8,9 @@ import static com.limelight.utils.ExternalDisplayControlActivity.closeExternalDi
 import static com.limelight.utils.ServerHelper.getActiveDisplay;
 import static com.limelight.utils.ServerHelper.getSecondaryDisplay;
 
+import com.limelight.benchmark.BenchmarkGameRun;
+import com.limelight.benchmark.BenchmarkSettings;
+import com.limelight.benchmark.BenchmarkTypes;
 import com.limelight.binding.PlatformBinding;
 import com.limelight.binding.audio.AndroidAudioRenderer;
 import com.limelight.binding.input.ControllerHandler;
@@ -323,6 +326,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private float lastAbsTouchDownX, lastAbsTouchDownY;
 
     private boolean quitOnStop = false;
+    // Set when BenchmarkActivity started this stream as one of its runs
+    private BenchmarkGameRun benchmarkRun;
     // The launch was cancelled: once the connection is stopped, the game is quit on the host if
     // this launch is the one that started it (NvConnection#quitLaunchedApp).
     private boolean quitLaunchOnStop = false;
@@ -600,6 +605,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         // Read the stream preferences
         prefConfig = PreferenceConfiguration.readPreferences(this);
         tombstonePrefs = Game.this.getSharedPreferences("DecoderTombstone", 0);
+
+        // A benchmark run changes the settings of this stream only, in memory
+        benchmarkRun = BenchmarkGameRun.fromIntent(getIntent());
+        if (benchmarkRun != null) {
+            benchmarkRun.applyTo(prefConfig);
+        }
 
         if (prefConfig.fullScreen) {
             // Full-screen
@@ -2550,7 +2561,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 message += selectedVideoFormat;
             }
 
-            if (message != null) {
+            if (message != null && benchmarkRun == null) {
                 if (prefConfig.enableLatencyToast) {
                     Toast.makeText(this, message, Toast.LENGTH_LONG).show();
                 }
@@ -2559,7 +2570,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             // Frame loss report. Not behind the post-stream toast preference: it only fires when
             // a large share of the video never arrived, which is not something to opt into
             // hearing about. It still honours disableWarnings.
-            if (!prefConfig.disableWarnings) {
+            if (!prefConfig.disableWarnings && benchmarkRun == null) {
                 LinkHealthSummary health = new LinkHealthSummary(
                         decoderRenderer.getTotalFramesReceived(),
                         decoderRenderer.getTotalFramesLost(),
@@ -2574,13 +2585,13 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             }
 
             // Clear the tombstone count if we terminated normally
-            if (!reportedCrash && tombstonePrefs.getInt("CrashCount", 0) != 0) {
+            if (!reportedCrash && benchmarkRun == null && tombstonePrefs.getInt("CrashCount", 0) != 0) {
                 tombstonePrefs.edit()
                         .putInt("CrashCount", 0)
                         .putInt("LastNotifiedCrashCount", 0)
                         .apply();
             }
-            if(prefConfig.enablePerfLogging && decoderRenderer.performanceWasTracked()) {
+            if(prefConfig.enablePerfLogging && decoderRenderer.performanceWasTracked() && benchmarkRun == null) {
                 new PerformanceDataTracker().savePerformanceStatistics(
                         getBaseContext(),
                         Build.MODEL,
@@ -2600,6 +2611,16 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         }
 
+        finish();
+    }
+
+    /** The benchmark run measured all it needed: score it and leave, the app still running on the host. */
+    private void completeBenchmarkRun() {
+        BenchmarkTypes.RunConfig effective = new BenchmarkTypes.RunConfig(
+                BenchmarkSettings.codecOfVideoFormat(decoderRenderer.getActiveVideoFormat()),
+                prefConfig.bitrate,
+                BenchmarkSettings.pacingOf(prefConfig.framePacing));
+        benchmarkRun.complete(this, effective, prefConfig.fps);
         finish();
     }
 
@@ -4836,6 +4857,15 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                     connectionOverlay = null;
                 }
 
+                // A benchmark run reports the failure and lets the benchmark carry on
+                if (benchmarkRun != null && !benchmarkRun.isDone() && !displayedFailureDialog) {
+                    displayedFailureDialog = true;
+                    benchmarkRun.fail(Game.this, BenchmarkSettings.fromPreferences(prefConfig),
+                            "Starting " + stage + " failed: error " + errorCode + ".");
+                    finish();
+                    return;
+                }
+
                 if (!displayedFailureDialog) {
                     displayedFailureDialog = true;
                     LimeLog.severe(stage + " failed: " + errorCode);
@@ -4934,6 +4964,16 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         if (connectionOverlay != null) {
             connectionOverlay.dismiss();
             connectionOverlay = null;
+        }
+
+        // A benchmark run reports the failure and lets the benchmark carry on
+        if (benchmarkRun != null && !benchmarkRun.isDone() && !displayedFailureDialog) {
+            displayedFailureDialog = true;
+            stopConnection();
+            benchmarkRun.fail(this, BenchmarkSettings.fromPreferences(prefConfig),
+                    "The connection ended (error " + errorCode + ").");
+            finish();
+            return;
         }
 
         if (!displayedFailureDialog) {
@@ -5063,6 +5103,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 connected = true;
                 connecting = false;
                 updatePipAutoEnter();
+
+                if (benchmarkRun != null) {
+                    benchmarkRun.start(timerHandler, () -> decoderRenderer.snapshotBenchmarkStats(), Game.this::completeBenchmarkRun);
+                }
 
                 // A text field the host reported while the stream was still starting
                 if (textFocusKeyboard != null && TextFocusKeyboard.isTextField(pendingTextFocus)) {

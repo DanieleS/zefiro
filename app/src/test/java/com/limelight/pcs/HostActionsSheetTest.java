@@ -101,6 +101,45 @@ public class HostActionsSheetTest {
     }
 
     @Test
+    public void pairedHostAnnouncingItsBenchmarkApp_offersTheBenchmarkAfterTheExport() {
+        ComputerDetails details = host(ComputerDetails.State.ONLINE, PairState.PAIRED);
+        details.benchmarkAppId = 4242;
+        details.benchmarkAppUuid = "B3C4F1A2-7E5D-4B8A-9C61-2D0E8F4A6B37";
+
+        assertEquals(Arrays.asList(Item.FULL_APP_LIST, Item.OPEN_MANAGEMENT_PAGE,
+                        Item.FRONTEND_EXPORT, Item.BENCHMARK,
+                        Item.TEST_NETWORK, Item.VIEW_DETAILS, Item.DELETE),
+                HostActionsSheet.itemsFor(details));
+    }
+
+    @Test
+    public void benchmarkNeedsBothFieldsOfTheAnnouncement() {
+        ComputerDetails idOnly = host(ComputerDetails.State.ONLINE, PairState.PAIRED);
+        idOnly.benchmarkAppId = 4242;
+        assertFalse(HostActionsSheet.itemsFor(idOnly).contains(Item.BENCHMARK));
+
+        ComputerDetails uuidOnly = host(ComputerDetails.State.ONLINE, PairState.PAIRED);
+        uuidOnly.benchmarkAppUuid = "B3C4F1A2-7E5D-4B8A-9C61-2D0E8F4A6B37";
+        assertFalse(HostActionsSheet.itemsFor(uuidOnly).contains(Item.BENCHMARK));
+
+        // What a host without the feature (or a garbage id, parsed as 0) leaves
+        assertFalse(HostActionsSheet.itemsFor(host(ComputerDetails.State.ONLINE, PairState.PAIRED))
+                .contains(Item.BENCHMARK));
+    }
+
+    @Test
+    public void benchmarkIsOnlyOfferedToAnOnlinePairedHost() {
+        for (ComputerDetails details : Arrays.asList(
+                host(ComputerDetails.State.OFFLINE, PairState.PAIRED),
+                host(ComputerDetails.State.UNKNOWN, PairState.PAIRED),
+                host(ComputerDetails.State.ONLINE, PairState.NOT_PAIRED))) {
+            details.benchmarkAppId = 4242;
+            details.benchmarkAppUuid = "B3C4F1A2-7E5D-4B8A-9C61-2D0E8F4A6B37";
+            assertFalse(HostActionsSheet.itemsFor(details).contains(Item.BENCHMARK));
+        }
+    }
+
+    @Test
     public void deleteIsLastAndTheOnlyDangerRow_inEveryState() {
         List<ComputerDetails> states = new ArrayList<>();
         states.add(host(ComputerDetails.State.OFFLINE, PairState.PAIRED));
