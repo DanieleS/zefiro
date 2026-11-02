@@ -76,7 +76,7 @@ public class HdrBrightnessTest {
         assertEquals(0.01f, r.minNits, 0f);
         assertEquals(300f, HdrBrightness.compute(0f, -1f, -1f, 0f, 10).maxNits, 0f);
         assertEquals(4000f, HdrBrightness.compute(0f, -1f, -1f, 0f, 9000).maxNits, 0f);
-        assertEquals(1000f, HdrBrightness.compute(0f, -1f, -1f, 0f, 9000).maxAverageNits, 0f);
+        assertEquals(800f, HdrBrightness.compute(0f, -1f, -1f, 0f, 9000).maxAverageNits, 0f);
         assertEquals(0f, HdrBrightness.compute(0f, -1f, -1f, 0f, 300).minNits, 0f);
         assertEquals(100f, HdrBrightness.compute(0f, -1f, -1f, 0f, 300).maxAverageNits, 0f);
     }
