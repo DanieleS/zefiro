@@ -101,7 +101,7 @@ public final class SettingsCatalog {
                             "render_mode_list", "parallax_depth", "convergence_ratio",
                             "balance_shift"),
                     new Subgroup(R.string.settings_group_hdr_codec,
-                            "checkbox_enable_hdr", "video_format", "checkbox_enable_pyrowave",
+                            "checkbox_enable_hdr", "checkbox_enable_sdr_10bit", "video_format", "checkbox_enable_pyrowave",
                             "seekbar_pyrowave_bitrate_kbps", "checkbox_packed_444", "checkbox_full_range"),
                     new Subgroup(R.string.settings_group_refresh_rate,
                             "checkbox_unlock_fps", "checkbox_reduce_refresh_rate")),

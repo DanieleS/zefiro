@@ -273,6 +273,13 @@
 
         <SwitchPreferenceCompat
             android:defaultValue="false"
+            android:key="checkbox_enable_sdr_10bit"
+            android:summary="@string/summary_enable_sdr10"
+            android:title="@string/title_enable_sdr10"
+            app:iconSpaceReserved="false" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
             android:key="checkbox_enable_fullexdisplay"
             android:summary="@string/summary_fullexdisplay_mode"
             android:title="@string/title_fullexdisplay_mode"
