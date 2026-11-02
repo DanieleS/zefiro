@@ -369,6 +369,13 @@
     <string name="summary_seekbar_pyrowave_bitrate">Only PyroWave streams use it; the codecs PyroWave falls back to keep the bitrate above.\nSet 0 to pick it from the resolution and frame rate (1.6 bits per pixel: about 400 Mbps at 1080p120).</string>
     <string name="toast_pyrowave_unsupported">PyroWave needs a 64-bit device with Vulkan 1.3; using the regular codecs</string>
     <string name="toast_pyrowave_start_failed">PyroWave could not start on this device; using the regular codecs until the app restarts</string>
+    <string name="title_enable_sdr10">10-bit color (SDR)</string>
+    <string name="summary_enable_sdr10">Stream SDR as 10-bit HEVC or AV1 to reduce color banding. Needs a Main10 decoder on this device, and the PC\'s display must be set to SDR. Not used with HDR, PyroWave or experimental full chroma.</string>
+    <string name="startup_sdr10_not_accepted">This PC did not accept 10-bit, so the stream is 8-bit.</string>
+    <string name="stream_sdr10_unavailable">10-bit SDR is not used, the stream is 8-bit: %1$s</string>
+    <string name="stream_sdr10_reason_decoder">no Main10 decoder for HEVC or AV1 is available with the current codec setting.</string>
+    <string name="stream_sdr10_reason_packed">experimental full chroma has its own 10-bit handling.</string>
+    <string name="stream_sdr10_host_pyrowave">10-bit SDR is not used: the host streams PyroWave, which is 8-bit.</string>
     <string name="title_enable_hdr">Enable HDR (Experimental)</string>
     <string name="summary_enable_hdr">Stream HDR when the game and PC GPU support it. HDR requires a GPU with HEVC Main 10 encoding support.</string>
     <string name="title_full_range">Force full range video (Experimental)</string>
@@ -829,6 +836,7 @@
     <string name="companion_stats_subtitle">%1$s · %2$s</string>
     <string name="companion_codec_hdr">%1$s · HDR</string>
     <string name="companion_codec_sdr">%1$s · SDR</string>
+    <string name="companion_codec_sdr10">%1$s · 10-bit SDR</string>
     <string name="companion_stat_resolution">Resolution</string>
     <string name="companion_stat_fps">FPS</string>
     <string name="companion_label_latency">Latency</string>

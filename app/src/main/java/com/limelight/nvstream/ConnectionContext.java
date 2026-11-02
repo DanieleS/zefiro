@@ -31,7 +31,10 @@ public class ConnectionContext {
     public String rtspSessionUrl;
     
     public int negotiatedWidth, negotiatedHeight;
+    // HDR is asked for in the launch only when this is set; 10-bit SDR negotiates 10-bit without it.
     public boolean negotiatedHdr;
+    // 10-bit SDR was offered and the PC takes a 10-bit format: the launch says hdrMode=0.
+    public boolean negotiatedSdr10;
 
     public int negotiatedRemoteStreaming;
     public int negotiatedPacketSize;
