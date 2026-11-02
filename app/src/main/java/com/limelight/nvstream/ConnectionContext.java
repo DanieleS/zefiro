@@ -24,6 +24,13 @@ public class ConnectionContext {
     public String serverGfeVersion;
     public int serverCodecModeSupport;
 
+    // /serverinfo's ClientLuminanceSupported: the host takes the screen's luminance on /launch
+    public boolean serverClientLuminanceSupported;
+    // The display the stream is shown on, and the user's manual HDR peak in nits (0 for none),
+    // for the luminance report
+    public android.view.Display streamDisplay;
+    public int hdrPeakOverrideNits;
+
     // The video formats offered to this host: the stream's, minus any it must not get
     public int supportedVideoFormats;
 

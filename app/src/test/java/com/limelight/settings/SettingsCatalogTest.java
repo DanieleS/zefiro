@@ -75,7 +75,8 @@ public class SettingsCatalogTest {
         // 143 with the device-held-upright motion switch.
         // 144 with the experimental full chroma (packed 4:4:4) switch.
         // 146 with the client roaming switch and its mobile data switch.
-        assertEquals(146, catalogue.size());
+        // 148 with the manual HDR peak switch and its value.
+        assertEquals(148, catalogue.size());
     }
 
     @Test

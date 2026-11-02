@@ -270,6 +270,24 @@
             android:summary="@string/summary_enable_hdr"
             android:title="@string/title_enable_hdr"
             app:iconSpaceReserved="false" />
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:dependency="checkbox_enable_hdr"
+            android:key="checkbox_hdr_peak_override"
+            android:summary="@string/summary_hdr_peak_override"
+            android:title="@string/title_hdr_peak_override"
+            app:iconSpaceReserved="false" />
+        <com.limelight.preferences.SeekBarPreference
+            android:defaultValue="1000"
+            android:dependency="checkbox_hdr_peak_override"
+            android:key="seekbar_hdr_peak_override_nits"
+            android:max="4000"
+            android:summary="@string/summary_hdr_peak_override_nits"
+            android:text="@string/suffix_nits"
+            android:title="@string/title_hdr_peak_override_nits"
+            app:iconSpaceReserved="false"
+            seekbar:min="300"
+            seekbar:step="50" />
 
         <SwitchPreferenceCompat
             android:defaultValue="false"

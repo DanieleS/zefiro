@@ -386,6 +386,11 @@
     <string name="title_reconnect_window">Keep trying to reconnect for</string>
     <string name="summary_reconnect_window">How long to keep trying to resume the game once the connection is lost</string>
     <string name="suffix_seconds">s</string>
+    <string name="suffix_nits">nits</string>
+    <string name="title_hdr_peak_override">Set the screen\'s HDR peak by hand</string>
+    <string name="summary_hdr_peak_override">Tell the PC this peak brightness instead of what Android reports for the screen. Use it when the screen reports nothing or a wrong value. Only a PC that takes the screen\'s brightness uses it</string>
+    <string name="title_hdr_peak_override_nits">HDR peak brightness</string>
+    <string name="summary_hdr_peak_override_nits">The brightest the screen gets in HDR, in nits</string>
     <string name="title_enable_perf_overlay">Show performance stats while streaming</string>
     <string name="summary_enable_perf_overlay">Display real-time stream performance information while streaming</string>
     <string name="title_vsync_target_present">Aim each frame at a specific vsync</string>

@@ -1135,6 +1135,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 new ComputerDetails.AddressTuple(host, port),
                 httpsPort, uniqueId, config,
                 PlatformBinding.getCryptoProvider(this), serverCert);
+        conn.setHdrLuminanceSource(currentDisplay,
+                prefConfig.hdrPeakOverrideEnabled ? prefConfig.hdrPeakOverrideNits : 0);
         controllerHandler = new ControllerHandler(this, conn, this, prefConfig);
         keyboardTranslator = new KeyboardTranslator(prefConfig);
 
