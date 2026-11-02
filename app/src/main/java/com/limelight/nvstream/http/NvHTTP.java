@@ -53,6 +53,7 @@ import com.limelight.BuildConfig;
 import com.limelight.LimeLog;
 import com.limelight.nvstream.ConnectionContext;
 import com.limelight.nvstream.http.PairingManager.PairState;
+import com.limelight.utils.HdrBrightness;
 import com.limelight.nvstream.jni.MoonBridge;
 import com.limelight.utils.DeviceUtils;
 
@@ -684,6 +685,11 @@ public class NvHTTP {
         }
     }
     
+    /** Whether the host takes the screen's HDR luminance on /launch and /resume. */
+    public boolean getClientLuminanceSupported(String serverInfo) throws XmlPullParserException, IOException {
+        return "1".equals(getXmlString(serverInfo, "ClientLuminanceSupported", false));
+    }
+
     public String getGpuType(String serverInfo) throws XmlPullParserException, IOException {
         // ServerCodecModeSupport wasn't present on old GFE versions
         return getXmlString(serverInfo, "gputype", false);
@@ -1146,6 +1152,16 @@ public class NvHTTP {
             }
         }
 
+        // The screen's luminance goes only to a host that announced it, with HDR on, and only
+        // as a complete valid set
+        String luminanceQuery = "";
+        if (enableHdr && context.serverClientLuminanceSupported) {
+            HdrBrightness report = HdrBrightness.fromDisplay(context.streamDisplay, context.hdrPeakOverrideNits);
+            if (report != null) {
+                luminanceQuery = report.toQuery();
+            }
+        }
+
         // Launching or resuming a game can legitimately take a long time, so there is no read
         // timeout, except for the /resume of a reconnect attempt
         OkHttpClient client = context.reconnectAttempt ?
@@ -1160,7 +1176,7 @@ public class NvHTTP {
             "&rikeyid="+context.riKeyId +
             // 10-bit SDR says hdrMode=0 outright, so a host that reads an absent value as a request
             // for HDR does not; a plain 8-bit stream still sends nothing.
-            (!enableHdr ? (context.negotiatedSdr10 ? "&hdrMode=0" : "") : "&hdrMode=1&clientHdrCapVersion=0&clientHdrCapSupportedFlagsInUint32=0&clientHdrCapMetaDataId=NV_STATIC_METADATA_TYPE_1&clientHdrCapDisplayData=0x0x0x0x0x0x0x0x0x0x0") +
+            (!enableHdr ? (context.negotiatedSdr10 ? "&hdrMode=0" : "") : "&hdrMode=1&clientHdrCapVersion=0&clientHdrCapSupportedFlagsInUint32=0&clientHdrCapMetaDataId=NV_STATIC_METADATA_TYPE_1&clientHdrCapDisplayData=0x0x0x0x0x0x0x0x0x0x0" + luminanceQuery) +
             "&virtualDisplay=" + (context.streamConfig.getVirtualDisplay() ? 1 : 0) +
             "&localAudioPlayMode=" + (context.streamConfig.getPlayLocalAudio() ? 1 : 0) +
             "&surroundAudioInfo=" + context.streamConfig.getAudioConfiguration().getSurroundAudioInfo() +

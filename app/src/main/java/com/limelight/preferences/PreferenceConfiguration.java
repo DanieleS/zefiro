@@ -79,6 +79,8 @@ public class PreferenceConfiguration {
     private static final String SHOW_GUIDE_BUTTON_PREF_STRING = "checkbox_show_guide_button";
     private static final String LEGACY_DISABLE_FRAME_DROP_PREF_STRING = "checkbox_disable_frame_drop";
     private static final String ENABLE_HDR_PREF_STRING = "checkbox_enable_hdr";
+    private static final String HDR_PEAK_OVERRIDE_PREF_STRING = "checkbox_hdr_peak_override";
+    private static final String HDR_PEAK_OVERRIDE_NITS_PREF_STRING = "seekbar_hdr_peak_override_nits";
     private static final String ENABLE_SDR10_PREF_STRING = "checkbox_enable_sdr_10bit";
     static final String ENABLE_PYROWAVE_PREF_STRING = "checkbox_enable_pyrowave";
     static final String PYROWAVE_BITRATE_PREF_STRING = "seekbar_pyrowave_bitrate_kbps";
@@ -317,6 +319,8 @@ public class PreferenceConfiguration {
     public boolean onlyL3R3;
     public boolean showGuideButton;
     public boolean enableHdr;
+    public boolean hdrPeakOverrideEnabled;
+    public int hdrPeakOverrideNits;
     /** Ask for 10-bit SDR when HDR is not streamed (see Sdr10Policy). */
     public boolean enableSdr10Bit;
     public boolean enablePyroWave;
@@ -1010,6 +1014,8 @@ private static int getFramePacingValue(Context context) {
         config.hideOSCWhenHasGamepad = prefs.getBoolean(CHECKBOX_HIDE_OSC_WHEN_HAS_GAMEPAD, DEFAULT_HIDE_OSC_WHEN_HAS_GAMEPAD);
         config.onlyL3R3 = prefs.getBoolean(ONLY_L3_R3_PREF_STRING, ONLY_L3_R3_DEFAULT);
         config.showGuideButton = prefs.getBoolean(SHOW_GUIDE_BUTTON_PREF_STRING, SHOW_GUIDE_BUTTON_DEFAULT);
+        config.hdrPeakOverrideEnabled = prefs.getBoolean(HDR_PEAK_OVERRIDE_PREF_STRING, false);
+        config.hdrPeakOverrideNits = prefs.getInt(HDR_PEAK_OVERRIDE_NITS_PREF_STRING, 1000);
         config.enableHdr = prefs.getBoolean(ENABLE_HDR_PREF_STRING, DEFAULT_ENABLE_HDR) && !isShieldAtvFirmwareWithBrokenHdr();
         config.enableSdr10Bit = prefs.getBoolean(ENABLE_SDR10_PREF_STRING, DEFAULT_ENABLE_SDR10);
         config.enablePyroWave = prefs.getBoolean(ENABLE_PYROWAVE_PREF_STRING, DEFAULT_ENABLE_PYROWAVE);

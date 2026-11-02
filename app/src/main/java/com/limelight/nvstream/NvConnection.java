@@ -77,6 +77,12 @@ public class NvConnection {
     // anyway. A host answers /launch once the game's process is up, which is seconds, not this.
     private static final long LAUNCH_WAIT_MS = 60_000;
 
+    /** The display the stream is shown on and the manual HDR peak (0 for none), for the luminance report. */
+    public void setHdrLuminanceSource(android.view.Display streamDisplay, int hdrPeakOverrideNits) {
+        context.streamDisplay = streamDisplay;
+        context.hdrPeakOverrideNits = hdrPeakOverrideNits;
+    }
+
     public NvConnection(Context appContext, ComputerDetails.AddressTuple host, int httpsPort, String uniqueId, StreamConfiguration config, LimelightCryptoProvider cryptoProvider, X509Certificate serverCert)
     {
         this.appContext = appContext;
@@ -346,6 +352,7 @@ public class NvConnection {
         }
 
         context.serverCodecModeSupport = (int)h.getServerCodecModeSupport(serverInfo);
+        context.serverClientLuminanceSupported = h.getClientLuminanceSupported(serverInfo);
 
         // A PyroWave host gets no HDR request: PyroWave streams are 8-bit SDR here
         context.supportedVideoFormats = PyroWaveSupport.formatsForHost(
