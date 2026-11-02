@@ -256,6 +256,8 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     private byte[] currentHdrMetadata;
     // The host's last HDR-mode message; only read for packed full-chroma streams
     private Boolean currentHdrMode;
+    // The stream was asked for as 10-bit SDR: SDR colour keys, and no HDR assumed before the PC reports
+    private volatile boolean sdr10;
     // Packed full chroma (see Packed444): the logical size and the modes the probe verified,
     // both set by preparePacked444Modes() before the connection, and the active geometry once
     // the host took it
@@ -860,6 +862,48 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         return false;
     }
 
+    /** A Main10 profile, HDR10 ones included: enough to decode 10-bit SDR. */
+    public boolean isHevcMain10Supported() {
+        return supportsProfile(hevcDecoder, "video/hevc", MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10,
+                MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10HDR10,
+                MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10HDR10Plus);
+    }
+
+    public boolean isAv1Main10SdrSupported() {
+        return supportsProfile(av1Decoder, "video/av01", MediaCodecInfo.CodecProfileLevel.AV1ProfileMain10,
+                MediaCodecInfo.CodecProfileLevel.AV1ProfileMain10HDR10,
+                MediaCodecInfo.CodecProfileLevel.AV1ProfileMain10HDR10Plus);
+    }
+
+    private static boolean supportsProfile(MediaCodecInfo decoder, String mime, int... profiles) {
+        if (decoder == null) {
+            return false;
+        }
+        try {
+            for (MediaCodecInfo.CodecProfileLevel profileLevel : decoder.getCapabilitiesForType(mime).profileLevels) {
+                for (int profile : profiles) {
+                    if (profileLevel.profile == profile) {
+                        return true;
+                    }
+                }
+            }
+        } catch (RuntimeException e) {
+            LimeLog.warning("Cannot query decoder profiles: " + e);
+        }
+        return false;
+    }
+
+    /** Streaming 10-bit SDR: the 10-bit formats were offered without asking for HDR. */
+    public void setSdr10Requested(boolean sdr10) {
+        this.sdr10 = sdr10;
+    }
+
+    /** Whether the running stream is 10-bit SDR: asked for as such, and the PC sent no HDR metadata. */
+    public boolean isSdr10Stream() {
+        return sdr10 && (getActiveVideoFormat() & MoonBridge.VIDEO_FORMAT_MASK_10BIT) != 0 &&
+                currentHdrMetadata == null;
+    }
+
     public boolean isAv1Supported() {
         return av1Decoder != null;
     }
@@ -1016,7 +1060,9 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
             // If the stream is HDR-capable, the decoder will detect transitions in color standards
             // rather than us hardcoding them into the MediaFormat.
-            if ((getActiveVideoFormat() & MoonBridge.VIDEO_FORMAT_MASK_10BIT) == 0) {
+            // A 10-bit SDR stream is not taken for HDR until the PC sends HDR metadata.
+            boolean tenBit = (getActiveVideoFormat() & MoonBridge.VIDEO_FORMAT_MASK_10BIT) != 0;
+            if (!tenBit || (sdr10 && currentHdrMetadata == null)) {
                 // Set color format keys when not in HDR mode, since we know they won't change
                 videoFormat.setInteger(MediaFormat.KEY_COLOR_TRANSFER, MediaFormat.COLOR_TRANSFER_SDR_VIDEO);
                 switch (getPreferredColorSpace()) {

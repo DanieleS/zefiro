@@ -1174,7 +1174,9 @@ public class NvHTTP {
             "&additionalStates=1&sops=" + (enableSops ? 1 : 0) +
             "&rikey="+bytesToHex(context.riKey.getEncoded()) +
             "&rikeyid="+context.riKeyId +
-            (!enableHdr ? "" : "&hdrMode=1&clientHdrCapVersion=0&clientHdrCapSupportedFlagsInUint32=0&clientHdrCapMetaDataId=NV_STATIC_METADATA_TYPE_1&clientHdrCapDisplayData=0x0x0x0x0x0x0x0x0x0x0" + luminanceQuery) +
+            // 10-bit SDR says hdrMode=0 outright, so a host that reads an absent value as a request
+            // for HDR does not; a plain 8-bit stream still sends nothing.
+            (!enableHdr ? (context.negotiatedSdr10 ? "&hdrMode=0" : "") : "&hdrMode=1&clientHdrCapVersion=0&clientHdrCapSupportedFlagsInUint32=0&clientHdrCapMetaDataId=NV_STATIC_METADATA_TYPE_1&clientHdrCapDisplayData=0x0x0x0x0x0x0x0x0x0x0" + luminanceQuery) +
             "&virtualDisplay=" + (context.streamConfig.getVirtualDisplay() ? 1 : 0) +
             "&localAudioPlayMode=" + (context.streamConfig.getPlayLocalAudio() ? 1 : 0) +
             "&surroundAudioInfo=" + context.streamConfig.getAudioConfiguration().getSurroundAudioInfo() +

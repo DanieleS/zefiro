@@ -81,6 +81,7 @@ public class PreferenceConfiguration {
     private static final String ENABLE_HDR_PREF_STRING = "checkbox_enable_hdr";
     private static final String HDR_PEAK_OVERRIDE_PREF_STRING = "checkbox_hdr_peak_override";
     private static final String HDR_PEAK_OVERRIDE_NITS_PREF_STRING = "seekbar_hdr_peak_override_nits";
+    private static final String ENABLE_SDR10_PREF_STRING = "checkbox_enable_sdr_10bit";
     static final String ENABLE_PYROWAVE_PREF_STRING = "checkbox_enable_pyrowave";
     static final String PYROWAVE_BITRATE_PREF_STRING = "seekbar_pyrowave_bitrate_kbps";
     private static final String ENABLE_PIP_PREF_STRING = "checkbox_enable_pip";
@@ -197,6 +198,7 @@ public class PreferenceConfiguration {
     private static final boolean ONLY_L3_R3_DEFAULT = false;
     private static final boolean SHOW_GUIDE_BUTTON_DEFAULT = true;
     private static final boolean DEFAULT_ENABLE_HDR = false;
+    private static final boolean DEFAULT_ENABLE_SDR10 = false;
     private static final boolean DEFAULT_ENABLE_PYROWAVE = false;
     private static final boolean DEFAULT_ENABLE_PIP = false;
     private static final boolean DEFAULT_ENABLE_PERF_OVERLAY = false;
@@ -319,6 +321,8 @@ public class PreferenceConfiguration {
     public boolean enableHdr;
     public boolean hdrPeakOverrideEnabled;
     public int hdrPeakOverrideNits;
+    /** Ask for 10-bit SDR when HDR is not streamed (see Sdr10Policy). */
+    public boolean enableSdr10Bit;
     public boolean enablePyroWave;
     // Experimental full chroma: 4:4:4 packed into a 4:2:0 picture and rebuilt on the GPU. While it
     // is on PyroWave is not offered (see Game).
@@ -776,6 +780,7 @@ private static int getFramePacingValue(Context context) {
                 .remove(FPS_PREF_STRING)
                 .remove(VIDEO_FORMAT_PREF_STRING)
                 .remove(ENABLE_HDR_PREF_STRING)
+                .remove(ENABLE_SDR10_PREF_STRING)
                 .remove(ENABLE_PYROWAVE_PREF_STRING)
                 .remove(PYROWAVE_BITRATE_PREF_STRING)
                 .remove(UNLOCK_FPS_STRING)
@@ -1012,6 +1017,7 @@ private static int getFramePacingValue(Context context) {
         config.hdrPeakOverrideEnabled = prefs.getBoolean(HDR_PEAK_OVERRIDE_PREF_STRING, false);
         config.hdrPeakOverrideNits = prefs.getInt(HDR_PEAK_OVERRIDE_NITS_PREF_STRING, 1000);
         config.enableHdr = prefs.getBoolean(ENABLE_HDR_PREF_STRING, DEFAULT_ENABLE_HDR) && !isShieldAtvFirmwareWithBrokenHdr();
+        config.enableSdr10Bit = prefs.getBoolean(ENABLE_SDR10_PREF_STRING, DEFAULT_ENABLE_SDR10);
         config.enablePyroWave = prefs.getBoolean(ENABLE_PYROWAVE_PREF_STRING, DEFAULT_ENABLE_PYROWAVE);
         config.pyroWaveBitrate = prefs.getInt(PYROWAVE_BITRATE_PREF_STRING, 0);
         config.enablePip = prefs.getBoolean(ENABLE_PIP_PREF_STRING, DEFAULT_ENABLE_PIP);

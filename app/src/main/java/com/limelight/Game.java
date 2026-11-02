@@ -38,6 +38,7 @@ import com.limelight.binding.video.MediaCodecHelper;
 import com.limelight.binding.video.PerfOverlayListener;
 import com.limelight.binding.video.PerfStats;
 import com.limelight.binding.video.PyroWaveSupport;
+import com.limelight.binding.video.Sdr10Policy;
 import com.limelight.binding.video.StagedStreamExit;
 import com.limelight.bitrate.BitrateSteps;
 import com.limelight.bitrate.LiveBitrate;
@@ -376,6 +377,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     // What the decoder was built with in onCreate, so a reconnect attempt builds the same one
     private boolean decoderNetworkMetered;
     private boolean decoderWillStreamHdr;
+    // 10-bit formats offered for 10-bit SDR (the setting), without asking the PC for HDR.
+    private boolean streamSdr10;
     private boolean decoderInvertResolution;
     private String decoderGlRenderer;
 
@@ -553,6 +556,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         // The renderer seeds itself from the perf overlay preference, which says nothing about
         // the companion. Tell it who is really watching.
         renderer.setPerfStatsRequested(perfStatsWanted());
+        renderer.setSdr10Requested(streamSdr10);
 
 // --- Force tight thresholds (prefConfig.forceTightThresholds) ---
         try {
@@ -980,6 +984,22 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             }
         }
 
+        // 10-bit SDR: the 10-bit formats without HDR. HDR, when granted, wins.
+        boolean sdr10Hevc = decoderRenderer.isHevcMain10Supported();
+        boolean sdr10Av1 = decoderRenderer.isAv1Main10SdrSupported();
+        Sdr10Policy.Refusal sdr10Refusal = Sdr10Policy.refusal(prefConfig.enableSdr10Bit, willStreamHdr,
+                sdr10Hevc, sdr10Av1, prefConfig.experimentalPacked444);
+        int sdr10Formats = Sdr10Policy.formats(sdr10Refusal, sdr10Hevc, sdr10Av1);
+        streamSdr10 = sdr10Formats != 0;
+        decoderRenderer.setSdr10Requested(streamSdr10);
+        supportedVideoFormats |= sdr10Formats;
+        if (Sdr10Policy.worthSaying(sdr10Refusal)) {
+            LimeLog.warning("10-bit SDR enabled but not used: " + sdr10Refusal);
+            Toast.makeText(this, getString(R.string.stream_sdr10_unavailable, getString(
+                    sdr10Refusal == Sdr10Policy.Refusal.PACKED_444 ? R.string.stream_sdr10_reason_packed :
+                            R.string.stream_sdr10_reason_decoder)), Toast.LENGTH_LONG).show();
+        }
+
         int bitrate = isMetered ? prefConfig.meteredBitrate : prefConfig.bitrate;
         int pyroWaveFallbackBitrate = 0;
 
@@ -1102,6 +1122,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 .setMaxPacketSize(1392)
                 .setRemoteConfiguration(StreamConfiguration.STREAM_CFG_AUTO) // NvConnection will perform LAN and VPN detection
                 .setSupportedVideoFormats(supportedVideoFormats)
+                .setSdr10Bit(streamSdr10)
                 .setPacked444(prefConfig.experimentalPacked444)
                 .setAttachedGamepadMask(gamepadMask)
                 .setClientRefreshRateX100(clientRefreshRateX100)
@@ -2020,8 +2041,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             return null;
         }
         // Said either way, as the mock's "HEVC · HDR": a bare codec left HDR's state unsaid.
-        return getString((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_10BIT) != 0
-                ? R.string.companion_codec_hdr : R.string.companion_codec_sdr, name);
+        boolean tenBit = (videoFormat & MoonBridge.VIDEO_FORMAT_MASK_10BIT) != 0;
+        return getString(!tenBit ? R.string.companion_codec_sdr :
+                streamSdr10 && decoderRenderer != null && decoderRenderer.isSdr10Stream()
+                        ? R.string.companion_codec_sdr10 : R.string.companion_codec_hdr, name);
     }
 
     /**
@@ -2595,7 +2618,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             selectedVideoFormat += codecName(videoFormat);
 
             if ((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_10BIT) != 0) {
-                selectedVideoFormat += " HDR";
+                selectedVideoFormat += streamSdr10 && decoderRenderer.isSdr10Stream() ? " 10-bit SDR" : " HDR";
             }
 
             selectedVideoFormat += "]";

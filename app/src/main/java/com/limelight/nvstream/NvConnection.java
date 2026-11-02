@@ -32,6 +32,7 @@ import javax.crypto.SecretKey;
 import org.xmlpull.v1.XmlPullParserException;
 
 import com.limelight.LimeLog;
+import com.limelight.R;
 import com.limelight.binding.video.PyroWaveSupport;
 import com.limelight.nvstream.av.audio.AudioRenderer;
 import com.limelight.nvstream.av.video.VideoDecoderRenderer;
@@ -357,13 +358,24 @@ public class NvConnection {
         context.supportedVideoFormats = PyroWaveSupport.formatsForHost(
                 context.streamConfig.getSupportedVideoFormats(), context.serverCodecModeSupport);
         if (context.supportedVideoFormats != context.streamConfig.getSupportedVideoFormats()) {
-            context.connListener.displayTransientMessage("HDR is off: the host can stream PyroWave, which is SDR only.");
+            context.connListener.displayTransientMessage(context.streamConfig.isSdr10Bit() ?
+                    appContext.getString(R.string.stream_sdr10_host_pyrowave) :
+                    "HDR is off: the host can stream PyroWave, which is SDR only.");
         }
 
-        context.negotiatedHdr = (context.supportedVideoFormats & MoonBridge.VIDEO_FORMAT_MASK_10BIT) != 0;
-        if ((context.serverCodecModeSupport & 0x20200) == 0 && context.negotiatedHdr) {
-            context.connListener.displayTransientMessage("Your PC GPU does not support streaming HDR. The stream will be SDR.");
+        // 10-bit SDR offers 10-bit formats without asking for HDR in the launch.
+        boolean tenBit = (context.supportedVideoFormats & MoonBridge.VIDEO_FORMAT_MASK_10BIT) != 0;
+        context.negotiatedHdr = tenBit && !context.streamConfig.isSdr10Bit();
+        context.negotiatedSdr10 = tenBit && context.streamConfig.isSdr10Bit();
+        if ((context.serverCodecModeSupport & 0x20200) == 0 && tenBit) {
+            if (context.streamConfig.isSdr10Bit()) {
+                LimeLog.warning("10-bit SDR offered, but this PC streams 8-bit");
+                context.connListener.displayTransientMessage(appContext.getString(R.string.startup_sdr10_not_accepted));
+            } else {
+                context.connListener.displayTransientMessage("Your PC GPU does not support streaming HDR. The stream will be SDR.");
+            }
             context.negotiatedHdr = false;
+            context.negotiatedSdr10 = false;
         }
         
         //
