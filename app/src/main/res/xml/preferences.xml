@@ -351,6 +351,15 @@
             android:title="@string/title_seekbar_deadzone"
             app:iconSpaceReserved="false"
             seekbar:min="-20" />
+        <com.limelight.preferences.SeekBarPreference
+            android:defaultValue="2"
+            android:key="seekbar_trigger_deadzone"
+            android:max="30"
+            android:summary="@string/summary_seekbar_trigger_deadzone"
+            android:text="@string/suffix_seekbar_deadzone"
+            android:title="@string/title_seekbar_trigger_deadzone"
+            app:iconSpaceReserved="false"
+            seekbar:min="0" />
         <SwitchPreferenceCompat
             android:defaultValue="true"
             android:key="checkbox_multi_controller"

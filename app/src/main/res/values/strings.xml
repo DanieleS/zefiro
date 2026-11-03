@@ -287,6 +287,8 @@
     <string name="title_seekbar_deadzone">Adjust analog stick deadzone</string>
     <string name="summary_seekbar_deadzone">Positive values set a normal dead zone, negative values apply dead zone compensation. Ensure your controller can adjust dead zones when using dead zone compensation, or centering may be difficult.</string>
     <string name="suffix_seekbar_deadzone">%</string>
+    <string name="title_seekbar_trigger_deadzone">Trigger deadzone</string>
+    <string name="summary_seekbar_trigger_deadzone">Light trigger presses below this are ignored. Raise it if a resting trigger presses by itself; 0% sends every press.</string>
     <string name="title_checkbox_xb1_driver">Xbox 360/One/NintendoPro USB gamepad driver</string>
     <string name="summary_checkbox_xb1_driver">Enables a built-in USB driver for devices without native Xbox/Nintendo Pro controller support</string>
     <string name="title_checkbox_usb_bind_all">Override native Xbox gamepad support</string>

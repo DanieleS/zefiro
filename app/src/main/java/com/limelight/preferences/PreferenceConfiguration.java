@@ -65,6 +65,8 @@ public class PreferenceConfiguration {
     private static final String ADAPTIVE_BITRATE_PREF_STRING = "checkbox_adaptive_bitrate";
     private static final String ADAPTIVE_BITRATE_MODE_PREF_STRING = "list_adaptive_bitrate_mode";
     private static final String DEADZONE_PREF_STRING = "seekbar_deadzone";
+    static final String TRIGGER_DEADZONE_PREF_STRING = "seekbar_trigger_deadzone";
+    public static final int DEFAULT_TRIGGER_DEADZONE = 2, MAX_TRIGGER_DEADZONE = 30;
     private static final String OSC_OPACITY_PREF_STRING = "seekbar_osc_opacity";
     // The in-app language picker is gone (the UI is English-only and follows the system or
     // per-app locale); the key is only kept so readPreferences can drop a value saved before.
@@ -288,6 +290,7 @@ public class PreferenceConfiguration {
     public FormatOption videoFormat;
     public int framePacingWarpFactor = 0;
     public int deadzonePercentage;
+    public int triggerDeadzonePercentage = DEFAULT_TRIGGER_DEADZONE;
     public int oscOpacity;
     public int oscKeyboardOpacity;
     public int onscreenKeyboardHeight;
@@ -962,6 +965,8 @@ private static int getFramePacingValue(Context context) {
         config.analogStickForScrolling = getAnalogStickForScrollingValue(context);
 
         config.deadzonePercentage = prefs.getInt(DEADZONE_PREF_STRING, DEFAULT_DEADZONE);
+        config.triggerDeadzonePercentage = Math.max(0, Math.min(MAX_TRIGGER_DEADZONE,
+                prefs.getInt(TRIGGER_DEADZONE_PREF_STRING, DEFAULT_TRIGGER_DEADZONE)));
 
         config.oscOpacity = prefs.getInt(OSC_OPACITY_PREF_STRING, DEFAULT_OPACITY);
 
