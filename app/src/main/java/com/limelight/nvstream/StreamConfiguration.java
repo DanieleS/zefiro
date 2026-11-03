@@ -232,6 +232,12 @@ public class StreamConfiguration {
     public int getHeight() {
         return height;
     }
+
+    /** The size the next start of a connection asks for; a live resolution change updates it. */
+    public void setResolution(int width, int height) {
+        this.width = width;
+        this.height = height;
+    }
     
     public int getRefreshRate() {
         if (refreshRate == (int)refreshRate) {
