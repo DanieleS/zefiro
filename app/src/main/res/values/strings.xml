@@ -1034,6 +1034,14 @@
     <string name="game_menu_bitrate_choice_current">%1$s Mbps (now)</string>
     <string name="game_menu_bitrate_adaptive_on">Adaptive bitrate: on</string>
     <string name="game_menu_bitrate_adaptive_off">Adaptive bitrate: off</string>
+    <!-- The Resolution entry and its page: the stream's size, changed from the menu. -->
+    <string name="game_menu_resolution">Resolution: %1$s</string>
+    <string name="game_menu_resolution_native">Native (%1$s)</string>
+    <string name="resolution_switch_adjusting">Adjusting resolution…</string>
+    <string name="resolution_switch_target" translatable="false">%1$d × %2$d</string>
+    <string name="resolution_switch_reconnecting">Restoring stream…</string>
+    <string name="reconnect_resolution_msg">Changing resolution, reconnecting… %1$d s</string>
+    <string name="toast_resolution_reconnecting">Reconnecting to change the resolution…</string>
     <!-- The stream controls' own entries (stream/StreamActions): short, since the tiles they
          name are narrow. -->
     <string name="stream_action_keyboard">Keyboard</string>
@@ -1046,6 +1054,7 @@
     <string name="stream_action_screenshot">Screenshot</string>
     <string name="stream_action_save_replay">Save 30 s</string>
     <string name="stream_action_bitrate">Bitrate</string>
+    <string name="stream_action_resolution">Resolution</string>
     <string name="stream_action_clipboard">Clipboard</string>
     <string name="stream_action_keys">Keys</string>
     <!-- The in-stream side panel's header and its edge handle. -->

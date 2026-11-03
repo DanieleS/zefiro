@@ -101,6 +101,9 @@ public class MoonBridge {
     // protocol extension: the host carries them out with the capture tool configured on it.
     public static final int LI_FF_CAPTURE_ACTIONS   = 0x20000;
     public static final int LI_FF_CAPTURE_AVAILABLE = 0x40000;
+    // The host takes a client's request to change the stream resolution without ending the stream
+    // (requestResolutionChange()). A Foundation Sunshine extension.
+    public static final int LI_FF_CLIENT_RESOLUTION_CHANGE = 0x400;
 
     // Actions for sendCaptureAction()
     public static final int LI_CAPTURE_SCREENSHOT       = 0x01;
@@ -343,6 +346,12 @@ public class MoonBridge {
         }
     }
 
+    public static void bridgeClResolutionChanged(int width, int height) {
+        if (connectionListener != null) {
+            connectionListener.resolutionChanged(width, height);
+        }
+    }
+
     public static void bridgeClRumbleTriggers(short controllerNumber, short leftTrigger, short rightTrigger) {
         if (connectionListener != null) {
             connectionListener.rumbleTriggers(controllerNumber, leftTrigger, rightTrigger);
@@ -404,6 +413,12 @@ public class MoonBridge {
     // Asks the host to carry out a capture action (LI_CAPTURE_*). Returns LI_ERR_UNSUPPORTED
     // unless the host advertised LI_FF_CAPTURE_ACTIONS, 0 on success and -1 if it wasn't sent.
     public static native int sendCaptureAction(int action);
+
+    // Asks the host to change the stream resolution without ending it. 0 means sent, not applied:
+    // only a frame of the new size (see resolutionChanged()) shows it was. -1 invalid size, -2
+    // unsupported (the host did not advertise LI_FF_CLIENT_RESOLUTION_CHANGE), -3 disconnected,
+    // -4 not sent.
+    public static native int requestResolutionChange(int width, int height);
 
     public static native void sendEmptyPayload();
 

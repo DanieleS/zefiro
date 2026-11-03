@@ -88,6 +88,150 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         if (bufferIndex >= 0 && bufferIndex < PTS_BY_BUFFER_INDEX_SLOTS) {
             ptsUsByBufferIndex[bufferIndex] = presentationTimeUs;
         }
+        recordResolutionOutput(bufferIndex, presentationTimeUs);
+    }
+
+    // --- Live resolution change (see ResolutionSwitchController) ---
+    //
+    // The decoder is restarted at the new size, in place on the same surface, through the codec
+    // recovery that all its threads take part in. The change counts as done only when a frame of
+    // exactly the new size, out of that restarted decoder, has been handed to the display.
+
+    /** Told once, from a decoder thread, when the frame that proves a resolution change was shown. */
+    public interface ResolutionListener {
+        void onResolutionPresented(int width, int height);
+    }
+
+    private static final class PendingResolutionFrame {
+        final ResolutionFrameTracker tracker;
+        final ResolutionListener listener;
+
+        PendingResolutionFrame(ResolutionFrameTracker tracker, ResolutionListener listener) {
+            this.tracker = tracker;
+            this.listener = listener;
+        }
+    }
+
+    private volatile PendingResolutionFrame pendingResolutionFrame;
+    // The size the codec is to be restarted at by the next recovery, or null
+    private volatile int[] pendingResize;
+    // One per configuration of the codec: a frame of an earlier one can never confirm a change
+    private volatile Object decoderGeneration = new Object();
+    // The PTS of the output buffer at each index, from its dequeue to its release
+    private final long[] resolutionPtsByIndex = new long[256];
+
+    /**
+     * Whether the decoder can take a new size in place. Not PyroWave, which presents natively, nor
+     * packed full-chroma, whose shader is tied to the size, nor a stream that turned the picture
+     * to portrait.
+     */
+    public boolean supportsLiveResolutionChange() {
+        return !pyroWave && packing == null && !invertResolution && videoDecoder != null && !stopping;
+    }
+
+    /** Calls the listener once a frame of this size has been shown. Replaces any earlier wait. */
+    public void awaitResolutionFrame(int width, int height, ResolutionListener listener) {
+        pendingResolutionFrame = new PendingResolutionFrame(new ResolutionFrameTracker(width, height), listener);
+    }
+
+    public void cancelResolutionFrameWait() {
+        pendingResolutionFrame = null;
+    }
+
+    /**
+     * Restarts the decoder at this size, the host having reported it as the size of the frames
+     * from now on. It happens on the decoder threads, at their next buffer; the frames of the old
+     * size still arriving are dropped, and the first one of the new size is an IDR.
+     */
+    public void changeResolution(int width, int height) {
+        if (!supportsLiveResolutionChange()) {
+            return;
+        }
+        LimeLog.info("Decoder: restarting for a resolution change to " + width + "x" + height);
+        synchronized (codecRecoveryMonitor) {
+            if (stopping) {
+                return;
+            }
+            pendingResize = new int[] { width, height };
+            // An expected "recovery", as for an HDR change
+            codecRecoveryAttempts = 0;
+            if (!codecRecoveryType.compareAndSet(CR_RECOVERY_TYPE_NONE, CR_RECOVERY_TYPE_RESTART)) {
+                codecRecoveryType.compareAndSet(CR_RECOVERY_TYPE_FLUSH, CR_RECOVERY_TYPE_RESTART);
+            }
+        }
+    }
+
+    // With every decoder thread quiesced: the codec is about to be restarted, so it takes the
+    // new size. Also what a later reset or a rebuilt decoder then starts from.
+    private void applyPendingResize() {
+        int[] size = pendingResize;
+        if (size == null) {
+            return;
+        }
+        pendingResize = null;
+        initialWidth = size[0];
+        initialHeight = size[1];
+        decoderGeneration = new Object();
+        outputFormat = null;
+        MediaFormat format = configuredFormat;
+        if (format != null) {
+            format.setInteger(MediaFormat.KEY_WIDTH, initialWidth);
+            format.setInteger(MediaFormat.KEY_HEIGHT, initialHeight);
+            if (adaptivePlayback) {
+                format.setInteger(MediaFormat.KEY_MAX_WIDTH, initialWidth);
+                format.setInteger(MediaFormat.KEY_MAX_HEIGHT, initialHeight);
+            }
+        }
+        if (upscaler != null) {
+            // Built for the old size: the picture goes direct from here on
+            upscalingPolicy.fail(UpscalingPolicy.Reason.SIZE_CHANGED);
+        }
+    }
+
+    private static int[] decodedSize(MediaFormat format) {
+        try {
+            int width = format.containsKey("crop-right") && format.containsKey("crop-left")
+                    ? format.getInteger("crop-right") - format.getInteger("crop-left") + 1
+                    : format.getInteger(MediaFormat.KEY_WIDTH);
+            int height = format.containsKey("crop-bottom") && format.containsKey("crop-top")
+                    ? format.getInteger("crop-bottom") - format.getInteger("crop-top") + 1
+                    : format.getInteger(MediaFormat.KEY_HEIGHT);
+            return new int[] { width, height };
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    // A frame came out of the decoder: at what size
+    private void recordResolutionOutput(int bufferIndex, long presentationTimeUs) {
+        PendingResolutionFrame pending = pendingResolutionFrame;
+        MediaCodec codec = videoDecoder;
+        if (pending == null || codec == null || bufferIndex < 0) {
+            return;
+        }
+        resolutionPtsByIndex[bufferIndex & 0xFF] = presentationTimeUs;
+        try {
+            int[] size = decodedSize(codec.getOutputFormat(bufferIndex));
+            if (size != null) {
+                pending.tracker.decoded(decoderGeneration, presentationTimeUs, size[0], size[1]);
+            }
+        } catch (RuntimeException e) {
+            // A codec that cannot say what it decoded never confirms: the change times out
+        }
+    }
+
+    // A frame went to the display
+    private void resolutionFramePresented(int bufferIndex) {
+        PendingResolutionFrame pending = pendingResolutionFrame;
+        if (pending == null || bufferIndex < 0) {
+            return;
+        }
+        if (pending.tracker.presented(decoderGeneration, resolutionPtsByIndex[bufferIndex & 0xFF])) {
+            if (pendingResolutionFrame == pending) {
+                pendingResolutionFrame = null;
+            }
+            pending.listener.onResolutionPresented(pending.tracker.width, pending.tracker.height);
+        }
     }
 
     // Helper: release with low-latency policy (immediate only when very near to now)
@@ -199,6 +343,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             }
             benchLastPresentNs = presentNs;
         }
+        resolutionFramePresented(bufferIndex);
     }
 
     private void publishBenchmarkStats() {
@@ -1459,6 +1604,9 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                     outputBufferQueue.clear();
                 }
 
+                // A resolution change restarts the codec at the new size
+                applyPendingResize();
+
                 // If we just need a flush, do so now with all threads quiesced.
                 if (codecRecoveryType.get() == CR_RECOVERY_TYPE_FLUSH) {
                     LimeLog.warning("Flushing decoder");
@@ -1882,6 +2030,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             int outIndex = videoDecoder.dequeueOutputBuffer(info, getOutputDequeueTimeoutUs());
             if (outIndex >= 0) {
                 benchmarkDequeued(outIndex);
+                notePtsForBuffer(outIndex, info.presentationTimeUs);
                 numFramesOut++;
                 long nowNs = System.nanoTime();
                 Long rtpNs;
@@ -2230,6 +2379,8 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     public void prepareForStop() {
         // Let the decoding code know to ignore codec exceptions now
         stopping = true;
+        pendingResolutionFrame = null;
+        pendingResize = null;
 
         if (pyroWave) {
             // Called from surfaceDestroyed(): the native renderer must stop presenting to the
@@ -2658,6 +2809,15 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             return MoonBridge.DR_OK;
         }
 
+        // A resolution change is waiting for this thread: restart the codec now, before this unit
+        // is taken, rather than in the middle of an IDR frame. Only the first unit of an IDR frame
+        // can go on into the fresh codec; any other is of a frame the codec no longer has the
+        // start of.
+        if (pendingResize != null && doCodecRecoveryIfRequired(CR_FLAG_INPUT_THREAD)
+                && !startsIdrFrame(decodeUnitType, frameType)) {
+            return MoonBridge.DR_NEED_IDR;
+        }
+
         // The decode unit's presentation time is the host's RTP capture time. Parameter sets come
         // in their own calls ahead of the picture; only the picture counts. Arrival is the first
         // packet's receive time, already on the nanoTime clock.
@@ -3025,6 +3185,21 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         }
 
         return MoonBridge.DR_OK;
+    }
+
+    // Whether this decode unit is the first of an IDR frame: the VPS of HEVC, the SPS of H.264, the
+    // frame itself for AV1, which carries its sequence header in-band
+    private boolean startsIdrFrame(int decodeUnitType, int frameType) {
+        if (frameType != MoonBridge.FRAME_TYPE_IDR) {
+            return false;
+        }
+        if ((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_H265) != 0) {
+            return decodeUnitType == MoonBridge.BUFFER_TYPE_VPS;
+        }
+        if ((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_H264) != 0) {
+            return decodeUnitType == MoonBridge.BUFFER_TYPE_SPS;
+        }
+        return decodeUnitType == MoonBridge.BUFFER_TYPE_PICDATA;
     }
 
     private boolean replaySps() {

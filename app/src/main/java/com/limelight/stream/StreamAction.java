@@ -30,7 +30,7 @@ import java.util.List;
  *
  * <pre>
  *   ROOT ─┬─ tiles    KEYBOARD  GAMEPAD  MOUSE▸  OVERLAY
- *         ├─ list     SCREENSHOT  BITRATE▸  SPECIAL_KEYS▸  MORE▸
+ *         ├─ list     SCREENSHOT  BITRATE▸  RESOLUTION▸  SPECIAL_KEYS▸  MORE▸
  *         └─ danger   DISCONNECT  QUIT
  * </pre>
  */
@@ -55,6 +55,7 @@ public final class StreamAction {
         MOUSE_MODE, MOUSE_MODE_CHOICE, LOCAL_CURSOR, DEVICE_OPTION,
         SCREENSHOT,
         BITRATE, BITRATE_ADAPTIVE, BITRATE_CHOICE,
+        RESOLUTION, RESOLUTION_CHOICE,
         SPECIAL_KEYS, SPECIAL_KEY,
         MORE,
         CLIPBOARD, CLIPBOARD_UPLOAD, CLIPBOARD_FETCH,
@@ -95,7 +96,8 @@ public final class StreamAction {
     public final List<StreamAction> children;
     /**
      * The entry's own number, where its id alone is not enough: the kbps of a bitrate choice,
-     * the index of a server command, a device option or a mouse mode. 0 otherwise.
+     * the index of a server command, a device option or a mouse mode, the two sides of a
+     * resolution choice ({@link StreamResolutions#pack}). 0 otherwise.
      */
     public final int arg;
     /** The keys a key-sending entry presses, in order; null for the others. */

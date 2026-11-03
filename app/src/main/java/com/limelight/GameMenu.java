@@ -25,6 +25,7 @@ import com.limelight.stream.StreamAction;
 import com.limelight.stream.StreamActions;
 import com.limelight.stream.StreamCapabilities;
 import com.limelight.stream.StreamControlsPanel;
+import com.limelight.stream.StreamResolutions;
 import com.limelight.utils.CaptureTool;
 
 import java.util.ArrayList;
@@ -212,6 +213,7 @@ public class GameMenu implements Game.GameMenuCallbacks, ControlsSurface.Callbac
                 // Rotating turns the activity the sheet is drawn over; from the external display's
                 // phone that would be the wrong screen.
                 .canRotate(dialogScreenContext == game)
+                .resolutions(game.getResolutionChoices())
                 .zoomEnabled(game.isZoomModeEnabled())
                 .hudVisible(game.isHudVisible())
                 .virtualControllerShown(game.isVirtualControllerShown())
@@ -317,6 +319,10 @@ public class GameMenu implements Game.GameMenuCallbacks, ControlsSurface.Callbac
                 }
                 break;
             }
+            case RESOLUTION_CHOICE:
+                game.chooseResolution(StreamResolutions.unpackWidth(action.arg),
+                        StreamResolutions.unpackHeight(action.arg));
+                break;
             case CLIPBOARD_UPLOAD:
                 game.sendClipboard(true);
                 break;

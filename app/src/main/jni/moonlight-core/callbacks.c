@@ -50,6 +50,7 @@ static jmethodID BridgeClRumbleTriggersMethod;
 static jmethodID BridgeClSetMotionEventStateMethod;
 static jmethodID BridgeClSetControllerLEDMethod;
 static jmethodID BridgeClSetTextFocusMethod;
+static jmethodID BridgeClResolutionChangedMethod;
 static jbyteArray DecodedFrameBuffer;
 static jshortArray DecodedAudioBuffer;
 
@@ -115,6 +116,7 @@ Java_com_limelight_nvstream_jni_MoonBridge_init(JNIEnv *env, jclass clazz) {
     BridgeClSetMotionEventStateMethod = (*env)->GetStaticMethodID(env, clazz, "bridgeClSetMotionEventState", "(SBS)V");
     BridgeClSetControllerLEDMethod = (*env)->GetStaticMethodID(env, clazz, "bridgeClSetControllerLED", "(SBBB)V");
     BridgeClSetTextFocusMethod = (*env)->GetStaticMethodID(env, clazz, "bridgeClSetTextFocus", "(B)V");
+    BridgeClResolutionChangedMethod = (*env)->GetStaticMethodID(env, clazz, "bridgeClResolutionChanged", "(II)V");
 }
 
 int BridgeDrSetup(int videoFormat, int width, int height, int redrawRate, void* context, int drFlags) {
@@ -474,6 +476,16 @@ void BridgeClSetTextFocus(uint8_t focusType) {
     }
 }
 
+void BridgeClResolutionChanged(uint32_t width, uint32_t height) {
+    JNIEnv* env = GetThreadEnv();
+
+    (*env)->CallStaticVoidMethod(env, GlobalBridgeClass, BridgeClResolutionChangedMethod, (jint)width, (jint)height);
+    if ((*env)->ExceptionCheck(env)) {
+        // We will crash here
+        (*JVM)->DetachCurrentThread(JVM);
+    }
+}
+
 void BridgeClLogMessage(const char* format, ...) {
     va_list va;
     va_start(va, format);
@@ -512,6 +524,7 @@ static CONNECTION_LISTENER_CALLBACKS BridgeConnListenerCallbacks = {
         .setMotionEventState = BridgeClSetMotionEventState,
         .setControllerLED = BridgeClSetControllerLED,
         .setTextFocus = BridgeClSetTextFocus,
+        .resolutionChanged = BridgeClResolutionChanged,
 };
 
 static bool

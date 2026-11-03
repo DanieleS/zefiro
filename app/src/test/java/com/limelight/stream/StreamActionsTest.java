@@ -359,6 +359,58 @@ public class StreamActionsTest {
         assertTrue(StreamCapabilities.parseCustomKeys("not json").invalid);
     }
 
+    // --- The Resolution page ---
+
+    private static StreamCapabilities.Builder withResolutions() {
+        return everything().resolutions(StreamResolutions.choices(1920, 1080, 2400, 1080));
+    }
+
+    @Test
+    public void noResolutionEntryUnlessTheStreamCanChange() {
+        assertFalse(ids(StreamActions.build(everything().build())).contains(Id.RESOLUTION));
+        assertFalse(ids(StreamActions.build(nothing().build())).contains(Id.RESOLUTION));
+    }
+
+    @Test
+    public void resolutionIsAListEntryAfterTheBitrateWithTheSizesAsRows() {
+        StreamAction tree = StreamActions.build(withResolutions().build());
+
+        assertEquals(Arrays.asList(Id.SCREENSHOT, Id.BITRATE, Id.RESOLUTION, Id.SPECIAL_KEYS, Id.MORE),
+                idsOf(tree.children, Group.LIST));
+
+        StreamAction resolution = page(tree, Id.RESOLUTION);
+        // The entry reads the size in use
+        assertEquals(R.string.game_menu_resolution, resolution.labelRes);
+        assertEquals("1920 × 1080", resolution.labelArg);
+
+        List<StreamAction> rows = resolution.children;
+        assertEquals(4, rows.size());
+        for (StreamAction row : rows) {
+            assertEquals(Id.RESOLUTION_CHOICE, row.id);
+            // Changing the size injects no keys and opens nothing over the game
+            assertFalse(row.withGameFocus);
+        }
+        assertEquals("720p · 1280 × 720", rows.get(0).labelText);
+        assertEquals(StreamResolutions.pack(1280, 720), rows.get(0).arg);
+        assertEquals(Boolean.FALSE, rows.get(0).checked);
+        assertEquals(Boolean.TRUE, rows.get(1).checked);
+        assertEquals(StreamResolutions.pack(2560, 1440), rows.get(2).arg);
+        assertEquals(R.string.game_menu_resolution_native, rows.get(3).labelRes);
+        assertEquals("2400 × 1080", rows.get(3).labelArg);
+        assertEquals(StreamResolutions.pack(2400, 1080), rows.get(3).arg);
+    }
+
+    @Test
+    public void theThorSheetKeepsTheResolutionOnTheMorePage() {
+        StreamAction sheet = StreamActions.compact(StreamActions.build(withResolutions().build()));
+        StreamAction more = sheet.find(Id.MORE);
+        assertNotNull(more);
+        assertTrue(idsOf(more.children, Group.MORE).contains(Id.RESOLUTION));
+        // The eight tiles stay eight
+        assertEquals(8, idsOf(sheet.children, Group.TILE).size());
+        assertNotNull(sheet.find(Id.RESOLUTION_CHOICE));
+    }
+
     // --- The Thor sheet's layout (StreamActions.compact) ---
 
     @Test

@@ -76,6 +76,8 @@ import com.limelight.stream.EdgeSwipe;
 import com.limelight.stream.StreamCapabilities;
 import com.limelight.stream.StreamControlsPanel;
 import com.limelight.stream.StreamHud;
+import com.limelight.stream.StreamResolutions;
+import com.limelight.ui.ResolutionTransitionOverlay;
 import com.limelight.ui.StreamContainer;
 import com.limelight.ui.TextFocusKeyboard;
 import com.limelight.utils.CacheHelper;
@@ -2485,6 +2487,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             refreshMismatchDialog = null;
         }
 
+        forgetResolutionChange();
+
         // Nothing is left to reconnect: give back a decoder kept for it
         stopNetworkWatch();
         if (decoderParking != null) {
@@ -4661,6 +4665,14 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         }
 
         LimeLog.info("Reconnect: connection lost (error " + errorCode + "), reconnecting");
+        beginReconnect(errorCode, outageStart, now);
+        return true;
+    }
+
+    // UI thread: the stream is stopped, with its decoder parked and the last frame left on screen,
+    // and started again, attempt after attempt. The same for a network drop and for a change of
+    // resolution that could not be made in place (the size to come back at is then pending).
+    private void beginReconnect(int errorCode, long outageStart, long now) {
         reconnecting = true;
         deadConnectionStopped = false;
         reconnectAttempt = 0;
@@ -4670,7 +4682,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         updatePipAutoEnter();
         timerHandler.removeCallbacks(silenceWatchdog);
         silenceStartMs = 0;
-        showReconnectStatus(getString(R.string.reconnect_reconnecting_msg, (int) ((now - outageStartMs) / 1000)));
+        showReconnectStatus(reconnectStatusText(now - outageStartMs));
         timerHandler.post(reconnectTick);
 
         // The host session is gone, so no bitrate request can reach it, and the session a
@@ -4699,7 +4711,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 });
             }
         }.start();
-        return true;
+    }
+
+    private String reconnectStatusText(long elapsedMs) {
+        return getString(pendingReconnectWidth > 0 ? R.string.reconnect_resolution_msg
+                : R.string.reconnect_reconnecting_msg, (int) (elapsedMs / 1000));
     }
 
     private void scheduleReconnectAttempt() {
@@ -4733,6 +4749,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             decoderRenderer = createDecoderRenderer();
             decoderRenderer.setRenderTarget(surface,
                     streamContainer.getSurfaceView().getWidth(), streamContainer.getSurfaceView().getHeight());
+            awaitReconnectedPicture(decoderRenderer);
             decoderRenderer.setDecoderParking(decoderParking);
             conn.setReconnectAttempt(true);
             conn.start(new AndroidAudioRenderer(Game.this, prefConfig.playHostAudio),
@@ -4752,7 +4769,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 giveUpReconnect(0);
                 return;
             }
-            showReconnectStatus(getString(R.string.reconnect_reconnecting_msg, (int) (elapsed / 1000)));
+            showReconnectStatus(reconnectStatusText(elapsed));
             timerHandler.postDelayed(this, RECONNECT_TICK_MS);
         }
     };
@@ -4785,6 +4802,12 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
         // The host is running a new session that has never seen our controllers
         controllerHandler.reannounceControllers();
+
+        // A reconnect that changed the resolution: the new picture lifts the card and sets the
+        // view; if it never shows (a decoder that cannot say), this does, a moment from now
+        if (pendingReconnectWidth > 0) {
+            resolutionHandler.postDelayed(this::onResolutionReconnectSettled, RESOLUTION_SETTLE_MS);
+        }
     }
 
     // UI thread: the reconnect ends, whichever way. An attempt still running is told to give up,
@@ -4811,6 +4834,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 (finalAttemptError != 0 ? " (error " + finalAttemptError + ")" : ""));
         endReconnect();
         hideReconnectStatus();
+        forgetResolutionChange();
         UiHelper.notifyStreamEnded(this);
 
         String reason;
@@ -4835,6 +4859,7 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         LimeLog.info("Reconnect: cancelled after " + reconnectAttempt + " attempt(s)");
         endReconnect();
         hideReconnectStatus();
+        forgetResolutionChange();
         return true;
     }
 
@@ -4982,6 +5007,8 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     private void stopConnection() {
         // Leaving ends a reconnect too. Between attempts no connection is held, so then only the
         // rest of the teardown runs.
+        // A change of resolution under way ends with the stream
+        forgetResolutionChange();
         final boolean wasReconnecting = cancelReconnect();
         timerHandler.removeCallbacks(silenceWatchdog);
         stopNetworkWatch();
@@ -5145,6 +5172,16 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
+                // The end of the connection a change of resolution has replaced, or is about to
+                // replace by a reconnect at the new size, is not the stream's end
+                if (pendingReconnectWidth > 0 && reconnecting) {
+                    LimeLog.info("Ignoring the end of the connection being replaced: " + errorCode);
+                    return;
+                }
+                if (resolutionSwitch != null && resolutionSwitch.onConnectionTerminated()) {
+                    return;
+                }
+
                 // A network drop with auto-reconnect on keeps the stream screen as it is
                 if (maybeStartReconnect(errorCode)) {
                     return;
@@ -5561,6 +5598,299 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
         return BitrateSteps.formatMbps(kbps, getResources().getConfiguration().locale);
     }
 
+    // --- Changing the resolution of the running stream ---
+    //
+    // The Resolution entry of the controls. Where the host takes a request for it and the stream
+    // can follow (ResolutionSwitchController.isLiveSwitchSupported), the stream stays up: its last
+    // frame is held, blurred, under a status card until a frame of the new size has been shown.
+    // Anywhere else, and when that does not come about within 5 s, the stream is reconnected at the
+    // new size, as it is after a network drop. The frame rate, a rotation or an external display
+    // never go this way: they are reconnects, as they always were.
+
+    private static final long RESOLUTION_SETTLE_MS = 3000;
+    private final Handler resolutionHandler = new Handler(Looper.getMainLooper());
+    private ResolutionSwitchController resolutionSwitch;
+    private ResolutionTransitionOverlay resolutionOverlay;
+    // The size a reconnect made for a change of resolution comes back at; 0 when there is none
+    private int pendingReconnectWidth;
+    private int pendingReconnectHeight;
+    // The bitrate the new size recommends, asked for once the change is confirmed; 0 for none
+    private int recommendedBitrateKbps;
+
+    private ResolutionSwitchController resolutionSwitch() {
+        if (resolutionSwitch == null) {
+            resolutionSwitch = new ResolutionSwitchController(resolutionHost,
+                    new ResolutionSwitchController.Scheduler() {
+                        @Override
+                        public void postDelayed(Runnable runnable, long delayMs) {
+                            resolutionHandler.postDelayed(runnable, delayMs);
+                        }
+
+                        @Override
+                        public void cancel(Runnable runnable) {
+                            resolutionHandler.removeCallbacks(runnable);
+                        }
+                    });
+        }
+        return resolutionSwitch;
+    }
+
+    private final ResolutionSwitchController.Host resolutionHost = new ResolutionSwitchController.Host() {
+        @Override
+        public int requestChange(int width, int height) {
+            return conn != null ? conn.requestResolutionChange(width, height) : MoonBridge.LI_ERR_UNSUPPORTED;
+        }
+
+        @Override
+        public void awaitFrame(int width, int height) {
+            final MediaCodecDecoderRenderer renderer = decoderRenderer;
+            if (renderer != null) {
+                renderer.awaitResolutionFrame(width, height, (shownWidth, shownHeight) ->
+                        runOnUiThread(() -> {
+                            if (resolutionSwitch != null && decoderRenderer == renderer) {
+                                resolutionSwitch.onFramePresented(shownWidth, shownHeight);
+                            }
+                        }));
+            }
+        }
+
+        @Override
+        public void cancelFrameWait() {
+            if (decoderRenderer != null) {
+                decoderRenderer.cancelResolutionFrameWait();
+            }
+        }
+
+        @Override
+        public void restartDecoder(int width, int height) {
+            if (decoderRenderer != null) {
+                decoderRenderer.changeResolution(width, height);
+            }
+        }
+
+        @Override
+        public void beginTransition(int width, int height, Runnable ready) {
+            disposeResolutionOverlay();
+            resolutionOverlay = new ResolutionTransitionOverlay(Game.this, width, height);
+            resolutionOverlay.holdFrameOf(streamContainer.getSurfaceView(), ready);
+        }
+
+        @Override
+        public void revealNewStream() {
+            if (resolutionOverlay != null) {
+                resolutionOverlay.reveal();
+                resolutionOverlay = null;
+            }
+        }
+
+        @Override
+        public void abandonTransition(boolean reconnecting) {
+            if (resolutionOverlay == null) {
+                return;
+            }
+            if (reconnecting) {
+                resolutionOverlay.reconnecting();
+            } else {
+                disposeResolutionOverlay();
+            }
+        }
+
+        @Override
+        public void confirmed(int width, int height) {
+            applyStreamSize(width, height, true);
+            applyRecommendedBitrate();
+        }
+
+        @Override
+        public void reconnect(int width, int height) {
+            startResolutionReconnect(width, height);
+        }
+    };
+
+    /**
+     * The sizes the Resolution entry offers, none when the stream cannot be changed from here: an
+     * input-only session, an external display (its size is the display's), a benchmark, or a stream
+     * that is not up.
+     */
+    public List<StreamCapabilities.ResolutionChoice> getResolutionChoices() {
+        if (conn == null || !connected || reconnecting || isFinishing() || benchmarkRun != null
+                || NvApp.isRemoteInputUuid(appUUID) || isOnExternalDisplay()
+                || prefConfig.renderMode != 0 || displayWidth <= 0 || displayHeight <= 0) {
+            return Collections.emptyList();
+        }
+        Point screen = new Point();
+        getWindowManager().getDefaultDisplay().getRealSize(screen);
+        return StreamResolutions.choices(displayWidth, displayHeight, screen.x, screen.y);
+    }
+
+    /** From the Resolution page. Choosing the size the stream has does nothing. */
+    public void chooseResolution(int width, int height) {
+        if (!ResolutionSwitchController.isValidSize(width, height)
+                || (width == displayWidth && height == displayHeight)
+                || conn == null || !connected || reconnecting || isFinishing()
+                || resolutionSwitch().isActive() || resolutionOverlay != null) {
+            return;
+        }
+        noteRecommendedBitrate(displayWidth, displayHeight, width, height);
+        if (canChangeResolutionLive()) {
+            LimeLog.info("Changing the resolution in place: " + displayWidth + "x" + displayHeight +
+                    " -> " + width + "x" + height);
+            resolutionSwitch().start(width, height);
+        } else {
+            LimeLog.info("Changing the resolution by a reconnect: " + displayWidth + "x" + displayHeight +
+                    " -> " + width + "x" + height);
+            Toast.makeText(this, R.string.toast_resolution_reconnecting, Toast.LENGTH_SHORT).show();
+            reconnectAtResolution(width, height);
+        }
+    }
+
+    // Whether the host announced it takes the request and this stream can follow the change
+    private boolean canChangeResolutionLive() {
+        return conn.supportsResolutionChange() && decoderRenderer != null
+                && ResolutionSwitchController.isLiveSwitchSupported(decoderRenderer.getActiveVideoFormat(),
+                        decoderRenderer.supportsLiveResolutionChange());
+    }
+
+    // The same card as the in-place change, saying the stream is being restored, over the last frame
+    private void reconnectAtResolution(int width, int height) {
+        disposeResolutionOverlay();
+        final ResolutionTransitionOverlay overlay = new ResolutionTransitionOverlay(this, width, height);
+        resolutionOverlay = overlay;
+        overlay.reconnecting();
+        overlay.holdFrameOf(streamContainer.getSurfaceView(), () -> {
+            if (resolutionOverlay == overlay) {
+                startResolutionReconnect(width, height);
+            }
+        });
+    }
+
+    // UI thread: the stream is stopped and started again at this size, through the reconnect that
+    // follows a network drop, once its attempts are made for it
+    private void startResolutionReconnect(int width, int height) {
+        Surface surface = streamContainer.getSurface();
+        if (reconnecting || !connected || isFinishing() || surface == null || !surface.isValid()) {
+            disposeResolutionOverlay();
+            return;
+        }
+        // The attempts ask for the new size; the view follows once its picture is up
+        applyStreamSize(width, height, false);
+        pendingReconnectWidth = width;
+        pendingReconnectHeight = height;
+        // The recommended bitrate is only asked for in place; a reconnect starts at the configured one
+        recommendedBitrateKbps = 0;
+        long now = SystemClock.elapsedRealtime();
+        beginReconnect(0, now, now);
+    }
+
+    // The attempt's decoder watches for a frame of the size the reconnect came back for
+    private void awaitReconnectedPicture(final MediaCodecDecoderRenderer renderer) {
+        if (pendingReconnectWidth <= 0) {
+            return;
+        }
+        renderer.awaitResolutionFrame(pendingReconnectWidth, pendingReconnectHeight, (width, height) ->
+                runOnUiThread(() -> {
+                    if (decoderRenderer == renderer) {
+                        onResolutionReconnectSettled();
+                    }
+                }));
+    }
+
+    // UI thread: the reconnect for a change of resolution shows its picture (or has had its time)
+    private void onResolutionReconnectSettled() {
+        if (pendingReconnectWidth <= 0) {
+            return;
+        }
+        int width = pendingReconnectWidth;
+        int height = pendingReconnectHeight;
+        pendingReconnectWidth = 0;
+        pendingReconnectHeight = 0;
+        updateStreamViewSize(width, height);
+        if (resolutionOverlay != null) {
+            resolutionOverlay.reveal();
+            resolutionOverlay = null;
+        }
+    }
+
+    // The stream has this size from now on: what the rest of the screen is laid out and mapped by
+    private void applyStreamSize(int width, int height, boolean updateView) {
+        displayWidth = width;
+        displayHeight = height;
+        prefConfig.width = width;
+        prefConfig.height = height;
+        if (conn != null) {
+            // Also what a later reconnect asks for
+            conn.setResolution(width, height);
+        }
+        if (updateView) {
+            updateStreamViewSize(width, height);
+        }
+    }
+
+    // The stream view takes the shape of the picture. The absolute mouse and the touch mapping read
+    // the view's own size, so they follow.
+    private void updateStreamViewSize(int width, int height) {
+        if (prefConfig.videoScaleMode != PreferenceConfiguration.ScaleMode.STRETCH) {
+            streamContainer.setDesiredAspectRatio((double) width / (double) height);
+            streamContainer.setFillDisplay(prefConfig.videoScaleMode == PreferenceConfiguration.ScaleMode.FILL);
+        }
+        // Upscaling needs a surface of the output size, so only a direct stream has its surface at
+        // the stream's own
+        if (prefConfig.upscalingMode == UpscalingPolicy.Mode.OFF) {
+            try {
+                streamContainer.getSurfaceView().getHolder().setFixedSize(width, height);
+            } catch (RuntimeException ignored) {
+                // A surface that is going away has no size to give
+            }
+        }
+    }
+
+    // A bitrate left at what the old size recommended follows the new size; one the user chose, or
+    // an adaptive one, stays. Only a host that takes live bitrate changes can be asked.
+    private void noteRecommendedBitrate(int oldWidth, int oldHeight, int newWidth, int newHeight) {
+        recommendedBitrateKbps = 0;
+        LiveBitrate bitrate = getLiveBitrate();
+        if (bitrate == null || bitrate.isAdaptive()) {
+            return;
+        }
+        int fps = Math.round(prefConfig.fps);
+        if (bitrate.getCurrentKbps() != PreferenceConfiguration.getDefaultBitrate(oldWidth, oldHeight, fps)) {
+            return;
+        }
+        int recommended = PreferenceConfiguration.getDefaultBitrate(newWidth, newHeight, fps);
+        if (recommended != bitrate.getCurrentKbps()) {
+            recommendedBitrateKbps = recommended;
+        }
+    }
+
+    // The change stands whether or not the host takes the bitrate: it only says so in a toast
+    private void applyRecommendedBitrate() {
+        int kbps = recommendedBitrateKbps;
+        recommendedBitrateKbps = 0;
+        LiveBitrate bitrate = getLiveBitrate();
+        if (kbps > 0 && bitrate != null) {
+            bitrate.setManual(kbps);
+        }
+    }
+
+    private void disposeResolutionOverlay() {
+        if (resolutionOverlay != null) {
+            resolutionOverlay.dispose();
+            resolutionOverlay = null;
+        }
+    }
+
+    // The stream is going away or has been reconnected: nothing of a change is left to wait for
+    private void forgetResolutionChange() {
+        if (resolutionSwitch != null) {
+            resolutionSwitch.cancel();
+        }
+        disposeResolutionOverlay();
+        resolutionHandler.removeCallbacksAndMessages(null);
+        pendingReconnectWidth = 0;
+        pendingReconnectHeight = 0;
+        recommendedBitrateKbps = 0;
+    }
+
     /**
      * Start following the host's achievements for the unlock toast.
      *
@@ -5663,6 +5993,17 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     @Override
     public void setControllerLED(short controllerNumber, byte r, byte g, byte b) {
         controllerHandler.handleSetControllerLED(controllerNumber, r, g, b);
+    }
+
+    @Override
+    public void resolutionChanged(final int width, final int height) {
+        // Called on moonlight-common-c's callback thread; the change is handled on the main one
+        LimeLog.info("Host resolution change: " + width + "x" + height);
+        runOnUiThread(() -> {
+            if (resolutionSwitch != null) {
+                resolutionSwitch.onHostResolution(width, height);
+            }
+        });
     }
 
     @Override
