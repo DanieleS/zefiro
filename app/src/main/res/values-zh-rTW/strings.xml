@@ -348,8 +348,6 @@
 	<string name="pacing_smoothness">優先最流暢影片（可能大幅增加延遲）</string>
 
 
-	<string name="keyboard_service_label">Artemis 實體鍵盤</string>
-	<string name="accessibility_description_text">僅在系統攔截實體鍵盤快捷鍵時使用。在某些系統中，部分快捷鍵已被 Android 系統定義並使用，導致無法傳遞至主機電腦。Artemis 不會檢視您的輸入，也不會收集您的密碼、信用卡號或任何其他私人資訊。</string>
 
 
 	<!-- In Game menu -->
