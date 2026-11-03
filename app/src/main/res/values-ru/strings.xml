@@ -326,8 +326,6 @@
     <string name="summary_special_key_help">Инструкция по настройке пользовательских спец-клавиш</string>
     <string name="summary_performance_link">Просмотреть производительность других устройств.\nОбратите внимание, эти данные поддерживаются сообществом, они не поддерживаются Artemis и не представляют Artemis официально.</string>
     <string name="pacing_warp">Warp Drive (экспериментально)</string>
-    <string name="keyboard_service_label">Физическая клавиатура Artemis</string>
-    <string name="accessibility_description_text">Используется, если системные сочетания физической клавиатуры перехватываются Android. В таких случаях некоторые сочетания не проходят на хост-ПК. Artemis не просматривает ваш ввод и не собирает пароли, номера карт или другую личную информацию.</string>
     <string name="game_menu_select_mouse_mode">Выбрать режим мыши</string>
     <string name="game_menu_select_steam_mode">Выбрать режим стрима</string>
     <string name="game_menu_enable_zoom_mode">Включить прокрутку/масш.</string>
