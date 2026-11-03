@@ -25,6 +25,9 @@ public class AndroidAudioRenderer implements AudioRenderer {
     private long lastBufferCheckMs;
     private int channelConfig, sampleRate, samplesPerFrame, channels;
     private boolean stopped;
+    // AAudio reopens after a disconnect: when the last one was, and how many came right after the one before.
+    private long lastReopenAt = Long.MIN_VALUE / 2;
+    private int quickReopens;
 
     private static native long nativeOpenAudio(int sampleRate, long concealer);
     private static native boolean nativeWriteAudio(long handle, short[] samples, int length);
@@ -109,17 +112,46 @@ public class AndroidAudioRenderer implements AudioRenderer {
 
         LimeLog.info("Audio channel config: "+String.format("0x%X", channelConfig));
 
-        if (AudioBufferPolicy.useAAudio(Build.VERSION.SDK_INT, channels, enableAudioFx, sampleRate,
-                AudioTrack.getNativeOutputSampleRate(AudioManager.STREAM_MUSIC))) {
-            nativeAudio = nativeOpenAudio(sampleRate, MoonBridge.audioConcealer());
-            if (nativeAudio != 0) {
-                int[] stats = nativeAudioStats(nativeAudio);
-                bufferPolicy = new AudioBufferPolicy(stats[0], stats[1], stats[2], policyUnderruns(stats), SystemClock.uptimeMillis());
-                LimeLog.info("Audio output: AAudio low latency");
-                return 0;
-            }
-        }
+        quickReopens = 0;
+        lastReopenAt = Long.MIN_VALUE / 2;
+        if (openAAudio()) return 0;
         return setupAudioTrack();
+    }
+
+    // AAudio at the stream's rate where useAAudio allows it, with a fresh buffer policy; false leaves none open.
+    private boolean openAAudio() {
+        if (!AudioBufferPolicy.useAAudio(Build.VERSION.SDK_INT, channels, enableAudioFx, sampleRate,
+                AudioTrack.getNativeOutputSampleRate(AudioManager.STREAM_MUSIC))) {
+            return false;
+        }
+        nativeAudio = nativeOpenAudio(sampleRate, MoonBridge.audioConcealer());
+        if (nativeAudio == 0) return false;
+        int[] stats = nativeAudioStats(nativeAudio);
+        lastBufferCheckMs = 0;
+        bufferPolicy = new AudioBufferPolicy(stats[0], stats[1], stats[2], policyUnderruns(stats), SystemClock.uptimeMillis());
+        LimeLog.info("Audio output: AAudio low latency");
+        return true;
+    }
+
+    /**
+     * AAudio disconnected, as a route change (headphones, Bluetooth, a USB DAC) does: AAudio again on the
+     * new route, keeping low latency and stall concealment. AudioTrack only when it does not reopen, or
+     * keeps dying right after reopening (AudioBufferPolicy.reopenAAudio).
+     */
+    private boolean reopenAudio(String reason) {
+        long now = SystemClock.uptimeMillis();
+        quickReopens = now - lastReopenAt < AudioBufferPolicy.REOPEN_SETTLE_MS ? quickReopens + 1 : 0;
+        lastReopenAt = now;
+        if (!AudioBufferPolicy.reopenAAudio(quickReopens)) {
+            return fallbackToAudioTrack(reason + " " + quickReopens + " times right after reopening");
+        }
+        LimeLog.warning(reason + "; reopening AAudio on the current route");
+        logAudioSummary();
+        nativeCloseAudio(nativeAudio);
+        nativeAudio = 0;
+        bufferPolicy = null;
+        if (openAAudio()) return true;
+        return fallbackToAudioTrack(reason + " and AAudio did not reopen");
     }
 
     private int setupAudioTrack() {
@@ -244,7 +276,12 @@ public class AndroidAudioRenderer implements AudioRenderer {
                     tuneBuffer();
                     return;
                 }
-                if (!fallbackToAudioTrack("AAudio disconnected")) {
+                if (!reopenAudio("AAudio disconnected")) {
+                    return;
+                }
+                if (nativeAudio != 0) {
+                    // The next buffer reopens again, or falls back if it keeps dying.
+                    if (nativeWriteAudio(nativeAudio, audioData, audioData.length)) tuneBuffer();
                     return;
                 }
             }
@@ -284,10 +321,12 @@ public class AndroidAudioRenderer implements AudioRenderer {
     }
 
     private boolean fallbackToAudioTrack(String reason) {
-        LimeLog.warning(reason + "; falling back to AudioTrack");
-        logAudioSummary();
-        nativeCloseAudio(nativeAudio);
-        nativeAudio = 0;
+        LimeLog.severe(reason + "; falling back to AudioTrack");
+        if (nativeAudio != 0) {
+            logAudioSummary();
+            nativeCloseAudio(nativeAudio);
+            nativeAudio = 0;
+        }
         bufferPolicy = null;
         if (setupAudioTrack() != 0) {
             stopped = true;

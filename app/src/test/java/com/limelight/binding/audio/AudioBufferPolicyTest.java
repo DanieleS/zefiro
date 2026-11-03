@@ -7,6 +7,12 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 
 public class AudioBufferPolicyTest {
+    @Test public void aaudioIsReopenedUntilItKeepsDyingRightAfterReopening() {
+        assertTrue(AudioBufferPolicy.reopenAAudio(0));
+        assertTrue(AudioBufferPolicy.reopenAAudio(AudioBufferPolicy.MAX_QUICK_REOPENS - 1));
+        assertFalse(AudioBufferPolicy.reopenAAudio(AudioBufferPolicy.MAX_QUICK_REOPENS));
+    }
+
     @Test public void startsAtTheInitialReserveWithinBounds() {
         assertEquals(384, new AudioBufferPolicy(192, 3072, 384, 0, 0).sample(0, 500));
         assertEquals(384, new AudioBufferPolicy(192, 3072, 100, 0, 0).sample(0, 500));

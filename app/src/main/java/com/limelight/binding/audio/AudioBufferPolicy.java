@@ -51,6 +51,18 @@ final class AudioBufferPolicy {
         return limitUnderruns >= 3;
     }
 
+    /**
+     * After a route change disconnected AAudio: reopen it on the new route, unless the last reopen came
+     * less than REOPEN_SETTLE_MS before and MAX_QUICK_REOPENS of them did so in a row, an output that
+     * keeps dying, which AudioTrack takes over.
+     */
+    static final long REOPEN_SETTLE_MS = 1000;
+    static final int MAX_QUICK_REOPENS = 3;
+
+    static boolean reopenAAudio(int quickReopens) {
+        return quickReopens < MAX_QUICK_REOPENS;
+    }
+
     static boolean useAAudio(int sdk, int channels, boolean effects, int sampleRate, int nativeRate) {
         // Android 8.0's first AAudio implementation and surround/effects retain AudioTrack.
         return sdk >= 27 && channels == 2 && !effects && sampleRate == nativeRate;
