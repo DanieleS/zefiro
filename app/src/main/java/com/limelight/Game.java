@@ -56,7 +56,9 @@ import com.limelight.nvstream.NvConnection;
 import com.limelight.nvstream.NvConnectionListener;
 import com.limelight.nvstream.ReconnectPolicy;
 import com.limelight.nvstream.RoamingNetworkWatch;
+import com.limelight.library.LibraryIntents;
 import com.limelight.nvstream.StreamConfiguration;
+import com.limelight.nvstream.StreamResumeLimit;
 import com.limelight.nvstream.http.ComputerDetails;
 import com.limelight.nvstream.http.NvApp;
 import com.limelight.nvstream.http.NvHTTP;
@@ -292,6 +294,13 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
      */
     private final Set<Short> heldHostKeys = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private boolean displayedFailureDialog = false;
+    // The stream was stopped because something covered it (Home, a Google Play services prompt,
+    // screen off) rather than ended here, so the session is picked back up when this shows again.
+    private boolean resumeOnStart;
+    // The resume went to ShortcutTrampoline, which starts a new Game: this one only finishes.
+    private boolean handedOver;
+    // Across instances: each resume is a new Game, and the cap has to outlive it
+    private static final StreamResumeLimit resumeLimit = new StreamResumeLimit();
     private boolean connecting = false;
     public boolean connected = false;
     private boolean autoEnterPip = false;
@@ -2596,9 +2605,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
             keyBoardLayoutController.hide();
         }
 
-        if (conn != null) {
+        if (conn != null && !handedOver) {
             int videoFormat = decoderRenderer.getActiveVideoFormat();
 
+            resumeOnStart = canResumeAfterStop();
             displayedFailureDialog = true;
             stopConnection();
             String message = null;
@@ -2679,8 +2689,68 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 );
             }
 
+            if (resumeOnStart) {
+                // Stay in the back stack so onStart() can reconnect when this shows again
+                return;
+            }
         }
 
+        finish();
+    }
+
+    // Whether this stop is a cover rather than an end: not finishing, no failure shown, not in
+    // picture-in-picture, a game to rejoin, and not too many resumes lately.
+    private boolean canResumeAfterStop() {
+        if (isFinishing() || displayedFailureDialog || benchmarkRun != null || !connected) {
+            return false;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode()) {
+            return false;
+        }
+        Intent intent = getIntent();
+        if (intent.getStringExtra(EXTRA_PC_UUID) == null ||
+                (intent.getStringExtra(EXTRA_APP_UUID) == null &&
+                        intent.getIntExtra(EXTRA_APP_ID, StreamConfiguration.INVALID_APP_ID) <= 0)) {
+            return false;
+        }
+        if (!resumeLimit.tryAcquire(SystemClock.elapsedRealtime())) {
+            LimeLog.info("Stream covered again too often, not resuming");
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (resumeOnStart) {
+            resumeOnStart = false;
+            LimeLog.info("Stream was stopped in the background, reconnecting");
+            resumeStream();
+        }
+    }
+
+    // Starts the stream again as a shortcut for this game would (the trampoline finds the host,
+    // wakes it if needed and rejoins the running game), and ends this instance.
+    private void resumeStream() {
+        Intent intent = getIntent();
+        Intent trampoline = new Intent(this, ShortcutTrampoline.class);
+        trampoline.putExtra(LibraryIntents.EXTRA_UUID, intent.getStringExtra(EXTRA_PC_UUID));
+        trampoline.putExtra(LibraryIntents.EXTRA_NAME, intent.getStringExtra(EXTRA_PC_NAME));
+        trampoline.putExtra(EXTRA_APP_NAME, intent.getStringExtra(EXTRA_APP_NAME));
+        trampoline.putExtra(EXTRA_APP_UUID, intent.getStringExtra(EXTRA_APP_UUID));
+        int id = intent.getIntExtra(EXTRA_APP_ID, StreamConfiguration.INVALID_APP_ID);
+        if (id > 0) {
+            trampoline.putExtra(EXTRA_APP_ID, String.valueOf(id));
+        }
+        trampoline.putExtra(EXTRA_APP_HDR, intent.getBooleanExtra(EXTRA_APP_HDR, false));
+        trampoline.setAction(Intent.ACTION_DEFAULT);
+        handedOver = true;
+        try {
+            startActivity(trampoline);
+        } catch (RuntimeException e) {
+            LimeLog.warning("Could not resume the stream: " + e);
+        }
         finish();
     }
 
