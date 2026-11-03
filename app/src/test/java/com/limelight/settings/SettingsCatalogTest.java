@@ -77,7 +77,8 @@ public class SettingsCatalogTest {
         // 146 with the client roaming switch and its mobile data switch.
         // 148 with the manual HDR peak switch and its value.
         // 149 with the 10-bit SDR switch.
-        assertEquals(149, catalogue.size());
+        // 150 with the trigger deadzone.
+        assertEquals(150, catalogue.size());
     }
 
     @Test

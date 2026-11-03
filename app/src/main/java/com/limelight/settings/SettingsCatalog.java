@@ -112,7 +112,7 @@ public final class SettingsCatalog {
             new Section("controllers", R.string.settings_section_controllers,
                     R.string.settings_section_controllers,
                     new Subgroup(R.string.settings_group_gamepad,
-                            "seekbar_deadzone", "checkbox_multi_controller", "checkbox_usb_driver",
+                            "seekbar_deadzone", "seekbar_trigger_deadzone", "checkbox_multi_controller", "checkbox_usb_driver",
                             "checkbox_usb_bind_all"),
                     new Subgroup(R.string.settings_group_mouse_emulation,
                             "checkbox_mouse_emulation", "analog_scrolling"),
