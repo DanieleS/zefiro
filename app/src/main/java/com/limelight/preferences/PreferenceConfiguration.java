@@ -576,10 +576,12 @@ public class PreferenceConfiguration {
     }
 
     public static int getDefaultBitrate(String resString, String fpsString) {
-        int width = getWidthFromResolutionString(resString);
-        int height = getHeightFromResolutionString(resString);
-        int fps = Math.round(Float.parseFloat(fpsString));
+        return getDefaultBitrate(getWidthFromResolutionString(resString),
+                getHeightFromResolutionString(resString), Math.round(Float.parseFloat(fpsString)));
+    }
 
+    /** The bitrate (kbps) recommended for a stream of this size and frame rate. */
+    public static int getDefaultBitrate(int width, int height, int fps) {
         // This logic is shamelessly stolen from Moonlight Qt:
         // https://github.com/moonlight-stream/moonlight-qt/blob/master/app/settings/streamingpreferences.cpp
 

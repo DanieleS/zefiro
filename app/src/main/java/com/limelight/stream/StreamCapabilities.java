@@ -49,6 +49,31 @@ public final class StreamCapabilities {
         }
     }
 
+    /**
+     * A stream size the Resolution page offers: a preset ("1080p") or the screen's own size,
+     * in the orientation of the stream.
+     */
+    public static final class ResolutionChoice {
+        public final int width;
+        public final int height;
+        /** The preset's name, or null for the screen's native size. */
+        @Nullable
+        public final String name;
+        /** The size the stream has now. */
+        public final boolean current;
+
+        public ResolutionChoice(int width, int height, @Nullable String name, boolean current) {
+            this.width = width;
+            this.height = height;
+            this.name = name;
+            this.current = current;
+        }
+
+        public String sizeText() {
+            return width + " × " + height;
+        }
+    }
+
     /** A shortcut the user imported in the settings: a name and the keys it presses. */
     public static final class CustomKey {
         @NonNull
@@ -75,6 +100,10 @@ public final class StreamCapabilities {
     }
 
     public final boolean captureEnabled;
+
+    /** The sizes the stream can be changed to; empty when it cannot (no Resolution entry then). */
+    @NonNull
+    public final List<ResolutionChoice> resolutions;
 
     /** Whether the host can change the bitrate mid-stream; the fields below mean nothing if not. */
     public final boolean liveBitrate;
@@ -116,6 +145,7 @@ public final class StreamCapabilities {
 
     private StreamCapabilities(Builder b) {
         captureEnabled = b.captureEnabled;
+        resolutions = Collections.unmodifiableList(new ArrayList<>(b.resolutions));
         liveBitrate = b.liveBitrate;
         bitrateAdaptive = b.bitrateAdaptive;
         bitrateCurrentKbps = b.bitrateCurrentKbps;
@@ -186,6 +216,7 @@ public final class StreamCapabilities {
 
     public static final class Builder {
         private boolean captureEnabled;
+        private List<ResolutionChoice> resolutions = Collections.emptyList();
         private boolean liveBitrate;
         private boolean bitrateAdaptive;
         private int bitrateCurrentKbps;
@@ -213,6 +244,12 @@ public final class StreamCapabilities {
 
         public Builder captureEnabled(boolean v) {
             captureEnabled = v;
+            return this;
+        }
+
+        /** The sizes the Resolution page offers; none leaves the entry out. */
+        public Builder resolutions(@NonNull List<ResolutionChoice> v) {
+            resolutions = v;
             return this;
         }
 

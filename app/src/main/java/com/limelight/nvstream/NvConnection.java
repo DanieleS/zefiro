@@ -694,6 +694,34 @@ public class NvConnection {
         return MoonBridge.sendCaptureAction(action);
     }
 
+    /**
+     * Whether the host takes a request to change the resolution without ending the stream; only
+     * known once the connection has started.
+     */
+    public boolean supportsResolutionChange() {
+        return (getHostFeatureFlags() & MoonBridge.LI_FF_CLIENT_RESOLUTION_CHANGE) != 0;
+    }
+
+    /**
+     * See {@link MoonBridge#requestResolutionChange(int, int)}: 0 only means the request was sent,
+     * the stream has the new size once frames of it arrive. {@link MoonBridge#LI_ERR_UNSUPPORTED}
+     * while monkey testing.
+     */
+    public int requestResolutionChange(int width, int height) {
+        if (isMonkey) {
+            return MoonBridge.LI_ERR_UNSUPPORTED;
+        }
+        return MoonBridge.requestResolutionChange(width, height);
+    }
+
+    /**
+     * Makes the next start of this connection ask for this size, for a stream that carries on
+     * after a resolution change (the host's resume answers with the size of the request).
+     */
+    public void setResolution(int width, int height) {
+        context.streamConfig.setResolution(width, height);
+    }
+
     /** See {@link MoonBridge#getHostFeatureFlags()}; none while monkey testing. */
     public int getHostFeatureFlags() {
         return isMonkey ? 0 : MoonBridge.getHostFeatureFlags();

@@ -24,4 +24,9 @@ public interface NvConnectionListener {
     // The host reported what kind of text field has focus, one of TextFocusKeyboard.FOCUS_*.
     // Only called when the stream was started with text focus hints enabled.
     void setTextFocus(byte focusType);
+
+    // The host reports the size of the video frames from now on, answering a resolution change
+    // request. Frames of the old size may still arrive after it. Only called on hosts that
+    // advertised MoonBridge.LI_FF_CLIENT_RESOLUTION_CHANGE.
+    void resolutionChanged(int width, int height);
 }

@@ -32,6 +32,12 @@ Java_com_limelight_nvstream_jni_MoonBridge_sendCaptureAction(JNIEnv *env, jclass
     return LiSendCaptureAction((uint8_t) action);
 }
 
+JNIEXPORT jint JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_requestResolutionChange(JNIEnv *env, jclass clazz,
+                                                                   jint width, jint height) {
+    return LiRequestResolutionChange(width, height);
+}
+
 JNIEXPORT void JNICALL
 Java_com_limelight_nvstream_jni_MoonBridge_sendEmptyPayload(JNIEnv *env, jclass clazz) {
     LiSendEmptyPayload();

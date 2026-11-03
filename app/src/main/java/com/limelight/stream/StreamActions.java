@@ -19,12 +19,13 @@ import java.util.List;
  *
  * <pre>
  *   Tiles    Keyboard · Gamepad (not on an external display) · Mouse▸ · Overlay
- *   List     Screenshot (capture tool on) · Bitrate▸ (live bitrate) · Special keys▸ · More▸
+ *   List     Screenshot (capture tool on) · Bitrate▸ (live bitrate) · Resolution▸ · Special keys▸ · More▸
  *   Danger   Disconnect · Quit game
  *
  *   Mouse▸         Mouse mode▸ (if allowed) · the gamepad's own options
  *   Mouse mode▸    the modes this display allows · toggle the local cursor
  *   Bitrate▸       Adaptive on/off · the bitrate ladder
+ *   Resolution▸    720p · 1080p · 1440p · the screen's native size
  *   Special keys▸  14 built-in combos (unless cleared) · the user's imported shortcuts
  *   More▸          clipboard up/down · Server commands▸ · pan/zoom · rotate · companion screen ·
  *                  companion app · special-keys bar · full keyboard · task manager ·
@@ -124,6 +125,9 @@ public final class StreamActions {
                             : R.string.game_menu_bitrate, mbps(caps, caps.bitrateCurrentKbps))
                     .children(bitratePage(caps)).build());
         }
+        if (!caps.resolutions.isEmpty()) {
+            main.add(resolutionEntry(caps));
+        }
         main.add(StreamAction.of(Id.SPECIAL_KEYS, Group.LIST)
                 .label(R.string.stream_action_special_keys)
                 .children(specialKeysPage(caps)).build());
@@ -181,7 +185,7 @@ public final class StreamActions {
         List<StreamAction> rest = new ArrayList<>();
         // The main page's tiles the sheet has no room for lead the More page, ahead of its own.
         for (StreamAction entry : main) {
-            if (entry.id == Id.GAMEPAD || entry.id == Id.MOUSE) {
+            if (entry.id == Id.GAMEPAD || entry.id == Id.MOUSE || entry.id == Id.RESOLUTION) {
                 rest.add(StreamAction.copyOf(entry, Group.MORE).build());
             }
         }
@@ -301,6 +305,36 @@ public final class StreamActions {
                     .arg(kbps).build());
         }
         return page;
+    }
+
+    /**
+     * The Resolution entry, reading the size the stream has now, and its page: the presets and
+     * the screen's own size, the one in use checked. Choosing the one in use does nothing.
+     */
+    private static StreamAction resolutionEntry(StreamCapabilities caps) {
+        List<StreamAction> page = new ArrayList<>();
+        String current = null;
+        for (StreamCapabilities.ResolutionChoice choice : caps.resolutions) {
+            StreamAction.Builder b = StreamAction.of(Id.RESOLUTION_CHOICE, Group.LIST)
+                    .arg(StreamResolutions.pack(choice.width, choice.height))
+                    .checked(choice.current);
+            if (choice.name != null) {
+                b.text(choice.name + " · " + choice.sizeText());
+            } else {
+                b.label(R.string.game_menu_resolution_native, choice.sizeText());
+            }
+            page.add(b.build());
+            if (choice.current) {
+                current = choice.sizeText();
+            }
+        }
+        StreamAction.Builder entry = StreamAction.of(Id.RESOLUTION, Group.LIST).children(page);
+        if (current != null) {
+            entry.label(R.string.game_menu_resolution, current);
+        } else {
+            entry.label(R.string.stream_action_resolution);
+        }
+        return entry.build();
     }
 
     private static List<StreamAction> specialKeysPage(StreamCapabilities caps) {
