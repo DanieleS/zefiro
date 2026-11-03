@@ -120,6 +120,7 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
     private final NvConnection conn;
     private final Activity activityContext;
     private final double stickDeadzone;
+    private final float triggerDeadzone;
     private final InputDeviceContext defaultContext = new InputDeviceContext();
     private final GameGestures gestures;
     private final InputManager inputManager;
@@ -192,6 +193,7 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         }
 
         this.stickDeadzone = (double)deadzonePercentage / 100.0;
+        this.triggerDeadzone = prefConfig.triggerDeadzonePercentage / 100f;
 
         // Initialize the default context for events with no device
         defaultContext.leftStickXAxis = MotionEvent.AXIS_X;
@@ -200,6 +202,7 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         defaultContext.rightStickXAxis = MotionEvent.AXIS_Z;
         defaultContext.rightStickYAxis = MotionEvent.AXIS_RZ;
         defaultContext.rightStickDeadzoneRadius = (float) stickDeadzone;
+        defaultContext.triggerDeadzone = triggerDeadzone;
         defaultContext.leftTriggerAxis = MotionEvent.AXIS_BRAKE;
         defaultContext.rightTriggerAxis = MotionEvent.AXIS_GAS;
         defaultContext.hatXAxis = MotionEvent.AXIS_HAT_X;
@@ -739,7 +742,7 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
 
         context.leftStickDeadzoneRadius = (float) stickDeadzone;
         context.rightStickDeadzoneRadius = (float) stickDeadzone;
-        context.triggerDeadzone = 0.13f;
+        context.triggerDeadzone = triggerDeadzone;
 
         return context;
     }
@@ -1114,26 +1117,15 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
             context.rightStickDeadzoneRadius = (float) stickDeadzone;
         }
 
-        if (context.leftTriggerAxis != -1 && context.rightTriggerAxis != -1) {
-            InputDevice.MotionRange ltRange = getMotionRangeForJoystickAxis(dev, context.leftTriggerAxis);
-            InputDevice.MotionRange rtRange = getMotionRangeForJoystickAxis(dev, context.rightTriggerAxis);
-
-            // It's important to have a valid deadzone so controller packet batching works properly
-            context.triggerDeadzone = Math.max(Math.abs(ltRange.getFlat()), Math.abs(rtRange.getFlat()));
-
-            // For triggers without (valid) deadzones, we'll use 13% (around XInput's default)
-            if (context.triggerDeadzone < 0.13f ||
-                context.triggerDeadzone > 0.30f)
-            {
-                context.triggerDeadzone = 0.13f;
-            }
-        }
+        // The axis' reported flat is ignored: Linux HID gives every axis a generic 1/16 of its
+        // range, which would hide the first 6% of trigger travel.
+        context.triggerDeadzone = triggerDeadzone;
 
         // The ADT-1 controller needs a similar fixup to the ASUS Gamepad
         if (dev.getVendorId() == 0x18d1 && dev.getProductId() == 0x2c40) {
             context.backIsStart = true;
             context.modeIsSelect = true;
-            context.triggerDeadzone = 0.30f;
+            context.triggerDeadzone = Math.max(triggerDeadzone, QUIRK_TRIGGER_DEADZONE);
             context.hasSelect = true;
             context.hasMode = false;
         }
@@ -1155,7 +1147,7 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
 
                 // The ASUS Gamepad has triggers that sit far forward and are prone to false presses
                 // so we increase the deadzone on them to minimize this
-                context.triggerDeadzone = 0.30f;
+                context.triggerDeadzone = Math.max(triggerDeadzone, QUIRK_TRIGGER_DEADZONE);
             }
             // SHIELD controllers will use small stick deadzones
             else if (devName.contains("SHIELD") || devName.contains("NVIDIA Controller")) {
@@ -1888,6 +1880,17 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         return inputVector;
     }
 
+    // Trigger deadzone from the settings (2% by default, enough for a resting trigger to read as
+    // released so packet batching keeps working). Moonlight used a fixed 13% (XInput's threshold
+    // for treating a trigger as a button), which cut off the first part of the travel. Travel past
+    // it is sent raw: the host and game apply their own.
+    // Pads whose triggers sit far forward and false-press never go below 30%.
+    static final float QUIRK_TRIGGER_DEADZONE = 0.30f;
+
+    static float applyTriggerDeadzone(float value, float deadzone) {
+        return value <= deadzone ? 0 : value;
+    }
+
     private void handleDeadZone(Vector2d stickVector, float deadzoneRadius) {
         if (deadzoneRadius > 0) {
             // We're not normalizing here because we let the computer handle the deadzones.
@@ -1956,12 +1959,8 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
                 }
             }
 
-            if (lt <= context.triggerDeadzone) {
-                lt = 0;
-            }
-            if (rt <= context.triggerDeadzone) {
-                rt = 0;
-            }
+            lt = applyTriggerDeadzone(lt, context.triggerDeadzone);
+            rt = applyTriggerDeadzone(rt, context.triggerDeadzone);
 
             context.leftTrigger = (byte)(lt * 0xFF);
             context.rightTrigger = (byte)(rt * 0xFF);
@@ -3283,12 +3282,8 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         context.rightStickX = (short) (rightStickVector.getX() * 0x7FFE);
         context.rightStickY = (short) (-rightStickVector.getY() * 0x7FFE);
 
-        if (leftTrigger <= context.triggerDeadzone) {
-            leftTrigger = 0;
-        }
-        if (rightTrigger <= context.triggerDeadzone) {
-            rightTrigger = 0;
-        }
+        leftTrigger = applyTriggerDeadzone(leftTrigger, context.triggerDeadzone);
+        rightTrigger = applyTriggerDeadzone(rightTrigger, context.triggerDeadzone);
 
         context.leftTrigger = (byte)(leftTrigger * 0xFF);
         context.rightTrigger = (byte)(rightTrigger * 0xFF);
