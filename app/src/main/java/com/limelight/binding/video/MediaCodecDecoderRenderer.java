@@ -41,6 +41,7 @@ import android.net.TrafficStats;
 import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.Looper;
 import android.os.Process;
 import android.os.SystemClock;
 import android.util.Range;
@@ -2396,9 +2397,17 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         }
 
         // Stop any active codec recovery operations
-        synchronized (codecRecoveryMonitor) {
+        if (decoderFailure != null || Looper.myLooper() == Looper.getMainLooper()) {
+            // A reset holds the monitor inside MediaCodec: for seconds (the restart an HDR change
+            // asks for, a big AV1 decoder's) or for good (one that hung). The UI must not wait for
+            // it (ANR). Waiting threads look at the type again within a second, and stop() repeats
+            // this with the wake-up on the shutdown worker.
             codecRecoveryType.set(CR_RECOVERY_TYPE_NONE);
-            codecRecoveryMonitor.notifyAll();
+        } else {
+            synchronized (codecRecoveryMonitor) {
+                codecRecoveryType.set(CR_RECOVERY_TYPE_NONE);
+                codecRecoveryMonitor.notifyAll();
+            }
         }
 
         // Post a quit message to the Choreographer looper (if we have one)
