@@ -285,30 +285,56 @@ public interface TelemetryViewStore {
      *
      * <p>Only the index and the view for the contract actually announced are downloaded, never the
      * whole catalogue. Both are kept in the app's private files, so a view downloaded once keeps
-     * working without a network. The index is fetched again at most once a day, and also when it
-     * does not know a contract a game announces, since that contract's view may have been published
-     * since; but only once per contract per run of the app, so a game with no view does not ask on
-     * every snapshot.
+     * working without a network.
+     *
+     * <h3>When the index is checked</h3>
+     *
+     * The first resolve of each stream session asks Pages whether the index changed, sending the
+     * ETag of the copy kept here. An unchanged index answers 304 with no body, so the check is cheap
+     * enough to make every session, and a view published today is on screen at the next stream
+     * rather than up to a day later. After that the kept copy is used for the rest of the session,
+     * except when it does not know a contract a game announces: that contract's view may have been
+     * published since, so the index is asked again, but only once per contract, so a game with no
+     * view does not ask on every attach.
+     *
+     * <p>Without a network the check fails quickly and the kept copy is used, however old.
      */
     final class Published implements TelemetryViewStore {
 
         private static final String BASE_URL = "https://danieles.github.io/zefiro-telemetry-views/";
         private static final String DIRECTORY = "telemetry-views-published";
         private static final String INDEX = "index.json";
-        private static final long INDEX_MAX_AGE_MS = TimeUnit.DAYS.toMillis(1);
+        /** The ETag of the kept index, sent back to ask whether it changed. */
+        private static final String INDEX_ETAG = "index.json.etag";
         /** Far above any real view (the Sea of Stars one is 134 KB), and a bound on a bad response. */
         private static final long MAX_BYTES = 8L * 1024 * 1024;
 
         private final File root;
+        private final String baseUrl;
         private final OkHttpClient http = new OkHttpClient.Builder()
                 .connectTimeout(10, TimeUnit.SECONDS)
                 .readTimeout(20, TimeUnit.SECONDS)
                 .build();
-        /** Contracts the index was already refetched for in this run, found or not. */
+        /**
+         * The index check is made on every session, often with no internet behind the host's LAN,
+         * and the view waits for it: it gives up sooner than a view download does.
+         */
+        private final OkHttpClient indexHttp = http.newBuilder()
+                .callTimeout(5, TimeUnit.SECONDS)
+                .build();
+        /** Whether the index was already checked in this session. */
+        private boolean checked;
+        /** Contracts the index was already refetched for in this session, found or not. */
         private final Set<String> refetchedFor = new HashSet<>();
 
+        /** One per stream session: the controller that makes it lives as long as the session. */
         public Published(Context context) {
-            this.root = new File(context.getFilesDir(), DIRECTORY);
+            this(new File(context.getFilesDir(), DIRECTORY), BASE_URL);
+        }
+
+        Published(File root, String baseUrl) {
+            this.root = root;
+            this.baseUrl = baseUrl;
         }
 
         @Override
@@ -318,12 +344,14 @@ public interface TelemetryViewStore {
             }
 
             File indexFile = new File(root, INDEX);
-            boolean fresh = indexFile.isFile()
-                    && System.currentTimeMillis() - indexFile.lastModified() < INDEX_MAX_AGE_MS;
-            JSONObject index = fresh ? Index.parse(Files.read(indexFile), indexFile.getPath()) : fetchIndex(indexFile);
+            boolean fetched = !checked;
+            checked = true;
+            JSONObject index = fetched ? fetchIndex(indexFile) : Index.parse(Files.read(indexFile), indexFile.getPath());
             JSONObject entry = Index.pick(index, contract);
 
-            if (entry == null && refetchedFor.add(contract.toString())) {
+            // Marked even when the index was just checked, so a contract it does not know is not
+            // asked about again on the next attach.
+            if (entry == null && refetchedFor.add(contract.toString()) && !fetched) {
                 JSONObject refreshed = fetchIndex(indexFile);
                 if (refreshed != null) {
                     entry = Index.pick(refreshed, contract);
@@ -337,7 +365,8 @@ public interface TelemetryViewStore {
             File cached = new File(root, file);
             byte[] bytes = Files.read(cached);
             if (!Index.matches(entry, bytes)) {
-                bytes = download(BASE_URL + file);
+                Fetched view = download(http, baseUrl + file, null);
+                bytes = view != null ? view.bytes : null;
                 if (!Index.matches(entry, bytes)) {
                     // Pages caches for a few minutes, so a new index can briefly name a view the CDN
                     // still serves the old copy of. Nothing is kept; the next resolve tries again.
@@ -350,28 +379,65 @@ public interface TelemetryViewStore {
         }
 
         /**
-         * Fetch the index and keep it. Without a network the copy already kept is used, however old,
-         * and a failed fetch touches nothing.
+         * Ask whether the index changed, and keep it if it did. Without a network, or with an answer
+         * that is not an index, the copy already kept is used, however old, and nothing is touched.
          */
         private JSONObject fetchIndex(File indexFile) {
-            byte[] bytes = download(BASE_URL + INDEX);
-            JSONObject index = Index.parse(bytes, BASE_URL + INDEX);
-            if (index != null) {
-                Files.writeAtomically(indexFile, bytes);
-                return index;
+            File etagFile = new File(root, INDEX_ETAG);
+            JSONObject kept = Index.parse(Files.read(indexFile), indexFile.getPath());
+            // An ETag is only worth sending for a copy that can be used if the answer is 304.
+            byte[] etagBytes = kept != null ? Files.read(etagFile) : null;
+            String etag = etagBytes != null ? new String(etagBytes, StandardCharsets.UTF_8) : null;
+
+            Fetched fetched = download(indexHttp, baseUrl + INDEX, etag);
+            if (fetched == null || fetched.notModified) {
+                return kept;
             }
-            return Index.parse(Files.read(indexFile), indexFile.getPath());
+            JSONObject index = Index.parse(fetched.bytes, baseUrl + INDEX);
+            if (index == null) {
+                return kept;
+            }
+            // The index first, then its ETag: cut off in between, the old ETag no longer matches
+            // and the next check simply downloads the index again. The other way round, a new ETag
+            // next to the old index would be answered 304 until the index changed once more.
+            Files.writeAtomically(indexFile, fetched.bytes);
+            if (fetched.etag != null) {
+                Files.writeAtomically(etagFile, fetched.etag.getBytes(StandardCharsets.UTF_8));
+            } else {
+                etagFile.delete();
+            }
+            return index;
         }
 
-        private byte[] download(String url) {
-            Request request = new Request.Builder().url(url).get().build();
-            try (Response response = http.newCall(request).execute()) {
+        /** What a download brought back: a body and its ETag, or word that the copy kept is current. */
+        private static final class Fetched {
+            final byte[] bytes;
+            final String etag;
+            final boolean notModified;
+
+            Fetched(byte[] bytes, String etag, boolean notModified) {
+                this.bytes = bytes;
+                this.etag = etag;
+                this.notModified = notModified;
+            }
+        }
+
+        /** The response to {@code url}, or null if there was none worth using. */
+        private static Fetched download(OkHttpClient client, String url, String etag) {
+            Request.Builder request = new Request.Builder().url(url).get();
+            if (etag != null) {
+                request.header("If-None-Match", etag);
+            }
+            try (Response response = client.newCall(request.build()).execute()) {
+                if (response.code() == 304 && etag != null) {
+                    return new Fetched(null, etag, true);
+                }
                 ResponseBody body = response.body();
                 if (!response.isSuccessful() || body == null) {
                     LimeLog.info("Telemetry: " + url + " answered " + response.code());
                     return null;
                 }
-                return Files.readBounded(body.byteStream(), MAX_BYTES);
+                return new Fetched(Files.readBounded(body.byteStream(), MAX_BYTES), response.header("ETag"), false);
             } catch (IOException e) {
                 LimeLog.info("Telemetry: could not fetch " + url + ": " + e.getMessage());
                 return null;
