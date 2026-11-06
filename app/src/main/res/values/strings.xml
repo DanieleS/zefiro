@@ -309,6 +309,13 @@
     <string name="summary_checkbox_force_device_motion">Enforce using devices\'s built-in motion sensor even when the controller reported motion sensors are supported.</string>
     <string name="title_swap_select_and_touchpad">Swap View button and Touchpad</string>
     <string name="summary_swap_select_and_touchpad">For controllers without a touchpad that are emulated as a PlayStation controller for motion support (handhelds, phone grips, or controllers like the Switch Pro Controller), View/Select sends a touchpad click and View+L1 sends View/Select. Real PlayStation controllers are unaffected.</string>
+    <string name="title_guide_menu_hold">Hold Guide to open the stream menu</string>
+    <string name="summary_guide_menu_hold">Holding Guide for this long opens the stream menu without sending Guide to the PC. A shorter press is sent to the PC as a short Guide tap when released, and Guide chords such as Guide+RB still work. Applies from the next stream.</string>
+    <string name="guide_menu_hold_off">Off</string>
+    <string name="guide_menu_hold_500">0.5 seconds</string>
+    <string name="guide_menu_hold_1000">1 second</string>
+    <string name="guide_menu_hold_1500">1.5 seconds</string>
+    <string name="guide_menu_hold_2000">2 seconds</string>
     <string name="title_checkbox_device_motion_handheld">Device is held upright (handheld)</string>
     <string name="summary_checkbox_device_motion_handheld">Remaps the device\'s motion sensors for a device held upright with the screen facing you, like a handheld or a phone in a controller grip. Turning left and right is reported as yaw instead of roll.</string>
     <string name="title_enable_rumble">Enable Rumble</string>

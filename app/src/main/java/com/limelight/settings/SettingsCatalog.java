@@ -118,7 +118,7 @@ public final class SettingsCatalog {
                             "checkbox_mouse_emulation", "analog_scrolling"),
                     new Subgroup(R.string.settings_group_buttons,
                             "checkbox_flip_face_buttons", "checkbox_gamepad_touchpad_as_mouse",
-                            "checkbox_swap_select_and_touchpad"),
+                            "checkbox_swap_select_and_touchpad", "list_guide_menu_hold"),
                     new Subgroup(R.string.settings_group_motion,
                             "checkbox_gamepad_motion_sensors", "checkbox_gamepad_motion_fallback",
                             "checkbox_force_device_motion", "checkbox_device_motion_handheld"),

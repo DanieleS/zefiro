@@ -138,6 +138,7 @@ public class PreferenceConfiguration {
     private static final String CHECKBOX_RIGHT_ALT_AS_META = "checkbox_right_alt_as_meta";
     private static final String CHECKBOX_IGNORE_SYNTH_EVENTS = "checkbox_ignore_synth_events";
     private static final String CHECKBOX_BACK_AS_GUIDE = "checkbox_back_as_guide";
+    private static final String LIST_GUIDE_MENU_HOLD = "list_guide_menu_hold";
     private static final String CHECKBOX_SWAP_SELECT_AND_TOUCHPAD = "checkbox_swap_select_and_touchpad";
     private static final String CHECKBOX_SMART_CLIPBOARD_SYNC = "checkbox_smart_clipboard_sync";
     private static final String CHECKBOX_SMART_CLIPBOARD_SYNC_TOAST = "checkbox_smart_clipboard_sync_toast";
@@ -245,6 +246,8 @@ public class PreferenceConfiguration {
     private static final boolean DEFAULT_RIGHT_ALT_AS_META = false;
     private static final boolean DEFAULT_IGNORE_SYNTH_EVENTS = false;
     private static final boolean DEFAULT_BACK_AS_GUIDE = false;
+    // Off: holding Guide changes when Guide reaches the PC, so it is opt-in.
+    public static final int DEFAULT_GUIDE_MENU_HOLD_MS = 0;
     private static final boolean DEFAULT_SWAP_SELECT_AND_TOUCHPAD = false;
     private static final boolean DEFAULT_SMART_CLIPBOARD_SYNC = false;
     private static final boolean DEFAULT_SMART_CLIPBOARD_SYNC_TOAST = true;
@@ -314,6 +317,8 @@ public class PreferenceConfiguration {
     public boolean rightAltAsMeta;
     public boolean ignoreSynthEvents;
     public boolean backAsGuide;
+    // Holding a controller's Guide this long opens the stream menu; 0 is off.
+    public int guideMenuHoldMs = DEFAULT_GUIDE_MENU_HOLD_MS;
     public boolean swapSelectAndTouchpad;
     public boolean smartClipboardSync;
     public boolean smartClipboardSyncToast;
@@ -477,6 +482,15 @@ public class PreferenceConfiguration {
     private static final String BALANCE_SHIFT = "balance_shift";
     private static final String NUMBER_PAN_OFFSET_X = "number_pan_offset_x";
     private static final String NUMBER_PAN_OFFSET_Y = "number_pan_offset_y";
+
+    /** The stored Hold Guide to open the stream menu time in ms; off (0) for anything else. */
+    public static int guideMenuHoldMs(String stored) {
+        if (stored == null) return DEFAULT_GUIDE_MENU_HOLD_MS;
+        switch (stored) {
+            case "0": case "500": case "1000": case "1500": case "2000": return Integer.parseInt(stored);
+            default: return DEFAULT_GUIDE_MENU_HOLD_MS;
+        }
+    }
 
     public static boolean isNativeResolution(int width, int height) {
         // It's not a native resolution if it matches an existing resolution option
@@ -1124,6 +1138,7 @@ private static int getFramePacingValue(Context context) {
         config.rightAltAsMeta = prefs.getBoolean(CHECKBOX_RIGHT_ALT_AS_META, DEFAULT_RIGHT_ALT_AS_META);
         config.ignoreSynthEvents = prefs.getBoolean(CHECKBOX_IGNORE_SYNTH_EVENTS, DEFAULT_IGNORE_SYNTH_EVENTS);
         config.backAsGuide = prefs.getBoolean(CHECKBOX_BACK_AS_GUIDE, DEFAULT_BACK_AS_GUIDE);
+        config.guideMenuHoldMs = guideMenuHoldMs(prefs.getString(LIST_GUIDE_MENU_HOLD, null));
         config.swapSelectAndTouchpad = prefs.getBoolean(CHECKBOX_SWAP_SELECT_AND_TOUCHPAD, DEFAULT_SWAP_SELECT_AND_TOUCHPAD);
         config.smartClipboardSync = prefs.getBoolean(CHECKBOX_SMART_CLIPBOARD_SYNC, DEFAULT_SMART_CLIPBOARD_SYNC);
         config.smartClipboardSyncToast = prefs.getBoolean(CHECKBOX_SMART_CLIPBOARD_SYNC_TOAST, DEFAULT_SMART_CLIPBOARD_SYNC_TOAST);

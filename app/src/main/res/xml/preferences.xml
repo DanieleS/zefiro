@@ -438,6 +438,14 @@
             android:summary="@string/summary_swap_select_and_touchpad"
             android:title="@string/title_swap_select_and_touchpad"
             app:iconSpaceReserved="false" />
+        <ListPreference
+            android:defaultValue="0"
+            android:entries="@array/guide_menu_hold_names"
+            android:entryValues="@array/guide_menu_hold_values"
+            android:key="list_guide_menu_hold"
+            android:summary="@string/summary_guide_menu_hold"
+            android:title="@string/title_guide_menu_hold"
+            app:iconSpaceReserved="false" />
         <SwitchPreferenceCompat
             android:defaultValue="false"
             android:key="checkbox_enable_joyconfix"

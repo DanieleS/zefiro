@@ -78,7 +78,8 @@ public class SettingsCatalogTest {
         // 148 with the manual HDR peak switch and its value.
         // 149 with the 10-bit SDR switch.
         // 150 with the trigger deadzone.
-        assertEquals(150, catalogue.size());
+        // 151 with the hold-Guide-for-the-stream-menu delay.
+        assertEquals(151, catalogue.size());
     }
 
     @Test

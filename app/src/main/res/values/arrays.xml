@@ -101,6 +101,21 @@
         <item>50</item>
     </string-array>
 
+    <string-array name="guide_menu_hold_names">
+        <item>@string/guide_menu_hold_off</item>
+        <item>@string/guide_menu_hold_500</item>
+        <item>@string/guide_menu_hold_1000</item>
+        <item>@string/guide_menu_hold_1500</item>
+        <item>@string/guide_menu_hold_2000</item>
+    </string-array>
+    <string-array name="guide_menu_hold_values" translatable="false">
+        <item>0</item>
+        <item>500</item>
+        <item>1000</item>
+        <item>1500</item>
+        <item>2000</item>
+    </string-array>
+
     <string-array name="analog_scrolling_names">
         <item>@string/analogscroll_none</item>
         <item>@string/analogscroll_right</item>
