@@ -5465,6 +5465,9 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 connecting = false;
                 updatePipAutoEnter();
 
+                // Report attached gamepads to the host now instead of on their first input
+                controllerHandler.announceAttachedControllers();
+
                 if (benchmarkRun != null) {
                     benchmarkRun.start(timerHandler, () -> decoderRenderer.snapshotBenchmarkStats(), Game.this::completeBenchmarkRun);
                 }
