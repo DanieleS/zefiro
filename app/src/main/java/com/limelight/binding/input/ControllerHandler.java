@@ -145,6 +145,7 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
 
     private final PreferenceConfiguration prefConfig;
     private short currentControllers, initialControllers;
+    private boolean streamStarted;
 
     public ControllerHandler(Activity activityContext, NvConnection conn, GameGestures gestures, PreferenceConfiguration prefConfig) {
         this.activityContext = activityContext;
@@ -246,7 +247,46 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
 
     @Override
     public void onInputDeviceAdded(int deviceId) {
-        // Nothing happening here yet
+        // Announce gamepads connected mid-stream right away rather than waiting for input
+        if (streamStarted) {
+            announceControllerIfNeeded(InputDevice.getDevice(deviceId));
+        }
+    }
+
+    // Called once the stream has started. Without this, the host doesn't create a
+    // virtual gamepad until the first input event arrives from each controller.
+    public void announceAttachedControllers() {
+        streamStarted = true;
+
+        for (int id : InputDevice.getDeviceIds()) {
+            announceControllerIfNeeded(InputDevice.getDevice(id));
+        }
+    }
+
+    private void announceControllerIfNeeded(InputDevice dev) {
+        if (stopped || dev == null || dev.isVirtual()) {
+            return;
+        }
+
+        // Require both joystick axes and gamepad buttons to avoid announcing
+        // auxiliary devices (touchpads, motion sensor nodes, remotes) as gamepads
+        if (!hasJoystickAxes(dev) || !hasGamepadButtons(dev)) {
+            return;
+        }
+
+        InputDeviceContext context = inputDeviceContexts.get(dev.getId());
+        if (context == null) {
+            context = createInputDeviceContextForDevice(dev);
+            inputDeviceContexts.put(dev.getId(), context);
+        }
+
+        if (!context.assignedControllerNumber) {
+            LimeLog.info("Announcing controller: "+context.name+" ("+context.id+")");
+
+            // This assigns a controller number, sends the arrival event, and
+            // reports a neutral initial state to the host
+            sendControllerInputPacket(context);
+        }
     }
 
     @Override
