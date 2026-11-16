@@ -182,6 +182,21 @@ public class ControlsOpenPadsTest {
     }
 
     @Test
+    public void aClosedMotionListener_sendsNothing() throws Exception {
+        ControllerHandler.MotionListener listener = sensorListener(MoonBridge.LI_MOTION_TYPE_GYRO);
+        listener.closed = true;
+        SensorEvent reading = SensorEventBuilder.newBuilder()
+                .setSensor(ShadowSensor.newInstance(Sensor.TYPE_GYROSCOPE))
+                .setValues(new float[] {0.1f, 0.2f, 0.3f})
+                .build();
+
+        listener.onSensorChanged(reading);
+
+        verify(conn, never()).sendControllerMotionEvent(anyByte(), anyByte(),
+                anyFloat(), anyFloat(), anyFloat());
+    }
+
+    @Test
     public void theOpen_stillsAPadsSensorGyro() throws Exception {
         usbPad().gyroListener = sensorListener(MoonBridge.LI_MOTION_TYPE_GYRO);
 
@@ -261,11 +276,11 @@ public class ControlsOpenPadsTest {
         return ((SparseArray<? extends ControllerHandler.InputDeviceContext>) field.get(handler)).get(PAD_ID);
     }
 
-    private SensorEventListener sensorListener(byte motionType) throws Exception {
+    private ControllerHandler.MotionListener sensorListener(byte motionType) throws Exception {
         Method create = ControllerHandler.class.getDeclaredMethod("createSensorListener",
                 short.class, byte.class, boolean.class);
         create.setAccessible(true);
-        return (SensorEventListener) create.invoke(handler, (short) 0, motionType, false);
+        return (ControllerHandler.MotionListener) create.invoke(handler, (short) 0, motionType, false);
     }
 
     private void verifyNeutralPacket(org.mockito.verification.VerificationMode mode) {
