@@ -137,6 +137,9 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
     // thread's alike, so whether the controls are open is read and acted on as one step: a
     // packet either leaves before the open's neutral state or is neutral itself.
     private final Object hostPacketLock = new Object();
+    // Motion sensors report a few hundred times a second, so their readings arrive on a thread of
+    // their own instead of the main thread, where they would compete with input and drawing.
+    private final MotionSensorThread motionSensorThread = new MotionSensorThread();
     // The default context (the on-screen controller's, and unknown devices') has had a packet
     // of its own sent. It always counts as player 1, so until then the open and the close leave
     // it alone: a packet for it would bring a pad the user never touched up at the host.
@@ -501,6 +504,9 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
 
         sceManager.stop();
         backgroundHandlerThread.quit();
+        // stop() closed every motion listener, so a reading the thread is still handing to one
+        // finds it closed. The thread drops what it had queued and ends.
+        motionSensorThread.quit();
     }
 
     public void disableSensors() {
@@ -2559,15 +2565,40 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         }
     }
 
-    private SensorEventListener createSensorListener(final short controllerNumber, final byte motionType, final boolean needsDeviceOrientationCorrection) {
-        return new SensorEventListener() {
+    /**
+     * One motion sensor of one pad. Its readings arrive on {@link #motionSensorThread}, in the
+     * order the sensor produced them.
+     */
+    abstract static class MotionListener implements SensorEventListener {
+        // Set by closeMotionListener() on the thread that unregisters this listener.
+        volatile boolean closed;
+    }
+
+    /** Unregisters a motion listener so that no reading of it reaches the host from here on. */
+    private void closeMotionListener(SensorManager sensors, MotionListener listener) {
+        // Closed first: a reading already on the sensor thread finds the listener closed, since
+        // unregistering alone does not hold back one that was delivered just before.
+        listener.closed = true;
+        sensors.unregisterListener(listener);
+    }
+
+    private MotionListener createSensorListener(final short controllerNumber, final byte motionType, final boolean needsDeviceOrientationCorrection) {
+        return new MotionListener() {
+            // Only the sensor thread reads and writes this.
             private float[] lastValues = new float[3];
 
             @Override
             public void onSensorChanged(SensorEvent sensorEvent) {
+                if (closed) {
+                    return;
+                }
                 // Checked and sent as one step, under the packet lock: a reading that would land
-                // after the open's still gyro (see sendNeutralState) is dropped instead.
+                // after the open's still gyro (see sendNeutralState) or a stopped gyro (see
+                // disableSensors) is dropped instead.
                 synchronized (hostPacketLock) {
+                    if (closed) {
+                        return;
+                    }
                     onSensorChangedLocked(sensorEvent);
                 }
             }
@@ -2713,7 +2744,7 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
                 switch (motionType) {
                     case MoonBridge.LI_MOTION_TYPE_ACCEL:
                         if (deviceContext.accelListener != null) {
-                            sm.unregisterListener(deviceContext.accelListener);
+                            closeMotionListener(sm, deviceContext.accelListener);
                             deviceContext.accelListener = null;
                         }
 
@@ -2721,12 +2752,12 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
                         Sensor accelSensor = sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
                         if (reportRateHz != 0 && accelSensor != null) {
                             deviceContext.accelListener = createSensorListener(controllerNumber, motionType, sm == deviceSensorManager);
-                            sm.registerListener(deviceContext.accelListener, accelSensor, 1000000 / reportRateHz);
+                            motionSensorThread.register(sm, accelSensor, deviceContext.accelListener, 1000000 / reportRateHz);
                         }
                         break;
                     case MoonBridge.LI_MOTION_TYPE_GYRO:
                         if (deviceContext.gyroListener != null) {
-                            sm.unregisterListener(deviceContext.gyroListener);
+                            closeMotionListener(sm, deviceContext.gyroListener);
                             deviceContext.gyroListener = null;
                         }
 
@@ -2734,7 +2765,7 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
                         Sensor gyroSensor = sm.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
                         if (reportRateHz != 0 && gyroSensor != null) {
                             deviceContext.gyroListener = createSensorListener(controllerNumber, motionType, sm == deviceSensorManager);
-                            sm.registerListener(deviceContext.gyroListener, gyroSensor, 1000000 / reportRateHz);
+                            motionSensorThread.register(sm, gyroSensor, deviceContext.gyroListener, 1000000 / reportRateHz);
                         }
                         break;
                 }
@@ -3687,9 +3718,9 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         public short leftTriggerMotor, rightTriggerMotor;
 
         public SensorManager sensorManager;
-        public SensorEventListener gyroListener;
+        public MotionListener gyroListener;
         public short gyroReportRateHz;
-        public SensorEventListener accelListener;
+        public MotionListener accelListener;
         public short accelReportRateHz;
 
         public InputDevice inputDevice;
@@ -3821,10 +3852,10 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
             backgroundThreadHandler.removeCallbacks(setLedStateRunnable);
 
             if (gyroListener != null) {
-                sensorManager.unregisterListener(gyroListener);
+                closeMotionListener(sensorManager, gyroListener);
             }
             if (accelListener != null) {
-                sensorManager.unregisterListener(accelListener);
+                closeMotionListener(sensorManager, accelListener);
             }
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -4021,14 +4052,17 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
 
             // Unregister all sensor listeners
             if (gyroListener != null) {
-                sensorManager.unregisterListener(gyroListener);
+                closeMotionListener(sensorManager, gyroListener);
                 gyroListener = null;
 
-                // Send a gyro event to ensure the virtual controller is stationary
-                conn.sendControllerMotionEvent((byte) controllerNumber, MoonBridge.LI_MOTION_TYPE_GYRO, 0.f, 0.f, 0.f);
+                // Send a gyro event to ensure the virtual controller is stationary. Under the
+                // packet lock, so no reading still on the sensor thread can follow it.
+                synchronized (hostPacketLock) {
+                    conn.sendControllerMotionEvent((byte) controllerNumber, MoonBridge.LI_MOTION_TYPE_GYRO, 0.f, 0.f, 0.f);
+                }
             }
             if (accelListener != null) {
-                sensorManager.unregisterListener(accelListener);
+                closeMotionListener(sensorManager, accelListener);
                 accelListener = null;
 
                 // We leave the acceleration as-is to preserve the attitude of the controller
