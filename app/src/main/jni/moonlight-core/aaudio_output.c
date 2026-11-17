@@ -25,6 +25,15 @@
 // host's 10 ms delivery period. A longer gap is a stall (Wi-Fi going quiet), which is concealed:
 // a reserve grown for it holds that much latency for minutes and still starves on the next one.
 #define JITTER_GAP_MS 10
+// How long nativeWriteAudio waits, in 1 ms steps, for the callback to make room before it calls
+// the output stalled.
+#define AUDIO_WRITE_STALL_WAITS 100
+// nativeWriteAudio's answers (AndroidAudioRenderer.NATIVE_WRITE_*): the packet is in the ring;
+// the callback took nothing for AUDIO_WRITE_STALL_WAITS while the stream still runs, and the
+// rest of the packet is dropped; the stream stopped or disconnected, and must be reopened.
+#define AUDIO_WRITE_DONE 0
+#define AUDIO_WRITE_STALLED 1
+#define AUDIO_WRITE_STOPPED 2
 
 #define AUDIO_FUNCTIONS(X) \
     X(AAudio_createStreamBuilder) \
@@ -47,6 +56,7 @@
     X(AAudioStream_getBufferSizeInFrames) \
     X(AAudioStream_setBufferSizeInFrames) \
     X(AAudioStream_getXRunCount) \
+    X(AAudioStream_getState) \
     X(AAudioStream_requestStart) \
     X(AAudioStream_requestStop) \
     X(AAudioStream_close)
@@ -74,6 +84,7 @@ typedef struct {
     int32_t (*AAudioStream_getBufferSizeInFrames)(AAudioStream*);
     aaudio_result_t (*AAudioStream_setBufferSizeInFrames)(AAudioStream*, int32_t);
     int32_t (*AAudioStream_getXRunCount)(AAudioStream*);
+    aaudio_stream_state_t (*AAudioStream_getState)(AAudioStream*);
     aaudio_result_t (*AAudioStream_requestStart)(AAudioStream*);
     aaudio_result_t (*AAudioStream_requestStop)(AAudioStream*);
     aaudio_result_t (*AAudioStream_close)(AAudioStream*);
@@ -306,13 +317,23 @@ failed:
     return 0;
 }
 
-JNIEXPORT jboolean JNICALL
+// A stream whose callback took nothing for a while: stopped when its error callback said so, or
+// when AAudio no longer reports it running; otherwise it only stalled (a route change or a
+// Bluetooth handover can hold the callback back without an error).
+static bool audioStreamStopped(AudioOutput* output) {
+    if (atomic_load(&output->stopped)) return true;
+    if (!output->stream || !output->AAudioStream_getState) return false;
+    aaudio_stream_state_t state = output->AAudioStream_getState(output->stream);
+    return state != AAUDIO_STREAM_STATE_STARTED && state != AAUDIO_STREAM_STATE_STARTING;
+}
+
+JNIEXPORT jint JNICALL
 Java_com_limelight_binding_audio_AndroidAudioRenderer_nativeWriteAudio(JNIEnv* env, jclass clazz,
         jlong handle, jshortArray samples, jint length) {
     AudioOutput* output = (AudioOutput*)(intptr_t)handle;
-    if (length < 0 || length > (*env)->GetArrayLength(env, samples) || length % 2) return JNI_FALSE;
+    if (length < 0 || length > (*env)->GetArrayLength(env, samples) || length % 2) return AUDIO_WRITE_STOPPED;
     jshort* pcm = (*env)->GetShortArrayElements(env, samples, NULL);
-    if (!pcm) return JNI_FALSE;
+    if (!pcm) return AUDIO_WRITE_STOPPED;
     uint32_t remaining = (uint32_t)length / 2;
     uint32_t position = 0;
     int waits = 0;
@@ -323,8 +344,9 @@ Java_com_limelight_binding_audio_AndroidAudioRenderer_nativeWriteAudio(JNIEnv* e
         uint32_t target = atomic_load(&output->targetFrames);
         uint32_t freeFrames = queued < target ? target - queued : 0;
         if (!freeFrames) {
-            // The output isn't draining: give up after about 100 ms
-            if (++waits >= 100) break;
+            // Counted since the callback last made room: a reserve smaller than a packet waits
+            // for it on every write, and only a callback that stops draining stalls.
+            if (++waits >= AUDIO_WRITE_STALL_WAITS) break;
             struct timespec pause = {0, 1000000};
             nanosleep(&pause, NULL);
             continue;
@@ -337,9 +359,12 @@ Java_com_limelight_binding_audio_AndroidAudioRenderer_nativeWriteAudio(JNIEnv* e
         atomic_store_explicit(&output->writtenFrames, written + count, memory_order_release);
         remaining -= count;
         position += count;
+        waits = 0;
     }
     (*env)->ReleaseShortArrayElements(env, samples, pcm, JNI_ABORT);
-    return remaining == 0 && !atomic_load(&output->stopped);
+    if (atomic_load(&output->stopped)) return AUDIO_WRITE_STOPPED;
+    if (remaining == 0) return AUDIO_WRITE_DONE;
+    return audioStreamStopped(output) ? AUDIO_WRITE_STOPPED : AUDIO_WRITE_STALLED;
 }
 
 // {burst, ring capacity, reserve, hardware + software underruns,
