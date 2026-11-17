@@ -28,9 +28,21 @@ public class AndroidAudioRenderer implements AudioRenderer {
     // AAudio reopens after a disconnect: when the last one was, and how many came right after the one before.
     private long lastReopenAt = Long.MIN_VALUE / 2;
     private int quickReopens;
+    // Native writes in a row that stalled. A callback that stops for good without an error callback
+    // (AAudio still reporting the stream started) stalls every write: after MAX_NATIVE_STALLS
+    // (about 300 ms of buffers dropped) the stream is taken for stopped and reopened.
+    private int nativeStalls;
+    static final int MAX_NATIVE_STALLS = 3;
 
     private static native long nativeOpenAudio(int sampleRate, long concealer);
-    private static native boolean nativeWriteAudio(long handle, short[] samples, int length);
+    /**
+     * nativeWriteAudio's answers: the buffer is in the ring; the AAudio callback took nothing for
+     * 100 ms while the stream still runs (a short stall: the rest of the buffer is dropped, the
+     * stream and its tuned reserve stay); the stream stopped or disconnected and must be reopened.
+     */
+    static final int NATIVE_WRITE_DONE = 0, NATIVE_WRITE_STALLED = 1, NATIVE_WRITE_STOPPED = 2;
+
+    private static native int nativeWriteAudio(long handle, short[] samples, int length);
     private static native int[] nativeAudioStats(long handle);
     private static native int nativeAudioBuffer(long handle, int frames);
     private static native boolean nativeAudioSkipLate(long handle, int frames, int pendingFrames);
@@ -113,6 +125,7 @@ public class AndroidAudioRenderer implements AudioRenderer {
         LimeLog.info("Audio channel config: "+String.format("0x%X", channelConfig));
 
         quickReopens = 0;
+        nativeStalls = 0;
         lastReopenAt = Long.MIN_VALUE / 2;
         if (openAAudio()) return 0;
         return setupAudioTrack();
@@ -272,16 +285,25 @@ public class AndroidAudioRenderer implements AudioRenderer {
                 return;
             }
             if (nativeAudio != 0) {
-                if (nativeWriteAudio(nativeAudio, audioData, audioData.length)) {
+                int written = nativeWriteAudio(nativeAudio, audioData, audioData.length);
+                if (written == NATIVE_WRITE_DONE) {
+                    nativeStalls = 0;
                     tuneBuffer();
                     return;
                 }
-                if (!reopenAudio("AAudio disconnected")) {
+                if (written == NATIVE_WRITE_STALLED && ++nativeStalls < MAX_NATIVE_STALLS) {
+                    // A short stall: reopening would only lose the tuned reserve and count
+                    // toward the AudioTrack fallback.
+                    return;
+                }
+                boolean stalled = written == NATIVE_WRITE_STALLED;
+                nativeStalls = 0;
+                if (!reopenAudio(stalled ? "AAudio stopped taking audio" : "AAudio disconnected")) {
                     return;
                 }
                 if (nativeAudio != 0) {
                     // The next buffer reopens again, or falls back if it keeps dying.
-                    if (nativeWriteAudio(nativeAudio, audioData, audioData.length)) tuneBuffer();
+                    if (nativeWriteAudio(nativeAudio, audioData, audioData.length) == NATIVE_WRITE_DONE) tuneBuffer();
                     return;
                 }
             }
