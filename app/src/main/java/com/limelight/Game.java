@@ -1847,6 +1847,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
+        // Rumble and the motion sensors follow the window's focus alone, not the controls
+        if (controllerHandler != null) {
+            controllerHandler.setInputEnabled(hasFocus);
+        }
         if (hasFocus) {
             resumeHostInput();
         } else {
