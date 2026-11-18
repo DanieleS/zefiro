@@ -56,6 +56,7 @@ import org.cgutman.shieldcontrollerextensions.SceManager;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -137,6 +138,20 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
     // thread's alike, so whether the controls are open is read and acted on as one step: a
     // packet either leaves before the open's neutral state or is neutral itself.
     private final Object hostPacketLock = new Object();
+    // Main thread: the stream window has focus; without it the motors and motion sensors are off.
+    private boolean inputEnabled = true;
+    // Main thread: the sensors are wanted at all (picture-in-picture turns them off); and, when they
+    // are, whether they are off only because the focus is gone.
+    private boolean sensorsEnabled = true;
+    private boolean sensorsOffForFocus;
+    // Rumble is held off while the stream has no focus, and the host's latest levels per controller
+    // number ({low, high, left trigger, right trigger}) play again with it. rumblePaused is what the
+    // focus asks for; rumbleSilenced, under rumbleLock, what the motors have been made to do about it.
+    // handleRumble and its trigger twin hold rumbleLock throughout, so none plays across a change.
+    private final Object rumbleLock = new Object();
+    private volatile boolean rumblePaused;
+    private boolean rumbleSilenced;
+    private final Map<Short, short[]> rumbleLevels = new HashMap<>();
     // Motion sensors report a few hundred times a second, so their readings arrive on a thread of
     // their own instead of the main thread, where they would compete with input and drawing.
     private final MotionSensorThread motionSensorThread = new MotionSensorThread();
@@ -509,18 +524,91 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         motionSensorThread.quit();
     }
 
-    public void disableSensors() {
-        for (int i = 0; i < inputDeviceContexts.size(); i++) {
-            InputDeviceContext deviceContext = inputDeviceContexts.valueAt(i);
-            deviceContext.disableSensors();
+    /**
+     * The stream window gained or lost focus (the notification shade, a menu, the other
+     * split-screen app). Without it the motors stop and the motion sensors are unregistered,
+     * instead of vibrating on and waking the device for nothing; with it back the host's latest
+     * rumble levels play again and the sensors register after their usual settle delay.
+     * Main thread only.
+     */
+    public void setInputEnabled(boolean enabled) {
+        if (inputEnabled == enabled) {
+            return;
         }
+        inputEnabled = enabled;
+        if (!enabled) {
+            // Stopping the sensors stills each gyro at the host, once
+            if (sensorsEnabled && !stopped) {
+                stopSensors();
+                sensorsOffForFocus = true;
+            }
+        }
+        else if (sensorsOffForFocus) {
+            sensorsOffForFocus = false;
+            startSensors();
+        }
+        rumblePaused = !enabled;
+        // Vibrator and USB writes can stall, so not on the main thread.
+        backgroundThreadHandler.post(this::syncRumble);
+    }
+
+    /** Plays or silences the motors to match rumblePaused, whichever of the two is not yet the case. */
+    private void syncRumble() {
+        synchronized (rumbleLock) {
+            if (stopped) {
+                return;
+            }
+            boolean paused = rumblePaused;
+            if (paused == rumbleSilenced) {
+                return;
+            }
+            rumbleSilenced = paused;
+            for (Map.Entry<Short, short[]> levels : new ArrayList<>(rumbleLevels.entrySet())) {
+                short number = levels.getKey();
+                short[] l = levels.getValue();
+                if (paused) {
+                    applyRumble(number, (short) 0, (short) 0);
+                    applyRumbleTriggers(number, (short) 0, (short) 0);
+                }
+                else {
+                    if (l[0] != 0 || l[1] != 0) applyRumble(number, l[0], l[1]);
+                    if (l[2] != 0 || l[3] != 0) applyRumbleTriggers(number, l[2], l[3]);
+                }
+            }
+            if (paused) {
+                deviceVibrator.cancel();
+            }
+        }
+    }
+
+    /** Picture-in-picture: the sensors stay off until enableSensors(), whatever the focus does meanwhile. */
+    public void disableSensors() {
+        sensorsEnabled = false;
+        sensorsOffForFocus = false;
+        stopSensors();
     }
 
     public void enableSensors() {
         if (stopped) {
             return;
         }
+        sensorsEnabled = true;
+        if (!inputEnabled) {
+            // Still without focus: they come on with it
+            sensorsOffForFocus = true;
+            return;
+        }
+        startSensors();
+    }
 
+    private void stopSensors() {
+        for (int i = 0; i < inputDeviceContexts.size(); i++) {
+            InputDeviceContext deviceContext = inputDeviceContexts.valueAt(i);
+            deviceContext.disableSensors();
+        }
+    }
+
+    private void startSensors() {
         for (int i = 0; i < inputDeviceContexts.size(); i++) {
             InputDeviceContext deviceContext = inputDeviceContexts.valueAt(i);
             deviceContext.enableSensors();
@@ -2459,12 +2547,33 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
     }
 
     public void handleRumble(short controllerNumber, short lowFreqMotor, short highFreqMotor) {
+        synchronized (rumbleLock) {
+            if (stopped) {
+                return;
+            }
+            short[] levels = levelsOf(controllerNumber);
+            levels[0] = lowFreqMotor;
+            levels[1] = highFreqMotor;
+            if (rumblePaused) {
+                return;
+            }
+            applyRumble(controllerNumber, lowFreqMotor, highFreqMotor);
+        }
+    }
+
+    // Under rumbleLock
+    private short[] levelsOf(short controllerNumber) {
+        short[] levels = rumbleLevels.get(controllerNumber);
+        if (levels == null) {
+            levels = new short[4];
+            rumbleLevels.put(controllerNumber, levels);
+        }
+        return levels;
+    }
+
+    private void applyRumble(short controllerNumber, short lowFreqMotor, short highFreqMotor) {
         boolean foundMatchingDevice = false;
         boolean vibrated = false;
-
-        if (stopped) {
-            return;
-        }
 
         for (int i = 0; i < inputDeviceContexts.size(); i++) {
             InputDeviceContext deviceContext = inputDeviceContexts.valueAt(i);
@@ -2535,9 +2644,21 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
     }
 
     public void handleRumbleTriggers(short controllerNumber, short leftTrigger, short rightTrigger) {
-        if (stopped) {
-            return;
+        synchronized (rumbleLock) {
+            if (stopped) {
+                return;
+            }
+            short[] levels = levelsOf(controllerNumber);
+            levels[2] = leftTrigger;
+            levels[3] = rightTrigger;
+            if (rumblePaused) {
+                return;
+            }
+            applyRumbleTriggers(controllerNumber, leftTrigger, rightTrigger);
         }
+    }
+
+    private void applyRumbleTriggers(short controllerNumber, short leftTrigger, short rightTrigger) {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             for (int i = 0; i < inputDeviceContexts.size(); i++) {
