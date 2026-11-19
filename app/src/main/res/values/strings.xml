@@ -370,6 +370,8 @@
     <string name="summary_disable_frame_drop">May reduce micro-stuttering on some devices, but can increase latency</string>
     <string name="title_video_format">Change codec settings</string>
     <string name="summary_video_format">Newer codecs can lower video bandwidth requirements if your device supports them. Codec selections may be ignored if not supported by the host software or GPU.</string>
+    <string name="title_intra_refresh">Intra Refresh</string>
+    <string name="summary_intra_refresh">Asks the host to recover from packet loss with a gradual refresh instead of full keyframe bursts. Needs host support (otherwise ignored); off by default.</string>
     <string name="title_packed_444">Experimental full chroma</string>
     <string name="summary_packed_444">Streams full-resolution color (sharper text and edges) by packing it into a 4:2:0 picture and rebuilding it on the GPU. It doubles the pixels the decoder handles and needs a host that offers it and a hardware HEVC/AV1 decoder that passes a startup check; otherwise the stream is normal. PyroWave is not offered while this is on. HDR also needs a 10-bit HDR display surface.</string>
     <string name="title_enable_pyrowave">Use PyroWave when the host offers it (experimental)</string>
