@@ -1115,6 +1115,12 @@
             app:iconSpaceReserved="false" />
         <SwitchPreferenceCompat
             android:defaultValue="false"
+            android:key="checkbox_intra_refresh"
+            android:summary="@string/summary_intra_refresh"
+            android:title="@string/title_intra_refresh"
+            app:iconSpaceReserved="false" />
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
             android:key="checkbox_full_range"
             android:summary="@string/summary_full_range"
             android:title="@string/title_full_range"

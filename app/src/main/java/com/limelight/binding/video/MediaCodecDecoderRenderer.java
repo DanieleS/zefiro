@@ -3260,6 +3260,11 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             capabilities |= MoonBridge.CAPABILITY_DIRECT_SUBMIT;
         }
 
+        // Opt in to host-side Intra Refresh when the user asked for it
+        if (prefs.intraRefresh) {
+            capabilities |= MoonBridge.CAPABILITY_INTRA_REFRESH;
+        }
+
         return capabilities;
     }
 
