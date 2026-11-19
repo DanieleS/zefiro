@@ -79,7 +79,8 @@ public class SettingsCatalogTest {
         // 149 with the 10-bit SDR switch.
         // 150 with the trigger deadzone.
         // 151 with the hold-Guide-for-the-stream-menu delay.
-        assertEquals(151, catalogue.size());
+        // 152 with the Intra Refresh switch.
+        assertEquals(152, catalogue.size());
     }
 
     @Test
