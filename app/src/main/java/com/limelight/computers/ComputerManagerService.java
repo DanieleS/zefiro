@@ -6,9 +6,13 @@ import java.io.StringReader;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -74,6 +78,9 @@ public class ComputerManagerService extends Service {
     private final Lock defaultNetworkLock = new ReentrantLock();
 
     private ConnectivityManager.NetworkCallback networkCallback;
+    // The default network's changes, off the callback thread and its per-PC locks.
+    private final ExecutorService networkChanges =
+            Executors.newSingleThreadExecutor(task -> new Thread(task, "Network changes"));
 
     private DiscoveryService.DiscoveryBinder discoveryBinder;
     private final ServiceConnection discoveryServiceConnection = new ServiceConnection() {
@@ -577,6 +584,7 @@ public class ComputerManagerService extends Service {
                         tuple.thread.interrupt();
                         tuple.thread = null;
                     }
+                    tuple.removed = true;
                     pollingTuples.remove(tuple);
                     break;
                 }
@@ -804,28 +812,54 @@ public class ComputerManagerService extends Service {
                 @Override
                 public void onAvailable(Network network) {
                     LimeLog.info("Resetting PC state for new available network");
-                    synchronized (pollingTuples) {
-                        for (PollingTuple tuple : pollingTuples) {
-                            tuple.computer.state = ComputerDetails.State.UNKNOWN;
-                            listeners.notifyComputerUpdated(tuple.computer);
-                        }
-                    }
+                    applyNetworkChange(true, SystemClock.elapsedRealtime());
                 }
 
                 @Override
                 public void onLost(Network network) {
                     LimeLog.info("Offlining PCs due to network loss");
-                    synchronized (pollingTuples) {
-                        for (PollingTuple tuple : pollingTuples) {
-                            tuple.computer.state = ComputerDetails.State.OFFLINE;
-                            listeners.notifyComputerUpdated(tuple.computer);
-                        }
-                    }
+                    applyNetworkChange(false, SystemClock.elapsedRealtime());
                 }
             };
 
             ConnectivityManager connMgr = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
             connMgr.registerDefaultNetworkCallback(networkCallback);
+        }
+    }
+
+    /**
+     * A change of the default network resets what the pollers last found, since a PC's addresses may
+     * have moved. Each PC's state is written under the lock its poll holds; a poll that answered after
+     * this change arrived keeps its state, so a callback dispatched late cannot show it offline. It runs
+     * on a worker: a poll can hold its lock for seconds, which the default network callback thread
+     * must not wait for ({@code atMs} is when the change arrived).
+     */
+    void resetStateForNetworkChange(boolean available, long atMs) {
+        List<PollingTuple> tuples;
+        synchronized (pollingTuples) {
+            tuples = new ArrayList<>(pollingTuples);
+        }
+        List<PollingTuple> updated = new ArrayList<>();
+        for (PollingTuple tuple : tuples) {
+            synchronized (tuple.networkLock) {
+                if (tuple.removed) continue;
+                if (tuple.lastSuccessfulPollMs >= atMs) continue;
+                tuple.computer.state = available ? ComputerDetails.State.UNKNOWN : ComputerDetails.State.OFFLINE;
+            }
+            updated.add(tuple);
+        }
+        // The listeners are told after the poll locks are released.
+        for (PollingTuple tuple : updated) {
+            listeners.notifyComputerUpdated(tuple.computer);
+        }
+    }
+
+    /** Hands a network change to the worker that can wait for the polls' locks. */
+    private void applyNetworkChange(boolean available, long atMs) {
+        try {
+            networkChanges.execute(() -> resetStateForNetworkChange(available, atMs));
+        } catch (RejectedExecutionException e) {
+            // The service is going away.
         }
     }
 
@@ -835,6 +869,7 @@ public class ComputerManagerService extends Service {
             ConnectivityManager connMgr = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
             connMgr.unregisterNetworkCallback(networkCallback);
         }
+        networkChanges.shutdownNow();
 
         if (discoveryBinder != null) {
             // Unbind from the discovery service
@@ -1009,6 +1044,7 @@ class PollingTuple {
     public final ComputerDetails computer;
     public final Object networkLock;
     public long lastSuccessfulPollMs;
+    public volatile boolean removed;
 
     public PollingTuple(ComputerDetails computer, Thread thread) {
         this.computer = computer;
