@@ -1102,6 +1102,22 @@
     <string name="upscaling_timing_estimate">Estimate includes texture handoff, GPU completion and swap wait (1 ms polling). Display presentation timing is unavailable.</string>
     <string name="upscaling_last_timing">Last GPU path estimate: %1$s</string>
 
+    <!-- Frame Warp -->
+    <string name="title_frame_warp">Frame Warp</string>
+    <string name="summary_frame_warp">Shows each camera turn on the next display refresh by shifting the picture by the mouse or right stick movement the PC has not drawn yet, while the crosshair and HUD stay put. Needs a PC that offers Frame Warp and a first-person game; the PC learns the game\'s camera first. Not used with HDR or full chroma. It replaces client-side upscaling while it runs. Applies when the next stream starts.</string>
+    <string name="frame_warp_replaces_upscaling">Frame Warp draws the picture itself, so client-side upscaling is off for this stream.</string>
+    <string name="frame_warp_unavailable">Frame Warp is off for this stream: %1$s</string>
+    <string name="frame_warp_reason_hdr">HDR and 10-bit streams are shown unshifted.</string>
+    <string name="frame_warp_reason_full_chroma">full chroma streams are shown unshifted.</string>
+    <string name="frame_warp_reason_renderer">the video renderer could not draw it.</string>
+    <string name="frame_warp_overlay_not_offered">Frame Warp: this PC does not offer it</string>
+    <string name="frame_warp_overlay_off">Frame Warp: off for this stream</string>
+    <string name="frame_warp_overlay_learning">Frame Warp: learning the game\'s camera</string>
+    <string name="frame_warp_overlay_locked">Frame Warp: %1$s locked · game lag %2$s ms · fit %3$s%% · shift %4$s, %5$s px · shifted %6$d, extrapolated %7$d, untagged %8$d</string>
+    <string name="frame_warp_lock_mouse">mouse</string>
+    <string name="frame_warp_lock_stick">right stick</string>
+    <string name="frame_warp_lock_both">mouse and right stick</string>
+
     <!-- Game tile -->
     <string name="tile_running">RUNNING</string>
     <!-- Spoken after the game's name by TalkBack; the badge and the dimming are only drawn. -->

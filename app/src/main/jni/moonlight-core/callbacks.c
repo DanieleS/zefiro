@@ -601,7 +601,8 @@ Java_com_limelight_nvstream_jni_MoonBridge_startConnection(JNIEnv *env, jclass c
                                                            jint clientRoaming,
                                                            jboolean enableTextFocusHints,
                                                            jint videoFecMode, jint videoFecPercentage,
-                                                           jint packed444Modes) {
+                                                           jint packed444Modes,
+                                                           jint frameWarp, jint frameWarpController) {
     SERVER_INFORMATION serverInfo = {
             .address = (*env)->GetStringUTFChars(env, address, 0),
             .serverInfoAppVersion = (*env)->GetStringUTFChars(env, appVersion, 0),
@@ -628,7 +629,12 @@ Java_com_limelight_nvstream_jni_MoonBridge_startConnection(JNIEnv *env, jclass c
             .enableTextFocusHints = enableTextFocusHints != JNI_FALSE,
             .videoFecMode = videoFecMode,
             .videoFecPercentage = videoFecPercentage,
-            .packed444Modes = packed444Modes
+            .packed444Modes = packed444Modes,
+            .frameWarp = frameWarp,
+            .frameWarpController = frameWarpController,
+            // The renderers draw the lens, and take a HUD mask of up to 256 cells across
+            .frameWarpFlags = frameWarp != 0 ? LI_FRAME_WARP_FLAG_LENS : 0,
+            .frameWarpMaskMaxWidth = frameWarp != 0 ? 256 : 0
     };
 
     jbyte* riAesKeyBuf = (*env)->GetByteArrayElements(env, riAesKey, NULL);

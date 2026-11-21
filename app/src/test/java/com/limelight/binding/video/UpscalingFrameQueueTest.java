@@ -21,6 +21,22 @@ public class UpscalingFrameQueueTest {
     }
 
     @Test
+    public void theFrameNumberTravelsWithItsPictureAndCoalescingKeepsTheLatchedOne() {
+        UpscalingFrameQueue queue = new UpscalingFrameQueue();
+        long[] frame = new long[4];
+        queue.release(100, 150, 7);
+        long newest = queue.release(200, 250, 8);
+        assertTrue(queue.consume(newest, frame));
+        assertArrayEquals(new long[] {200, 250, 1, 8}, frame);
+        assertTrue(queue.consume(queue.release(300, 0), frame));
+        assertArrayEquals(new long[] {300, 0, 0, -1}, frame);
+        // A caller without a fourth slot still works
+        long[] three = new long[3];
+        assertTrue(queue.consume(queue.release(400, 0, 9), three));
+        assertArrayEquals(new long[] {400, 0, 0}, three);
+    }
+
+    @Test
     public void timestampTokensAreUniqueAndOverflowStillCountsLostFrames() {
         UpscalingFrameQueue queue = new UpscalingFrameQueue();
         long[] frame = new long[3];

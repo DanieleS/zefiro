@@ -115,6 +115,8 @@ public class PreferenceConfiguration {
     private static final String FULL_RANGE_PREF_STRING = "checkbox_full_range";
     static final String PACKED_444_PREF_STRING = "checkbox_packed_444";
     static final String INTRA_REFRESH_PREF_STRING = "checkbox_intra_refresh";
+    // Frame Warp: off by default; it only acts with a host that offers it
+    static final String FRAME_WARP_PREF_STRING = "checkbox_frame_warp";
     private static final String GAMEPAD_TOUCHPAD_AS_MOUSE_PREF_STRING = "checkbox_gamepad_touchpad_as_mouse";
     private static final String GAMEPAD_MOTION_SENSORS_PREF_STRING = "checkbox_gamepad_motion_sensors";
     private static final String GAMEPAD_MOTION_FALLBACK_PREF_STRING = "checkbox_gamepad_motion_fallback";
@@ -229,6 +231,7 @@ public class PreferenceConfiguration {
     private static final boolean DEFAULT_FULL_RANGE = false;
     static final boolean DEFAULT_PACKED_444 = false;
     static final boolean DEFAULT_INTRA_REFRESH = false;
+    static final boolean DEFAULT_FRAME_WARP = false;
     private static final boolean DEFAULT_GAMEPAD_TOUCHPAD_AS_MOUSE = false;
     private static final boolean DEFAULT_GAMEPAD_MOTION_SENSORS = true;
     private static final boolean DEFAULT_GAMEPAD_MOTION_FALLBACK = false;
@@ -339,6 +342,9 @@ public class PreferenceConfiguration {
     public boolean experimentalPacked444;
     // Ask the host for Intra Refresh (CAPABILITY_INTRA_REFRESH); hosts without it ignore the request.
     public boolean intraRefresh;
+    // Frame Warp: shift each picture by the camera turn the host has not drawn yet. Only acts when the
+    // host offers it (serverinfo FrameWarpVersion), and not with HDR or full chroma.
+    public boolean frameWarp;
     // Kbps, 0 for automatic (PyroWaveSupport.bitrateKbps)
     public int pyroWaveBitrate;
     public boolean enablePip;
@@ -810,6 +816,7 @@ private static int getFramePacingValue(Context context) {
                 .remove(FULL_RANGE_PREF_STRING)
                 .remove(PACKED_444_PREF_STRING)
                 .remove(INTRA_REFRESH_PREF_STRING)
+                .remove(FRAME_WARP_PREF_STRING)
                 .apply();
     }
 
@@ -1154,6 +1161,7 @@ private static int getFramePacingValue(Context context) {
         config.fullRange = prefs.getBoolean(FULL_RANGE_PREF_STRING, DEFAULT_FULL_RANGE);
         config.experimentalPacked444 = prefs.getBoolean(PACKED_444_PREF_STRING, DEFAULT_PACKED_444);
         config.intraRefresh = prefs.getBoolean(INTRA_REFRESH_PREF_STRING, DEFAULT_INTRA_REFRESH);
+        config.frameWarp = prefs.getBoolean(FRAME_WARP_PREF_STRING, DEFAULT_FRAME_WARP);
         config.gamepadTouchpadAsMouse = prefs.getBoolean(GAMEPAD_TOUCHPAD_AS_MOUSE_PREF_STRING, DEFAULT_GAMEPAD_TOUCHPAD_AS_MOUSE);
         config.gamepadMotionSensors = prefs.getBoolean(GAMEPAD_MOTION_SENSORS_PREF_STRING, DEFAULT_GAMEPAD_MOTION_SENSORS);
         config.gamepadMotionSensorsFallbackToDevice = prefs.getBoolean(GAMEPAD_MOTION_FALLBACK_PREF_STRING, DEFAULT_GAMEPAD_MOTION_FALLBACK);

@@ -709,6 +709,7 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         if (context.reservedControllerNumber) {
             LimeLog.info("Controller number "+context.controllerNumber+" is now available");
             currentControllers &= ~(1 << context.controllerNumber);
+            trackFrameWarpController();
         }
 
         // If this device sent data as a gamepad, zero the values before removing.
@@ -859,6 +860,7 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
 
         LimeLog.info("Assigned as controller "+context.controllerNumber);
         context.assignedControllerNumber = true;
+        trackFrameWarpController();
 
         // Report attributes of this new controller to the host
         context.sendControllerArrival();
@@ -1386,6 +1388,19 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         }
         else {
             return b;
+        }
+    }
+
+    // Frame Warp turns the camera with the right stick of the first active gamepad; told when that changes
+    private int frameWarpController = -1;
+
+    private void trackFrameWarpController() {
+        int mask = getActiveControllerMask() & 0xFFFF;
+        int controller = mask != 0 ? Integer.numberOfTrailingZeros(mask) : 0;
+        if (controller != frameWarpController) {
+            frameWarpController = controller;
+            // Nothing happens unless the stream runs Frame Warp; a repeated enable keeps its counts
+            MoonBridge.trackFrameWarpController(controller);
         }
     }
 

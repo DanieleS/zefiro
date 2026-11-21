@@ -97,6 +97,8 @@ public class ComputerDetails {
     public String benchmarkAppUuid;
     // ServerCodecModeSupport, for the benchmark to leave out codecs the host can't encode
     public long serverCodecModeSupport;
+    // /serverinfo's FrameWarpVersion: 0 when the host does not offer Frame Warp
+    public int frameWarpVersion;
 
     public ComputerDetails() {
         // Use defaults
@@ -179,6 +181,7 @@ public class ComputerDetails {
         this.benchmarkAppId = details.benchmarkAppId;
         this.benchmarkAppUuid = details.benchmarkAppUuid;
         this.serverCodecModeSupport = details.serverCodecModeSupport;
+        this.frameWarpVersion = details.frameWarpVersion;
     }
 
     @NonNull

@@ -353,6 +353,7 @@ public class NvConnection {
 
         context.serverCodecModeSupport = (int)h.getServerCodecModeSupport(serverInfo);
         context.serverClientLuminanceSupported = h.getClientLuminanceSupported(serverInfo);
+        context.frameWarpVersion = h.getFrameWarpVersion(serverInfo);
 
         // A PyroWave host gets no HDR request: PyroWave streams are 8-bit SDR here
         context.supportedVideoFormats = PyroWaveSupport.formatsForHost(
@@ -646,6 +647,11 @@ public class NvConnection {
                             context.streamConfig.getRefreshRate());
                 }
 
+                // Only with the setting on and a host that lists FrameWarpVersion in its serverinfo; the
+                // library then still waits for the ids in the RTSP DESCRIBE before it sends a request.
+                int frameWarp = MoonBridge.requestFrameWarp(context.streamConfig.getFrameWarp(),
+                        context.frameWarpVersion >= 1);
+
                 synchronized (MoonBridge.class) {
                     MoonBridge.setupBridge(videoDecoderRenderer, audioRenderer, connectionListener);
                     int ret = MoonBridge.startConnection(context.serverAddress.address,
@@ -667,7 +673,8 @@ public class NvConnection {
                             context.streamConfig.getEnableTextFocusHints(),
                             context.streamConfig.getVideoFecMode(),
                             context.streamConfig.getVideoFecPercentage(),
-                            packed444Modes);
+                            packed444Modes,
+                            frameWarp, context.streamConfig.getFrameWarpController());
                     if (ret != 0) {
                         // LiStartConnection() failed, so the caller is not expected
                         // to stop the connection themselves. We need to release their

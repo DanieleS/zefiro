@@ -4,6 +4,7 @@
 #include <android/log.h>
 
 #include <arpa/inet.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "minisdl.h"
@@ -270,6 +271,118 @@ Java_com_limelight_nvstream_jni_MoonBridge_getClientRoamingCount(JNIEnv *env, jc
     return (jint) LiGetClientRoamingCount();
 }
 
+// Frame Warp (see Limelight.h). The shift reaches Java as the library works it out and the lens
+// terms are derived there (FrameWarpLens), where they can be tested.
+static volatile float lastFrameWarpShiftX, lastFrameWarpShiftY;
+
+JNIEXPORT jboolean JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_isFrameWarpNegotiated(JNIEnv *env, jclass clazz) {
+    return LiIsFrameWarpNegotiated() ? JNI_TRUE : JNI_FALSE;
+}
+
+JNIEXPORT jint JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_setFrameWarpEnabled(JNIEnv *env, jclass clazz, jboolean enabled) {
+    return LiSetFrameWarpEnabled(enabled != JNI_FALSE);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_setFrameWarpController(JNIEnv *env, jclass clazz, jint controller) {
+    return LiSetFrameWarpController((uint8_t) controller);
+}
+
+// out (at least 7 floats): shift x and y in picture pixels, focal, picture width and height, fade,
+// tag status. Returns the generation of the model used, or -2 when there is nothing to draw.
+JNIEXPORT jint JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_frameWarpShift(JNIEnv *env, jclass clazz, jlong frameNumber,
+                                                          jfloatArray out) {
+    LI_FRAME_WARP_SHIFT shift;
+
+    if (!LiGetFrameWarpShift((uint32_t) frameNumber, LiGetMicroseconds(), &shift)) {
+        lastFrameWarpShiftX = lastFrameWarpShiftY = 0.0f;
+        return -2;
+    }
+    lastFrameWarpShiftX = shift.x;
+    lastFrameWarpShiftY = shift.y;
+    if ((*env)->GetArrayLength(env, out) >= 7) {
+        jfloat values[7] = {
+            shift.x, shift.y, shift.focal, (jfloat) shift.pictureWidth, (jfloat) shift.pictureHeight,
+            shift.fade, (jfloat) shift.tagStatus,
+        };
+        (*env)->SetFloatArrayRegion(env, out, 0, 7, values);
+    }
+    return shift.generation;
+}
+
+// The HUD mask when its generation is not `known` (-1 for none), one byte per cell (0 or 255, rows
+// from the top) in cells; size gets width and height. Returns the generation, -1 when the caller's
+// mask is current, -2 when there is none any more, or -3 when cells is too small for size.
+JNIEXPORT jint JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_frameWarpMask(JNIEnv *env, jclass clazz, jint known,
+                                                         jintArray size, jbyteArray cells) {
+    uint16_t generation = 0, width = 0, height = 0;
+    uint32_t bytes = LiGetFrameWarpMask(&generation, &width, &height, NULL, 0);
+
+    if (bytes == 0 || width == 0 || height == 0) {
+        return known < 0 ? -1 : -2;
+    }
+    if ((jint) generation == known) {
+        return -1;
+    }
+
+    jint dimensions[2] = { width, height };
+    (*env)->SetIntArrayRegion(env, size, 0, 2, dimensions);
+    jsize count = (jsize) width * height;
+    if ((*env)->GetArrayLength(env, cells) < count) {
+        return -3;
+    }
+
+    uint8_t *bits = (uint8_t *) malloc(bytes);
+    jbyte *bytesOut = (jbyte *) malloc((size_t) count);
+    if (bits == NULL || bytesOut == NULL) {
+        free(bits);
+        free(bytesOut);
+        return -1;
+    }
+    // The mask may have been replaced between the two calls: the second call's own numbers hold
+    uint16_t copiedGeneration = 0, copiedWidth = 0, copiedHeight = 0;
+    uint32_t copied = LiGetFrameWarpMask(&copiedGeneration, &copiedWidth, &copiedHeight, bits, bytes);
+    jint result = -1;
+    if (copied == bytes && copiedWidth == width && copiedHeight == height) {
+        for (jsize i = 0; i < count; i++) {
+            bytesOut[i] = (bits[i >> 3] >> (i & 7)) & 1 ? (jbyte) 0xFF : 0;
+        }
+        (*env)->SetByteArrayRegion(env, cells, 0, count, bytesOut);
+        result = copiedGeneration;
+    }
+    free(bits);
+    free(bytesOut);
+    return result;
+}
+
+// out (at least 8 floats): the game's lag in ms, the fit, pictures shifted, extrapolated and drawn
+// unshifted for lack of a tag, the last shift's x and y in picture pixels, and a bit set of
+// 1 = mouse locked, 2 = stick locked. Returns 0 when not negotiated, 1 while the host has not
+// locked a model yet, 2 once it has.
+JNIEXPORT jint JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_frameWarpStatus(JNIEnv *env, jclass clazz, jfloatArray out) {
+    LI_FRAME_WARP_STATE state;
+    uint32_t shifted = 0, extrapolated = 0, untagged = 0;
+
+    if (!LiGetFrameWarpState(&state)) {
+        return 0;
+    }
+    LiGetFrameWarpCounters(&shifted, &extrapolated, &untagged);
+    if ((*env)->GetArrayLength(env, out) >= 8) {
+        jfloat values[8] = {
+            (jfloat) state.lagUs / 1000.0f, state.fit, (jfloat) shifted, (jfloat) extrapolated,
+            (jfloat) untagged, lastFrameWarpShiftX, lastFrameWarpShiftY,
+            (jfloat) ((state.mouseLocked ? 1 : 0) | (state.stickLocked ? 2 : 0)),
+        };
+        (*env)->SetFloatArrayRegion(env, out, 0, 8, values);
+    }
+    return state.active ? 2 : 1;
+}
+
 JNIEXPORT jint JNICALL
 Java_com_limelight_nvstream_jni_MoonBridge_getNegotiatedChromaPacking(JNIEnv *env, jclass clazz) {
     return LiGetNegotiatedChromaPacking();
@@ -359,6 +472,17 @@ JNIEXPORT void JNICALL
 Java_com_limelight_nvstream_jni_MoonBridge_pyroWaveStop(JNIEnv *env, jclass clazz) {
 #ifdef HAVE_PYROWAVE
     PyroWaveRendererStop();
+#endif
+}
+
+// Frame Warp on the running PyroWave renderer: true when it will draw the shift. False when the
+// device or the build cannot, and the stream then goes without.
+JNIEXPORT jboolean JNICALL
+Java_com_limelight_nvstream_jni_MoonBridge_pyroWaveSetFrameWarp(JNIEnv *env, jclass clazz) {
+#ifdef HAVE_PYROWAVE
+    return PyroWaveRendererSetFrameWarp() ? JNI_TRUE : JNI_FALSE;
+#else
+    return JNI_FALSE;
 #endif
 }
 

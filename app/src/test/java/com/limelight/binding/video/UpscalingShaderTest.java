@@ -46,6 +46,21 @@ public class UpscalingShaderTest {
     }
 
     @Test
+    public void warpShaderTakesTheShiftTheLensTermsAndTheHudMask() throws Exception {
+        String warp = source("warp.frag");
+        assertTrue(warp.startsWith("#version 300 es\n"));
+        assertTrue(warp.contains("#extension GL_OES_EGL_image_external_essl3 : require"));
+        assertTrue(warp.contains("uniform highp samplerExternalOES source;"));
+        assertTrue(warp.contains("uniform mat4 textureTransform;"));
+        assertTrue(warp.contains("uniform vec3 warp;"));
+        assertTrue(warp.contains("uniform vec4 lens;"));
+        assertTrue(warp.contains("uniform lowp sampler2D hudMask;"));
+        assertTrue(warp.contains("0.5 + (q * lens.zw - warp.xy) / max(1.0 + dot(q, lens.xy), 0.25)"));
+        assertTrue(warp.contains("0.35 *"));
+        assertEquals(1, occurrences(warp, "void main()"));
+    }
+
+    @Test
     public void sgsrRetainsTheMobileKernelAndPackagedBsdNotice() throws Exception {
         String sgsr = source("sgsr.frag");
         assertEquals(12, occurrences(sgsr, "weightY(pl.x"));

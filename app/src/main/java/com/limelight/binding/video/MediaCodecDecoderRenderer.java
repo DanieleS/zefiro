@@ -85,6 +85,18 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
     private static final int PTS_BY_BUFFER_INDEX_SLOTS = 64;
     private final long[] ptsUsByBufferIndex = new long[PTS_BY_BUFFER_INDEX_SLOTS];
 
+    // Frame Warp: this stream's renderer (the GLES presenter, or PyroWave's) draws the shift. False with the
+    // setting off or declined, and then none of the Frame Warp code below runs.
+    private volatile boolean frameWarp;
+    private boolean frameWarpNoticeShown;
+    // The host frame number each queued input carried, by presentation time, for the GLES presenter
+    private final FrameWarpFrames frameWarpFrames = new FrameWarpFrames();
+
+    private long frameWarpFrameNumber(int index) {
+        return index >= 0 && index < PTS_BY_BUFFER_INDEX_SLOTS ?
+                frameWarpFrames.frameFor(ptsUsByBufferIndex[index]) : FrameWarpFrames.UNKNOWN;
+    }
+
     private void notePtsForBuffer(int bufferIndex, long presentationTimeUs) {
         if (bufferIndex >= 0 && bufferIndex < PTS_BY_BUFFER_INDEX_SLOTS) {
             ptsUsByBufferIndex[bufferIndex] = presentationTimeUs;
@@ -701,6 +713,31 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         float panelHz = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ?
                 display.getMode().getRefreshRate() : display.getRefreshRate();
         upscalingPolicy = new UpscalingPolicy(Math.max(1, Math.min(refreshRate, Math.round(panelHz))));
+        frameWarp = false;
+        // PyroWave's renderer takes Frame Warp once it has started (setup()). Only with the setting on, so a
+        // stream without it never touches the native Frame Warp code.
+        if (prefs.frameWarp && !pyroWave && MoonBridge.isFrameWarpStream()) {
+            if (packing != null) {
+                declineFrameWarp(R.string.frame_warp_reason_full_chroma);
+            } else if ((videoFormat & MoonBridge.VIDEO_FORMAT_MASK_10BIT) != 0 ||
+                    Boolean.TRUE.equals(currentHdrMode)) {
+                declineFrameWarp(R.string.frame_warp_reason_hdr);
+            } else if (renderTarget == null || prefs.renderMode != 0 ||
+                    Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+                declineFrameWarp(R.string.frame_warp_reason_renderer);
+            } else {
+                // Drawn without upscaling: the GLES presenter shifts the picture instead, at any size
+                frameWarp = true;
+                if (prefs.upscalingMode != UpscalingPolicy.Mode.OFF) {
+                    notifyFrameWarp(context.getString(R.string.frame_warp_replaces_upscaling));
+                }
+                upscaler = new GlesUpscaler(context, renderTarget, UpscalingPolicy.Mode.BILINEAR, initialWidth,
+                        initialHeight, prefs.videoScaleMode == PreferenceConfiguration.ScaleMode.STRETCH, 0,
+                        upscalingPolicy, null, false, null, true);
+                if (upscalingPolicy.getReason() != UpscalingPolicy.Reason.NONE) closeUpscaler();
+                return;
+            }
+        }
         if (packing != null) {
             // Packed full chroma always goes through the GL path: it rebuilds the picture
             if (renderTarget == null) {
@@ -753,8 +790,60 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         GlesUpscaler current = upscaler;
         if (current != null) {
             upscaler = null;
+            boolean warp = current.drawsFrameWarp();
             current.close();
-            notifyUpscalingFallback();
+            if (warp) {
+                declineFrameWarp(upscalingPolicy.getReason() == UpscalingPolicy.Reason.HDR ?
+                        R.string.frame_warp_reason_hdr : R.string.frame_warp_reason_renderer);
+            } else {
+                notifyUpscalingFallback();
+            }
+        }
+    }
+
+    private void notifyFrameWarp(String message) {
+        LimeLog.warning("Frame Warp: " + message);
+        if (frameWarpNoticeShown) return;
+        frameWarpNoticeShown = true;
+        activity.runOnUiThread(() -> {
+            if (!stopping) Toast.makeText(context, message, Toast.LENGTH_LONG).show();
+        });
+    }
+
+    /** The stream offers Frame Warp but this renderer cannot draw it: the host stops its work, and the user is told. */
+    private void declineFrameWarp(int reason) {
+        frameWarp = false;
+        MoonBridge.declineFrameWarp();
+        notifyFrameWarp(context.getString(R.string.frame_warp_unavailable, context.getString(reason)));
+    }
+
+    // The overlay's Frame Warp line, or null with the setting off
+    private String frameWarpStats() {
+        if (!prefs.frameWarp) return null;
+        float[] numbers = new float[MoonBridge.FRAME_WARP_STATUS_FLOATS];
+        switch (MoonBridge.frameWarpStatusNumbers(numbers)) {
+            case MoonBridge.FRAME_WARP_NOT_OFFERED:
+                return context.getString(R.string.frame_warp_overlay_not_offered);
+            case MoonBridge.FRAME_WARP_OFF_FOR_STREAM:
+                return context.getString(R.string.frame_warp_overlay_off);
+            case MoonBridge.FRAME_WARP_LEARNING:
+                return context.getString(R.string.frame_warp_overlay_learning);
+            case MoonBridge.FRAME_WARP_LOCKED:
+                int locks = (int) numbers[MoonBridge.FRAME_WARP_STATUS_LOCKS];
+                int lock = locks == (MoonBridge.FRAME_WARP_LOCK_MOUSE | MoonBridge.FRAME_WARP_LOCK_STICK) ?
+                        R.string.frame_warp_lock_both : (locks & MoonBridge.FRAME_WARP_LOCK_STICK) != 0 ?
+                        R.string.frame_warp_lock_stick : R.string.frame_warp_lock_mouse;
+                java.util.Locale us = java.util.Locale.US;
+                return context.getString(R.string.frame_warp_overlay_locked, context.getString(lock),
+                        String.format(us, "%.1f", numbers[MoonBridge.FRAME_WARP_STATUS_LAG_MS]),
+                        String.format(us, "%.0f", numbers[MoonBridge.FRAME_WARP_STATUS_FIT] * 100f),
+                        String.format(us, "%.1f", numbers[MoonBridge.FRAME_WARP_STATUS_SHIFT_X]),
+                        String.format(us, "%.1f", numbers[MoonBridge.FRAME_WARP_STATUS_SHIFT_Y]),
+                        (int) numbers[MoonBridge.FRAME_WARP_STATUS_SHIFTED],
+                        (int) numbers[MoonBridge.FRAME_WARP_STATUS_EXTRAPOLATED],
+                        (int) numbers[MoonBridge.FRAME_WARP_STATUS_UNTAGGED]);
+            default:
+                return null;
         }
     }
 
@@ -789,6 +878,11 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         UpscalingPolicy policy = upscalingPolicy;
         if (packing != null) {
             return "Packed full chroma (GPU reconstruction, coded " + initialWidth + "x" + initialHeight + ")";
+        }
+        GlesUpscaler presenter = upscaler;
+        if (presenter != null && presenter.drawsFrameWarp()) {
+            // Frame Warp's own presenter replaced the upscaler: only its line (formatPerfLog) says more
+            return "";
         }
         if (prefs.upscalingMode == UpscalingPolicy.Mode.OFF || policy == null) return "";
         boolean active = upscaler != null;
@@ -851,7 +945,8 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             // Falling back: drop frames until the restart points the decoder at the display
             videoDecoder.releaseOutputBuffer(index, false);
         } else {
-            videoDecoder.releaseOutputBuffer(index, current.releaseFrame(targetNs));
+            videoDecoder.releaseOutputBuffer(index, current.drawsFrameWarp() ?
+                    current.releaseFrame(targetNs, frameWarpFrameNumber(index)) : current.releaseFrame(targetNs));
             benchmarkPresented(index, targetNs);
         }
     }
@@ -1556,6 +1651,13 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                 // so the next stream uses MediaCodec instead of failing the same way
                 LimeLog.severe("The PyroWave renderer failed to start: " + err);
                 PyroWaveSupport.recordStartFailure();
+            } else if (prefs.frameWarp && MoonBridge.isFrameWarpStream()) {
+                // Its renderer was made before this point; it shifts each picture itself, upscaled or not
+                if (MoonBridge.pyroWaveSetFrameWarp()) {
+                    frameWarp = true;
+                } else {
+                    declineFrameWarp(R.string.frame_warp_reason_renderer);
+                }
             }
             return err;
         }
@@ -2711,6 +2813,8 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         sb.append(context.getString(R.string.perf_overlay_dectime, decodeTimeMs));
         String upscaling = upscalingStats();
         if (!upscaling.isEmpty()) sb.append('\n').append(upscaling);
+        String warp = frameWarpStats();
+        if (warp != null) sb.append('\n').append(warp);
         return sb.toString();
     }
 
@@ -3178,6 +3282,9 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         lastTimestampUs = timestampUs;
 
         numFramesIn++;
+
+        // Frame Warp finds each picture's tag by its frame number, which comes back with this time
+        if (frameWarp) frameWarpFrames.note(timestampUs, frameNumber);
 
         if (decodeUnitLength > nextInputBuffer.limit() - nextInputBuffer.position()) {
             IllegalArgumentException exception = new IllegalArgumentException(
