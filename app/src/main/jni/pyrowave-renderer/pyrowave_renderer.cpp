@@ -15,6 +15,11 @@
 // The next decode waits for the render timeline before overwriting the planes,
 // so the GPU orders everything and the CPU never waits on a decode.
 //
+// Frame Warp (PyroWaveRendererSetFrameWarp, off unless asked for): each picture is drawn through
+// shaders/frame_warp.glsl with the shift LiGetFrameWarpShift() gives for its frame number, computed
+// just before the submit, and the last picture is drawn again once per display refresh while the shift
+// moves. Needs the warp shader (PYROWAVE_WARP_SPV in shaders_spv.h).
+//
 // PyroWave and this renderer share one VkDevice and one queue: the renderer
 // creates them (with the swapchain extension PyroWave does not need) and hands
 // them to pyrowave_create_device().
@@ -29,6 +34,7 @@
 #include "pyrowave_renderer.h"
 #include "pyrowaveframing.h"
 #include "shaders_spv.h"
+#include "../frame_warp_mask.h"
 
 #include <android/log.h>
 #include <android/native_window.h>
@@ -584,7 +590,47 @@ struct PendingFrame {
     std::vector<PyroWaveFraming::Segment> segments;
     size_t criticalPackets = 0;
     uint64_t receiveTimeUs = 0;
+    // The host's number for the frame, the key of its Frame Warp tag
+    uint32_t frameNumber = 0;
     bool valid = false;
+};
+
+// Frame Warp (frame_warp_mask.h, shaders/frame_warp.glsl): the functions only it uses, loaded when it
+// is set up so that a stream without it loads what it always did.
+struct WarpFunctions {
+    PFN_vkCreateBuffer CreateBuffer = nullptr;
+    PFN_vkDestroyBuffer DestroyBuffer = nullptr;
+    PFN_vkGetBufferMemoryRequirements GetBufferMemoryRequirements = nullptr;
+    PFN_vkBindBufferMemory BindBufferMemory = nullptr;
+    PFN_vkMapMemory MapMemory = nullptr;
+    PFN_vkUnmapMemory UnmapMemory = nullptr;
+    PFN_vkCmdCopyBufferToImage CmdCopyBufferToImage = nullptr;
+};
+
+// The HUD mask image, one R8 texel per cell, and the host-visible buffer it is written from
+struct WarpMask {
+    VkImage image = VK_NULL_HANDLE;
+    VkDeviceMemory memory = VK_NULL_HANDLE;
+    VkImageView view = VK_NULL_HANDLE;
+    VkBuffer staging = VK_NULL_HANDLE;
+    VkDeviceMemory stagingMemory = VK_NULL_HANDLE;
+    void* mapped = nullptr;
+    uint32_t width = 0;
+    uint32_t height = 0;
+};
+
+// A mask image not written yet (Renderer::m_WarpMaskGeneration)
+constexpr int32_t k_WarpMaskUnwritten = -2;
+
+// The shift LiGetFrameWarpShift() gave for a picture: picture pixels of the width x height picture
+// the host's model describes, and its focal length (0: no lens). Zero when there is none to draw.
+struct WarpShift {
+    bool active = false;
+    float x = 0.0f;
+    float y = 0.0f;
+    float focal = 0.0f;
+    float width = 0.0f;
+    float height = 0.0f;
 };
 
 class Renderer {
@@ -709,6 +755,7 @@ public:
         frame.data.resize(offset);
         frame.criticalPackets = du->pyrowaveCriticalPackets;
         frame.receiveTimeUs = du->receiveTimeUs;
+        frame.frameNumber = uint32_t(du->frameNumber);
         frame.valid = true;
         m_FrameCv.notify_one();
     }
@@ -773,6 +820,7 @@ public:
             m_Decoder = nullptr;
         }
         destroySwapchain(VK_NULL_HANDLE);
+        destroyWarpResources();
         VkDevice dev = m_Ctx.device;
         auto& v = vk();
         if (m_Pipeline) v.DestroyPipeline(dev, m_Pipeline, nullptr);
@@ -1098,19 +1146,30 @@ private:
             return false;
         }
 
+        m_Pipeline = buildPipeline(k_PlanarCscFragSpv, sizeof(k_PlanarCscFragSpv), m_PipelineLayout);
+        return m_Pipeline != VK_NULL_HANDLE;
+    }
+
+    // The fullscreen pass with fragment shader fragCode (fragSize bytes) and pipeline layout layout,
+    // for the render pass: the plain one, and Frame Warp's. VK_NULL_HANDLE on failure.
+    VkPipeline buildPipeline(const uint32_t* fragCode, size_t fragSize, VkPipelineLayout layout)
+    {
+        auto& v = vk();
+        VkDevice dev = m_Ctx.device;
+
         VkShaderModuleCreateInfo vertInfo = {};
         vertInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
         vertInfo.codeSize = sizeof(k_FullscreenVertSpv);
         vertInfo.pCode = k_FullscreenVertSpv;
         VkShaderModuleCreateInfo fragInfo = {};
         fragInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-        fragInfo.codeSize = sizeof(k_PlanarCscFragSpv);
-        fragInfo.pCode = k_PlanarCscFragSpv;
+        fragInfo.codeSize = fragSize;
+        fragInfo.pCode = fragCode;
         VkShaderModule vert = VK_NULL_HANDLE, frag = VK_NULL_HANDLE;
         if (v.CreateShaderModule(dev, &vertInfo, nullptr, &vert) != VK_SUCCESS ||
                 v.CreateShaderModule(dev, &fragInfo, nullptr, &frag) != VK_SUCCESS) {
             if (vert) v.DestroyShaderModule(dev, vert, nullptr);
-            return false;
+            return VK_NULL_HANDLE;
         }
 
         VkPipelineShaderStageCreateInfo stages[2] = {};
@@ -1165,12 +1224,13 @@ private:
         pipelineInfo.pMultisampleState = &multisample;
         pipelineInfo.pColorBlendState = &blend;
         pipelineInfo.pDynamicState = &dynamic;
-        pipelineInfo.layout = m_PipelineLayout;
+        pipelineInfo.layout = layout;
         pipelineInfo.renderPass = m_RenderPass;
-        const VkResult result = v.CreateGraphicsPipelines(dev, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_Pipeline);
+        VkPipeline pipeline = VK_NULL_HANDLE;
+        const VkResult result = v.CreateGraphicsPipelines(dev, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline);
         v.DestroyShaderModule(dev, vert, nullptr);
         v.DestroyShaderModule(dev, frag, nullptr);
-        return result == VK_SUCCESS;
+        return result == VK_SUCCESS ? pipeline : VK_NULL_HANDLE;
     }
 
     bool createSwapchain()
@@ -1318,18 +1378,67 @@ private:
     {
         PendingFrame frame;
         while (true) {
+            bool redraw = false;
             {
                 std::unique_lock<std::mutex> lock(m_FrameLock);
-                m_FrameCv.wait(lock, [this] { return m_Stop || m_Incoming.valid; });
+                const auto woken = [this] { return m_Stop || m_Incoming.valid; };
+                if (warpRedraws()) {
+                    // Frame Warp: until a new picture, the one on screen is drawn again once per
+                    // display refresh, with the shift as of then. A timed wait, so nothing spins
+                    // whatever the present mode.
+                    m_Ticker.setPeriod(m_WarpPeriodNs.load());
+                    const int64_t waitNs = std::max<int64_t>(0, m_Ticker.nextNs - steadyNs());
+                    redraw = !m_FrameCv.wait_for(lock, std::chrono::nanoseconds(waitNs), woken);
+                }
+                else {
+                    m_FrameCv.wait(lock, woken);
+                }
                 if (m_Stop) {
                     return;
                 }
-                std::swap(frame, m_Incoming);
-                m_Incoming.valid = false;
+                if (!redraw) {
+                    std::swap(frame, m_Incoming);
+                    m_Incoming.valid = false;
+                }
             }
-            decodeAndPresent(frame);
+            if (redraw) {
+                warpRedraw();
+            }
+            else {
+                decodeAndPresent(frame);
+            }
             sampleGpuTimesIfDue();
         }
+    }
+
+    static int64_t steadyNs()
+    {
+        return std::chrono::duration_cast<std::chrono::nanoseconds>(
+                   std::chrono::steady_clock::now().time_since_epoch()).count();
+    }
+
+    // Whether the loop wakes for redraws too: Frame Warp is on and a picture is on screen to draw again
+    bool warpRedraws() const
+    {
+        return m_WarpOn.load(std::memory_order_acquire) && m_HavePicture && !m_Broken;
+    }
+
+    // The tick of a refresh without a new picture. The shift is looked at (it is cheap), and the
+    // picture drawn again only once it moved by kFrameWarpRedrawPx or more since it was drawn: a
+    // still view costs no draw. A draw that cannot start without waiting (the previous frame is
+    // still on the GPU, no swapchain image free) is skipped; the next tick tries again.
+    void warpRedraw()
+    {
+        const int64_t now = steadyNs();
+        if (!m_Ticker.due(now)) {
+            return;
+        }
+        m_Ticker.advance(now);
+        const WarpShift shift = currentWarpShift();
+        if (!frameWarpMoved(m_WarpDrawnPx[0], m_WarpDrawnPx[1], shift.x, shift.y)) {
+            return;
+        }
+        drawPicture(true);
     }
 
     // Once a second, PyroWave's own GPU timings per pass: their sum is the decode
@@ -1473,7 +1582,18 @@ private:
         if (!decodeFrame(frame)) {
             return;
         }
+        // The planes hold this frame now: Frame Warp can draw it again
+        m_PictureFrame = frame.frameNumber;
+        m_HavePicture = true;
+        drawPicture(false);
+    }
 
+    // Draws the picture in the planes to the next swapchain image and presents it. A new picture
+    // (redraw false) as soon as it is decoded; with Frame Warp, a redraw of the picture on screen
+    // between the host's pictures, which never waits (no fence wait, no image wait: it is skipped
+    // instead), is no new frame (no statistics), and takes a fresh shift.
+    void drawPicture(bool redraw)
+    {
         auto& v = vk();
         VkDevice dev = m_Ctx.device;
         if (m_NeedRecreate) {
@@ -1486,9 +1606,11 @@ private:
         // The command buffer and acquire semaphore are reused every frame. The
         // wait is bounded so that a hung GPU cannot keep shutdown from joining
         // this thread; a frame takes milliseconds.
-        const VkResult fenceResult = v.WaitForFences(dev, 1, &m_FrameFence, VK_TRUE, k_FenceTimeoutNs);
+        const VkResult fenceResult = v.WaitForFences(dev, 1, &m_FrameFence, VK_TRUE, redraw ? 0 : k_FenceTimeoutNs);
         if (fenceResult == VK_TIMEOUT) {
-            logDrop("the previous frame is still on the GPU");
+            if (!redraw) {
+                logDrop("the previous frame is still on the GPU");
+            }
             return;
         }
         if (fenceResult != VK_SUCCESS) {
@@ -1497,7 +1619,7 @@ private:
         }
 
         uint32_t imageIndex = 0;
-        VkResult result = v.AcquireNextImageKHR(dev, m_Swapchain, 100000000ull, m_AcquireSemaphore,
+        VkResult result = v.AcquireNextImageKHR(dev, m_Swapchain, redraw ? 0 : 100000000ull, m_AcquireSemaphore,
                                                 VK_NULL_HANDLE, &imageIndex);
         if (result == VK_ERROR_OUT_OF_DATE_KHR) {
             m_NeedRecreate = true;
@@ -1509,11 +1631,18 @@ private:
         }
         v.ResetFences(dev, 1, &m_FrameFence);
 
+        // Frame Warp: the draw with its pipeline, which also reads set 1
+        const bool warp = m_WarpOn.load(std::memory_order_acquire);
+
         VkCommandBufferBeginInfo beginInfo = {};
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
         v.ResetCommandBuffer(m_CommandBuffer, 0);
         v.BeginCommandBuffer(m_CommandBuffer, &beginInfo);
+        if (warp) {
+            // Before the render pass, which a copy cannot be in
+            recordWarpMask(m_CommandBuffer);
+        }
 
         VkClearValue clear = {};
         clear.color = {{0.0f, 0.0f, 0.0f, 1.0f}};
@@ -1538,14 +1667,25 @@ private:
         VkRect2D scissor = {{0, 0}, m_Extent};
         v.CmdSetViewport(m_CommandBuffer, 0, 1, &viewport);
         v.CmdSetScissor(m_CommandBuffer, 0, 1, &scissor);
-        v.CmdBindPipeline(m_CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_Pipeline);
-        v.CmdBindDescriptorSets(m_CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_PipelineLayout,
+        const VkPipelineLayout layout = warp ? m_WarpPipelineLayout : m_PipelineLayout;
+        v.CmdBindPipeline(m_CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, warp ? m_WarpPipeline : m_Pipeline);
+        v.CmdBindDescriptorSets(m_CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout,
                                 0, 1, &m_DescriptorSet, 0, nullptr);
-        v.CmdPushConstants(m_CommandBuffer, m_PipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT,
+        if (warp) {
+            v.CmdBindDescriptorSets(m_CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout,
+                                    1, 1, &m_WarpSet, 0, nullptr);
+        }
+        v.CmdPushConstants(m_CommandBuffer, layout, VK_SHADER_STAGE_FRAGMENT_BIT,
                            0, sizeof(m_Csc), &m_Csc);
         v.CmdDraw(m_CommandBuffer, 3, 1, 0, 0);
         v.CmdEndRenderPass(m_CommandBuffer);
         v.EndCommandBuffer(m_CommandBuffer);
+        // The shift as late as possible, for the draw just recorded: the fence has signalled, so the
+        // GPU is not reading the uniform, and it reads it only once the submit below runs
+        float drawnPx[2] = {0.0f, 0.0f};
+        if (warp) {
+            writeWarpUniform(drawnPx);
+        }
 
         // Wait for the image and the decode; signal the present and the render
         // timeline the next decode waits for before overwriting the planes.
@@ -1595,12 +1735,423 @@ private:
             m_NeedRecreate = true;
         }
 
+        if (warp) {
+            m_WarpDrawnPx[0] = drawnPx[0];
+            m_WarpDrawnPx[1] = drawnPx[1];
+        }
+        if (redraw) {
+            return;
+        }
+        // The redraws follow a refresh after the picture
+        m_Ticker.presented(steadyNs());
         framesPresented++;
         std::lock_guard<std::mutex> lock(m_StatsLock);
         m_StatsWindow.presented++;
     }
 
+    // ---- Frame Warp (frame_warp_mask.h, shaders/frame_warp.glsl) ----
+
+    // The shift of the picture on screen as of now, from the library
+    WarpShift currentWarpShift() const
+    {
+        WarpShift shift;
+        LI_FRAME_WARP_SHIFT given = {};
+        if (LiGetFrameWarpShift(m_PictureFrame, LiGetMicroseconds(), &given)) {
+            shift.active = true;
+            shift.x = given.x;
+            shift.y = given.y;
+            shift.focal = given.focal;
+            shift.width = given.pictureWidth != 0 ? float(given.pictureWidth) : float(m_Width);
+            shift.height = given.pictureHeight != 0 ? float(given.pictureHeight) : float(m_Height);
+        }
+        return shift;
+    }
+
+    // Writes the shift and lens terms for the draw about to be submitted into the uniform the draw
+    // reads (set 1, binding 1), and the shift in picture pixels into `px`.
+    void writeWarpUniform(float* px)
+    {
+        const WarpShift shift = currentWarpShift();
+        float block[kFrameWarpUniformFloats];
+        frameWarpStill(block);
+        px[0] = 0.0f;
+        px[1] = 0.0f;
+        if (shift.active) {
+            // The HUD stays in place only where the image holds the mask the host last sent
+            const bool hud = m_WarpCells.any() && !m_WarpMaskFailed && m_WarpMaskGeneration == m_WarpCells.generation;
+            frameWarpUniform(shift.x, shift.y, shift.focal, shift.width, shift.height, hud, block);
+            px[0] = shift.x;
+            px[1] = shift.y;
+        }
+        std::memcpy(m_WarpUniformMapped, block, sizeof(block));
+    }
+
+    // Render thread, command buffer `cmd` begun and the frame fence signalled (the GPU is done with the
+    // mask image and its staging buffer): takes the host's newest HUD mask and, when the image holds
+    // another, records a write of it (outside a render pass). A mask that cannot get an image of its size
+    // leaves the HUD to shift with the picture.
+    void recordWarpMask(VkCommandBuffer cmd)
+    {
+        m_WarpCells.poll([](uint16_t* generation, uint16_t* width, uint16_t* height, uint8_t* bits, uint32_t capacity) {
+            return LiGetFrameWarpMask(generation, width, height, bits, capacity);
+        });
+        bool cells = m_WarpCells.any() && !m_WarpMaskFailed;
+        if (cells && (m_WarpMask.width != m_WarpCells.width || m_WarpMask.height != m_WarpCells.height) &&
+                !replaceWarpMask(m_WarpCells.width, m_WarpCells.height)) {
+            LOGW("Frame Warp: no %ux%u mask image; the HUD is shifted with the picture",
+                 m_WarpCells.width, m_WarpCells.height);
+            m_WarpMaskFailed = true;
+            cells = false;
+        }
+        const int32_t target = cells ? m_WarpCells.generation : FrameWarpCells::kEmpty;
+        if (m_WarpMaskGeneration == target) {
+            return;
+        }
+        if (!cells && m_WarpMaskGeneration != k_WarpMaskUnwritten) {
+            // The shader does not read the mask without a HUD to keep: nothing to clear
+            m_WarpMaskGeneration = target;
+            return;
+        }
+        const size_t bytes = size_t(m_WarpMask.width) * m_WarpMask.height;
+        if (cells) {
+            std::memcpy(m_WarpMask.mapped, m_WarpCells.cells.data(), bytes);
+        }
+        else {
+            std::memset(m_WarpMask.mapped, 0, bytes);
+        }
+        auto& v = vk();
+        VkImageMemoryBarrier toWrite = {};
+        toWrite.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        // Its last reads were in the last frame's commands, which the fence covered
+        toWrite.srcAccessMask = 0;
+        toWrite.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        toWrite.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        toWrite.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        toWrite.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        toWrite.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        toWrite.image = m_WarpMask.image;
+        toWrite.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+        v.CmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                             0, 0, nullptr, 0, nullptr, 1, &toWrite);
+        VkBufferImageCopy region = {};
+        region.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+        region.imageExtent = {m_WarpMask.width, m_WarpMask.height, 1};
+        m_WarpVk.CmdCopyBufferToImage(cmd, m_WarpMask.staging, m_WarpMask.image,
+                                      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+        VkImageMemoryBarrier toRead = toWrite;
+        toRead.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        toRead.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        toRead.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        toRead.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        v.CmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                             0, 0, nullptr, 0, nullptr, 1, &toRead);
+        m_WarpMaskGeneration = target;
+    }
+
+    // A width x height mask image in place of the one there is, which goes once the new one exists (the
+    // GPU is done with it). The old one stays when this fails.
+    bool replaceWarpMask(uint32_t width, uint32_t height)
+    {
+        WarpMask made;
+        if (!createWarpMask(made, width, height)) {
+            destroyWarpMask(made);
+            return false;
+        }
+        destroyWarpMask(m_WarpMask);
+        m_WarpMask = made;
+        m_WarpMaskGeneration = k_WarpMaskUnwritten;
+        writeWarpDescriptors();
+        return true;
+    }
+
+    // A buffer of `size` bytes for `usage` in host-visible, coherent memory, mapped and zeroed: what
+    // the CPU writes is the GPU's at the next submit without a flush.
+    bool createMappedBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkBuffer* buffer, VkDeviceMemory* memory,
+                            void** mapped)
+    {
+        auto& v = vk();
+        VkDevice dev = m_Ctx.device;
+        VkBufferCreateInfo bufferInfo = {};
+        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        bufferInfo.size = size;
+        bufferInfo.usage = usage;
+        bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        if (m_WarpVk.CreateBuffer(dev, &bufferInfo, nullptr, buffer) != VK_SUCCESS) {
+            return false;
+        }
+        VkMemoryRequirements needs;
+        m_WarpVk.GetBufferMemoryRequirements(dev, *buffer, &needs);
+        VkMemoryAllocateInfo allocInfo = {};
+        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        allocInfo.allocationSize = needs.size;
+        if (!findMemoryType(needs.memoryTypeBits,
+                            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                            allocInfo.memoryTypeIndex) ||
+                v.AllocateMemory(dev, &allocInfo, nullptr, memory) != VK_SUCCESS ||
+                m_WarpVk.BindBufferMemory(dev, *buffer, *memory, 0) != VK_SUCCESS) {
+            return false;
+        }
+        if (m_WarpVk.MapMemory(dev, *memory, 0, VK_WHOLE_SIZE, 0, mapped) != VK_SUCCESS) {
+            *mapped = nullptr;
+            return false;
+        }
+        std::memset(*mapped, 0, size_t(size));
+        return true;
+    }
+
+    // A mask image of width x height cells and its staging buffer, all clear. What exists of it on
+    // failure is left for destroyWarpMask().
+    bool createWarpMask(WarpMask& mask, uint32_t width, uint32_t height)
+    {
+        auto& v = vk();
+        VkDevice dev = m_Ctx.device;
+        VkImageCreateInfo imageInfo = {};
+        imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        imageInfo.imageType = VK_IMAGE_TYPE_2D;
+        imageInfo.format = VK_FORMAT_R8_UNORM;
+        imageInfo.extent = {width, height, 1};
+        imageInfo.mipLevels = 1;
+        imageInfo.arrayLayers = 1;
+        imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+        imageInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        if (v.CreateImage(dev, &imageInfo, nullptr, &mask.image) != VK_SUCCESS) {
+            return false;
+        }
+        VkMemoryRequirements needs;
+        v.GetImageMemoryRequirements(dev, mask.image, &needs);
+        VkMemoryAllocateInfo allocInfo = {};
+        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        allocInfo.allocationSize = needs.size;
+        if ((!findMemoryType(needs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, allocInfo.memoryTypeIndex) &&
+             !findMemoryType(needs.memoryTypeBits, 0, allocInfo.memoryTypeIndex)) ||
+                v.AllocateMemory(dev, &allocInfo, nullptr, &mask.memory) != VK_SUCCESS ||
+                v.BindImageMemory(dev, mask.image, mask.memory, 0) != VK_SUCCESS) {
+            return false;
+        }
+        VkImageViewCreateInfo viewInfo = {};
+        viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        viewInfo.image = mask.image;
+        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        viewInfo.format = VK_FORMAT_R8_UNORM;
+        viewInfo.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+        if (v.CreateImageView(dev, &viewInfo, nullptr, &mask.view) != VK_SUCCESS) {
+            return false;
+        }
+        if (!createMappedBuffer(VkDeviceSize(width) * height, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, &mask.staging,
+                                &mask.stagingMemory, &mask.mapped)) {
+            return false;
+        }
+        mask.width = width;
+        mask.height = height;
+        return true;
+    }
+
+    void destroyWarpMask(WarpMask& mask)
+    {
+        auto& v = vk();
+        VkDevice dev = m_Ctx.device;
+        if (mask.mapped != nullptr) m_WarpVk.UnmapMemory(dev, mask.stagingMemory);
+        if (mask.staging != VK_NULL_HANDLE) m_WarpVk.DestroyBuffer(dev, mask.staging, nullptr);
+        if (mask.stagingMemory != VK_NULL_HANDLE) v.FreeMemory(dev, mask.stagingMemory, nullptr);
+        if (mask.view != VK_NULL_HANDLE) v.DestroyImageView(dev, mask.view, nullptr);
+        if (mask.image != VK_NULL_HANDLE) v.DestroyImage(dev, mask.image, nullptr);
+        if (mask.memory != VK_NULL_HANDLE) v.FreeMemory(dev, mask.memory, nullptr);
+        mask = WarpMask();
+    }
+
+    // Points set 1 at the mask image and the shift uniform.
+    void writeWarpDescriptors()
+    {
+        const VkDescriptorImageInfo image = {m_WarpSampler, m_WarpMask.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        const VkDescriptorBufferInfo uniform = {m_WarpUniform, 0, kFrameWarpUniformFloats * sizeof(float)};
+        VkWriteDescriptorSet writes[2] = {};
+        writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writes[0].dstSet = m_WarpSet;
+        writes[0].dstBinding = 0;
+        writes[0].descriptorCount = 1;
+        writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        writes[0].pImageInfo = &image;
+        writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writes[1].dstSet = m_WarpSet;
+        writes[1].dstBinding = 1;
+        writes[1].descriptorCount = 1;
+        writes[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        writes[1].pBufferInfo = &uniform;
+        vk().UpdateDescriptorSets(m_Ctx.device, 2, writes, 0, nullptr);
+    }
+
+    // Frame Warp's pipeline (the plain pass built with -DFRAME_WARP, which also takes set 1), and set
+    // 1: a clear 1x1 mask and the shift uniform. On the calling (Java) thread, before enableFrameWarp()
+    // publishes any of it; the render thread touches none of it until then. On failure what exists is
+    // left for destroyWarpResources().
+    bool createWarpResources()
+    {
+        auto& v = vk();
+        VkDevice dev = m_Ctx.device;
+#define PW_WARP_LOAD(name) \
+        m_WarpVk.name = reinterpret_cast<PFN_vk##name>(v.GetDeviceProcAddr(dev, "vk" #name)); \
+        if (m_WarpVk.name == nullptr) return false;
+        PW_WARP_LOAD(CreateBuffer)
+        PW_WARP_LOAD(DestroyBuffer)
+        PW_WARP_LOAD(GetBufferMemoryRequirements)
+        PW_WARP_LOAD(BindBufferMemory)
+        PW_WARP_LOAD(MapMemory)
+        PW_WARP_LOAD(UnmapMemory)
+        PW_WARP_LOAD(CmdCopyBufferToImage)
+#undef PW_WARP_LOAD
+
+        // The mask's cells, unfiltered
+        VkSamplerCreateInfo samplerInfo = {};
+        samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        samplerInfo.magFilter = VK_FILTER_NEAREST;
+        samplerInfo.minFilter = VK_FILTER_NEAREST;
+        samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerInfo.maxLod = 0.0f;
+        if (v.CreateSampler(dev, &samplerInfo, nullptr, &m_WarpSampler) != VK_SUCCESS) {
+            return false;
+        }
+
+        VkDescriptorSetLayoutBinding bindings[2] = {};
+        bindings[0].binding = 0;
+        bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        bindings[0].descriptorCount = 1;
+        bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        bindings[1].binding = 1;
+        bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        bindings[1].descriptorCount = 1;
+        bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        VkDescriptorSetLayoutCreateInfo layoutInfo = {};
+        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        layoutInfo.bindingCount = 2;
+        layoutInfo.pBindings = bindings;
+        if (v.CreateDescriptorSetLayout(dev, &layoutInfo, nullptr, &m_WarpSetLayout) != VK_SUCCESS) {
+            return false;
+        }
+
+        // Set 0 and the push constants as the plain pass has them
+        const VkDescriptorSetLayout setLayouts[2] = {m_DescriptorSetLayout, m_WarpSetLayout};
+        VkPushConstantRange pushRange = {VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(CscConstants)};
+        VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
+        pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        pipelineLayoutInfo.setLayoutCount = 2;
+        pipelineLayoutInfo.pSetLayouts = setLayouts;
+        pipelineLayoutInfo.pushConstantRangeCount = 1;
+        pipelineLayoutInfo.pPushConstantRanges = &pushRange;
+        if (v.CreatePipelineLayout(dev, &pipelineLayoutInfo, nullptr, &m_WarpPipelineLayout) != VK_SUCCESS) {
+            return false;
+        }
+#if PYROWAVE_WARP_SPV
+        m_WarpPipeline = buildPipeline(k_PlanarCscWarpFragSpv, sizeof(k_PlanarCscWarpFragSpv), m_WarpPipelineLayout);
+        if (m_WarpPipeline == VK_NULL_HANDLE) {
+            return false;
+        }
+#else
+        // shaders_spv.h has no warp shader (shaders/build.sh makes it)
+        return false;
+#endif
+
+        VkDescriptorPoolSize poolSizes[2] = {{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1},
+                                             {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1}};
+        VkDescriptorPoolCreateInfo poolInfo = {};
+        poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        poolInfo.maxSets = 1;
+        poolInfo.poolSizeCount = 2;
+        poolInfo.pPoolSizes = poolSizes;
+        if (v.CreateDescriptorPool(dev, &poolInfo, nullptr, &m_WarpPool) != VK_SUCCESS) {
+            return false;
+        }
+        VkDescriptorSetAllocateInfo allocInfo = {};
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = m_WarpPool;
+        allocInfo.descriptorSetCount = 1;
+        allocInfo.pSetLayouts = &m_WarpSetLayout;
+        if (v.AllocateDescriptorSets(dev, &allocInfo, &m_WarpSet) != VK_SUCCESS || !createWarpMask(m_WarpMask, 1, 1) ||
+                !createMappedBuffer(kFrameWarpUniformFloats * sizeof(float), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                    &m_WarpUniform, &m_WarpUniformMemory, &m_WarpUniformMapped)) {
+            return false;
+        }
+        // Unwritten, so the first draw writes the mask image before anything reads it
+        m_WarpMaskGeneration = k_WarpMaskUnwritten;
+        writeWarpDescriptors();
+        return true;
+    }
+
+    // Everything createWarpResources() made. The GPU is done with it: it was never published, or the
+    // device is idle (shutdown()).
+    void destroyWarpResources()
+    {
+        if (m_Ctx.device == VK_NULL_HANDLE) {
+            return;
+        }
+        auto& v = vk();
+        VkDevice dev = m_Ctx.device;
+        destroyWarpMask(m_WarpMask);
+        if (m_WarpUniformMapped != nullptr) m_WarpVk.UnmapMemory(dev, m_WarpUniformMemory);
+        if (m_WarpUniform != VK_NULL_HANDLE) m_WarpVk.DestroyBuffer(dev, m_WarpUniform, nullptr);
+        if (m_WarpUniformMemory != VK_NULL_HANDLE) v.FreeMemory(dev, m_WarpUniformMemory, nullptr);
+        // The pool takes its set with it
+        if (m_WarpPool != VK_NULL_HANDLE) v.DestroyDescriptorPool(dev, m_WarpPool, nullptr);
+        if (m_WarpPipeline != VK_NULL_HANDLE) v.DestroyPipeline(dev, m_WarpPipeline, nullptr);
+        if (m_WarpPipelineLayout != VK_NULL_HANDLE) v.DestroyPipelineLayout(dev, m_WarpPipelineLayout, nullptr);
+        if (m_WarpSetLayout != VK_NULL_HANDLE) v.DestroyDescriptorSetLayout(dev, m_WarpSetLayout, nullptr);
+        if (m_WarpSampler != VK_NULL_HANDLE) v.DestroySampler(dev, m_WarpSampler, nullptr);
+        m_WarpUniform = VK_NULL_HANDLE;
+        m_WarpUniformMemory = VK_NULL_HANDLE;
+        m_WarpUniformMapped = nullptr;
+        m_WarpPool = VK_NULL_HANDLE;
+        m_WarpSet = VK_NULL_HANDLE;
+        m_WarpPipeline = VK_NULL_HANDLE;
+        m_WarpPipelineLayout = VK_NULL_HANDLE;
+        m_WarpSetLayout = VK_NULL_HANDLE;
+        m_WarpSampler = VK_NULL_HANDLE;
+        m_WarpMaskGeneration = k_WarpMaskUnwritten;
+        m_WarpMaskFailed = false;
+    }
+
 public:
+    // Frame Warp for this stream: makes its pipeline and set 1, then publishes them, and the render
+    // thread draws with them from its next picture on and draws the last one again each refresh. False,
+    // with nothing left behind, when the device cannot (or this build has no warp shader): the stream
+    // then runs unshifted. Idempotent; for a thread other than the render thread, once the renderer started.
+    bool enableFrameWarp()
+    {
+#if !PYROWAVE_WARP_SPV
+        LOGW("Frame Warp: this build has no warp shader (regenerate shaders_spv.h with shaders/build.sh)");
+        return false;
+#else
+        std::lock_guard<std::mutex> lock(m_WarpSetupLock);
+        if (m_WarpOn.load(std::memory_order_acquire)) {
+            return true;
+        }
+        if (m_ShutDown || m_Broken || m_Ctx.device == VK_NULL_HANDLE || m_RenderPass == VK_NULL_HANDLE ||
+                !m_Thread.joinable() || m_DescriptorSetLayout == VK_NULL_HANDLE) {
+            return false;
+        }
+        if (!createWarpResources()) {
+            LOGW("Frame Warp could not be set up for PyroWave");
+            destroyWarpResources();
+            return false;
+        }
+        m_WarpOn.store(true, std::memory_order_release);
+        LOGI("Frame Warp on");
+        return true;
+#endif
+    }
+
+    // The display's refresh period for the redraws between pictures; 60 Hz until told. Any thread.
+    void setRefreshPeriodNs(int64_t ns)
+    {
+        if (ns >= 1000000 && ns <= 100000000) {
+            m_WarpPeriodNs.store(ns);
+        }
+    }
+
     // The last window's stats, and a fresh window from here. Decode time is PyroWave's
     // GPU time per frame over the last second, or a negative value before the first sample.
     WindowStats takeStats(double& gpuDecodeMs)
@@ -1683,6 +2234,34 @@ private:
     uint64_t m_RejectedAtLastTake = 0;
     uint64_t m_PartialAtLastTake = 0;
     std::atomic<double> m_GpuDecodeMs {-1};
+
+    // Frame Warp, made by enableFrameWarp() once the stream offers it. Until then m_WarpOn is false
+    // and the renderer draws, presents and waits exactly as without it: no extra pass, set, buffer
+    // or redraw. The Vulkan objects belong to the render thread once m_WarpOn is published.
+    std::atomic<bool> m_WarpOn {false};
+    std::mutex m_WarpSetupLock;
+    WarpFunctions m_WarpVk;
+    WarpMask m_WarpMask;
+    VkBuffer m_WarpUniform = VK_NULL_HANDLE;
+    VkDeviceMemory m_WarpUniformMemory = VK_NULL_HANDLE;
+    void* m_WarpUniformMapped = nullptr;
+    VkSampler m_WarpSampler = VK_NULL_HANDLE;
+    VkDescriptorSetLayout m_WarpSetLayout = VK_NULL_HANDLE;
+    VkDescriptorPool m_WarpPool = VK_NULL_HANDLE;
+    VkDescriptorSet m_WarpSet = VK_NULL_HANDLE;
+    VkPipelineLayout m_WarpPipelineLayout = VK_NULL_HANDLE;
+    VkPipeline m_WarpPipeline = VK_NULL_HANDLE;
+    // Render thread: the host's newest HUD mask; the generation the image holds; whether an image for
+    // the mask could not be made (the HUD then shifts with the picture); the shift on screen in picture
+    // pixels; the picture in the planes (its frame number) and the tick of the redraws.
+    FrameWarpCells m_WarpCells;
+    int32_t m_WarpMaskGeneration = k_WarpMaskUnwritten;
+    bool m_WarpMaskFailed = false;
+    float m_WarpDrawnPx[2] = {0.0f, 0.0f};
+    uint32_t m_PictureFrame = 0;
+    bool m_HavePicture = false;
+    FrameWarpTicker m_Ticker;
+    std::atomic<int64_t> m_WarpPeriodNs {16666667};
 };
 
 // The active renderer. submit() runs on moonlight-common-c's video thread;
@@ -1757,6 +2336,20 @@ int PyroWaveRendererStart(ANativeWindow* window, int videoFormat, int width, int
     std::lock_guard<std::mutex> lock(g_RendererLock);
     g_Renderer = std::move(renderer);
     return 0;
+}
+
+int PyroWaveRendererSetFrameWarp(void)
+{
+    std::lock_guard<std::mutex> lock(g_RendererLock);
+    return g_Renderer && g_Renderer->enableFrameWarp() ? 1 : 0;
+}
+
+void PyroWaveRendererSetRefreshRate(float hz)
+{
+    std::lock_guard<std::mutex> lock(g_RendererLock);
+    if (g_Renderer && hz >= 10.0f && hz <= 1000.0f) {
+        g_Renderer->setRefreshPeriodNs(int64_t(1.0e9 / double(hz)));
+    }
 }
 
 int PyroWaveRendererTakeStats(PYROWAVE_RENDERER_STATS* stats)

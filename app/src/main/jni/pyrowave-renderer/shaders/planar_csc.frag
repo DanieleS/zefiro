@@ -1,4 +1,7 @@
 #version 450
+#ifdef FRAME_WARP
+#extension GL_GOOGLE_include_directive : require
+#endif
 
 // Converts PyroWave's three decoded planes (Y, Cb, Cr as normalized code
 // values) to display-encoded RGB. 4:2:0 chroma planes are half size and are
@@ -20,13 +23,26 @@ layout(push_constant) uniform Csc {
     vec4 offsetScale;
 } csc;
 
+#ifdef FRAME_WARP
+#include "frame_warp.glsl"
+#endif
+
 void main()
 {
-    vec3 ycc = vec3(texture(uLuma, vTexCoord).r - csc.offsetScale.x,
-                    texture(uCb, vTexCoord).r - csc.offsetScale.y,
-                    texture(uCr, vTexCoord).r - csc.offsetScale.y);
+#ifdef FRAME_WARP
+    float warpFade;
+    vec2 uv = frameWarpUv(vTexCoord, warpFade);
+#else
+    vec2 uv = vTexCoord;
+#endif
+    vec3 ycc = vec3(texture(uLuma, uv).r - csc.offsetScale.x,
+                    texture(uCb, uv).r - csc.offsetScale.y,
+                    texture(uCr, uv).r - csc.offsetScale.y);
     ycc *= vec3(csc.offsetScale.z, csc.offsetScale.w, csc.offsetScale.w);
 
     vec3 rgb = vec3(dot(csc.rowR.xyz, ycc), dot(csc.rowG.xyz, ycc), dot(csc.rowB.xyz, ycc));
+#ifdef FRAME_WARP
+    rgb *= warpFade;
+#endif
     outColor = vec4(clamp(rgb, 0.0, 1.0), 1.0);
 }

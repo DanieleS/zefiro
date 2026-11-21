@@ -473,6 +473,7 @@ public class NvHTTP {
         } catch (NumberFormatException e) {
             details.serverCodecModeSupport = 0;
         }
+        details.frameWarpVersion = parseFrameWarpVersion(serverInfo);
 
         // We could reach it so it's online
         details.state = ComputerDetails.State.ONLINE;
@@ -685,6 +686,33 @@ public class NvHTTP {
         }
     }
     
+    /**
+     * The highest Frame Warp version the host speaks, from /serverinfo's FrameWarpVersion: 0 when it is missing, not a
+     * decimal integer or outside 1..65535, which all mean the host does not offer it.
+     */
+    static int parseFrameWarpVersion(String serverInfo) throws XmlPullParserException, IOException {
+        String value = getXmlString(serverInfo, "FrameWarpVersion", false);
+        if (value == null) {
+            return 0;
+        }
+        value = value.trim();
+        if (value.isEmpty() || value.length() > 5) {
+            return 0;
+        }
+        for (int i = 0; i < value.length(); i++) {
+            if (value.charAt(i) < '0' || value.charAt(i) > '9') {
+                return 0;
+            }
+        }
+        int version = Integer.parseInt(value);
+        return version >= 1 && version <= 65535 ? version : 0;
+    }
+
+    /** See {@link #parseFrameWarpVersion(String)}. */
+    public int getFrameWarpVersion(String serverInfo) throws XmlPullParserException, IOException {
+        return parseFrameWarpVersion(serverInfo);
+    }
+
     /** Whether the host takes the screen's HDR luminance on /launch and /resume. */
     public boolean getClientLuminanceSupported(String serverInfo) throws XmlPullParserException, IOException {
         return "1".equals(getXmlString(serverInfo, "ClientLuminanceSupported", false));

@@ -23,6 +23,8 @@ public class ConnectionContext {
     public String serverAppVersion;
     public String serverGfeVersion;
     public int serverCodecModeSupport;
+    // /serverinfo's FrameWarpVersion, 0 when the host does not offer Frame Warp
+    public int frameWarpVersion;
 
     // /serverinfo's ClientLuminanceSupported: the host takes the screen's luminance on /launch
     public boolean serverClientLuminanceSupported;

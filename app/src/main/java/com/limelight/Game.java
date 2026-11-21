@@ -1148,6 +1148,11 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
                 // default of 10 s applies
                 .setControlPeerTimeoutMs(prefConfig.autoReconnect ? prefConfig.networkTimeoutSeconds * 1000 : 0)
                 .setClientRoaming(prefConfig.clientRoaming, prefConfig.clientRoamingMobileData)
+                // Frame Warp shifts the video, so a stream that shows none never asks for it. The tracked
+                // controller is the first attached gamepad (the Thor's own controls count), else the first
+                // one to connect, which takes number 0.
+                .setFrameWarp(prefConfig.frameWarp && !NvApp.isRemoteInputUuid(appUUID),
+                        (gamepadMask & 0xFFFF) != 0 ? Integer.numberOfTrailingZeros(gamepadMask & 0xFFFF) : 0)
                 .build();
         streamConfig = config;
 
@@ -5471,6 +5476,10 @@ public class Game extends AppCompatActivity implements SurfaceHolder.Callback,
 
                 // Report attached gamepads to the host now instead of on their first input
                 controllerHandler.announceAttachedControllers();
+
+                // A renderer that could not draw Frame Warp declined while it was set up, before the request
+                // went out: the host is told to stop now
+                MoonBridge.frameWarpStreamStarted();
 
                 if (benchmarkRun != null) {
                     benchmarkRun.start(timerHandler, () -> decoderRenderer.snapshotBenchmarkStats(), Game.this::completeBenchmarkRun);

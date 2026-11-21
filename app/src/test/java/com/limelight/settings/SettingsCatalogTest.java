@@ -80,7 +80,8 @@ public class SettingsCatalogTest {
         // 150 with the trigger deadzone.
         // 151 with the hold-Guide-for-the-stream-menu delay.
         // 152 with the Intra Refresh switch.
-        assertEquals(152, catalogue.size());
+        // 153 with the Frame Warp switch.
+        assertEquals(153, catalogue.size());
     }
 
     @Test

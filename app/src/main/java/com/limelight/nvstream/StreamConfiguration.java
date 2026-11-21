@@ -40,6 +40,8 @@ public class StreamConfiguration {
     private int controlPeerTimeoutMs;
     private int clientRoaming;
     private boolean enableTextFocusHints;
+    private boolean frameWarp;
+    private int frameWarpController = MoonBridge.FRAME_WARP_NO_CONTROLLER;
 
     public static class Builder {
         private StreamConfiguration config = new StreamConfiguration();
@@ -193,6 +195,15 @@ public class StreamConfiguration {
             return this;
         }
 
+        // Show the camera turn the host has not drawn yet (Frame Warp), tracking the right stick of
+        // the given input stream controller (0-15, or MoonBridge.FRAME_WARP_NO_CONTROLLER for mouse
+        // only). Only takes effect with a host that advertises it.
+        public StreamConfiguration.Builder setFrameWarp(boolean enabled, int controller) {
+            config.frameWarp = enabled;
+            config.frameWarpController = controller;
+            return this;
+        }
+
         // Ask the host to report text field focus. Only Vibepollo hosts with the option on do.
         public StreamConfiguration.Builder setEnableTextFocusHints(boolean enable) {
             config.enableTextFocusHints = enable;
@@ -343,6 +354,14 @@ public class StreamConfiguration {
 
     public int getClientRoaming() {
         return clientRoaming;
+    }
+
+    public boolean getFrameWarp() {
+        return frameWarp;
+    }
+
+    public int getFrameWarpController() {
+        return frameWarpController;
     }
 
     public boolean getEnableTextFocusHints() {

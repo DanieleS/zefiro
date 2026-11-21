@@ -15,3 +15,10 @@ mkdir -p "$out"
     "$here/pyrowaveframing_test.cpp" "$jni/pyrowave-renderer/pyrowaveframing.cpp" \
     -o "$out/pyrowaveframing_test"
 "$out/pyrowaveframing_test"
+
+# Frame Warp's CPU side (header only: no Vulkan, no library)
+"${CXX:-c++}" -std=c++17 -O1 -g -Wall -Wextra -Wno-missing-field-initializers -Werror \
+    -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer \
+    "$here/frame_warp_mask_test.cpp" \
+    -o "$out/frame_warp_mask_test"
+"$out/frame_warp_mask_test"

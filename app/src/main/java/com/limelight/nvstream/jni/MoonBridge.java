@@ -403,7 +403,8 @@ public class MoonBridge {
                                               int clientRoaming,
                                               boolean enableTextFocusHints,
                                               int videoFecMode, int videoFecPercentage,
-                                              int packed444Modes);
+                                              int packed444Modes,
+                                              int frameWarp, int frameWarpController);
 
     public static native void stopConnection();
 
@@ -546,4 +547,132 @@ public class MoonBridge {
     // The running PyroWave renderer's stats since the previous call, into out
     // (PYROWAVE_STATS_COUNT long). Returns the GPU's name, or null without a renderer.
     public static native String pyroWaveTakeStats(double[] out);
+
+    // Draws Frame Warp on the running PyroWave renderer from its next picture on. False when the
+    // device or the build cannot; the stream then goes without.
+    public static native boolean pyroWaveSetFrameWarp();
+
+    // Frame Warp (see Limelight.h): the setting on and the host listing FrameWarpVersion in its
+    // serverinfo are what startConnection() asks the library for; the library only sends the request
+    // once the host's RTSP DESCRIBE lists its ids too (isFrameWarpNegotiated()).
+    private static volatile boolean frameWarpWanted;
+    private static volatile boolean frameWarpListed;
+    private static volatile boolean frameWarpDeclined;
+
+    /** frameWarpStatus(): no Frame Warp line (the setting is off). */
+    public static final int FRAME_WARP_OFF = 0;
+    /** frameWarpStatus(): the setting is on, the host does not offer it. */
+    public static final int FRAME_WARP_NOT_OFFERED = 1;
+    /** frameWarpStatus(): offered; the host has not learned this game's camera yet. */
+    public static final int FRAME_WARP_LEARNING = 2;
+    /** frameWarpStatus(): locked; frameWarpStatusNumbers' lock bits say to what. */
+    public static final int FRAME_WARP_LOCKED = 3;
+    /** frameWarpStatus(): asked for, but this stream's renderer does not draw it. */
+    public static final int FRAME_WARP_OFF_FOR_STREAM = 4;
+
+    /** frameWarpShift(): nothing to draw, the picture is shown as it is. */
+    public static final int FRAME_WARP_INACTIVE = -2;
+    /** frameWarpMask(): the mask the caller holds is current. */
+    public static final int FRAME_WARP_MASK_UNCHANGED = -1;
+    /** frameWarpMask(): there is no mask any more. */
+    public static final int FRAME_WARP_MASK_CLEARED = -2;
+    /** frameWarpMask(): the cells array is too small; size holds what it needs. */
+    public static final int FRAME_WARP_MASK_TOO_SMALL = -3;
+
+    /** The floats frameWarpShift() writes: shift x, y (picture px), focal, picture width, height, fade, tag status. */
+    public static final int FRAME_WARP_FLOATS = 7;
+    /** The floats frameWarpStatusNumbers() writes (see the native function). */
+    public static final int FRAME_WARP_STATUS_FLOATS = 8;
+    public static final int FRAME_WARP_STATUS_LAG_MS = 0;
+    public static final int FRAME_WARP_STATUS_FIT = 1;
+    public static final int FRAME_WARP_STATUS_SHIFTED = 2;
+    public static final int FRAME_WARP_STATUS_EXTRAPOLATED = 3;
+    public static final int FRAME_WARP_STATUS_UNTAGGED = 4;
+    public static final int FRAME_WARP_STATUS_SHIFT_X = 5;
+    public static final int FRAME_WARP_STATUS_SHIFT_Y = 6;
+    public static final int FRAME_WARP_STATUS_LOCKS = 7;
+    public static final int FRAME_WARP_LOCK_MOUSE = 1;
+    public static final int FRAME_WARP_LOCK_STICK = 2;
+
+    /** The controller number Frame Warp tracks when no gamepad is known (mouse only), LI_FRAME_WARP_NO_CONTROLLER. */
+    public static final int FRAME_WARP_NO_CONTROLLER = 0xFF;
+
+    /**
+     * Call before startConnection(): {@code wanted} is the setting, {@code listed} whether the host's serverinfo has
+     * FrameWarpVersion. Returns what startConnection() takes as its frameWarp argument.
+     */
+    public static int requestFrameWarp(boolean wanted, boolean listed) {
+        frameWarpWanted = wanted;
+        frameWarpListed = wanted && listed;
+        frameWarpDeclined = false;
+        return frameWarpListed ? 1 : 0;
+    }
+
+    /** Whether the running stream asked the library for Frame Warp and the host's DESCRIBE listed it. */
+    public static boolean isFrameWarpStream() {
+        return frameWarpListed && !frameWarpDeclined && isFrameWarpNegotiated();
+    }
+
+    /**
+     * A renderer cannot draw Frame Warp for this stream: the host is told to stop its work for it (once the stream
+     * runs, if the request has not been sent yet) and the overlay says so.
+     */
+    public static void declineFrameWarp() {
+        if (!frameWarpListed || frameWarpDeclined) return;
+        frameWarpDeclined = true;
+        stopFrameWarpIfRunning();
+    }
+
+    /** The stream just started: a decline made while the renderers were set up, before the request went out, applies now. */
+    public static void frameWarpStreamStarted() {
+        if (frameWarpDeclined) stopFrameWarpIfRunning();
+    }
+
+    private static void stopFrameWarpIfRunning() {
+        // 0 when it was not running; the request goes out once the control stream is up, hence the second look
+        if (isFrameWarpNegotiated()) setFrameWarpEnabled(false);
+    }
+
+    /** The controller whose right stick turns the camera changed (or became known); mouse only for NO_CONTROLLER. */
+    public static void trackFrameWarpController(int controller) {
+        if (frameWarpListed && !frameWarpDeclined) setFrameWarpController(controller);
+    }
+
+    /**
+     * The overlay's Frame Warp state, a FRAME_WARP_* code, with the numbers behind it in {@code out}
+     * (FRAME_WARP_STATUS_FLOATS) once the host has offered it.
+     */
+    public static int frameWarpStatusNumbers(float[] out) {
+        if (!frameWarpWanted) return FRAME_WARP_OFF;
+        if (!frameWarpListed) return FRAME_WARP_NOT_OFFERED;
+        if (frameWarpDeclined) return FRAME_WARP_OFF_FOR_STREAM;
+        switch (frameWarpStatus(out)) {
+            case 1: return FRAME_WARP_LEARNING;
+            case 2: return FRAME_WARP_LOCKED;
+            default: return FRAME_WARP_NOT_OFFERED;
+        }
+    }
+
+    public static native boolean isFrameWarpNegotiated();
+
+    public static native int setFrameWarpEnabled(boolean enabled);
+
+    public static native int setFrameWarpController(int controller);
+
+    /**
+     * The shift of the picture with frame number {@code frame}: {@code out} (FRAME_WARP_FLOATS) gets it in picture
+     * pixels (x right, y down), the lens focal length (0 without), the picture size the shift is in, the fade and the
+     * tag status. Returns the generation of the model used, or FRAME_WARP_INACTIVE.
+     */
+    public static native int frameWarpShift(long frame, float[] out);
+
+    /**
+     * The HUD mask when its generation is not {@code known} (-1 for none): {@code size} gets width and height and
+     * {@code cells}, when it has room, one byte per cell (0 or 255, rows from the top). Returns the generation or a
+     * FRAME_WARP_MASK_* code.
+     */
+    public static native int frameWarpMask(int known, int[] size, byte[] cells);
+
+    /** 0 when not negotiated, 1 while learning, 2 once locked; the numbers in {@code out} (FRAME_WARP_STATUS_FLOATS). */
+    public static native int frameWarpStatus(float[] out);
 }

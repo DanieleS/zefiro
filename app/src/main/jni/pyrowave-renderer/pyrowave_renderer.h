@@ -29,6 +29,18 @@ int PyroWaveRendererStart(ANativeWindow* window, int videoFormat, int width, int
 // Stops and destroys the renderer, if any.
 void PyroWaveRendererStop(void);
 
+// Frame Warp (LiGetFrameWarpShift in Limelight.h) for the running renderer: draws each picture shifted
+// by the turn the host has not drawn yet, and draws the last picture again once per display refresh
+// while the shift moves. Call it after PyroWaveRendererStart, once the stream offers Frame Warp, from
+// any thread; idempotent. Returns 1 when it is on, 0 when it cannot be (no running renderer, the device
+// cannot, or this build has no warp shader: see PYROWAVE_WARP_SPV in shaders_spv.h): the stream then
+// runs unshifted. Without it the renderer is exactly what it was.
+int PyroWaveRendererSetFrameWarp(void);
+
+// The display's refresh rate, Hz, for the redraws Frame Warp does between pictures (60 until told).
+// Optional; no effect without a running renderer.
+void PyroWaveRendererSetRefreshRate(float hz);
+
 // One window of the running renderer's stats, for the stats overlay.
 typedef struct _PYROWAVE_RENDERER_STATS {
     uint64_t received;          // frames that reached the renderer

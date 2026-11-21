@@ -93,7 +93,7 @@ public final class SettingsCatalog {
                             "checkbox_enable_view_top_center"),
                     new Subgroup(R.string.settings_group_scaling,
                             "seekbar_resolution_scale_factor", "list_video_scale_mode",
-                            "upscaling_mode", "upscaling_sharpness"),
+                            "upscaling_mode", "upscaling_sharpness", "checkbox_frame_warp"),
                     new Subgroup(R.string.settings_group_custom_values,
                             "edit_diy_w_h", "edit_diy_bitrate", "custom_refresh_rate",
                             "checkbox_enforce_display_mode"),
