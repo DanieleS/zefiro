@@ -151,7 +151,8 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
     private final Object rumbleLock = new Object();
     private volatile boolean rumblePaused;
     private boolean rumbleSilenced;
-    private final Map<Short, short[]> rumbleLevels = new HashMap<>();
+    // Concurrent: a pad removed clears its slot's levels without rumbleLock. All other access is under it.
+    private final Map<Short, short[]> rumbleLevels = new java.util.concurrent.ConcurrentHashMap<>();
     // Motion sensors report a few hundred times a second, so their readings arrive on a thread of
     // their own instead of the main thread, where they would compete with input and drawing.
     private final MotionSensorThread motionSensorThread = new MotionSensorThread();
@@ -722,6 +723,28 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
                     (short) 0, (short) 0,
                     (short) 0, (short) 0);
         }
+
+        if (context.assignedControllerNumber && !slotStillAssigned(context, context.controllerNumber)) {
+            // The next pad in this slot must not play the old pad's levels when rumble resumes.
+            rumbleLevels.remove((short) context.controllerNumber);
+        }
+    }
+
+    /** Whether another pad still plays as this controller slot, after {@code released} goes. */
+    private boolean slotStillAssigned(GenericControllerContext released, int controllerNumber) {
+        for (int i = 0; i < inputDeviceContexts.size(); i++) {
+            InputDeviceContext other = inputDeviceContexts.valueAt(i);
+            if (other != released && other.assignedControllerNumber && other.controllerNumber == controllerNumber) {
+                return true;
+            }
+        }
+        for (int i = 0; i < usbDeviceContexts.size(); i++) {
+            UsbDeviceContext other = usbDeviceContexts.valueAt(i);
+            if (other != released && other.assignedControllerNumber && other.controllerNumber == controllerNumber) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean isAssociatedJoystick(InputDevice originalDevice, InputDevice possibleAssociatedJoystick) {
@@ -2570,6 +2593,15 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
             levels[0] = lowFreqMotor;
             levels[1] = highFreqMotor;
             if (rumblePaused) {
+                // The pads' own levels follow the host too: a trigger update right after the resume
+                // re-sends both motor levels, and must not bring back the ones from before the pause.
+                for (int i = 0; i < inputDeviceContexts.size(); i++) {
+                    InputDeviceContext deviceContext = inputDeviceContexts.valueAt(i);
+                    if (deviceContext.controllerNumber == controllerNumber) {
+                        deviceContext.lowFreqMotor = lowFreqMotor;
+                        deviceContext.highFreqMotor = highFreqMotor;
+                    }
+                }
                 return;
             }
             applyRumble(controllerNumber, lowFreqMotor, highFreqMotor);
@@ -2667,6 +2699,13 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
             levels[2] = leftTrigger;
             levels[3] = rightTrigger;
             if (rumblePaused) {
+                for (int i = 0; i < inputDeviceContexts.size(); i++) {
+                    InputDeviceContext deviceContext = inputDeviceContexts.valueAt(i);
+                    if (deviceContext.controllerNumber == controllerNumber) {
+                        deviceContext.leftTriggerMotor = leftTrigger;
+                        deviceContext.rightTriggerMotor = rightTrigger;
+                    }
+                }
                 return;
             }
             applyRumbleTriggers(controllerNumber, leftTrigger, rightTrigger);
