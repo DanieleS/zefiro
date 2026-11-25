@@ -495,7 +495,17 @@ public class LibraryHomeFragment extends Fragment implements SectionKeys, Sectio
         int visible = LibraryShelves.visibleCount(apps);
         HostStatePanel.Mode mode = HostStatePanel.modeFor(s, visible);
         panel.show(mode, hostName, s != null && !apps.isEmpty() && visible == 0);
+        boolean heroWasShown = hero.getItemCount() > 0;
         hero.submit(HeroAdapter.heroFor(s), library, s != null ? s.metadata : null, hostName);
+        if (!heroWasShown && hero.getItemCount() > 0) {
+            // A game to resume came in as the first row: the page starts at its top, whether or
+            // not focus lands on it (a touch user has none, and the rows above would stay off).
+            list.post(() -> {
+                if (list != null) {
+                    list.scrollToPosition(0);
+                }
+            });
+        }
 
         // The host list is published on every poll of every host; only a new snapshot is a new
         // list for the shelves, so the diffs are not run every 1.5 s for nothing.
