@@ -43,6 +43,10 @@ final class AudioBufferPolicy {
         return frames;
     }
 
+    int frames() {
+        return frames;
+    }
+
     void applied(int actualFrames) {
         if (actualFrames > 0) frames = actualFrames;
     }

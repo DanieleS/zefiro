@@ -141,7 +141,11 @@ public class AndroidAudioRenderer implements AudioRenderer {
         if (nativeAudio == 0) return false;
         int[] stats = nativeAudioStats(nativeAudio);
         lastBufferCheckMs = 0;
-        bufferPolicy = new AudioBufferPolicy(stats[0], stats[1], stats[2], policyUnderruns(stats), SystemClock.uptimeMillis());
+        // The reserve steps in whole hardware bursts but never below one packet, or every packet
+        // of network jitter starves the ring.
+        int burst = (samplesPerFrame + stats[0] - 1) / stats[0] * stats[0];
+        bufferPolicy = new AudioBufferPolicy(burst, stats[1], stats[2], policyUnderruns(stats), SystemClock.uptimeMillis());
+        if (bufferPolicy.frames() != stats[2]) bufferPolicy.applied(nativeAudioBuffer(nativeAudio, bufferPolicy.frames()));
         LimeLog.info("Audio output: AAudio low latency");
         return true;
     }

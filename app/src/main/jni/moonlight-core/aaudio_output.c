@@ -218,8 +218,11 @@ static bool audioSkipLate(AudioOutput* output, uint64_t nowNs, uint32_t frames, 
     uint32_t queued = atomic_load(&output->writtenFrames) - atomic_load(&output->readFrames);
     uint64_t behind = (uint64_t)queued + pendingFrames;
     if (behind < atomic_load(&output->targetFrames)) return false;
+    // A jitter-sized gap is not skipped: dropping a packet there is a click, while keeping it only
+    // holds JITTER_GAP_MS of latency. Only the time a real stall covered is skipped.
+    uint32_t slack = output->rate / 1000 * JITTER_GAP_MS;
     uint32_t late = atomic_load(&output->lateFrames);
-    while (late >= frames) {
+    while (late >= frames + slack) {
         if (atomic_compare_exchange_weak(&output->lateFrames, &late, late - frames)) {
             atomic_fetch_add_explicit(&output->skippedFrames, frames, memory_order_relaxed);
             return true;
