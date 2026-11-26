@@ -472,6 +472,10 @@ public class MoonBridge {
 
     public static native int getPendingVideoFrames();
 
+    // Frames dropped because the decode unit queue overflowed since the stream started (the
+    // overflowing frame and those dropped until the IDR it asked for): local, not network loss.
+    public static native long getDecoderDrops();
+
     public static native int testClientConnectivity(String testServerHostName, int referencePort, int testFlags);
 
     public static native int getPortFlagsFromStage(int stage);

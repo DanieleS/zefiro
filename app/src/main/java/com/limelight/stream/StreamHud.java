@@ -87,7 +87,8 @@ public class StreamHud extends LinearLayout {
         text.setTypeface(Typeface.MONOSPACE);
         text.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
         text.setTextColor(ContextCompat.getColor(context, R.color.content_primary));
-        text.setSingleLine(true);
+        // One line, two while the decoder is dropping frames.
+        text.setMaxLines(2);
         text.setIncludeFontPadding(false);
         addView(text, new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
 
@@ -138,9 +139,12 @@ public class StreamHud extends LinearLayout {
             text.setText(status);
             level = StreamHealth.Level.BAD;
         } else if (stats != null) {
-            text.setText(getResources().getString(R.string.stream_hud_stats,
+            String line = getResources().getString(R.string.stream_hud_stats,
                     stats.totalFps, stats.networkLatencyMs,
-                    Float.isNaN(stats.networkDropsPercent) ? 0f : stats.networkDropsPercent));
+                    Float.isNaN(stats.networkDropsPercent) ? 0f : stats.networkDropsPercent);
+            text.setText(stats.decoderDrops > 0
+                    ? line + '\n' + getResources().getString(R.string.perf_overlay_decoder_drops, stats.decoderDrops)
+                    : line);
             level = StreamHealth.classify(stats, poorConnection);
         } else {
             text.setText(null);
