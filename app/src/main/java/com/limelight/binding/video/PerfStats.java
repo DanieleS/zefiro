@@ -35,6 +35,9 @@ public class PerfStats {
     public final float maxHostProcessingLatencyMs;
     public final float avgHostProcessingLatencyMs;
 
+    /** Frames the decoder dropped over a full queue in the window: not network loss, never in the figure above. */
+    public final int decoderDrops;
+
     public PerfStats(int width, int height, String decoder,
                      float totalFps, float receivedFps, float renderedFps,
                      float networkDropsPercent, float bandwidthKbps,
@@ -43,6 +46,21 @@ public class PerfStats {
                      float minHostProcessingLatencyMs,
                      float maxHostProcessingLatencyMs,
                      float avgHostProcessingLatencyMs) {
+        this(width, height, decoder, totalFps, receivedFps, renderedFps, networkDropsPercent, 0,
+                bandwidthKbps, networkLatencyMs, networkLatencyVarianceMs, decodeTimeMs,
+                hasHostProcessingLatency, minHostProcessingLatencyMs, maxHostProcessingLatencyMs,
+                avgHostProcessingLatencyMs);
+    }
+
+    public PerfStats(int width, int height, String decoder,
+                     float totalFps, float receivedFps, float renderedFps,
+                     float networkDropsPercent, int decoderDrops, float bandwidthKbps,
+                     int networkLatencyMs, int networkLatencyVarianceMs, float decodeTimeMs,
+                     boolean hasHostProcessingLatency,
+                     float minHostProcessingLatencyMs,
+                     float maxHostProcessingLatencyMs,
+                     float avgHostProcessingLatencyMs) {
+        this.decoderDrops = decoderDrops;
         this.width = width;
         this.height = height;
         this.decoder = decoder;

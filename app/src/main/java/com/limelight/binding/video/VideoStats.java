@@ -11,6 +11,8 @@ class VideoStats {
     int totalFramesRendered;
     int frameLossEvents;
     int framesLost;
+    // Frames the decode queue overflowed on: this device's, never in framesLost.
+    int decoderDrops;
     char minHostProcessingLatency;
     char maxHostProcessingLatency;
     int totalHostProcessingLatency;
@@ -25,6 +27,7 @@ class VideoStats {
         this.totalFramesRendered += other.totalFramesRendered;
         this.frameLossEvents += other.frameLossEvents;
         this.framesLost += other.framesLost;
+        this.decoderDrops += other.decoderDrops;
 
         if (this.minHostProcessingLatency == 0) {
             this.minHostProcessingLatency = other.minHostProcessingLatency;
@@ -50,6 +53,7 @@ class VideoStats {
         this.totalFramesRendered = other.totalFramesRendered;
         this.frameLossEvents = other.frameLossEvents;
         this.framesLost = other.framesLost;
+        this.decoderDrops = other.decoderDrops;
         this.minHostProcessingLatency = other.minHostProcessingLatency;
         this.maxHostProcessingLatency = other.maxHostProcessingLatency;
         this.totalHostProcessingLatency = other.totalHostProcessingLatency;
@@ -65,6 +69,7 @@ class VideoStats {
         this.totalFramesRendered = 0;
         this.frameLossEvents = 0;
         this.framesLost = 0;
+        this.decoderDrops = 0;
         this.minHostProcessingLatency = 0;
         this.maxHostProcessingLatency = 0;
         this.totalHostProcessingLatency = 0;
@@ -90,6 +95,7 @@ class VideoStats {
         float elapsed = (SystemClock.uptimeMillis() - this.measurementStartTimestamp) / (float) 1000;
 
         VideoStatsFps fps = new VideoStatsFps();
+        fps.decoderDrops = this.decoderDrops;
         if (elapsed > 0) {
             fps.totalFps = this.totalFrames / elapsed;
             fps.receivedFps = this.totalFramesReceived / elapsed;
@@ -101,6 +107,7 @@ class VideoStats {
 
 class VideoStatsFps {
 
+    int decoderDrops;
     float totalFps;
     float receivedFps;
     float renderedFps;

@@ -510,6 +510,8 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
     private long lastTimestampUs;
     private int lastFrameNumber;
+    // The engine's decoder drop count (MoonBridge.getDecoderDrops) at the last frame-number gap.
+    private long lastDecoderDrops;
     // Network queueing delay from frame arrival against the host's capture time.
     private final QueueDelayTracker queueDelay = new QueueDelayTracker();
     private int refreshRate;
@@ -2738,7 +2740,8 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
      * text is built only while that setting is on.
      */
     private void publishPerfStats(String decoder, float totalFps, float receivedFps, float renderedFps,
-                                  float netDropsPercent, float decodeTimeMs, boolean hasHostLatency,
+                                  float netDropsPercent, int decoderDrops, float decodeTimeMs,
+                                  boolean hasHostLatency,
                                   float minHostLatencyMs, float maxHostLatencyMs, float avgHostLatencyMs) {
         long rttInfo = MoonBridge.getEstimatedRttInfo();
 
@@ -2750,7 +2753,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             perfListener.onPerfUpdate(new PerfStats(
                     initialWidth, initialHeight, decoder,
                     totalFps, receivedFps, renderedFps,
-                    netDropsPercent,
+                    netDropsPercent, decoderDrops,
                     bandwidthKbps,
                     (int)(rttInfo >> 32), (int)rttInfo, decodeTimeMs,
                     hasHostLatency, minHostLatencyMs, maxHostLatencyMs, avgHostLatencyMs));
@@ -2766,6 +2769,22 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
             minDecodeTimeFullLog = formatPerfLog(decoder, totalFps, receivedFps, renderedFps,
                     netDropsPercent, decodeTimeMs, bandwidthKbps, rttInfo, hasHostLatency,
                     minHostLatencyMs, maxHostLatencyMs, avgHostLatencyMs);
+        }
+    }
+
+    /**
+     * Counts gap frames that never reached this renderer. When the engine's decode queue overflowed
+     * since the last gap (decoderOverflowed), the whole gap is the overflow's: the overflowing frame
+     * and the frames dropped until the key frame it asked for. Those are decoder drops, this device's,
+     * and stay out of framesLost, which the loss figure and the bitrate logic read as network loss.
+     */
+    static void recordFrameGap(VideoStats window, int gap, boolean decoderOverflowed) {
+        window.totalFrames += gap;
+        if (decoderOverflowed) {
+            window.decoderDrops += gap;
+        } else {
+            window.framesLost += gap;
+            window.frameLossEvents++;
         }
     }
 
@@ -2856,7 +2875,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                         (float) (total / seconds),
                         (float) (received / seconds),
                         (float) (window[MoonBridge.PYROWAVE_STATS_PRESENTED] / seconds),
-                        total > 0 ? (float) (networkDrops / total * 100) : 0,
+                        total > 0 ? (float) (networkDrops / total * 100) : 0, 0,
                         gpuMs > 0 ? (float) gpuMs : 0,
                         hasHostLatency,
                         hasHostLatency ? (float) window[MoonBridge.PYROWAVE_STATS_HOST_LATENCY_MIN] / 10 : 0,
@@ -2941,6 +2960,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
 
         if (lastFrameNumber == 0) {
             activeWindowVideoStats.measurementStartTimestamp = SystemClock.uptimeMillis();
+            lastDecoderDrops = MoonBridge.getDecoderDrops();
 
             if (!VideoStats.isOnMonotonicClock(enqueueTimeUs, System.nanoTime() / 1000)) {
                 LimeLog.severe("Decode unit timestamp " + enqueueTimeUs + " us is not on CLOCK_MONOTONIC; frame pacing will misjudge frame age");
@@ -2948,9 +2968,9 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
         } else if (frameNumber != lastFrameNumber && frameNumber != lastFrameNumber + 1) {
             // We can receive the same "frame" multiple times if it's an IDR frame.
             // In that case, each frame start NALU is submitted independently.
-            activeWindowVideoStats.framesLost += frameNumber - lastFrameNumber - 1;
-            activeWindowVideoStats.totalFrames += frameNumber - lastFrameNumber - 1;
-            activeWindowVideoStats.frameLossEvents++;
+            long decoderDrops = MoonBridge.getDecoderDrops();
+            recordFrameGap(activeWindowVideoStats, frameNumber - lastFrameNumber - 1, decoderDrops != lastDecoderDrops);
+            lastDecoderDrops = decoderDrops;
         }
 
         // Reset CSD data for each IDR frame
@@ -2987,7 +3007,7 @@ public class MediaCodecDecoderRenderer extends VideoDecoderRenderer implements C
                 float decodeTimeMs = (float)lastTwo.decoderTimeMs / lastTwo.totalFramesReceived;
                 boolean hasHostLatency = lastTwo.framesWithHostProcessingLatency > 0;
                 publishPerfStats(decoder, fps.totalFps, fps.receivedFps, fps.renderedFps,
-                        (float)lastTwo.framesLost / lastTwo.totalFrames * 100, decodeTimeMs,
+                        (float)lastTwo.framesLost / lastTwo.totalFrames * 100, fps.decoderDrops, decodeTimeMs,
                         hasHostLatency,
                         hasHostLatency ? (float)lastTwo.minHostProcessingLatency / 10 : 0,
                         hasHostLatency ? (float)lastTwo.maxHostProcessingLatency / 10 : 0,
