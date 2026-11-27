@@ -33,6 +33,14 @@ public class AudioBufferPolicyTest {
         assertEquals(384, policy.sample(1, 70000));
     }
 
+    @Test public void doesNotShrinkAgainBelowTheReserveAShrinkBrokeAt() {
+        AudioBufferPolicy policy = new AudioBufferPolicy(192, 3072, 384, 0, 0);
+        assertEquals(576, policy.sample(1, 1000));
+        assertEquals(384, policy.sample(1, 31000));
+        assertEquals(576, policy.sample(2, 32000));
+        assertEquals(576, policy.sample(2, 100000));
+    }
+
     @Test public void sampledAtMostOncePerSecond() {
         AudioBufferPolicy policy = new AudioBufferPolicy(192, 3072, 384, 0, 0);
         assertEquals(384, policy.sample(5, 500));

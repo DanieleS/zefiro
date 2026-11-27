@@ -6,8 +6,12 @@ package com.limelight.binding.audio;
  * when the output keeps underrunning at the largest reserve.
  */
 final class AudioBufferPolicy {
+    // How long after a shrink an underrun still blames it.
+    private static final long SHRINK_PROBE_MS = 10000;
+
     private final int burst;
-    private final int minimum;
+    private int minimum;
+    private long shrunkAtMs = Long.MIN_VALUE / 2;
     private final int maximum;
     private int frames;
     private int lastUnderruns;
@@ -33,9 +37,13 @@ final class AudioBufferPolicy {
         } else if (underruns > lastUnderruns) {
             if (frames >= maximum) limitUnderruns++;
             frames = Math.min(maximum, frames + burst);
+            // An underrun right after a shrink: the reserve it left is the one the link needs, so it
+            // is the floor from now on, or the shrink would repeat the glitch every 30 s.
+            if (nowMs - shrunkAtMs < SHRINK_PROBE_MS) minimum = Math.max(minimum, frames);
             cleanSinceMs = nowMs;
         } else if (nowMs - cleanSinceMs >= 30000) {
             limitUnderruns = 0;
+            if (frames > minimum) shrunkAtMs = nowMs;
             frames = Math.max(minimum, frames - burst);
             cleanSinceMs = nowMs;
         }
